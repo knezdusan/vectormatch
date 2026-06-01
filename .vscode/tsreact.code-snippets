@@ -1,0 +1,15 @@
+{
+  "Server Component": {
+    "prefix": "sc",
+    "description": "Next.js Server Component with default export",
+    "body": [
+      "export default function ${1:${TM_FILENAME_BASE/(?:^|[-_])(\\w)/${1:/upcase}/g}}() {",
+      "\treturn (",
+      "\t\t<div className=\"\">",
+      "\t\t\t${2:${TM_FILENAME_BASE/(?:^(\\w))|[-_](\\w)/${1:/upcase}${2:+ }${2:/upcase}/g}}",
+      "\t\t</div>",
+      "\t);",
+      "}"
+    ]
+  }
+}

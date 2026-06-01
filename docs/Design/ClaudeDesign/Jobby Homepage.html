@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jobby — The AI Agent for Web Developers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============================ NAV ============================ -->
+<header class="nav" id="nav">
+  <div class="wrap nav__in">
+    <a class="brand" href="#">
+      <span class="brand__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4C5.5 4 5.5 9 5.5 9S5.5 12 3 12c2.5 0 2.5 3 2.5 3S5.5 20 8 20"/><path d="M16 4c2.5 0 2.5 5 2.5 5S18.5 12 21 12c-2.5 0-2.5 3-2.5 3S18.5 20 16 20"/><circle cx="10.4" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="13.6" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></span>
+      <span>Jobby</span>
+    </a>
+    <nav class="nav__links">
+      <a href="#how">How it works</a>
+      <a href="#">For Developers</a>
+      <a href="#">For Companies</a>
+      <a href="#">Pricing</a>
+      <a href="#">Blog</a>
+    </nav>
+    <div class="nav__right">
+      <a class="link-login" href="#">Log in</a>
+      <a class="btn btn--primary" href="#">Get Started</a>
+      <button class="nav__burger" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ============================ HERO ============================ -->
+<section class="hero" data-screen-label="Hero">
+  <div class="wrap hero__grid">
+    <div class="hero__copy">
+      <span class="badge badge--green reveal">
+        <span class="dot"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4 7.2 17.9l.9-5.4L4.2 8.7l5.4-.8z"/></svg></span>
+        The AI Agent for Web Developers
+      </span>
+      <h1 class="reveal">Skip the gatekeepers.<br /><span class="grad-text">Get hired on your terms.</span></h1>
+      <p class="hero__lead reveal">Jobby finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner, not just another applicant.</p>
+      <div class="hero__cta reveal">
+        <a class="btn btn--primary" href="#">Start Your AI Job Hunt
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn--ghost" href="#how">
+          <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+          See How It Works
+        </a>
+      </div>
+      <div class="trust reveal">
+        <div class="trust__label">Trusted by developers</div>
+        <div class="trust__row">
+          <div class="avatars">
+            <span class="av" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"></span>
+            <span class="av" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)"></span>
+            <span class="av" style="background:linear-gradient(135deg,#10b981,#3b82f6)"></span>
+            <span class="av" style="background:linear-gradient(135deg,#ec4899,#8b5cf6)"></span>
+            <span class="av" style="background:linear-gradient(135deg,#06b6d4,#22c55e)"></span>
+            <span class="av-more">+2k</span>
+          </div>
+          <div class="trust__txt">
+            <b>2,000+ developers</b>
+            <span>found better opportunities</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Portal scene: real background image + overlaid cards -->
+    <div class="scene reveal rv-r">
+      <div class="scene__img">
+        <img src="assets/hero-portal.jpg" alt="Developer facing a glowing code portal" loading="eager" />
+      </div>
+
+      <!-- source cards (left) -->
+      <div class="fcard s1">
+        <span class="fcard__ico mono" style="background:#ff6600">HN</span>
+        <div class="fcard__tx"><div class="fcard__t">Hacker News</div><div class="fcard__s">Who is Hiring</div></div>
+      </div>
+      <div class="fcard s2">
+        <span class="fcard__ico" style="background:#1f8a4c"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 21c-1-9 4-15 15-16 .6 7-2.4 12-7.5 13.5C9 19.5 7 20 5 21z"/><path d="M5 21c1.5-5 4.5-8.5 9-10.5" fill="none" stroke="#0c3d22" stroke-width="1.4"/></svg></span>
+        <div class="fcard__tx"><div class="fcard__t">Greenhouse</div><div class="fcard__s">ATS Jobs</div></div>
+      </div>
+      <div class="fcard s3">
+        <span class="fcard__ico" style="background:#5840d8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1" fill="#5840d8"/><circle cx="15" cy="12" r="2.1" fill="#5840d8"/><circle cx="8" cy="17" r="2.1" fill="#5840d8"/></svg></span>
+        <div class="fcard__tx"><div class="fcard__t">Lever</div><div class="fcard__s">Opportunities</div></div>
+      </div>
+      <div class="fcard s4">
+        <span class="fcard__ico" style="background:#0ea5e9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></svg></span>
+        <div class="fcard__tx"><div class="fcard__t">Hidden Boards</div><div class="fcard__s">httparchive</div></div>
+      </div>
+
+      <!-- persona cards (right) -->
+      <div class="fcard p1">
+        <span class="av" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6)"></span>
+        <div class="fcard__tx"><div class="fcard__t">CTO</div><div class="fcard__s">Fintech Startup</div></div>
+      </div>
+      <div class="fcard p2">
+        <span class="av" style="background:linear-gradient(135deg,#f59e0b,#ec4899)"></span>
+        <div class="fcard__tx"><div class="fcard__t">Eng Manager</div><div class="fcard__s">AI Company</div></div>
+        <span class="fcard__on"></span>
+      </div>
+      <div class="fcard p3">
+        <span class="av" style="background:linear-gradient(135deg,#10b981,#06b6d4)"></span>
+        <div class="fcard__tx"><div class="fcard__t">Tech Lead</div><div class="fcard__s">SaaS Platform</div></div>
+      </div>
+      <div class="fcard p4">
+        <span class="av" style="background:linear-gradient(135deg,#8b5cf6,#ec4899)"></span>
+        <div class="fcard__tx"><div class="fcard__t">Founder</div><div class="fcard__s">Web3 Startup</div></div>
+        <span class="fcard__on"></span>
+      </div>
+
+      <div class="scene__caption">
+        <span>You focus on coding.</span>
+        <b>Jobby handles the rest.</b>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== HOW IT WORKS ======================== -->
+<section class="how" id="how" data-screen-label="How it works">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">How it works</span>
+      <h2>AI-Powered. Developer-Focused. Results-Driven.</h2>
+      <p>Our 3-Gate AI Pipeline ensures you only see opportunities that truly match your skills, preferences, and career goals.</p>
+    </div>
+
+    <div class="pipeline reveal rv-s">
+      <svg class="flow-svg" viewBox="0 0 1000 360" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M150 180 H840" />
+        <path d="M120 180 C 150 110, 175 108, 205 108" />
+        <path d="M120 180 C 150 250, 175 252, 205 252" />
+        <path d="M790 180 C 825 112, 860 110, 895 110" />
+        <path d="M790 180 C 825 248, 860 250, 895 250" />
+      </svg>
+
+      <!-- Sources -->
+      <aside class="panel sources">
+        <div class="panel__head">Job Sources</div>
+        <div class="src"><span class="src__ico mono" style="background:#ff6600">HN</span><span><div class="src__t">Hacker News</div><div class="src__s">Who is Hiring</div></span></div>
+        <div class="src"><span class="src__ico" style="background:#1f8a4c"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 21c-1-9 4-15 15-16 .6 7-2.4 12-7.5 13.5C9 19.5 7 20 5 21z"/></svg></span><span><div class="src__t">Greenhouse</div><div class="src__s">ATS</div></span></div>
+        <div class="src"><span class="src__ico" style="background:#5840d8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span><div class="src__t">Lever</div><div class="src__s">Opportunities</div></span></div>
+        <div class="src"><span class="src__ico" style="background:#0ea5e9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></svg></span><span><div class="src__t">httparchive</div><div class="src__s">Company Scans</div></span></div>
+        <div class="src"><span class="src__ico" style="background:#7c3aed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="7" r="2.2"/><circle cx="12" cy="17" r="2.2"/><path d="M8 7.6l8 .0M7 8.6l4 6.4M17 8.6l-4 6.4"/></svg></span><span><div class="src__t">Hidden Channels</div><div class="src__s">&amp; Networks</div></span></div>
+      </aside>
+
+      <!-- 3 Gates -->
+      <div class="gates">
+        <article class="gate">
+          <div class="gate__num">1</div>
+          <div class="gate__chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v5c0 1.6 3.4 2.8 7.5 2.8s7.5-1.2 7.5-2.8v-5M4.5 10.5v5c0 1.6 3.4 2.8 7.5 2.8s7.5-1.2 7.5-2.8v-5"/></svg></div>
+          <h3>Database Filter<small>(GIN Index)</small></h3>
+          <p>Lightning-fast tag screening using advanced database indexing technology.</p>
+        </article>
+        <article class="gate">
+          <div class="gate__num">2</div>
+          <div class="gate__chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="6" cy="6" r="2.3"/><circle cx="18" cy="7" r="2.3"/><circle cx="9" cy="18" r="2.3"/><circle cx="18" cy="17" r="2.3"/><path d="M8 7l8 .6M7.8 8.1l1 7.8M16.4 9l-6 7.4M16 17.6l-5 .2"/></svg></div>
+          <h3>Vector Search<small>(HNSW)</small></h3>
+          <p>Semantic similarity matching surfaces conceptually relevant opportunities.</p>
+        </article>
+        <article class="gate">
+          <div class="gate__num">3</div>
+          <div class="gate__chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/><path d="M9.5 6.5V4M14.5 6.5V4M9.5 20v-2.5M14.5 20v-2.5M6.5 9.5H4M6.5 14.5H4M20 9.5h-2.5M20 14.5h-2.5"/><circle cx="12" cy="12" r="2.3"/></svg></div>
+          <h3>AI Reasoning<small>(gpt-4o-mini)</small></h3>
+          <p>Deep analysis ensures a perfect fit for your unique profile and goals.</p>
+        </article>
+      </div>
+
+      <!-- Matches -->
+      <aside class="panel matches-panel">
+        <div class="panel__head">Perfect Matches</div>
+        <div class="match">
+          <div class="mcard">
+            <div class="mcard__top">
+              <div><h4>Senior Full Stack Dev</h4><div class="mcard__co">Fintech Startup</div></div>
+              <span class="mcard__heart on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9.5-8.5C.8 9.6 2.3 6 5.5 6 7.4 6 8.8 7 12 9.5 15.2 7 16.6 6 18.5 6c3.2 0 4.7 3.6 3 6.5C19 16.5 12 21 12 21z"/></svg></span>
+            </div>
+            <div class="mcard__meta"><span class="mcard__pay">$120k – $160k</span><span class="mcard__rem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.6-7-11a7 7 0 1114 0c0 5.4-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Remote</span></div>
+          </div>
+          <div class="mcard">
+            <div class="mcard__top">
+              <div><h4>Staff Engineer</h4><div class="mcard__co">AI Platform</div></div>
+              <span class="mcard__heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-8.5C.8 9.6 2.3 6 5.5 6 7.4 6 8.8 7 12 9.5 15.2 7 16.6 6 18.5 6c3.2 0 4.7 3.6 3 6.5C19 16.5 12 21 12 21z"/></svg></span>
+            </div>
+            <div class="mcard__meta"><span class="mcard__pay">$150k – $200k</span><span class="mcard__rem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.6-7-11a7 7 0 1114 0c0 5.4-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Remote</span></div>
+          </div>
+          <div class="mcard">
+            <div class="mcard__top">
+              <div><h4>Tech Lead</h4><div class="mcard__co">SaaS Company</div></div>
+              <span class="mcard__heart on"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7-4.5-9.5-8.5C.8 9.6 2.3 6 5.5 6 7.4 6 8.8 7 12 9.5 15.2 7 16.6 6 18.5 6c3.2 0 4.7 3.6 3 6.5C19 16.5 12 21 12 21z"/></svg></span>
+            </div>
+            <div class="mcard__meta"><span class="mcard__pay">$130k – $170k</span><span class="mcard__rem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-7-5.6-7-11a7 7 0 1114 0c0 5.4-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>Remote</span></div>
+          </div>
+          <div class="match__more">And more opportunities…</div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="how__foot reveal">
+      <span>Quality over quantity. Relevance over noise.</span>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== PITCH =========================== -->
+<section class="pitch" data-screen-label="Pitch directly">
+  <div class="wrap pitch__grid">
+    <div class="pitch__copy">
+      <span class="badge badge--purple reveal">
+        <span class="dot"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        Bypass the ATS Black Hole
+      </span>
+      <h2 class="reveal rv-l">Pitch directly.<br />Partner effectively.<br /><span class="grad-text">Get contracted.</span></h2>
+      <p class="pitch__lead reveal">Jobby helps you connect directly with CTOs and Engineering Managers, positioning you as a strategic partner through frictionless B2B contracts.</p>
+      <ul class="benefits reveal">
+        <li><span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 14a4 4 0 100-8 4 4 0 000 8z"/><path d="M5 20a7 7 0 0114 0"/></svg></span>Direct access to decision makers</li>
+        <li><span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 13h6"/></svg></span>B2B contracts, not employment</li>
+        <li><span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg></span>Global opportunities, simplified</li>
+        <li><span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v5h-5"/></svg></span>Higher rates, better relationships</li>
+      </ul>
+      <div class="pitch__cta reveal">
+        <a class="btn btn--primary" href="#">Start Pitching Smarter
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="btn btn--ghost" href="#">
+          <span class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+          Learn More
+        </a>
+      </div>
+    </div>
+
+    <!-- Pitch visual -->
+    <div class="pviz reveal rv-r">
+      <svg class="pviz__lines" viewBox="0 0 600 540" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M300 90 C 420 140, 470 120, 540 150" />
+        <path d="M260 260 C 200 320, 150 380, 110 420" />
+        <path d="M420 260 C 470 280, 510 280, 540 280" />
+      </svg>
+
+      <!-- profile -->
+      <div class="card profile">
+        <div class="profile__row">
+          <span class="av" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6)"></span>
+          <div><div class="profile__n">Alex Chen</div><div class="profile__r">Senior Full Stack Developer</div></div>
+        </div>
+        <div class="tags">
+          <span class="tag">React</span>
+          <span class="tag">TypeScript</span>
+          <span class="tag">Node.js</span>
+          <span class="tag">PostgreSQL</span>
+          <span class="tag more">+8 more</span>
+        </div>
+      </div>
+
+      <!-- recommended companies -->
+      <div class="card reco">
+        <div class="reco__h">Recommended Companies</div>
+        <div class="co">
+          <span class="co__ico" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)">F</span>
+          <div>
+            <div class="co__n">FintechFlow</div>
+            <div class="co__meta">Series B · 50–100 people</div>
+            <div class="co__sub">Building the future of financial infrastructure</div>
+            <div class="co__match">TechStack Match: 95%</div>
+          </div>
+          <span class="co__heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-8.5C.8 9.6 2.3 6 5.5 6 7.4 6 8.8 7 12 9.5 15.2 7 16.6 6 18.5 6c3.2 0 4.7 3.6 3 6.5C19 16.5 12 21 12 21z"/></svg></span>
+          <span class="co__cta"><button class="pitchbtn">Pitch</button></span>
+        </div>
+        <div class="co">
+          <span class="co__ico" style="background:linear-gradient(135deg,#0ea5e9,#22c55e)">A</span>
+          <div>
+            <div class="co__n">AI Labs</div>
+            <div class="co__meta">Series A · 20–50 people</div>
+            <div class="co__sub">AI-powered developer tools</div>
+            <div class="co__match">TechStack Match: 92%</div>
+          </div>
+          <span class="co__heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-8.5C.8 9.6 2.3 6 5.5 6 7.4 6 8.8 7 12 9.5 15.2 7 16.6 6 18.5 6c3.2 0 4.7 3.6 3 6.5C19 16.5 12 21 12 21z"/></svg></span>
+          <span class="co__cta"><button class="pitchbtn">Pitch</button></span>
+        </div>
+      </div>
+
+      <!-- partnership benefits -->
+      <div class="card benefits-card">
+        <h5>Partnership Benefits</h5>
+        <ul>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12l5 5L20 6"/></svg></span>Higher compensation</li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12l5 5L20 6"/></svg></span>Flexible arrangements</li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12l5 5L20 6"/></svg></span>Global opportunities</li>
+          <li><span class="ck"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 12l5 5L20 6"/></svg></span>Long-term relationships</li>
+        </ul>
+      </div>
+
+      <!-- compose -->
+      <div class="card compose">
+        <div class="compose__h"><span class="ed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 20h4L18.5 9.5a2 2 0 000-2.8l-1.2-1.2a2 2 0 00-2.8 0L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg></span>New Pitch</div>
+        <div class="compose__field">To: <span class="em">engineering@fintechflow.com</span></div>
+        <div class="compose__field">Subject: <b>Senior Developer Partnership Opportunity</b></div>
+        <div class="compose__body">
+          <span>Hi Sarah,</span>
+          <span>I came across FintechFlow's work on modernizing financial infrastructure — impressive stuff.</span>
+          <span>I'd love to help accelerate your roadmap as a technical partner. I've attached a brief overview of how I can contribute.</span>
+          <span>Looking forward to hearing your thoughts.</span>
+          <span>Best regards,<br />Alex</span>
+        </div>
+        <button class="btn btn--primary compose__send">Send Pitch</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== FOOTER =========================== -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="footer__top">
+      <div class="footer__brand">
+        <a class="brand" href="#"><span class="brand__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4C5.5 4 5.5 9 5.5 9S5.5 12 3 12c2.5 0 2.5 3 2.5 3S5.5 20 8 20"/><path d="M16 4c2.5 0 2.5 5 2.5 5S18.5 12 21 12c-2.5 0-2.5 3-2.5 3S18.5 20 16 20"/><circle cx="10.4" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="13.6" cy="12" r="1.1" fill="currentColor" stroke="none"/></svg></span><span>Jobby</span></a>
+        <p>The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.</p>
+      </div>
+      <div class="footer__cols">
+        <div class="fcol">
+          <h6>Product</h6>
+          <a href="#how">How it works</a>
+          <a href="#">For Developers</a>
+          <a href="#">For Companies</a>
+          <a href="#">Pricing</a>
+        </div>
+        <div class="fcol">
+          <h6>Company</h6>
+          <a href="#">Blog</a>
+          <a href="#">About</a>
+          <a href="#">Careers</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="fcol">
+          <h6>Legal</h6>
+          <a href="#">Privacy</a>
+          <a href="#">Terms</a>
+          <a href="#">B2B Compliance</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer__bottom">
+      <span>© 2026 Jobby. You focus on coding. Jobby handles the rest.</span>
+      <span>Built for developers, by developers.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Nav background on scroll
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 12);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // Scroll-driven reveals: CSS animation-timeline: view() is primary.
+  // For engines without scroll-timeline support, fall back to IntersectionObserver.
+  const supportsVTL = (window.CSS && CSS.supports && CSS.supports('animation-timeline: view()'));
+  if (!supportsVTL) {
+    document.documentElement.classList.add('no-vtl');
+    const els = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    els.forEach((el) => io.observe(el));
+  }
+</script>
+</body>
+</html>
