@@ -39,3 +39,41 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE-specific
+.vscode/
+.windsurf/
+.devin/
+skills-lock.json
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS-specific
+Thumbs.db
+.Spotlight-V100
+.Trashes
+
+# Build artifacts (additional)
+.turbo/
+.swc/
+
+# Environment-specific
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Inngest (if using local dev server)
+.inngest/
