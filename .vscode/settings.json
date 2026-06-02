@@ -2,5 +2,8 @@
   "css.lint.unknownAtRules": "ignore",
   "tailwindCSS.showPixelEquivalents": true,
   "tailwindCSS.rootFontSize": 16,
-  "editor.suggest.showDetails": true
+  "editor.suggest.showDetails": true,
+  "cSpell.words": [
+    "shadcn"
+  ]
 }

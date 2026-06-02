@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { GlobeScanIcon, GreenhouseIcon, LeverIcon } from "./icons";
 
-const AVATAR_GRADIENTS = [
-  "linear-gradient(135deg,#f59e0b,#ef4444)",
-  "linear-gradient(135deg,#8b5cf6,#6366f1)",
-  "linear-gradient(135deg,#10b981,#3b82f6)",
-  "linear-gradient(135deg,#ec4899,#8b5cf6)",
-  "linear-gradient(135deg,#06b6d4,#22c55e)",
+const AVATAR_IMAGES = [
+  "/avatars/dev-1.jpg",
+  "/avatars/dev-2.jpg",
+  "/avatars/dev-3.jpg",
+  "/avatars/dev-4.jpg",
+  "/avatars/dev-5.jpg",
 ];
 
 type FloatCardData = {
@@ -21,6 +21,7 @@ type FloatCardData = {
   icon?: ReactNode;
   iconBg?: string;
   avatar?: string;
+  avatarImg?: string;
   online?: boolean;
 };
 
@@ -65,14 +66,14 @@ const PERSONA_CARDS: FloatCardData[] = [
     subtitle: "Fintech Startup",
     position: "top-[7%] right-1 lg:-right-[28px]",
     delay: "-2.2s",
-    avatar: "linear-gradient(135deg,#3b82f6,#8b5cf6)",
+    avatarImg: "/avatars/persona-cto.jpg",
   },
   {
     title: "Eng Manager",
     subtitle: "AI Company",
     position: "top-[30%] right-1 lg:-right-[40px]",
     delay: "-0.7s",
-    avatar: "linear-gradient(135deg,#f59e0b,#ec4899)",
+    avatarImg: "/avatars/persona-2.jpg",
     online: true,
   },
   {
@@ -80,14 +81,14 @@ const PERSONA_CARDS: FloatCardData[] = [
     subtitle: "SaaS Platform",
     position: "top-[53%] right-1 lg:-right-[22px]",
     delay: "-3.1s",
-    avatar: "linear-gradient(135deg,#10b981,#06b6d4)",
+    avatarImg: "/avatars/persona-3.jpg",
   },
   {
     title: "Founder",
     subtitle: "Web3 Startup",
     position: "top-[76%] right-1 lg:-right-[32px]",
     delay: "-1.9s",
-    avatar: "linear-gradient(135deg,#8b5cf6,#ec4899)",
+    avatarImg: "/avatars/persona-4.jpg",
     online: true,
   },
 ];
@@ -101,7 +102,17 @@ function FloatCard({ card }: { card: FloatCardData }) {
       )}
       style={{ animationDelay: card.delay }}
     >
-      {card.avatar ? (
+      {card.avatarImg ? (
+        <span className="size-8 flex-none overflow-hidden rounded-full">
+          <Image
+            src={card.avatarImg}
+            alt={card.title}
+            width={32}
+            height={32}
+            className="size-full object-cover"
+          />
+        </span>
+      ) : card.avatar ? (
         <span
           className="size-8 flex-none rounded-full"
           style={{ background: card.avatar }}
@@ -154,9 +165,9 @@ export function Hero() {
           </h1>
 
           <p className="reveal mx-auto max-w-[500px] text-[18.5px] leading-relaxed text-muted-foreground lg:mx-0">
-            Jobby finds hidden tech opportunities, matches them with your unique
-            developer profile, and helps you pitch directly to decision makers
-            as a valued partner, not just another applicant.
+            VectorMatch finds hidden tech opportunities, matches them with your
+            unique developer profile, and helps you pitch directly to decision
+            makers as a valued partner, not just another applicant.
           </p>
 
           <div className="reveal mt-9 flex flex-wrap items-center justify-center gap-[18px] lg:justify-start">
@@ -182,15 +193,22 @@ export function Hero() {
             </div>
             <div className="mt-3.5 flex items-center justify-center gap-4 lg:justify-start">
               <div className="flex">
-                {AVATAR_GRADIENTS.map((gradient, i) => (
+                {AVATAR_IMAGES.map((src, i) => (
                   <span
-                    key={gradient}
+                    key={src}
                     className={cn(
-                      "size-10 rounded-full border-2 border-background shadow-[0_2px_8px_#0008]",
+                      "size-10 overflow-hidden rounded-full border-2 border-background shadow-[0_2px_8px_#0008]",
                       i > 0 && "-ml-3",
                     )}
-                    style={{ background: gradient }}
-                  />
+                  >
+                    <Image
+                      src={src}
+                      alt={`Developer ${i + 1}`}
+                      width={40}
+                      height={40}
+                      className="size-full object-cover"
+                    />
+                  </span>
                 ))}
                 <span className="-ml-3 grid size-10 place-items-center rounded-full border-2 border-background bg-[oklch(0.30_0.04_292)] text-xs font-semibold text-white">
                   +2k
@@ -212,11 +230,11 @@ export function Hero() {
         <div className="reveal-r relative mx-auto h-[380px] w-full max-w-[620px] sm:h-[460px] lg:h-[600px] lg:max-w-none">
           <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-[0_30px_80px_oklch(0.10_0.02_274/0.7),inset_0_0_0_1px_oklch(0.50_0.06_292/0.18)]">
             <Image
-              src="/hero-portal.jpg"
+              src="/hero-portal-main.jpg"
               alt="Developer facing a glowing code portal"
               fill
               priority
-              sizes="(max-width: 1024px) 620px, 50vw"
+              // sizes="(max-width: 800px) 620px, 50vw"
               className="object-cover object-[50%_46%]"
             />
             <div className="pointer-events-none absolute inset-0 scene-vignette" />
@@ -234,7 +252,7 @@ export function Hero() {
               You focus on coding.
             </span>
             <b className="mt-0.5 block text-[15px] font-semibold">
-              Jobby handles the rest.
+              VectorMatch handles the rest.
             </b>
           </div>
         </div>

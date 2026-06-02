@@ -62,7 +62,8 @@ export function Footer() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-5 pt-[30px] text-[13.5px] text-faint">
           <span>
-            © 2026 Jobby. You focus on coding. Jobby handles the rest.
+            © 2026 VectorMatch. You focus on coding. VectorMatch handles the
+            rest.
           </span>
           <span>Built for developers, by developers.</span>
         </div>

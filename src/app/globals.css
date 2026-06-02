@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
@@ -11,47 +10,47 @@
 
 /* ---------- Light (kept coherent with the dark brand) ---------- */
 :root {
-  --background: oklch(0.9842 0.0034 247.8575);
+  --background: oklch(0.98 0.005 270);
   --foreground: oklch(0.22 0.03 274);
-  --card: oklch(1 0 0);
+  --card: oklch(0.98 0.005 270);
   --card-foreground: oklch(0.22 0.03 274);
-  --popover: oklch(1 0 0);
+  --popover: oklch(0.98 0.005 270);
   --popover-foreground: oklch(0.22 0.03 274);
-  --primary: oklch(0.58 0.23 292);
-  --primary-foreground: oklch(0.99 0.003 270);
-  --secondary: oklch(0.94 0.008 274);
+  --primary: oklch(0.6 0.23 292);
+  --primary-foreground: oklch(0.98 0.005 270);
+  --secondary: oklch(0.98 0.005 270);
   --secondary-foreground: oklch(0.32 0.03 274);
-  --muted: oklch(0.967 0.0029 264.5419);
-  --muted-foreground: oklch(0.53 0.024 270);
+  --muted: oklch(0.98 0.005 270);
+  --muted-foreground: oklch(0.58 0.02 270);
   --accent: oklch(0.72 0.15 165);
   --accent-foreground: oklch(0.22 0.03 274);
   --destructive: oklch(0.6368 0.2078 25.3313);
-  --destructive-foreground: oklch(1 0 0);
+  --destructive-foreground: oklch(0.98 0.005 270);
   --border: oklch(0.88 0.009 270);
   --input: oklch(0.88 0.009 270);
-  --ring: oklch(0.58 0.23 292);
-  --chart-1: oklch(0.58 0.23 292);
+  --ring: oklch(0.6 0.23 292);
+  --chart-1: oklch(0.6 0.23 292);
   --chart-2: oklch(0.72 0.15 165);
   --chart-3: oklch(0.66 0.21 300);
   --chart-4: oklch(0.62 0.19 312);
   --chart-5: oklch(0.54 0.135 278);
-  --sidebar: oklch(0.967 0.0029 264.5419);
+  --sidebar: oklch(0.98 0.005 270);
   --sidebar-foreground: oklch(0.22 0.03 274);
-  --sidebar-primary: oklch(0.58 0.23 292);
-  --sidebar-primary-foreground: oklch(0.99 0.003 270);
+  --sidebar-primary: oklch(0.6 0.23 292);
+  --sidebar-primary-foreground: oklch(0.98 0.005 270);
   --sidebar-accent: oklch(0.72 0.15 165);
   --sidebar-accent-foreground: oklch(0.22 0.03 274);
   --sidebar-border: oklch(0.88 0.009 270);
-  --sidebar-ring: oklch(0.58 0.23 292);
+  --sidebar-ring: oklch(0.6 0.23 292);
 
   /* Brand-specific tokens used by the marketing homepage */
   --primary-bright: oklch(0.66 0.22 296);
   --primary-2: oklch(0.62 0.21 312);
   --accent-2: oklch(0.7 0.15 150);
-  --faint: oklch(0.62 0.02 270);
+  --faint: oklch(0.58 0.02 270);
   --border-soft: oklch(0.78 0.02 270 / 0.55);
-  --bg-2: oklch(0.96 0.004 274);
-  --bg-3: oklch(0.94 0.006 274);
+  --bg-2: oklch(0.98 0.005 270);
+  --bg-3: oklch(0.98 0.005 270);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-pt-serif), ui-serif, serif;
@@ -75,17 +74,17 @@
 
 /* ---------- Dark = the homepage brand surface ---------- */
 .dark {
-  --background: oklch(0.15 0.018 274);
-  --foreground: oklch(0.97 0.005 270);
-  --card: oklch(0.21 0.028 274);
-  --card-foreground: oklch(0.97 0.005 270);
-  --popover: oklch(0.21 0.028 274);
-  --popover-foreground: oklch(0.97 0.005 270);
-  --primary: oklch(0.63 0.23 292);
-  --primary-foreground: oklch(0.99 0.003 270);
-  --secondary: oklch(0.26 0.03 274);
+  --background: oklch(0.14 0.018 274);
+  --foreground: oklch(0.98 0.005 270);
+  --card: oklch(0.24 0.03 274);
+  --card-foreground: oklch(0.98 0.005 270);
+  --popover: oklch(0.24 0.03 274);
+  --popover-foreground: oklch(0.98 0.005 270);
+  --primary: oklch(0.6 0.23 292);
+  --primary-foreground: oklch(0.98 0.005 270);
+  --secondary: oklch(0.24 0.03 274);
   --secondary-foreground: oklch(0.9 0.012 270);
-  --muted: oklch(0.24 0.028 274);
+  --muted: oklch(0.24 0.03 274);
   --muted-foreground: oklch(0.72 0.022 270);
   --accent: oklch(0.79 0.17 165);
   --accent-foreground: oklch(0.17 0.025 274);
@@ -93,29 +92,29 @@
   --destructive-foreground: oklch(0.98 0.005 270);
   --border: oklch(0.3 0.03 274);
   --input: oklch(0.3 0.03 274);
-  --ring: oklch(0.63 0.23 292);
-  --chart-1: oklch(0.63 0.23 292);
+  --ring: oklch(0.6 0.23 292);
+  --chart-1: oklch(0.6 0.23 292);
   --chart-2: oklch(0.79 0.17 165);
   --chart-3: oklch(0.66 0.21 300);
   --chart-4: oklch(0.62 0.19 312);
   --chart-5: oklch(0.54 0.135 278);
   --sidebar: oklch(0.18 0.022 274);
-  --sidebar-foreground: oklch(0.97 0.005 270);
-  --sidebar-primary: oklch(0.63 0.23 292);
-  --sidebar-primary-foreground: oklch(0.99 0.003 270);
+  --sidebar-foreground: oklch(0.98 0.005 270);
+  --sidebar-primary: oklch(0.6 0.23 292);
+  --sidebar-primary-foreground: oklch(0.98 0.005 270);
   --sidebar-accent: oklch(0.79 0.17 165);
   --sidebar-accent-foreground: oklch(0.17 0.025 274);
   --sidebar-border: oklch(0.3 0.03 274);
-  --sidebar-ring: oklch(0.63 0.23 292);
+  --sidebar-ring: oklch(0.6 0.23 292);
 
   /* Brand-specific tokens used by the marketing homepage */
   --primary-bright: oklch(0.7 0.22 296);
   --primary-2: oklch(0.64 0.21 312);
   --accent-2: oklch(0.78 0.15 150);
-  --faint: oklch(0.59 0.022 270);
+  --faint: oklch(0.58 0.02 270);
   --border-soft: oklch(0.42 0.036 274 / 0.45);
-  --bg-2: oklch(0.145 0.018 276);
-  --bg-3: oklch(0.13 0.016 272);
+  --bg-2: oklch(0.14 0.018 274);
+  --bg-3: oklch(0.14 0.018 274);
 
   --shadow-color: 274 80% 2%;
   --shadow-2xs: 0px 1px 2px hsl(var(--shadow-color) / 0.3);
@@ -252,8 +251,8 @@
 .hero-aura {
   background: radial-gradient(
     900px 620px at 82% 32%,
-    oklch(0.63 0.23 292 / 0.12),
-    transparent 62%
+    oklch(59.495% 0.1045 50.359 / 0.12),
+    transparent 30%
   );
 }
 .how-surface {

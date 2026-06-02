@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-/** Jobby wordmark glyph (two brackets framing a synapse). */
+/** VectorMatch wordmark glyph (two brackets framing a synapse). */
 export function BrandGlyph(props: SVGProps<SVGSVGElement>) {
   return (
     <svg

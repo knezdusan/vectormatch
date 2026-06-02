@@ -5,9 +5,9 @@ import { Navbar } from "@/components/public/home/Navbar";
 import { Pitch } from "@/components/public/home/Pitch";
 
 export const metadata = {
-  title: "Jobby — The AI Agent for Web Developers",
+  title: "VectorMatch — The AI Agent for Web Developers",
   description:
-    "Jobby finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner.",
+    "VectorMatch finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner.",
 };
 
 export default function Home() {

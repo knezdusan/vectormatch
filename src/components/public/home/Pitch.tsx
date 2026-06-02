@@ -9,6 +9,7 @@ import {
   TrendingUp,
   User,
 } from "lucide-react";
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -68,10 +69,15 @@ function ProfileCard() {
       className={`${CARD} flex flex-col gap-3.5 p-[18px] xl:absolute xl:top-0 xl:left-0 xl:z-3 xl:w-[308px]`}
     >
       <div className="flex items-center gap-3.5">
-        <span
-          className="size-[54px] flex-none rounded-[13px]"
-          style={{ background: "linear-gradient(135deg,#3b82f6,#8b5cf6)" }}
-        />
+        <span className="size-[54px] flex-none overflow-hidden rounded-[13px]">
+          <Image
+            src="/avatars/alex-chen-v2.jpg"
+            alt="Alex Chen"
+            width={54}
+            height={54}
+            className="size-full object-cover"
+          />
+        </span>
         <div>
           <div className="text-lg font-bold">Alex Chen</div>
           <div className="text-[13.5px] text-muted-foreground">
@@ -229,9 +235,9 @@ export function Pitch() {
             <span className="text-gradient-brand">Get contracted.</span>
           </h2>
           <p className="reveal max-w-[470px] text-[17.5px] leading-relaxed text-muted-foreground">
-            Jobby helps you connect directly with CTOs and Engineering Managers,
-            positioning you as a strategic partner through frictionless B2B
-            contracts.
+            VectorMatch helps you connect directly with CTOs and Engineering
+            Managers, positioning you as a strategic partner through
+            frictionless B2B contracts.
           </p>
           <ul className="reveal mt-8 grid gap-[18px]">
             {BENEFITS.map((benefit) => (

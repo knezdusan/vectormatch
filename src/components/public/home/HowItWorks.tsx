@@ -259,7 +259,7 @@ export function HowItWorks() {
         </div>
 
         <div className="reveal mt-13 text-center">
-          <span className="inline-block rounded-full border border-accent/25 bg-accent/[0.06] px-6 py-2.5 font-mono text-[14.5px] text-accent">
+          <span className="inline-block rounded-full border border-accent/25 bg-accent/6 px-6 py-2.5 font-mono text-[14.5px] text-accent">
             Quality over quantity. Relevance over noise.
           </span>
         </div>
