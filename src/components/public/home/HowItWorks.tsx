@@ -119,7 +119,7 @@ export function HowItWorks() {
   return (
     <section
       id="how"
-      className="how-surface how-aura relative border-t border-[oklch(0.30_0.03_274/0.5)] py-24 lg:py-20 lg:pb-30 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[linear-gradient(90deg,transparent,oklch(0.79_0.17_165/0.4),transparent)]"
+      className="how-surface relative border-t border-[oklch(0.30_0.03_274/0.5)] py-24 lg:py-20 lg:pb-30 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[linear-gradient(90deg,transparent,oklch(0.79_0.17_165/0.4),transparent)]"
     >
       <div className="mx-auto w-full max-w-[1400px] px-5 sm:px-8 lg:px-10">
         <div className="mx-auto mb-16 max-w-[760px] text-center">
@@ -135,7 +135,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="relative grid items-start gap-8 lg:grid-cols-[256px_minmax(0,1fr)_280px]">
+        <div className="relative grid items-start gap-8 lg:grid-cols-[256px_minmax(0,1fr)_280px] animate-how-it-works">
           {/* Sources */}
           <aside className={PANEL}>
             <div className={PANEL_HEAD}>Job Sources</div>
@@ -232,7 +232,7 @@ export function HowItWorks() {
           </aside>
         </div>
 
-        <div className="mt-13 lg:mt-10 xl:-mt-20 text-center">
+        <div className="animate-how-it-works-quality mt-13 lg:mt-10 xl:-mt-20 text-center">
           <span className="inline-block rounded-full border border-accent/25 bg-accent/6 px-6 py-2.5 font-mono text-[14.5px] text-accent text-balance">
             Quality over quantity. Relevance over noise.
           </span>

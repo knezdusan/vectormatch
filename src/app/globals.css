@@ -189,6 +189,33 @@
   --shadow-2xl: var(--shadow-2xl);
 
   --container-8xl: var(--container-8xl);
+
+  /* Animations */
+  --animate-hero-right: hero-right-fade-in 2s ease-out;
+
+  @keyframes hero-right-fade-in {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  --animate-hero-devs: hero-devs-translate 2s 1.5s ease-out backwards;
+
+  @keyframes hero-devs-translate {
+    from {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
 }
 
 @layer utilities {
@@ -296,4 +323,78 @@
     transparent 52%,
     oklch(0.1 0.02 274 / 0.55) 100%
   );
+}
+
+/* Plain CSS classes for Tailwind non-supported properties */
+
+.animate-how-it-works {
+  animation: howitworks-show-in linear both;
+  animation-timeline: view();
+  animation-range-start: entry 0%;
+  animation-range-end: cover 30%;
+}
+
+@keyframes howitworks-show-in {
+  from {
+    filter: blur(10px);
+    transform: translateX(1000px);
+  }
+  to {
+    filter: blur(0);
+    transform: translateX(0);
+  }
+}
+
+.animate-how-it-works-quality {
+  animation: quality-show-in linear both;
+  animation-timeline: view();
+  animation-range-start: entry 0%;
+  animation-range-end: cover 30%;
+}
+
+@keyframes quality-show-in {
+  from {
+    opacity: 0;
+    transform: translateY(500px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-pitch-left {
+  animation: pitchleft ease-out both;
+  animation-timeline: view();
+  animation-range-start: entry 0%;
+  animation-range-end: cover 25%;
+}
+
+@keyframes pitchleft {
+  from {
+    filter: blur(10px);
+    transform: translateX(-1000px);
+  }
+  to {
+    filter: blur(0);
+    transform: translateX(0);
+  }
+}
+
+.animate-pitch-right {
+  animation: pitchright ease-out both;
+  animation-timeline: view();
+  animation-range-start: entry 0%;
+  animation-range-end: cover 25%;
+}
+
+@keyframes pitchright {
+  from {
+    filter: blur(10px);
+    transform: translateX(1000px);
+  }
+  to {
+    filter: blur(0);
+    transform: translateX(0);
+  }
 }

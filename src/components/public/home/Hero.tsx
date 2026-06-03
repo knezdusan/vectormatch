@@ -91,7 +91,7 @@ function FloatCard({ card }: { card: FloatCardData }) {
   return (
     <div
       className={cn(
-        "absolute z-5 flex items-center gap-2.5 rounded-2xl border border-border-soft bg-[oklch(0.20_0.026_274/0.72)] px-[15px] py-[11px] shadow-[0_14px_34px_#0008] backdrop-blur-[14px]",
+        "absolute z-5 flex items-center gap-2.5 rounded-2xl border border-border-soft bg-[oklch(0.20_0.026_274/0.72)] px-[15px] py-[11px] shadow-[0_14px_34px_#0008] backdrop-blur-[14px] transition duration-700 hover:scale-105",
         card.position,
       )}
     >
@@ -183,7 +183,7 @@ export function Hero() {
             </Button>
           </div>
 
-          <div className="mt-12 inline-block">
+          <div className="animate-hero-devs mt-12 inline-block">
             <div className="font-mono text-[11.5px] tracking-[0.2em] uppercase text-faint">
               Trusted by developers
             </div>
@@ -223,7 +223,7 @@ export function Hero() {
         </div>
 
         {/* Portal scene */}
-        <div className="relative mx-auto h-[380px] w-full max-w-[620px] sm:h-[460px] lg:h-[600px] lg:max-w-none">
+        <div className="animate-hero-right relative mx-auto h-[380px] w-full max-w-[620px] sm:h-[460px] lg:h-[600px] lg:max-w-none">
           <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-[0_30px_80px_oklch(0.10_0.02_274/0.7),inset_0_0_0_1px_oklch(0.50_0.06_292/0.18)]">
             <Image
               src="/hero-portal-main.jpg"
@@ -231,7 +231,7 @@ export function Hero() {
               fill
               priority
               sizes="(max-width: 800px) 620px, 50vw"
-              className="object-cover object-[50%_46%]"
+              className="object-cover object-[50%_46%] transition duration-2000 hover:scale-105 hover:translate-y-[-8px]"
             />
             <div className="pointer-events-none absolute inset-0 scene-vignette" />
           </div>

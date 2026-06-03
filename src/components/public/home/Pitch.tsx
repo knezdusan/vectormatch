@@ -215,11 +215,11 @@ export function Pitch() {
   return (
     <section
       id="pitch"
-      className="pitch-surface relative overflow-hidden border-t border-[oklch(0.30_0.03_274/0.5)] pt-15"
+      className="pitch-surface relative overflow-clip border-t border-[oklch(0.30_0.03_274/0.5)] pt-15"
     >
       <div className="relative z-1 mx-auto grid w-full max-w-[1400px] gap-10 justify-center px-5 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14 lg:pt-10">
         {/* Copy */}
-        <div className="max-w-[640px]">
+        <div className="animate-pitch-left max-w-[640px]">
           <span className="inline-flex items-center gap-2.5 rounded-full border border-accent/30 bg-accent/10 py-2 pr-4 pl-3.5 text-[13.5px] font-medium whitespace-nowrap text-accent backdrop-blur-md">
             <ArrowRight className="size-3.5" />
             Bypass the ATS Black Hole
@@ -268,7 +268,7 @@ export function Pitch() {
         </div>
 
         {/* Visual collage */}
-        <div className="relative mx-auto flex w-full max-w-[560px] flex-col gap-[18px] lg:max-w-[620px] xl:block xl:h-[824px] xl:max-w-none">
+        <div className="animate-pitch-right relative mx-auto flex w-full max-w-[560px] flex-col gap-[18px] lg:max-w-[620px] xl:block xl:h-[824px] xl:max-w-none">
           <ProfileCard />
           <RecommendedCard />
           <PartnershipCard />

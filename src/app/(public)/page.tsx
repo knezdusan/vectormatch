@@ -12,7 +12,7 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen overflow-x-hidden">
+    <div className="min-h-screen overflow-x-clip">
       <Navbar />
       <main>
         <Hero />
