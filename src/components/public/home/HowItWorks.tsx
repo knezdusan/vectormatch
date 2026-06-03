@@ -77,7 +77,7 @@ const GATES: Gate[] = [
     num: 3,
     icon: <ReasoningGateIcon className="size-[26px]" />,
     title: "AI Reasoning",
-    tag: "(gpt-4o-mini)",
+    tag: "(Agent Swarm)",
     body: "Deep analysis ensures a perfect fit for your unique profile and goals.",
   },
 ];
@@ -111,7 +111,7 @@ const MATCHES: Match[] = [
 ];
 
 const PANEL =
-  "relative z-1 overflow-hidden rounded-2xl border border-border bg-[oklch(0.20_0.026_274/0.55)] shadow-[0_18px_44px_oklch(0.10_0.02_274/0.4)] backdrop-blur-[10px]";
+  "relative lg:bottom-6 z-1 overflow-hidden rounded-2xl border border-border bg-[oklch(0.20_0.026_274/0.55)] shadow-[0_18px_44px_oklch(0.10_0.02_274/0.4)] backdrop-blur-[10px]";
 const PANEL_HEAD =
   "border-b border-border p-[18px] text-center font-mono text-xs tracking-[0.16em] uppercase text-muted-foreground";
 
@@ -119,14 +119,14 @@ export function HowItWorks() {
   return (
     <section
       id="how"
-      className="how-surface relative border-t border-[oklch(0.30_0.03_274/0.5)] py-24 lg:py-26 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[linear-gradient(90deg,transparent,oklch(0.79_0.17_165/0.4),transparent)]"
+      className="how-surface how-aura relative border-t border-[oklch(0.30_0.03_274/0.5)] py-24 lg:py-20 lg:pb-30 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-[linear-gradient(90deg,transparent,oklch(0.79_0.17_165/0.4),transparent)]"
     >
       <div className="mx-auto w-full max-w-[1400px] px-5 sm:px-8 lg:px-10">
-        <div className="reveal mx-auto mb-16 max-w-[760px] text-center">
+        <div className="mx-auto mb-16 max-w-[760px] text-center">
           <span className="font-mono text-[13px] font-medium tracking-[0.22em] uppercase text-accent">
             How it works
           </span>
-          <h2 className="my-[18px] text-[clamp(32px,3.4vw,46px)] font-bold tracking-[-0.022em]">
+          <h2 className="my-[18px] text-[clamp(1.8rem,3.4vw,2rem)] font-bold tracking-[-0.022em]">
             AI-Powered. Developer-Focused. Results-Driven.
           </h2>
           <p className="text-[17.5px] leading-relaxed text-muted-foreground">
@@ -135,33 +135,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="reveal-s relative grid items-start gap-8 lg:grid-cols-[256px_minmax(0,1fr)_280px]">
-          {/* Animated connectors (desktop only) */}
-          <svg
-            className="pointer-events-none absolute inset-0 z-0 hidden size-full overflow-visible lg:block"
-            viewBox="0 0 1000 360"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path className="flow-path" d="M150 180 H840" />
-            <path
-              className="flow-path"
-              d="M120 180 C 150 110, 175 108, 205 108"
-            />
-            <path
-              className="flow-path"
-              d="M120 180 C 150 250, 175 252, 205 252"
-            />
-            <path
-              className="flow-path"
-              d="M790 180 C 825 112, 860 110, 895 110"
-            />
-            <path
-              className="flow-path"
-              d="M790 180 C 825 248, 860 250, 895 250"
-            />
-          </svg>
-
+        <div className="relative grid items-start gap-8 lg:grid-cols-[256px_minmax(0,1fr)_280px]">
           {/* Sources */}
           <aside className={PANEL}>
             <div className={PANEL_HEAD}>Job Sources</div>
@@ -189,16 +163,16 @@ export function HowItWorks() {
           </aside>
 
           {/* Gates */}
-          <div className="relative z-1 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="relative z-1 grid gap-5 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             {GATES.map((gate) => (
               <article
                 key={gate.num}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-[oklch(0.205_0.026_274/0.62)] p-6 shadow-[0_18px_44px_oklch(0.10_0.02_274/0.4)] backdrop-blur-[10px] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1.5 hover:border-accent/45 hover:shadow-[0_26px_56px_#0007]"
+                className="group relative overflow-hidden rounded-2xl border border-border bg-[oklch(0.205_0.026_274/0.2)] p-6 shadow-[0_18px_44px_oklch(0.10_0.02_274/0.4)] backdrop-blur-[10px] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1.5 hover:border-accent/45 hover:shadow-[0_26px_56px_#0007]"
               >
                 <span className="absolute top-5 right-5 grid size-[34px] place-items-center rounded-full border border-accent/40 bg-accent/10 font-mono text-[15px] font-semibold text-accent">
                   {gate.num}
                 </span>
-                <div className="mb-[22px] grid size-[52px] place-items-center rounded-[14px] border border-accent/30 bg-accent/10 text-accent">
+                <div className="mb-[22px] grid size-[52px] place-items-center rounded-[14px] border border-accent/30 bg-accent/10 text-accent lg:hidden xl:grid">
                   {gate.icon}
                 </div>
                 <h3 className="text-[17.5px] font-bold tracking-[-0.01em]">
@@ -258,8 +232,8 @@ export function HowItWorks() {
           </aside>
         </div>
 
-        <div className="reveal mt-13 text-center">
-          <span className="inline-block rounded-full border border-accent/25 bg-accent/6 px-6 py-2.5 font-mono text-[14.5px] text-accent">
+        <div className="mt-13 lg:mt-10 xl:-mt-20 text-center">
+          <span className="inline-block rounded-full border border-accent/25 bg-accent/6 px-6 py-2.5 font-mono text-[14.5px] text-accent text-balance">
             Quality over quantity. Relevance over noise.
           </span>
         </div>

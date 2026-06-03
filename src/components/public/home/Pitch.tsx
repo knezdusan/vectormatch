@@ -61,7 +61,7 @@ const PARTNERSHIP = [
 ];
 
 const CARD =
-  "rounded-2xl border border-border bg-[oklch(0.205_0.026_274/0.82)] shadow-[0_26px_64px_oklch(0.08_0.02_274/0.7)] backdrop-blur-[14px]";
+  "rounded-2xl border border-border bg-[oklch(0.205_0.026_274/0.82)] shadow-[0_26px_64px_oklch(0.08_0.02_274/0.7)] backdrop-blur-[1px]";
 
 function ProfileCard() {
   return (
@@ -71,7 +71,7 @@ function ProfileCard() {
       <div className="flex items-center gap-3.5">
         <span className="size-[54px] flex-none overflow-hidden rounded-[13px]">
           <Image
-            src="/avatars/alex-chen-v2.jpg"
+            src="/avatars/alex-webb.jpg"
             alt="Alex Chen"
             width={54}
             height={54}
@@ -79,7 +79,7 @@ function ProfileCard() {
           />
         </span>
         <div>
-          <div className="text-lg font-bold">Alex Chen</div>
+          <div className="text-lg font-bold">Alex Webb</div>
           <div className="text-[13.5px] text-muted-foreground">
             Senior Full Stack Developer
           </div>
@@ -114,7 +114,7 @@ function RecommendedCard() {
         {COMPANIES.map((co) => (
           <div
             key={co.name}
-            className="relative flex items-start gap-3.5 rounded-[13px] border border-border bg-[oklch(0.235_0.03_274/0.7)] px-3.5 pt-3.5 pb-[50px]"
+            className="relative flex items-start gap-3.5 rounded-[13px] border border-border bg-[oklch(0.235_0.03_274/0.7)] px-3.5 pt-3.5 pb-4"
           >
             <span
               className="grid size-[42px] flex-none place-items-center rounded-[11px] font-mono font-bold text-white"
@@ -135,12 +135,6 @@ function RecommendedCard() {
               </div>
             </div>
             <Heart className="absolute top-3.5 right-3.5 size-[17px] text-faint" />
-            <button
-              type="button"
-              className="btn-brand absolute right-3.5 bottom-3 rounded-[9px] px-[18px] py-2 text-[13px] font-semibold transition-transform hover:-translate-y-px"
-            >
-              Pitch
-            </button>
           </div>
         ))}
       </div>
@@ -151,7 +145,7 @@ function RecommendedCard() {
 function PartnershipCard() {
   return (
     <div
-      className={`${CARD} px-5 py-[18px] xl:absolute xl:top-[636px] xl:left-0 xl:z-5 xl:w-[244px]`}
+      className={`${CARD} px-5 py-[18px] xl:absolute xl:top-[480px] xl:left-[100px] xl:z-5 xl:w-[244px] bg-primary/10`}
     >
       <h3 className="mb-3.5 text-[13.5px] font-bold">Partnership Benefits</h3>
       <ul className="grid gap-[11px]">
@@ -219,27 +213,30 @@ function ComposeCard() {
 
 export function Pitch() {
   return (
-    <section className="pitch-surface relative overflow-hidden border-t border-[oklch(0.30_0.03_274/0.5)] py-24 lg:py-26">
-      <div className="relative z-1 mx-auto grid w-full max-w-[1400px] items-center gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14 lg:px-10">
+    <section
+      id="pitch"
+      className="pitch-surface relative overflow-hidden border-t border-[oklch(0.30_0.03_274/0.5)] pt-15"
+    >
+      <div className="relative z-1 mx-auto grid w-full max-w-[1400px] gap-10 justify-center px-5 sm:px-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-14 lg:pt-10">
         {/* Copy */}
         <div className="max-w-[640px]">
-          <span className="reveal inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/10 py-2 pr-4 pl-3.5 text-[13.5px] font-medium whitespace-nowrap text-primary-bright backdrop-blur-md">
+          <span className="inline-flex items-center gap-2.5 rounded-full border border-accent/30 bg-accent/10 py-2 pr-4 pl-3.5 text-[13.5px] font-medium whitespace-nowrap text-accent backdrop-blur-md">
             <ArrowRight className="size-3.5" />
             Bypass the ATS Black Hole
           </span>
-          <h2 className="reveal-l mt-6 mb-[22px] text-[clamp(36px,4vw,58px)] leading-[1.04] font-bold tracking-[-0.028em]">
+          <h2 className="mt-6 mb-[22px] text-[clamp(2.5rem,4vw,3rem)] leading-[1.04] font-bold tracking-[-0.028em]">
             Pitch directly.
             <br />
             Partner effectively.
             <br />
             <span className="text-gradient-brand">Get contracted.</span>
           </h2>
-          <p className="reveal max-w-[470px] text-[17.5px] leading-relaxed text-muted-foreground">
+          <p className="max-w-[470px] text-[17.5px] leading-relaxed text-muted-foreground">
             VectorMatch helps you connect directly with CTOs and Engineering
             Managers, positioning you as a strategic partner through
             frictionless B2B contracts.
           </p>
-          <ul className="reveal mt-8 grid gap-[18px]">
+          <ul className="mt-8 grid gap-[18px]">
             {BENEFITS.map((benefit) => (
               <li
                 key={benefit.label}
@@ -252,7 +249,7 @@ export function Pitch() {
               </li>
             ))}
           </ul>
-          <div className="reveal mt-10 flex flex-wrap items-center gap-[18px]">
+          <div className="mt-10 flex flex-wrap items-center gap-[18px]">
             <Button asChild variant="brand" size="xl" className="max-sm:flex-1">
               <a href="/signup">
                 Start Pitching Smarter
@@ -271,27 +268,7 @@ export function Pitch() {
         </div>
 
         {/* Visual collage */}
-        <div className="reveal-r relative mx-auto flex w-full max-w-[560px] flex-col gap-[18px] lg:max-w-[620px] xl:block xl:h-[824px] xl:max-w-none">
-          <svg
-            className="pointer-events-none absolute inset-0 z-0 hidden size-full overflow-visible xl:block"
-            viewBox="0 0 600 540"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path
-              className="flow-path flow-path--purple"
-              d="M300 90 C 420 140, 470 120, 540 150"
-            />
-            <path
-              className="flow-path flow-path--purple"
-              d="M260 260 C 200 320, 150 380, 110 420"
-            />
-            <path
-              className="flow-path flow-path--purple"
-              d="M420 260 C 470 280, 510 280, 540 280"
-            />
-          </svg>
-
+        <div className="relative mx-auto flex w-full max-w-[560px] flex-col gap-[18px] lg:max-w-[620px] xl:block xl:h-[824px] xl:max-w-none">
           <ProfileCard />
           <RecommendedCard />
           <PartnershipCard />

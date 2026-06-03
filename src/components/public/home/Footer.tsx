@@ -5,9 +5,10 @@ const FOOTER_COLS = [
     title: "Product",
     links: [
       { label: "How it works", href: "#how" },
-      { label: "For Developers", href: "/developers" },
-      { label: "For Companies", href: "/companies" },
-      { label: "Pricing", href: "/pricing" },
+      { label: "For Developers", href: "/#pitch" },
+      { label: "VectorMatch", href: "/#top" },
+      // { label: "For Companies", href: "/companies" },
+      // { label: "Pricing", href: "/pricing" },
     ],
   },
   {
@@ -15,7 +16,7 @@ const FOOTER_COLS = [
     links: [
       { label: "Blog", href: "/blog" },
       { label: "About", href: "/about" },
-      { label: "Careers", href: "/careers" },
+      // { label: "Careers", href: "/careers" },
       { label: "Contact", href: "/contact" },
     ],
   },

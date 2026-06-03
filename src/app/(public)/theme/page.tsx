@@ -428,19 +428,6 @@ const UTILITIES = [
   { label: ".how-surface", value: "Radial emerald + teal gradient background" },
   { label: ".pitch-surface", value: "Radial purple gradient background" },
   { label: ".scene-vignette", value: "Dark radial vignette overlay" },
-  {
-    label: ".flow-path",
-    value: "Animated dashed SVG connector line (emerald)",
-  },
-  {
-    label: ".flow-path--purple",
-    value: "Animated dashed SVG connector line (purple)",
-  },
-  { label: ".float-card", value: "Vertical float loop animation (6s)" },
-  {
-    label: ".reveal / .reveal-l / .reveal-r / .reveal-s",
-    value: "Scroll-driven entry animations",
-  },
   { label: ".scrollbar-hide", value: "Cross-browser scrollbar suppression" },
 ];
 

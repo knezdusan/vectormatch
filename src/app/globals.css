@@ -215,9 +215,7 @@
 
 /* ============================================================
    Homepage presentation helpers
-   Brand gradients, ambient glows, animated connector lines and
-   scroll-driven reveals. Progressive-enhancement only: content is
-   fully visible without JS or scroll-timeline support.
+   Brand gradients and ambient glows.
    ============================================================ */
 
 /* Gradient brand text */
@@ -250,23 +248,29 @@
 /* Section ambient backgrounds */
 .hero-aura {
   background: radial-gradient(
-    900px 620px at 82% 32%,
-    oklch(59.495% 0.1045 50.359 / 0.12),
+    1000px 700px at 32% 35%,
+    oklch(56.598% 0.22459 275.681 / 0.15),
     transparent 30%
   );
 }
+
 .how-surface {
   background:
+    radial-gradient(
+      760px 480px at 14% 8%,
+      oklch(0.79 0.17 165 / 0.16),
+      transparent 60%
+    ),
     radial-gradient(
       1100px 540px at 50% 116%,
       oklch(0.79 0.17 165 / 0.16),
       transparent 64%
     ),
     radial-gradient(
-      820px 460px at 84% -10%,
-      oklch(0.7 0.14 190 / 0.1),
+      80% 80% at 50% 50%,
+      oklch(0.79 0.17 165 / 0.16),
       transparent 60%
-    ), linear-gradient(180deg, oklch(0.135 0.016 274), oklch(0.115 0.014 272));
+    ), linear-gradient(180deg, oklch(0.135 0.016 274), oklch(0.115 0.014 272)),;
 }
 .pitch-surface {
   background:
@@ -279,6 +283,11 @@
       760px 480px at 14% 8%,
       oklch(0.64 0.21 312 / 0.12),
       transparent 60%
+    ),
+    radial-gradient(
+      80% 80% at 70% 30%,
+      oklch(0.64 0.21 312 / 0.18),
+      transparent 60%
     ), linear-gradient(180deg, oklch(0.115 0.014 272), oklch(0.13 0.016 274));
 }
 .scene-vignette {
@@ -287,114 +296,4 @@
     transparent 52%,
     oklch(0.1 0.02 274 / 0.55) 100%
   );
-}
-
-/* Animated connector flow lines */
-.flow-path {
-  fill: none;
-  stroke: oklch(0.79 0.17 165 / 0.55);
-  stroke-width: 1.6;
-  stroke-dasharray: 5 7;
-  animation: dashflow 1.2s linear infinite;
-}
-.flow-path--purple {
-  stroke: oklch(0.63 0.23 292 / 0.5);
-  stroke-width: 1.4;
-  stroke-dasharray: 4 6;
-  animation-duration: 1.4s;
-}
-@keyframes dashflow {
-  to {
-    stroke-dashoffset: -24;
-  }
-}
-
-/* Floating cards */
-.float-card {
-  animation: float 6s ease-in-out infinite;
-}
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-9px);
-  }
-}
-
-/* Scroll-driven reveals (progressive enhancement) */
-.reveal,
-.reveal-l,
-.reveal-r,
-.reveal-s {
-  opacity: 1;
-}
-@keyframes revealUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes revealL {
-  from {
-    opacity: 0;
-    transform: translateX(-40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-@keyframes revealR {
-  from {
-    opacity: 0;
-    transform: translateX(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-@keyframes revealS {
-  from {
-    opacity: 0;
-    transform: scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .reveal,
-    .reveal-l,
-    .reveal-r,
-    .reveal-s {
-      animation: revealUp linear both;
-      animation-timeline: view();
-      animation-range: entry 0% cover 32%;
-    }
-    .reveal-l {
-      animation-name: revealL;
-    }
-    .reveal-r {
-      animation-name: revealR;
-    }
-    .reveal-s {
-      animation-name: revealS;
-    }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .float-card,
-  .flow-path {
-    animation: none;
-  }
 }

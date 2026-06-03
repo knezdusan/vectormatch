@@ -17,20 +17,19 @@ type FloatCardData = {
   title: string;
   subtitle: string;
   position: string;
-  delay: string;
   icon?: ReactNode;
   iconBg?: string;
   avatar?: string;
   avatarImg?: string;
   online?: boolean;
+  onlineOutline?: boolean;
 };
 
 const SOURCE_CARDS: FloatCardData[] = [
   {
     title: "Hacker News",
     subtitle: "Who is Hiring",
-    position: "top-[4%] left-1 lg:-left-[34px]",
-    delay: "-0.4s",
+    position: "top-[4%] left-1 lg:-left-[-10px]",
     icon: <span className="font-mono text-[13px] font-bold">HN</span>,
     iconBg: "#ff6600",
   },
@@ -38,7 +37,6 @@ const SOURCE_CARDS: FloatCardData[] = [
     title: "Greenhouse",
     subtitle: "ATS Jobs",
     position: "top-[27%] left-1 lg:-left-[18px]",
-    delay: "-1.6s",
     icon: <GreenhouseIcon className="size-[19px]" />,
     iconBg: "#1f8a4c",
   },
@@ -46,15 +44,13 @@ const SOURCE_CARDS: FloatCardData[] = [
     title: "Lever",
     subtitle: "Opportunities",
     position: "top-[50%] left-1 lg:-left-[34px]",
-    delay: "-2.8s",
     icon: <LeverIcon className="size-[19px]" />,
     iconBg: "#5840d8",
   },
   {
     title: "Hidden Boards",
     subtitle: "httparchive",
-    position: "top-[73%] left-1 lg:-left-[10px]",
-    delay: "-1s",
+    position: "top-[73%] left-1 lg:-left-[-10px]",
     icon: <GlobeScanIcon className="size-[19px]" />,
     iconBg: "#0ea5e9",
   },
@@ -64,31 +60,29 @@ const PERSONA_CARDS: FloatCardData[] = [
   {
     title: "CTO",
     subtitle: "Fintech Startup",
-    position: "top-[7%] right-1 lg:-right-[28px]",
-    delay: "-2.2s",
-    avatarImg: "/avatars/persona-cto.jpg",
+    position: "top-[7%] right-1 lg:-right-[-20px]",
+    avatarImg: "/avatars/cto-employer.jpg",
+    onlineOutline: true,
   },
   {
     title: "Eng Manager",
     subtitle: "AI Company",
     position: "top-[30%] right-1 lg:-right-[40px]",
-    delay: "-0.7s",
-    avatarImg: "/avatars/persona-2.jpg",
+    avatarImg: "/avatars/eng-manager.jpg",
     online: true,
   },
   {
     title: "Tech Lead",
     subtitle: "SaaS Platform",
     position: "top-[53%] right-1 lg:-right-[22px]",
-    delay: "-3.1s",
     avatarImg: "/avatars/persona-3.jpg",
+    onlineOutline: true,
   },
   {
     title: "Founder",
     subtitle: "Web3 Startup",
-    position: "top-[76%] right-1 lg:-right-[32px]",
-    delay: "-1.9s",
-    avatarImg: "/avatars/persona-4.jpg",
+    position: "top-[76%] right-1 lg:-right-[-20px]",
+    avatarImg: "/avatars/founder.jpg",
     online: true,
   },
 ];
@@ -97,10 +91,9 @@ function FloatCard({ card }: { card: FloatCardData }) {
   return (
     <div
       className={cn(
-        "float-card absolute z-5 flex items-center gap-2.5 rounded-2xl border border-border-soft bg-[oklch(0.20_0.026_274/0.72)] px-[15px] py-[11px] shadow-[0_14px_34px_#0008] backdrop-blur-[14px]",
+        "absolute z-5 flex items-center gap-2.5 rounded-2xl border border-border-soft bg-[oklch(0.20_0.026_274/0.72)] px-[15px] py-[11px] shadow-[0_14px_34px_#0008] backdrop-blur-[14px]",
         card.position,
       )}
-      style={{ animationDelay: card.delay }}
     >
       {card.avatarImg ? (
         <span className="size-8 flex-none overflow-hidden rounded-full">
@@ -136,6 +129,9 @@ function FloatCard({ card }: { card: FloatCardData }) {
       {card.online && (
         <span className="ml-1 size-2 rounded-full bg-accent shadow-[0_0_8px_var(--accent)]" />
       )}
+      {card.onlineOutline && (
+        <span className="ml-1 size-2 rounded-full border border-accent shadow-[0_0_8px_var(--accent)]" />
+      )}
     </div>
   );
 }
@@ -144,19 +140,19 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative overflow-hidden pt-10 pb-16 sm:pt-14 lg:pt-15 lg:pb-22"
+      className="hero-aura relative overflow-hidden pt-10 pb-16 sm:pt-14 lg:pt-10 lg:pb-20"
     >
       <div className="pointer-events-none absolute inset-0 z-0 hero-aura" />
 
       <div className="relative z-1 mx-auto grid w-full max-w-[1400px] items-center gap-12 px-5 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-10 lg:px-10">
         {/* Copy */}
-        <div className="mx-auto max-w-[640px] text-center lg:mx-0 lg:max-w-[600px] lg:text-left">
-          <span className="reveal inline-flex items-center gap-2.5 rounded-full border border-accent/30 bg-accent/10 py-2 pr-4 pl-3.5 text-[13.5px] font-medium whitespace-nowrap text-accent backdrop-blur-md">
+        <div className="mx-auto max-w-[640px] text-center lg:mx-0 lg:max-w-[600px] lg:text-left space-y-4">
+          <span className="inline-flex items-center gap-2.5 rounded-full border border-accent/30 bg-accent/10 py-2 pr-4 pl-3.5 text-[13.5px] font-medium whitespace-nowrap text-accent backdrop-blur-md">
             <Sparkles className="size-3.5" />
             The AI Agent for Web Developers
           </span>
 
-          <h1 className="reveal mt-6 mb-6 text-[clamp(44px,4.6vw,70px)] leading-[1.02] font-bold tracking-[-0.03em] text-balance">
+          <h1 className="mt-6 mb-6 text-[clamp(2rem,4.6vw,3rem)] leading-[1.02] font-bold tracking-[-0.03em] text-balance">
             Skip the gatekeepers.
             <br />
             <span className="text-gradient-brand">
@@ -164,13 +160,13 @@ export function Hero() {
             </span>
           </h1>
 
-          <p className="reveal mx-auto max-w-[500px] text-[18.5px] leading-relaxed text-muted-foreground lg:mx-0">
+          <p className="mx-auto max-w-[500px] text-[18.5px] leading-relaxed text-muted-foreground lg:mx-0">
             VectorMatch finds hidden tech opportunities, matches them with your
             unique developer profile, and helps you pitch directly to decision
             makers as a valued partner, not just another applicant.
           </p>
 
-          <div className="reveal mt-9 flex flex-wrap items-center justify-center gap-[18px] lg:justify-start">
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-[18px] lg:justify-start">
             <Button asChild variant="brand" size="xl" className="max-sm:flex-1">
               <a href="/signup">
                 Start Your AI Job Hunt
@@ -187,7 +183,7 @@ export function Hero() {
             </Button>
           </div>
 
-          <div className="reveal mt-12 inline-block">
+          <div className="mt-12 inline-block">
             <div className="font-mono text-[11.5px] tracking-[0.2em] uppercase text-faint">
               Trusted by developers
             </div>
@@ -227,14 +223,14 @@ export function Hero() {
         </div>
 
         {/* Portal scene */}
-        <div className="reveal-r relative mx-auto h-[380px] w-full max-w-[620px] sm:h-[460px] lg:h-[600px] lg:max-w-none">
+        <div className="relative mx-auto h-[380px] w-full max-w-[620px] sm:h-[460px] lg:h-[600px] lg:max-w-none">
           <div className="absolute inset-0 overflow-hidden rounded-2xl shadow-[0_30px_80px_oklch(0.10_0.02_274/0.7),inset_0_0_0_1px_oklch(0.50_0.06_292/0.18)]">
             <Image
               src="/hero-portal-main.jpg"
               alt="Developer facing a glowing code portal"
               fill
               priority
-              // sizes="(max-width: 800px) 620px, 50vw"
+              sizes="(max-width: 800px) 620px, 50vw"
               className="object-cover object-[50%_46%]"
             />
             <div className="pointer-events-none absolute inset-0 scene-vignette" />

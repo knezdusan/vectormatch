@@ -8,9 +8,9 @@ import { Logo } from "./Logo";
 
 const NAV_LINKS = [
   { label: "How it works", href: "#how" },
-  { label: "For Developers", href: "/developers" },
-  { label: "For Companies", href: "/companies" },
-  { label: "Pricing", href: "/pricing" },
+  { label: "For Developers", href: "#pitch" },
+  // { label: "For Companies", href: "/companies" },
+  // { label: "Pricing", href: "/pricing" },
   { label: "Blog", href: "/blog" },
 ];
 
