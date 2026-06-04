@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
+
 import { postsTable, usersTable } from "../index";
 
 export const commentsTable = pgTable("comment", {
