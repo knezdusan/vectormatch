@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
+import { timestamp } from "drizzle-orm/pg-core";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -17,3 +18,14 @@ export function isValidAge(date: Date | string | null | undefined): boolean {
       : age;
   return adjustedAge >= 14 && adjustedAge <= 99;
 }
+
+// DB Helpers ********************
+export const timestamps = {
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+};

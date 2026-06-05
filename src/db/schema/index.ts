@@ -1,11 +1,13 @@
+import { relations } from "drizzle-orm";
+
+export { timestamps } from "@/lib/utils";
+
 export * from "./blog/category";
 export * from "./blog/comment";
 export * from "./blog/post";
 export * from "./blog/tag";
 export * from "./user";
 
-import { relations } from "drizzle-orm";
-import { timestamp } from "drizzle-orm/pg-core";
 import { categoriesTable } from "./blog/category";
 import { commentsTable } from "./blog/comment";
 import { postsTable, postTagsTable } from "./blog/post";
@@ -65,15 +67,3 @@ export const commentRelations = relations(commentsTable, ({ one, many }) => ({
   }),
   replies: many(commentsTable, { relationName: "comment_replies" }),
 }));
-
-// DB Helpers ********************
-
-export const timestamps = {
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-};
