@@ -55,12 +55,35 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Documentation Enforcement:** When generating advanced layouts, grid containers, or using relative arbitrary values, Cascade **MUST** prioritize live documentation over training data weights. If a layout fails or syntax looks legacy, read from: `https://tailwindcss.com/docs`.
 <!-- END:nextjs-agent-rules -->
 
+## Resources & References
 
+### Neon Database
+- **Connection with Drizzle ORM**: https://neon.com/docs/guides/drizzle
+- **Serverless driver patterns**: https://neon.com/docs/connect/serverless-driver
+- **Schema migrations with Drizzle**: https://neon.com/docs/guides/drizzle-migrations
+- **Neon Auth integration**: https://neon.com/docs/auth/overview
+- **pgvector for vector similarity**: https://neon.com/docs/extensions/pgvector
+
+### Drizzle ORM
+- **Official Drizzle with Neon guide**: https://orm.drizzle.team/docs/tutorials/drizzle-with-neon
+- **Drizzle Kit migrations**: https://orm.drizzle.team/docs/kit-overview
+- **Query patterns**: https://orm.drizzle.team/docs/goodies
+
+### Shadcn/ui
+- **Official documentation**: https://ui.shadcn.com/docs
+- **Next.js installation**: https://ui.shadcn.com/docs/installation/next
+- **Components registry**: https://ui.shadcn.com/docs/components
+- **Thing and customization**: https://ui.shadcn.com/docs/theming
+- **CLI reference**: https://ui.shadcn.com/docs/cli
+
+### Zod
+- **Official documentation**: https://zod.dev/
+- **Drizzle-Zod integration**: https://orm.drizzle.team/docs/zod
 
 <!--
 BEGIN:agent-rules-on-hold - DISABLED UNTIL FURTHER NOTICE
 ## Database & Matching Rules (Critical)
-- Follow the exact schema in `db/schema.ts` (users, userPersonas, jobs, matchQueue)
+- Follow the exact schema in `db/schema/index.ts` (users, userPersonas, jobs, matchQueue)
 - Gate 1: Always use GIN index overlap on `must_have_tags` / `blocklist_tags`
 - Gate 2: Use HNSW cosine similarity on persona embeddings (`<=>` operator)
 - Gate 3: Use `gpt-4o` or `gpt-4o-mini` for nuanced final evaluation

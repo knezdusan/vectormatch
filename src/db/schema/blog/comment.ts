@@ -1,12 +1,7 @@
-import {
-  type AnyPgColumn,
-  integer,
-  pgTable,
-  text,
-  timestamp,
-} from "drizzle-orm/pg-core";
-
-import { postsTable, usersTable } from "../index";
+import { type AnyPgColumn, integer, pgTable, text } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import type { z } from "zod";
+import { postsTable, timestamps, usersTable } from "../index";
 
 export const commentsTable = pgTable("comment", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -23,14 +18,21 @@ export const commentsTable = pgTable("comment", {
   postId: integer("post_id")
     .notNull()
     .references(() => postsTable.id, { onDelete: "cascade" }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
+  ...timestamps,
 });
+
+export const commentSchema = createInsertSchema(commentsTable, {
+  content: (schema) => schema.min(1),
+  userId: (schema) => schema.min(1),
+  postId: (schema) => schema.min(1),
+}).pick({
+  content: true,
+  userId: true,
+  parentId: true,
+  postId: true,
+});
+
+export type CommentSchema = z.infer<typeof commentSchema>;
 
 export type Comment = typeof commentsTable.$inferSelect;
 export type NewComment = typeof commentsTable.$inferInsert;

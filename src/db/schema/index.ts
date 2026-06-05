@@ -5,27 +5,28 @@ export * from "./blog/tag";
 export * from "./user";
 
 import { relations } from "drizzle-orm";
+import { timestamp } from "drizzle-orm/pg-core";
 import { categoriesTable } from "./blog/category";
 import { commentsTable } from "./blog/comment";
 import { postsTable, postTagsTable } from "./blog/post";
 import { tagsTable } from "./blog/tag";
 import { usersTable } from "./user";
 
-export const usersRelations = relations(usersTable, ({ many }) => ({
+export const userRelations = relations(usersTable, ({ many }) => ({
   posts: many(postsTable),
   comments: many(commentsTable),
 }));
 
-export const categoriesRelations = relations(categoriesTable, ({ many }) => ({
+export const categoryRelations = relations(categoriesTable, ({ many }) => ({
   posts: many(postsTable),
 }));
 
-export const tagsRelations = relations(tagsTable, ({ many }) => ({
+export const tagRelations = relations(tagsTable, ({ many }) => ({
   postTags: many(postTagsTable),
 }));
 
-export const postsRelations = relations(postsTable, ({ one, many }) => ({
-  author: one(usersTable, {
+export const postRelations = relations(postsTable, ({ one, many }) => ({
+  user: one(usersTable, {
     fields: [postsTable.userId],
     references: [usersTable.id],
   }),
@@ -37,7 +38,7 @@ export const postsRelations = relations(postsTable, ({ one, many }) => ({
   comments: many(commentsTable),
 }));
 
-export const postTagsRelations = relations(postTagsTable, ({ one }) => ({
+export const postTagRelations = relations(postTagsTable, ({ one }) => ({
   post: one(postsTable, {
     fields: [postTagsTable.postId],
     references: [postsTable.id],
@@ -48,8 +49,8 @@ export const postTagsRelations = relations(postTagsTable, ({ one }) => ({
   }),
 }));
 
-export const commentsRelations = relations(commentsTable, ({ one, many }) => ({
-  author: one(usersTable, {
+export const commentRelations = relations(commentsTable, ({ one, many }) => ({
+  user: one(usersTable, {
     fields: [commentsTable.userId],
     references: [usersTable.id],
   }),
@@ -64,3 +65,15 @@ export const commentsRelations = relations(commentsTable, ({ one, many }) => ({
   }),
   replies: many(commentsTable, { relationName: "comment_replies" }),
 }));
+
+// DB Helpers ********************
+
+export const timestamps = {
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+};
