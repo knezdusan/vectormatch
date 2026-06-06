@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1780671163276,
-      "tag": "0000_supreme_wasp",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1780740708046,
-      "tag": "0001_mushy_tag",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1780742831205,
-      "tag": "0002_friendly_captain_america",
+      "when": 1780769410031,
+      "tag": "0000_stiff_swordsman",
       "breakpoints": true
     }
   ]
