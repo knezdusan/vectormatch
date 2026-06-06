@@ -4,6 +4,8 @@
   "tailwindCSS.rootFontSize": 16,
   "editor.suggest.showDetails": true,
   "cSpell.words": [
-    "shadcn"
+    "neondatabase",
+    "shadcn",
+    "vectormatch"
   ]
 }

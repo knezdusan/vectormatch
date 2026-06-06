@@ -83,7 +83,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 <!--
 BEGIN:agent-rules-on-hold - DISABLED UNTIL FURTHER NOTICE
 ## Database & Matching Rules (Critical)
-- Follow the exact schema in `db/schema/index.ts` (users, userPersonas, jobs, matchQueue)
+- Follow the exact schema in `db/schemas/index.ts` (users, userPersonas, jobs, matchQueue)
 - Gate 1: Always use GIN index overlap on `must_have_tags` / `blocklist_tags`
 - Gate 2: Use HNSW cosine similarity on persona embeddings (`<=>` operator)
 - Gate 3: Use `gpt-4o` or `gpt-4o-mini` for nuanced final evaluation

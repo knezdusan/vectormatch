@@ -16,7 +16,7 @@ export const statusEnum = pgEnum("status", ["draft", "published", "archived"]);
 
 export const postsTable = pgTable("post", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  userId: integer("user_id")
+  userId: text("user_id")
     .notNull()
     .references(() => usersTable.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 500 }).notNull(),

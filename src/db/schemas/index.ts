@@ -1,18 +1,20 @@
 import { relations } from "drizzle-orm";
 
 export { timestamps } from "@/lib/utils";
+export * from "./auth";
+export { user as usersTable } from "./auth";
+export * from "./blog/categories";
+export * from "./blog/comments";
+export * from "./blog/posts";
+export * from "./blog/tags";
 
-export * from "./blog/category";
-export * from "./blog/comment";
-export * from "./blog/post";
-export * from "./blog/tag";
-export * from "./user";
+import { user as usersTable } from "./auth";
+import { categoriesTable } from "./blog/categories";
+import { commentsTable } from "./blog/comments";
+import { postsTable, postTagsTable } from "./blog/posts";
+import { tagsTable } from "./blog/tags";
 
-import { categoriesTable } from "./blog/category";
-import { commentsTable } from "./blog/comment";
-import { postsTable, postTagsTable } from "./blog/post";
-import { tagsTable } from "./blog/tag";
-import { usersTable } from "./user";
+// RELATIONS - BLOG
 
 export const userRelations = relations(usersTable, ({ many }) => ({
   posts: many(postsTable),
