@@ -48,6 +48,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Forms: useActionState + Zod
 - Drag-and-drop: `@dnd-kit`
 - All new UI must be responsive and accessible
+- For design system reference the `src/app/globals.css` file
 
 ### Tailwind CSS v4 Compliance Rules
 - **No JS Configurations:** Never generate, look for, or attempt to modify `tailwind.config.js` or `tailwind.config.ts`. 
