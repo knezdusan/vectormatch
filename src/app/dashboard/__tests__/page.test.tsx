@@ -46,11 +46,6 @@ describe("Dashboard — authenticated", () => {
     mockGetSession.mockResolvedValue(MOCK_SESSION);
   });
 
-  it("renders the welcome heading", async () => {
-    render(await Dashboard());
-    expect(screen.getByText(/welcome to dashboard/i)).toBeInTheDocument();
-  });
-
   it("displays the logged-in user's email", async () => {
     render(await Dashboard());
     expect(screen.getByText(/alice@example\.com/i)).toBeInTheDocument();

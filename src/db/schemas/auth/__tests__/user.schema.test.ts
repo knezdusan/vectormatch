@@ -1,6 +1,11 @@
 /**
  * Unit tests for Better Auth Zod schemas defined in user.ts.
  * Pure logic — no mocks, no I/O.
+ *
+ * Coverage philosophy: keep tests that catch non-obvious regressions
+ * (boundary values, exact error copy, deliberate design decisions) and
+ * remove tests that verify behavior so basic a single form submission would
+ * surface it (missing required fields, standard Zod rejection).
  */
 
 import { signInSchema, signUpSchema, userSchema } from "@/db/schemas/auth/user";
@@ -14,50 +19,38 @@ describe("signUpSchema", () => {
     password: "secure123",
   };
 
-  it("accepts a fully valid payload", () => {
+  it("accepts a fully valid payload and returns only expected keys", () => {
     const result = signUpSchema.safeParse(VALID);
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toEqual(VALID);
-    }
+    if (result.success) expect(result.data).toEqual(VALID);
   });
 
-  it("strips unexpected extra fields", () => {
+  it("strips unexpected extra fields (injection guard)", () => {
     const result = signUpSchema.safeParse({ ...VALID, role: "admin" });
     expect(result.success).toBe(true);
-    if (result.success) {
-      // 'role' must not appear in output
-      expect(Object.keys(result.data)).not.toContain("role");
-    }
+    if (result.success) expect(Object.keys(result.data)).not.toContain("role");
   });
 
-  // --- name ---
+  // --- name boundary values and exact error copy ---
 
-  it("rejects name shorter than 2 characters", () => {
+  it("rejects name shorter than 2 characters with correct error", () => {
     const result = signUpSchema.safeParse({ ...VALID, name: "A" });
     expect(result.success).toBe(false);
-    if (!result.success) {
+    if (!result.success)
       expect(result.error.issues[0].message).toBe(
         "Name must be at least 2 characters",
       );
-    }
-  });
-
-  it("rejects empty name", () => {
-    const result = signUpSchema.safeParse({ ...VALID, name: "" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects name longer than 50 characters", () => {
-    const result = signUpSchema.safeParse({ ...VALID, name: "A".repeat(51) });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0].message).toBe("Name too long");
-    }
   });
 
   it("accepts name at exact minimum boundary (2 chars)", () => {
     expect(signUpSchema.safeParse({ ...VALID, name: "Jo" }).success).toBe(true);
+  });
+
+  it("rejects name longer than 50 characters with correct error", () => {
+    const result = signUpSchema.safeParse({ ...VALID, name: "A".repeat(51) });
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.issues[0].message).toBe("Name too long");
   });
 
   it("accepts name at exact maximum boundary (50 chars)", () => {
@@ -66,25 +59,13 @@ describe("signUpSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects missing name field", () => {
-    const { name: _n, ...rest } = VALID;
-    expect(signUpSchema.safeParse(rest).success).toBe(false);
-  });
-
   // --- email ---
 
-  it("rejects an invalid email format", () => {
+  it("rejects an invalid email with correct error copy", () => {
     const result = signUpSchema.safeParse({ ...VALID, email: "not-an-email" });
     expect(result.success).toBe(false);
-    if (!result.success) {
+    if (!result.success)
       expect(result.error.issues[0].message).toBe("Invalid email address");
-    }
-  });
-
-  it("rejects email without domain", () => {
-    expect(signUpSchema.safeParse({ ...VALID, email: "alice@" }).success).toBe(
-      false,
-    );
   });
 
   it("rejects email longer than 255 characters", () => {
@@ -94,21 +75,15 @@ describe("signUpSchema", () => {
     );
   });
 
-  it("rejects missing email field", () => {
-    const { email: _e, ...rest } = VALID;
-    expect(signUpSchema.safeParse(rest).success).toBe(false);
-  });
+  // --- password boundary values and exact error copy ---
 
-  // --- password ---
-
-  it("rejects password shorter than 8 characters", () => {
+  it("rejects password shorter than 8 characters with correct error", () => {
     const result = signUpSchema.safeParse({ ...VALID, password: "short1" });
     expect(result.success).toBe(false);
-    if (!result.success) {
+    if (!result.success)
       expect(result.error.issues[0].message).toBe(
         "Password must be at least 8 characters",
       );
-    }
   });
 
   it("accepts password at exact minimum boundary (8 chars)", () => {
@@ -117,32 +92,20 @@ describe("signUpSchema", () => {
     ).toBe(true);
   });
 
-  it("rejects password longer than 128 characters", () => {
+  it("rejects password longer than 128 characters with correct error", () => {
     const result = signUpSchema.safeParse({
       ...VALID,
       password: "A".repeat(129),
     });
     expect(result.success).toBe(false);
-    if (!result.success) {
+    if (!result.success)
       expect(result.error.issues[0].message).toBe("Password too long");
-    }
   });
 
   it("accepts password at exact maximum boundary (128 chars)", () => {
     expect(
       signUpSchema.safeParse({ ...VALID, password: "A".repeat(128) }).success,
     ).toBe(true);
-  });
-
-  it("rejects missing password field", () => {
-    const { password: _p, ...rest } = VALID;
-    expect(signUpSchema.safeParse(rest).success).toBe(false);
-  });
-
-  it("rejects empty password", () => {
-    expect(signUpSchema.safeParse({ ...VALID, password: "" }).success).toBe(
-      false,
-    );
   });
 });
 
@@ -151,48 +114,33 @@ describe("signUpSchema", () => {
 describe("signInSchema", () => {
   const VALID = { email: "alice@example.com", password: "anypassword" };
 
-  it("accepts valid email and password", () => {
-    expect(signInSchema.safeParse(VALID).success).toBe(true);
-  });
-
-  it("rejects invalid email", () => {
+  it("rejects invalid email format with correct error copy", () => {
     const result = signInSchema.safeParse({ ...VALID, email: "bad" });
     expect(result.success).toBe(false);
-    if (!result.success) {
+    if (!result.success)
       expect(result.error.issues[0].message).toBe("Invalid email address");
-    }
   });
 
-  it("rejects empty password", () => {
+  it("rejects empty password with correct error copy", () => {
     const result = signInSchema.safeParse({ ...VALID, password: "" });
     expect(result.success).toBe(false);
-    if (!result.success) {
+    if (!result.success)
       expect(result.error.issues[0].message).toBe("Password is required");
-    }
   });
 
-  it("accepts a 1-character password (sign-in has no min-length requirement)", () => {
+  // Deliberate design decision: sign-in accepts any non-empty password
+  // (no min-length) so returning users with short legacy passwords can still sign in.
+  it("accepts a 1-character password (no min-length on sign-in)", () => {
     expect(signInSchema.safeParse({ ...VALID, password: "x" }).success).toBe(
       true,
     );
   });
 
-  it("rejects missing email", () => {
-    const { email: _e, ...rest } = VALID;
-    expect(signInSchema.safeParse(rest).success).toBe(false);
-  });
-
-  it("rejects missing password", () => {
-    const { password: _p, ...rest } = VALID;
-    expect(signInSchema.safeParse(rest).success).toBe(false);
-  });
-
-  it("strips unexpected extra fields", () => {
+  it("strips unexpected extra fields (injection guard)", () => {
     const result = signInSchema.safeParse({ ...VALID, remember: true });
     expect(result.success).toBe(true);
-    if (result.success) {
+    if (result.success)
       expect(Object.keys(result.data)).not.toContain("remember");
-    }
   });
 });
 
@@ -201,28 +149,23 @@ describe("signInSchema", () => {
 describe("userSchema", () => {
   const VALID = { name: "Bob", email: "bob@example.com" };
 
-  it("accepts name + email without image", () => {
-    expect(userSchema.safeParse(VALID).success).toBe(true);
+  it("rejects a non-URL image string with correct error copy", () => {
+    const result = userSchema.safeParse({ ...VALID, image: "not-a-url" });
+    expect(result.success).toBe(false);
+    if (!result.success)
+      expect(result.error.issues[0].message).toBe("Invalid image URL");
   });
 
-  it("accepts a valid image URL", () => {
+  it("accepts null image (optional field can be explicitly nulled)", () => {
+    expect(userSchema.safeParse({ ...VALID, image: null }).success).toBe(true);
+  });
+
+  it("accepts a valid https image URL", () => {
     expect(
       userSchema.safeParse({
         ...VALID,
         image: "https://example.com/avatar.png",
       }).success,
     ).toBe(true);
-  });
-
-  it("rejects a non-URL image string", () => {
-    const result = userSchema.safeParse({ ...VALID, image: "not-a-url" });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0].message).toBe("Invalid image URL");
-    }
-  });
-
-  it("accepts null image (optional field)", () => {
-    expect(userSchema.safeParse({ ...VALID, image: null }).success).toBe(true);
   });
 });

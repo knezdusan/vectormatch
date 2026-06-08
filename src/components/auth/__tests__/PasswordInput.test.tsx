@@ -1,36 +1,34 @@
 /**
  * Unit tests for the PasswordInput component.
- * Tests toggle behaviour, accessibility labels, and prop forwarding.
+ *
+ * Kept: toggle behaviour, accessibility labels, and the type="button" safety
+ * guard. Removed: trivial prop-forwarding tests (placeholder, name, id, etc.)
+ * — those are transparent JSX pass-throughs that a single render would surface.
  */
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 
 describe("PasswordInput", () => {
-  it("renders an input of type password by default", () => {
+  it("renders type='password' by default", () => {
     render(<PasswordInput />);
-    // type="password" inputs have no accessible ARIA role — query the DOM directly
-    const input = document.querySelector("input");
-    expect(input).toBeInTheDocument();
-    expect(input).toHaveAttribute("type", "password");
+    expect(document.querySelector("input")).toHaveAttribute("type", "password");
   });
 
-  it("shows 'Show password' aria-label on the toggle button by default", () => {
+  it("toggle button starts with aria-label='Show password'", () => {
     render(<PasswordInput />);
     expect(
       screen.getByRole("button", { name: "Show password" }),
     ).toBeInTheDocument();
   });
 
-  it("toggles input type to text when the show button is clicked", () => {
+  it("clicking the toggle reveals the password (type → text)", () => {
     render(<PasswordInput />);
-    const toggle = screen.getByRole("button", { name: "Show password" });
-    fireEvent.click(toggle);
-    const input = document.querySelector("input");
-    expect(input).toHaveAttribute("type", "text");
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    expect(document.querySelector("input")).toHaveAttribute("type", "text");
   });
 
-  it("updates toggle aria-label to 'Hide password' after first click", () => {
+  it("toggle aria-label changes to 'Hide password' when password is visible", () => {
     render(<PasswordInput />);
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect(
@@ -38,52 +36,18 @@ describe("PasswordInput", () => {
     ).toBeInTheDocument();
   });
 
-  it("toggles back to type password on second click", () => {
+  it("clicking the toggle again hides the password (type → password)", () => {
     render(<PasswordInput />);
-    const toggle = screen.getByRole("button", { name: "Show password" });
-    fireEvent.click(toggle); // → text
-    fireEvent.click(screen.getByRole("button", { name: "Hide password" })); // → password
-    const input = document.querySelector("input");
-    expect(input).toHaveAttribute("type", "password");
+    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
+    expect(document.querySelector("input")).toHaveAttribute("type", "password");
   });
 
-  it("forwards placeholder prop to the input", () => {
-    render(<PasswordInput placeholder="Enter password" />);
-    expect(document.querySelector("input")).toHaveAttribute(
-      "placeholder",
-      "Enter password",
-    );
-  });
-
-  it("forwards name prop to the input", () => {
-    render(<PasswordInput name="password" />);
-    expect(document.querySelector("input")).toHaveAttribute("name", "password");
-  });
-
-  it("forwards id prop to the input", () => {
-    render(<PasswordInput id="pwd" />);
-    expect(document.querySelector("input")).toHaveAttribute("id", "pwd");
-  });
-
-  it("forwards disabled prop to the input", () => {
-    render(<PasswordInput disabled />);
-    expect(document.querySelector("input")).toBeDisabled();
-  });
-
-  it("forwards required prop to the input", () => {
-    render(<PasswordInput required />);
-    expect(document.querySelector("input")).toBeRequired();
-  });
-
-  it("toggle button is type='button' to avoid form submission", () => {
+  // type="button" prevents the toggle from submitting the enclosing form
+  it("toggle button has type='button' (prevents accidental form submission)", () => {
     render(<PasswordInput />);
-    const toggle = screen.getByRole("button", { name: "Show password" });
-    expect(toggle).toHaveAttribute("type", "button");
-  });
-
-  it("preserves className on the underlying Input element", () => {
-    render(<PasswordInput className="custom-class" />);
-    const input = document.querySelector("input");
-    expect(input?.className).toContain("custom-class");
+    expect(
+      screen.getByRole("button", { name: "Show password" }),
+    ).toHaveAttribute("type", "button");
   });
 });

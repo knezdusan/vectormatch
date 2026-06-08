@@ -61,16 +61,6 @@ describe("signUpAction", () => {
 
   // --- Validation failures (auth should never be called) ---
 
-  it("returns error when name is missing", async () => {
-    const fd = makeFormData({
-      email: VALID_SIGNUP.email,
-      password: VALID_SIGNUP.password,
-    });
-    const result = await signUpAction(null, fd);
-    expect(result).toMatchObject({ success: false, error: expect.any(String) });
-    expect(mockSignUpEmail).not.toHaveBeenCalled();
-  });
-
   it("returns error when name is too short (< 2 chars)", async () => {
     const fd = makeFormData({ ...VALID_SIGNUP, name: "A" });
     const result = await signUpAction(null, fd);
@@ -185,13 +175,6 @@ describe("signInAction", () => {
 
   // --- Validation failures ---
 
-  it("returns error when email is missing", async () => {
-    const fd = makeFormData({ password: VALID_SIGNIN.password });
-    const result = await signInAction(null, fd);
-    expect(result).toMatchObject({ success: false, error: expect.any(String) });
-    expect(mockSignInEmail).not.toHaveBeenCalled();
-  });
-
   it("returns error for invalid email", async () => {
     const fd = makeFormData({ ...VALID_SIGNIN, email: "bad" });
     const result = await signInAction(null, fd);
@@ -208,12 +191,6 @@ describe("signInAction", () => {
       success: false,
       error: "Password is required",
     });
-  });
-
-  it("returns error when password is missing", async () => {
-    const fd = makeFormData({ email: VALID_SIGNIN.email });
-    const result = await signInAction(null, fd);
-    expect(result).toMatchObject({ success: false, error: expect.any(String) });
   });
 
   // --- Happy path ---

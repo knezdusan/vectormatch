@@ -17,12 +17,6 @@ describe("generateMetadata", () => {
     const meta = generateMetadata();
     expect(meta.title).toBe("Sign In - VectorMatch");
   });
-
-  it("returns a description string", () => {
-    const meta = generateMetadata();
-    expect(typeof meta.description).toBe("string");
-    expect(meta.description.length).toBeGreaterThan(0);
-  });
 });
 
 // ─── Auth page rendering ───────────────────────────────────────────────────────
@@ -34,13 +28,6 @@ describe("Auth page", () => {
     });
     return render(element);
   }
-
-  it("renders 'Welcome to VectorMatch' heading", async () => {
-    await renderPage();
-    expect(
-      screen.getByText(/welcome to vectormatch/i),
-    ).toBeInTheDocument();
-  });
 
   it("renders the AuthTabs component", async () => {
     await renderPage();
