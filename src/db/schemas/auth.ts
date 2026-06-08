@@ -1,5 +1,12 @@
 import { relations } from "drizzle-orm";
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -71,6 +78,18 @@ export const verification = pgTable(
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+// Rate Limiting Table (auto-created by Better Auth CLI)
+export const rateLimit = pgTable(
+  "rate_limit",
+  {
+    key: text("key").primaryKey(),
+    count: integer("count").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("rate_limit_expires_at_idx").on(table.expiresAt)],
 );
 
 export const userRelations = relations(user, ({ many }) => ({

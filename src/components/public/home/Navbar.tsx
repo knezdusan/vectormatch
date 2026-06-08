@@ -28,7 +28,7 @@ export function Navbar() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-60 border-b border-transparent transition-[background,border-color,backdrop-filter] duration-300",
+        "z-60 border-b border-transparent transition-[background,border-color,backdrop-filter] duration-300",
         scrolled &&
           "border-border bg-background/80 backdrop-blur-xl backdrop-saturate-150",
       )}
@@ -50,18 +50,13 @@ export function Navbar() {
 
         <div className="flex items-center gap-3.5">
           <a
-            href="/login"
+            href="/auth?tab=signin"
             className="hidden rounded-[10px] border border-border px-[18px] py-2.5 text-[15.5px] font-medium transition-colors hover:bg-secondary/60 sm:inline-flex"
           >
             Log in
           </a>
-          <Button
-            asChild
-            variant="brand"
-            size="pill"
-            className="hidden sm:inline-flex"
-          >
-            <a href="/signup">Get Started</a>
+          <Button asChild className="btn-brand btn-pill hidden sm:inline-flex">
+            <a href="/auth?tab=signup">Get Started</a>
           </Button>
           <button
             type="button"
@@ -90,13 +85,13 @@ export function Navbar() {
             ))}
             <div className="mt-2 flex flex-col gap-2.5">
               <a
-                href="/login"
+                href="/auth?tab=signin"
                 className="rounded-[10px] border border-border px-4 py-2.5 text-center text-[15.5px] font-medium"
               >
                 Log in
               </a>
-              <Button asChild variant="brand" size="pill">
-                <a href="/signup">Get Started</a>
+              <Button asChild className="btn-brand btn-pill">
+                <a href="/auth?tab=signup">Get Started</a>
               </Button>
             </div>
           </nav>
