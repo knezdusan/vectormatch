@@ -204,9 +204,7 @@ function ComposeCard() {
           Alex
         </span>
       </div>
-      <Button variant="brand" size="xl" className="w-full">
-        Send Pitch
-      </Button>
+      <Button className="btn-brand btn-xl w-full">Send Pitch</Button>
     </div>
   );
 }
@@ -250,13 +248,13 @@ export function Pitch() {
             ))}
           </ul>
           <div className="mt-10 flex flex-wrap items-center gap-[18px]">
-            <Button asChild variant="brand" size="xl" className="max-sm:flex-1">
+            <Button asChild className="btn-brand btn-xl max-sm:flex-1">
               <a href="/signup">
                 Start Pitching Smarter
                 <ArrowRight className="size-[18px]" />
               </a>
             </Button>
-            <Button asChild variant="brandGhost" size="xl" className="px-1.5">
+            <Button asChild className="btn-brand-ghost btn-xl px-1.5">
               <a href="/developers">
                 <span className="grid size-8 place-items-center rounded-full border border-primary-bright/40 bg-primary/15 text-primary-bright">
                   <Play className="size-3 fill-current" />

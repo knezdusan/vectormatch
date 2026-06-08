@@ -226,17 +226,78 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  button.btn-brand,
+  a.btn-brand,
+  [data-slot="button"].btn-brand {
+    color: #fff;
+    background: linear-gradient(180deg, var(--primary-bright), var(--primary));
+    box-shadow:
+      0 10px 30px oklch(0.63 0.23 292 / 0.42),
+      inset 0 1px 0 oklch(0.85 0.12 296 / 0.5);
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+  }
+  button.btn-brand:hover,
+  a.btn-brand:hover,
+  [data-slot="button"].btn-brand:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 16px 40px oklch(0.63 0.23 292 / 0.58),
+      inset 0 1px 0 oklch(0.85 0.12 296 / 0.5);
+  }
+  button.btn-brand:active,
+  a.btn-brand:active,
+  [data-slot="button"].btn-brand:active {
+    transform: translateY(0);
+  }
+
+  button.btn-brand-ghost,
+  a.btn-brand-ghost,
+  [data-slot="button"].btn-brand-ghost {
+    background: transparent;
+    font-weight: 600;
+    color: var(--foreground);
+    transition: color 0.2s ease-in-out;
+  }
+  button.btn-brand-ghost:hover,
+  a.btn-brand-ghost:hover,
+  [data-slot="button"].btn-brand-ghost:hover {
+    color: #fff;
+  }
+
+  button.btn-xl,
+  a.btn-xl,
+  [data-slot="button"].btn-xl {
+    height: 3rem;
+    gap: 0.625rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    font-size: 15.5px;
+  }
+
+  button.btn-pill,
+  a.btn-pill,
+  [data-slot="button"].btn-pill {
+    height: 2.5rem;
+    gap: 0.5rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    font-size: 0.875rem;
+  }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
+    outline-color: color-mix(in srgb, var(--ring) 50%, transparent);
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--background);
+    color: var(--foreground);
   }
   html {
-    @apply font-sans;
+    font-family: var(--font-sans);
   }
 }
 
@@ -256,20 +317,6 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-}
-
-/* Brand CTA button surface (paired with shadcn button variants) */
-.btn-brand {
-  color: #fff;
-  background: linear-gradient(180deg, var(--primary-bright), var(--primary));
-  box-shadow:
-    0 10px 30px oklch(0.63 0.23 292 / 0.42),
-    inset 0 1px 0 oklch(0.85 0.12 296 / 0.5);
-}
-.btn-brand:hover {
-  box-shadow:
-    0 16px 40px oklch(0.63 0.23 292 / 0.58),
-    inset 0 1px 0 oklch(0.85 0.12 296 / 0.5);
 }
 
 /* Section ambient backgrounds */

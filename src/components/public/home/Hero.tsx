@@ -167,13 +167,13 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-[18px] lg:justify-start">
-            <Button asChild variant="brand" size="xl" className="max-sm:flex-1">
+            <Button asChild className="btn-brand btn-xl max-sm:flex-1">
               <a href="/signup">
                 Start Your AI Job Hunt
                 <ArrowRight className="size-[18px]" />
               </a>
             </Button>
-            <Button asChild variant="brandGhost" size="xl" className="px-1.5">
+            <Button asChild className="btn-brand-ghost btn-xl px-1.5">
               <a href="#how">
                 <span className="grid size-8 place-items-center rounded-full border border-primary-bright/40 bg-primary/15 text-primary-bright">
                   <Play className="size-3 fill-current" />
