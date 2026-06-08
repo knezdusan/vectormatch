@@ -1,12 +1,6 @@
 import { Suspense } from "react";
 import { AuthTabs } from "@/components/auth/AuthTabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 
 export type AuthPageProps = {

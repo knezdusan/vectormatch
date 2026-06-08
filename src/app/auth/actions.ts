@@ -3,8 +3,8 @@
 import { APIError } from "better-auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { signInSchema, signUpSchema } from "@/db/schemas";
 import { auth } from "@/lib/auth";
-import { signInSchema, signUpSchema } from "@/lib/validation/auth";
 
 export type ActionState = {
   error: string;

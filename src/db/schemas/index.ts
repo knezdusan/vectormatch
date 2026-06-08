@@ -1,25 +1,54 @@
 import { relations } from "drizzle-orm";
 
 export { timestamps } from "@/lib/utils";
-export * from "./auth";
-export { user as usersTable } from "./auth";
+
+// AUTH
+export * from "./auth/account";
+export * from "./auth/rateLimit";
+export * from "./auth/session";
+
+export * from "./auth/user";
+export { user as usersTable } from "./auth/user";
+export * from "./auth/verification";
+
+// BLOG
 export * from "./blog/categories";
 export * from "./blog/comments";
 export * from "./blog/posts";
 export * from "./blog/tags";
 
-import { user as usersTable } from "./auth";
+import { account } from "./auth/account";
+import { session } from "./auth/session";
+import { user as usersTable } from "./auth/user";
 import { categoriesTable } from "./blog/categories";
 import { commentsTable } from "./blog/comments";
 import { postsTable, postTagsTable } from "./blog/posts";
 import { tagsTable } from "./blog/tags";
 
-// RELATIONS - BLOG
+// RELATIONS - AUTH
 
 export const userRelations = relations(usersTable, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
   posts: many(postsTable),
   comments: many(commentsTable),
 }));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [session.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(usersTable, {
+    fields: [account.userId],
+    references: [usersTable.id],
+  }),
+}));
+
+// RELATIONS - BLOG
 
 export const categoryRelations = relations(categoriesTable, ({ many }) => ({
   posts: many(postsTable),
