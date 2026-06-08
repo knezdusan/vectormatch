@@ -1,7 +1,5 @@
-import { Footer } from "@/components/public/home/Footer";
 import { Hero } from "@/components/public/home/Hero";
 import { HowItWorks } from "@/components/public/home/HowItWorks";
-import { Navbar } from "@/components/public/home/Navbar";
 import { Pitch } from "@/components/public/home/Pitch";
 
 export const metadata = {
@@ -12,14 +10,10 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen overflow-x-clip">
-      <Navbar />
-      <main>
-        <Hero />
-        <HowItWorks />
-        <Pitch />
-      </main>
-      <Footer />
-    </div>
+    <main className="min-h-screen overflow-x-clip">
+      <Hero />
+      <HowItWorks />
+      <Pitch />
+    </main>
   );
 }

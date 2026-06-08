@@ -8,6 +8,13 @@
       "when": 1780769410031,
       "tag": "0000_stiff_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780824356043,
+      "tag": "0001_numerous_justice",
+      "breakpoints": true
     }
   ]
 }

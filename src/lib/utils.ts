@@ -19,6 +19,10 @@ export function isValidAge(date: Date | string | null | undefined): boolean {
   return adjustedAge >= 14 && adjustedAge <= 99;
 }
 
+export function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // DB Helpers ********************
 export const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true })

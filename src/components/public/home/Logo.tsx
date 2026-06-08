@@ -4,7 +4,7 @@ import { BrandGlyph } from "./icons";
 export function Logo({ className }: { className?: string }) {
   return (
     <a
-      href="#top"
+      href="/"
       className={cn(
         "flex items-center gap-2.5 text-[22px] font-bold tracking-tight",
         className,
