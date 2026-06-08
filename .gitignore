@@ -42,8 +42,10 @@ next-env.d.ts
 # IDE-specific
 .vscode/
 .windsurf/
-.devin/
 skills-lock.json
+
+# Devin CLI — personal local overrides only (project config in .devin/ is tracked)
+.devin/config.local.json
 
 # Database files
 *.db

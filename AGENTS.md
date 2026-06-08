@@ -16,6 +16,7 @@ Prioritize performance, accuracy, and developer-centric UX.
 - **Vercel AI SDK** (gpt-4o for complex reasoning, gpt-4o-mini for scale, text-embedding-3-small)
 - **Biome** as linter + formatter (never ESLint/Prettier)
 - **useActionState + Zod** for forms
+- **Vitest 4.1.8** for testing (React 19 + Next.js 16.2 compatible)
 
 ## CRITICAL: Destructive Operations Prohibition
 **NEVER** perform irreversible destructive operations without **explicit user confirmation** for that specific action. This includes:
@@ -47,6 +48,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Error Handling**: Always handle errors gracefully (never silent failures)
 - **Types**: Use strict TypeScript (enforced) + Zod schemas for all external data (ATS payloads, forms)
 - **Performance**: Keep queries under 20ms for Gate 1+2. Use indexes properly.
+
+## Testing
+- **Skill**: Use the `vitest-best-practices` skill for all testing work — it reads config files and fetches latest docs automatically
+- **Stack**: Vitest 4.1.8 + @testing-library/react 16.3.2 + happy-dom 20.10.2
+- **Config files**: `vitest.config.mts` (environment, coverage) and `vitest.setup.ts` (Next.js 16 mocks)
+- **Commands**: `npm run test` (watch) · `npm run test:ui` (visual) · `npm run test:coverage`
 
 ## Data & Caching
 - Use **Cache Components** for data caching (see `node_modules/next/dist/docs/` for reference)
