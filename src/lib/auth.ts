@@ -24,21 +24,26 @@ export const auth = betterAuth({
     storage: "database", // Persist across server restarts
 
     customRules: {
+      // Paths are relative to the Better Auth base (/api/auth is stripped).
+      // The rate-limiter normalises the URL to the path after the basePath,
+      // so "/api/auth/sign-in/email" becomes "/sign-in/email" internally.
+
       // Sensitive endpoints: 3 attempts per 10 seconds
-      "/api/auth/sign-in/email": {
+      "/sign-in/email": {
         window: 10,
         max: 3,
       },
-      "/api/auth/sign-up/email": {
+      "/sign-up/email": {
         window: 10,
         max: 3,
       },
-      "/api/auth/reset-password": {
+      // Better Auth names this endpoint /request-password-reset
+      "/request-password-reset": {
         window: 60,
         max: 3,
       },
-      // Safe endpoints: no limit
-      "/api/auth/get-session": false,
+      // Safe endpoints: no rate limit (false = skip entirely)
+      "/get-session": false,
     },
   },
   advanced: {

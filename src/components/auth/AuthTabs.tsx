@@ -1,7 +1,8 @@
-import type { AuthPageProps } from "@/app/auth/page";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignInForm } from "./SignInForm";
 import { SignUpForm } from "./SignUpForm";
+
+type AuthPageProps = { searchParams: Promise<{ tab?: string }> };
 
 export async function AuthTabs({ searchParams }: AuthPageProps) {
   const { tab } = await searchParams;

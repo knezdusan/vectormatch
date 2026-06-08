@@ -1,15 +1,15 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { auth } from "@/lib/auth";
 
 export default async function Dashboard() {
-  const session = await authClient.getSession({
-    fetchOptions: {
-      onSuccess: () => {},
-      onError: () => {},
-    },
+  // Use the server-side SDK — it reads the session cookie from the current
+  // request headers directly, no outbound HTTP fetch required.
+  const session = await auth.api.getSession({
+    headers: await headers(),
   });
 
-  if (!session.data) {
+  if (!session) {
     redirect("/auth");
   }
 
@@ -18,10 +18,10 @@ export default async function Dashboard() {
       <div className="text-center space-y-4">
         <h1 className="text-2xl font-bold">Welcome to Dashboard</h1>
         <p className="text-muted-foreground">
-          Logged in as: {session.data.user.email}
+          Logged in as: {session.user.email}
         </p>
         <p className="text-sm text-muted-foreground">
-          Name: {session.data.user.name}
+          Name: {session.user.name}
         </p>
         <form action="/api/auth/sign-out" method="POST">
           <button

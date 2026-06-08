@@ -35,7 +35,7 @@ export const signUpSchema = userSchema.omit({ image: true }).extend({
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
-    .max(30, "Password too long"),
+    .max(128, "Password too long"),
 });
 
 // Sign-in form: email (reuses userSchema validation) + plain-text password

@@ -1,0 +1,1 @@
+ALTER TABLE "rate_limit" ADD COLUMN "last_request" bigint NOT NULL;

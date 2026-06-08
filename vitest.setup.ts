@@ -17,6 +17,10 @@ vi.mock("next/navigation", () => {
     // Next.js 16 dynamic parameters are strictly Promises/Async
     useParams: async () => ({}),
     useSearchParams: () => new URLSearchParams(),
+    // Server-side navigation helpers used in Server Actions
+    redirect: vi.fn(),
+    notFound: vi.fn(),
+    permanentRedirect: vi.fn(),
   };
 });
 

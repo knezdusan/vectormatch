@@ -15,6 +15,13 @@
       "when": 1780824356043,
       "tag": "0001_numerous_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780944086684,
+      "tag": "0002_worried_lilandra",
+      "breakpoints": true
     }
   ]
 }
