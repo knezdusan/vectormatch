@@ -1,40 +1,28 @@
 {
   "version": 1,
   "permissions": {
-    "allow": [
-      "Exec(cp)",
-      "Exec(rm)",
-      "Exec(npx)",
-      "Exec(grep)"
-    ]
+    "allow": ["Exec(cp)", "Exec(rm)", "Exec(npx)", "Exec(grep)"]
   },
   "mcpServers": {
     "shadcn": {
       "transport": "STDIO",
       "command": "npx",
-      "args": [
-        "shadcn@latest",
-        "mcp"
-      ]
+      "args": ["shadcn@latest", "mcp"]
     },
     "neon": {
       "transport": "STDIO",
       "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote@latest",
-        "https://mcp.neon.tech/mcp"
-      ]
+      "args": ["-y", "mcp-remote@latest", "https://mcp.neon.tech/mcp"]
     },
     "exclude": [
-    "**/node_modules/**",
-    "**/.next/**",
-    "**/build/**",
-    "**/dist/**",
-    "**/.git/**",
-    "**/package-lock.json",
-    "**/yarn.lock",
-    "**/pnpm-lock.yaml"
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/build/**",
+      "**/dist/**",
+      "**/.git/**",
+      "**/package-lock.json",
+      "**/yarn.lock",
+      "**/pnpm-lock.yaml"
     ]
   }
 }

@@ -1,6 +1,6 @@
 "use server";
 
-import { APIError } from "better-auth";
+import { isAPIError } from "better-auth/api";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { signInSchema, signUpSchema } from "@/db/schemas";
@@ -19,6 +19,7 @@ export async function signUpAction(
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
+    callbackURL: "/dashboard",
   };
 
   const parsed = signUpSchema.safeParse(data);
@@ -32,7 +33,7 @@ export async function signUpAction(
       headers: await headers(),
     });
   } catch (err) {
-    if (err instanceof APIError) {
+    if (isAPIError(err)) {
       return { error: err.message, success: false };
     }
     return { error: "An unexpected error occurred", success: false };
@@ -48,6 +49,7 @@ export async function signInAction(
   const data = {
     email: formData.get("email"),
     password: formData.get("password"),
+    callbackURL: "/dashboard",
   };
 
   const parsed = signInSchema.safeParse(data);
@@ -61,11 +63,29 @@ export async function signInAction(
       headers: await headers(),
     });
   } catch (err) {
-    if (err instanceof APIError) {
+    if (isAPIError(err)) {
       return { error: err.message, success: false };
     }
     return { error: "An unexpected error occurred", success: false };
   }
 
   redirect("/dashboard");
+}
+
+export async function signOutAction() {
+  await auth.api.signOut({
+    headers: await headers(),
+  });
+
+  try {
+    await auth.api.signOut({
+      headers: await headers(),
+    });
+  } catch (err) {
+    if (isAPIError(err)) {
+      return { error: err.message, success: false };
+    }
+    return { error: "An unexpected error occurred", success: false };
+  }
+  redirect("/");
 }

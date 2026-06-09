@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { headers } from "next/headers";
 import { db } from "@/db/db";
 
 export const auth = betterAuth({
@@ -16,6 +17,17 @@ export const auth = betterAuth({
   plugins: [nextCookies()],
   emailAndPassword: {
     enabled: true,
+  },
+  socialProviders: {
+    google: {
+      prompt: "select_account",
+      clientId: process.env.GOOGLE_CLIENT_ID as string,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+    },
+    github: {
+      clientId: process.env.GITHUB_CLIENT_ID as string,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    },
   },
   rateLimit: {
     enabled: true,
@@ -53,3 +65,10 @@ export const auth = betterAuth({
     },
   },
 });
+
+// Helper function to get the current session
+export async function getAuthSession() {
+  return await auth.api.getSession({
+    headers: await headers(),
+  });
+}

@@ -1,6 +1,8 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 type ColorToken = { label: string; var: string; value: string };
 type TokenGroup = { title: string; tokens: ColorToken[] };
@@ -424,6 +426,12 @@ const UTILITIES = [
     value: "Linear gradient text: primary-bright → primary-2",
   },
   { label: ".btn-brand", value: "CTA button: gradient fill + glow shadow" },
+  {
+    label: ".btn-brand-ghost",
+    value: "Ghost CTA: transparent + white on hover",
+  },
+  { label: ".btn-xl", value: "Tall pill button (3rem height, 15.5px text)" },
+  { label: ".btn-pill", value: "Medium pill button (2.5rem height)" },
   { label: ".hero-aura", value: "Radial purple glow (hero section)" },
   { label: ".how-surface", value: "Radial emerald + teal gradient background" },
   { label: ".pitch-surface", value: "Radial purple gradient background" },
@@ -625,6 +633,82 @@ export default function ThemePage() {
           </div>
         </section>
 
+        {/* Buttons */}
+        <section>
+          <h2 className="mb-6 text-lg font-semibold">Buttons</h2>
+
+          {/* Variants */}
+          <div className="mb-8">
+            <h3 className="mb-3 text-xs font-semibold tracking-[0.16em] uppercase text-muted-foreground">
+              Variants (button.tsx)
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <Button>Default</Button>
+              <Button variant="outline">Outline</Button>
+              <Button variant="secondary">Secondary</Button>
+              <Button variant="ghost">Ghost</Button>
+              <Button variant="destructive">Destructive</Button>
+              <Button variant="link">Link</Button>
+            </div>
+          </div>
+
+          {/* Sizes */}
+          <div className="mb-8">
+            <h3 className="mb-3 text-xs font-semibold tracking-[0.16em] uppercase text-muted-foreground">
+              Sizes (button.tsx)
+            </h3>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button size="xs">Extra small</Button>
+              <Button size="sm">Small</Button>
+              <Button>Default</Button>
+              <Button size="lg">Large</Button>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <Button size="icon-xs" aria-label="icon-xs">
+                <ArrowRight />
+              </Button>
+              <Button size="icon-sm" aria-label="icon-sm">
+                <ArrowRight />
+              </Button>
+              <Button size="icon" aria-label="icon">
+                <ArrowRight />
+              </Button>
+              <Button size="icon-lg" aria-label="icon-lg">
+                <ArrowRight />
+              </Button>
+            </div>
+          </div>
+
+          {/* Brand utilities from globals.css */}
+          <div className="mb-8">
+            <h3 className="mb-3 text-xs font-semibold tracking-[0.16em] uppercase text-muted-foreground">
+              Brand Utilities (globals.css)
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <Button className="btn-brand btn-pill">
+                .btn-brand .btn-pill
+              </Button>
+              <Button className="btn-brand btn-xl">.btn-brand .btn-xl</Button>
+              <Button className="btn-brand-ghost btn-pill">
+                .btn-brand-ghost .btn-pill
+              </Button>
+            </div>
+          </div>
+
+          {/* States */}
+          <div>
+            <h3 className="mb-3 text-xs font-semibold tracking-[0.16em] uppercase text-muted-foreground">
+              States
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              <Button disabled>Disabled</Button>
+              <Button variant="outline" disabled>
+                Disabled Outline
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Live previews */}
         <section>
           <h2 className="mb-4 text-lg font-semibold">Live Previews</h2>
@@ -641,27 +725,49 @@ export default function ThemePage() {
               <p className="mb-3 text-xs font-semibold tracking-widest uppercase text-muted-foreground">
                 Brand button
               </p>
-              <button
-                type="button"
-                className="btn-brand rounded-xl px-5 py-2.5 text-sm font-semibold"
-              >
-                Get Early Access
-              </button>
+              <Button className="btn-brand">Get Early Access</Button>
             </div>
-            <div className="hero-aura rounded-2xl border border-border p-6">
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+          </div>
+        </section>
+
+        {/* Background gradients */}
+        <section>
+          <h2 className="mb-6 text-lg font-semibold">Background Gradients</h2>
+          <p className="mb-5 text-sm text-muted-foreground">
+            Custom background classes defined in{" "}
+            <code className="font-mono text-xs">globals.css</code>.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="hero-aura h-40 rounded-2xl border border-border p-6">
+              <code className="rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs text-foreground backdrop-blur-sm">
                 .hero-aura
-              </p>
+              </code>
               <p className="mt-2 text-sm text-muted-foreground">
-                Radial purple glow
+                Radial purple glow centered at 32% 35%
               </p>
             </div>
-            <div className="how-surface rounded-2xl border border-border p-6">
-              <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
+            <div className="how-surface h-40 rounded-2xl border border-border p-6">
+              <code className="rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs text-foreground backdrop-blur-sm">
                 .how-surface
-              </p>
+              </code>
               <p className="mt-2 text-sm text-muted-foreground">
-                Radial emerald + teal gradient
+                Emerald + teal radial glows over dark linear base
+              </p>
+            </div>
+            <div className="pitch-surface h-40 rounded-2xl border border-border p-6">
+              <code className="rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs text-foreground backdrop-blur-sm">
+                .pitch-surface
+              </code>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Purple radial glows over dark linear base
+              </p>
+            </div>
+            <div className="scene-vignette h-40 rounded-2xl border border-border p-6">
+              <code className="rounded bg-background/80 px-1.5 py-0.5 font-mono text-xs text-foreground backdrop-blur-sm">
+                .scene-vignette
+              </code>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Dark radial vignette overlay (transparent centre → dark edges)
               </p>
             </div>
           </div>

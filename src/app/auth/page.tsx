@@ -16,7 +16,7 @@ export function generateMetadata() {
 
 export default async function Auth({ searchParams }: AuthPageProps) {
   return (
-    <main className="hero-aura min-h-screen flex items-center justify-center bg-background pb-4 border-t border-border">
+    <main className="hero-aura pitch-surface min-h-screen flex items-center justify-center bg-background pb-4">
       <Card className="w-full max-w-md relative bottom-8">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">

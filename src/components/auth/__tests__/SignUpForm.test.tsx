@@ -7,16 +7,21 @@
  * Removed: trivial field presence tests visible from a single page load.
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 
 // ─── Hoisted refs ──────────────────────────────────────────────────────────────
 
 const mockUseActionState = vi.hoisted(() => vi.fn());
+const mockSignIn = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/auth/actions", () => ({
+vi.mock("@/actions/auth", () => ({
   signUpAction: vi.fn(),
   signInAction: vi.fn(),
+}));
+
+vi.mock("@/lib/auth-client", () => ({
+  signIn: mockSignIn,
 }));
 
 vi.mock("react", async (importOriginal) => {
@@ -34,7 +39,10 @@ function setupState(
 // ─── Default state ─────────────────────────────────────────────────────────────
 
 describe("SignUpForm — default state", () => {
-  beforeEach(() => setupState(null));
+  beforeEach(() => {
+    setupState(null);
+    mockSignIn.mockReset();
+  });
 
   // UX copy regression — if someone changes the hint text it would silently
   // break the user's understanding of the password policy.
@@ -72,6 +80,11 @@ describe("SignUpForm — default state", () => {
 // ─── Error state ───────────────────────────────────────────────────────────────
 
 describe("SignUpForm — error state", () => {
+  beforeEach(() => {
+    setupState(null);
+    mockSignIn.mockReset();
+  });
+
   it("displays the error message with destructive styling", () => {
     setupState({ error: "Email already in use", success: false });
     render(<SignUpForm />);
@@ -84,7 +97,10 @@ describe("SignUpForm — error state", () => {
 // ─── Pending state ─────────────────────────────────────────────────────────────
 
 describe("SignUpForm — pending state", () => {
-  beforeEach(() => setupState(null, true));
+  beforeEach(() => {
+    setupState(null, true);
+    mockSignIn.mockReset();
+  });
 
   it("shows 'Creating account...' button text while pending", () => {
     render(<SignUpForm />);
@@ -105,5 +121,47 @@ describe("SignUpForm — pending state", () => {
     expect(screen.getByLabelText(/full name/i)).toBeDisabled();
     expect(screen.getByLabelText(/email/i)).toBeDisabled();
     expect(document.querySelector('input[name="password"]')).toBeDisabled();
+  });
+});
+
+// ─── Social Sign In ────────────────────────────────────────────────────────────
+
+describe("SignUpForm — social sign-in", () => {
+  beforeEach(() => {
+    setupState(null);
+    mockSignIn.mockReset();
+  });
+
+  it("renders Google and GitHub buttons", () => {
+    render(<SignUpForm />);
+    expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+  });
+
+  it("calls signIn('google') when Google button is clicked", () => {
+    render(<SignUpForm />);
+    fireEvent.click(screen.getByRole("button", { name: /google/i }));
+    expect(mockSignIn).toHaveBeenCalledWith("google");
+  });
+
+  it("calls signIn('github') when GitHub button is clicked", () => {
+    render(<SignUpForm />);
+    fireEvent.click(screen.getByRole("button", { name: /github/i }));
+    expect(mockSignIn).toHaveBeenCalledWith("github");
+  });
+
+  it("disables other fields and buttons when a social sign-in is pending", () => {
+    mockSignIn.mockImplementation(() => new Promise(() => {}));
+
+    render(<SignUpForm />);
+    fireEvent.click(screen.getByRole("button", { name: /google/i }));
+
+    // Now social sign-in is pending
+    expect(screen.getByLabelText(/full name/i)).toBeDisabled();
+    expect(screen.getByLabelText(/email/i)).toBeDisabled();
+    expect(document.querySelector('input[name="password"]')).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^sign up$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /google/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /github/i })).toBeDisabled();
   });
 });

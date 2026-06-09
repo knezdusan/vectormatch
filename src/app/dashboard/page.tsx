@@ -1,20 +1,18 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 
 export default async function Dashboard() {
   // Use the server-side SDK — it reads the session cookie from the current
   // request headers directly, no outbound HTTP fetch required.
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getAuthSession();
+  console.log(session);
 
   if (!session) {
     redirect("/auth");
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <main className="hero-aura min-h-screen flex items-center justify-center bg-background">
       <div className="text-center space-y-4">
         <h1 className="text-2xl font-bold">Welcome to Dashboard</h1>
         <p className="text-muted-foreground">
@@ -32,6 +30,6 @@ export default async function Dashboard() {
           </button>
         </form>
       </div>
-    </div>
+    </main>
   );
 }

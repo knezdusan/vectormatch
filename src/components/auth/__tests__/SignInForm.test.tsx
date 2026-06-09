@@ -9,16 +9,21 @@
  * fields that are immediately visible from loading the page.
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { SignInForm } from "@/components/auth/SignInForm";
 
 // ─── Hoisted refs ──────────────────────────────────────────────────────────────
 
 const mockUseActionState = vi.hoisted(() => vi.fn());
+const mockSignIn = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/auth/actions", () => ({
+vi.mock("@/actions/auth", () => ({
   signInAction: vi.fn(),
   signUpAction: vi.fn(),
+}));
+
+vi.mock("@/lib/auth-client", () => ({
+  signIn: mockSignIn,
 }));
 
 vi.mock("react", async (importOriginal) => {
@@ -36,7 +41,10 @@ function setupState(
 // ─── Default state ─────────────────────────────────────────────────────────────
 
 describe("SignInForm — default state", () => {
-  beforeEach(() => setupState(null));
+  beforeEach(() => {
+    setupState(null);
+    mockSignIn.mockReset();
+  });
 
   it("does not render an error element when state is null", () => {
     render(<SignInForm />);
@@ -60,6 +68,11 @@ describe("SignInForm — default state", () => {
 // ─── Error state ───────────────────────────────────────────────────────────────
 
 describe("SignInForm — error state", () => {
+  beforeEach(() => {
+    setupState(null);
+    mockSignIn.mockReset();
+  });
+
   it("displays the error message with destructive styling", () => {
     setupState({ error: "Invalid email or password", success: false });
     render(<SignInForm />);
@@ -72,7 +85,10 @@ describe("SignInForm — error state", () => {
 // ─── Pending state ─────────────────────────────────────────────────────────────
 
 describe("SignInForm — pending state", () => {
-  beforeEach(() => setupState(null, true));
+  beforeEach(() => {
+    setupState(null, true);
+    mockSignIn.mockReset();
+  });
 
   it("shows 'Signing in...' button text while pending", () => {
     render(<SignInForm />);
@@ -90,5 +106,46 @@ describe("SignInForm — pending state", () => {
     render(<SignInForm />);
     expect(screen.getByLabelText(/email/i)).toBeDisabled();
     expect(document.querySelector('input[name="password"]')).toBeDisabled();
+  });
+});
+
+// ─── Social Sign In ────────────────────────────────────────────────────────────
+
+describe("SignInForm — social sign-in", () => {
+  beforeEach(() => {
+    setupState(null);
+    mockSignIn.mockReset();
+  });
+
+  it("renders Google and GitHub buttons", () => {
+    render(<SignInForm />);
+    expect(screen.getByRole("button", { name: /google/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /github/i })).toBeInTheDocument();
+  });
+
+  it("calls signIn('google') when Google button is clicked", () => {
+    render(<SignInForm />);
+    fireEvent.click(screen.getByRole("button", { name: /google/i }));
+    expect(mockSignIn).toHaveBeenCalledWith("google");
+  });
+
+  it("calls signIn('github') when GitHub button is clicked", () => {
+    render(<SignInForm />);
+    fireEvent.click(screen.getByRole("button", { name: /github/i }));
+    expect(mockSignIn).toHaveBeenCalledWith("github");
+  });
+
+  it("disables other fields and buttons when a social sign-in is pending", () => {
+    mockSignIn.mockImplementation(() => new Promise(() => {}));
+
+    render(<SignInForm />);
+    fireEvent.click(screen.getByRole("button", { name: /google/i }));
+
+    // Now social sign-in is pending
+    expect(screen.getByLabelText(/email/i)).toBeDisabled();
+    expect(document.querySelector('input[name="password"]')).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^sign in$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /google/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /github/i })).toBeDisabled();
   });
 });

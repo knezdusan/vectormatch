@@ -29,6 +29,11 @@ vi.mock("@/lib/auth", () => ({
       getSession: mockGetSession,
     },
   },
+  getAuthSession: async () => {
+    return await mockGetSession({
+      headers: new Headers(),
+    });
+  },
 }));
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@
  */
 
 import { redirect } from "next/navigation";
-import { signInAction, signUpAction } from "@/app/auth/actions";
+import { signInAction, signUpAction } from "@/actions/auth";
 
 // ─── Hoisted mock refs ─────────────────────────────────────────────────────────
 // vi.hoisted runs before module imports so these refs are available when
