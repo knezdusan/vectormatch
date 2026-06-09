@@ -10,7 +10,11 @@ export default async function Auth() {
     <div className="items-center gap-3.5 flex">
       {authSession ? (
         <div className="flex items-center gap-3.5 justify-end w-full">
-          <SignOutFormButton variant="outline" size="lg" />
+          <SignOutFormButton
+            variant="outline"
+            size="lg"
+            className="text-muted-foreground"
+          />
           <Button variant="outline" size="lg" className="rounded-full">
             <a href="/dashboard">
               <UserRound />

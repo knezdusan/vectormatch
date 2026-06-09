@@ -67,11 +67,11 @@ export function SignInForm() {
       </Button>
 
       <div className="relative flex py-2 items-center">
-        <div className="flex-grow border-t border-border" />
-        <span className="flex-shrink mx-4 text-xs text-muted-foreground uppercase">
+        <div className="grow border-t border-border" />
+        <span className="shrink mx-4 text-xs text-muted-foreground uppercase">
           Or continue with
         </span>
-        <div className="flex-grow border-t border-border" />
+        <div className="grow border-t border-border" />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -80,7 +80,7 @@ export function SignInForm() {
           variant="outline"
           onClick={() => handleSocialSignIn("google")}
           disabled={isAnyPending}
-          className="w-full"
+          className="w-full text-muted-foreground"
         >
           {isSocialPending === "google" ? (
             <Spinner className="mr-2" />
@@ -108,10 +108,10 @@ export function SignInForm() {
           variant="outline"
           onClick={() => handleSocialSignIn("github")}
           disabled={isAnyPending}
-          className="w-full"
+          className="w-full text-muted-foreground"
         >
           {isSocialPending === "github" ? (
-            <Spinner className="mr-2" />
+            <Spinner className="mr-2 bg" />
           ) : (
             <svg
               className="mr-2 h-4 w-4"
