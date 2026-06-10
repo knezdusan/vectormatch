@@ -3,7 +3,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { db } from "@/db/db";
-import { sendAlreadyRegisteredEmail, sendVerificationEmail } from "@/lib/email";
+import {
+  sendAlreadyRegisteredEmail,
+  sendResetPasswordEmail,
+  sendVerificationEmail,
+} from "@/lib/email";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -19,6 +23,12 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendResetPasswordEmail({
+        email: user.email,
+        url,
+      });
+    },
     onExistingUserSignUp: async ({ user }) => {
       // Background security flow to prevent user enumeration attacks while
       // sending the correct, high-UX follow-up email depending on verification state.

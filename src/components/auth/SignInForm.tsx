@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { resendVerificationEmailAction, signInAction } from "@/actions/auth";
+import {
+  requestPasswordResetAction,
+  resendVerificationEmailAction,
+  signInAction,
+} from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,9 +19,12 @@ export function SignInForm() {
     resendVerificationEmailAction,
     null,
   );
+  const [resetRequestState, resetRequestAction, isResetRequestPending] =
+    useActionState(requestPasswordResetAction, null);
   const [isSocialPending, setIsSocialPending] = useState<
     "google" | "github" | null
   >(null);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
 
   const handleSocialSignIn = async (provider: "google" | "github") => {
     setIsSocialPending(provider);
@@ -35,7 +42,107 @@ export function SignInForm() {
     resendAction(formData);
   };
 
-  const isAnyPending = isPending || isSocialPending !== null;
+  const isAnyPending =
+    isPending || isSocialPending !== null || isResetRequestPending;
+
+  if (isForgotPassword) {
+    if (resetRequestState?.success) {
+      return (
+        <div
+          className="text-center space-y-6 py-6"
+          data-testid="reset-success-container"
+        >
+          <div className="inline-flex items-center justify-center rounded-full bg-primary/10 p-4">
+            <svg
+              className="h-10 w-10 text-primary"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <title>Envelope Icon</title>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.633a2 2 0 012.22 0l8 5.633A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"
+              />
+            </svg>
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold">Check your email</h2>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+              We sent a password reset link to{" "}
+              <span className="font-semibold text-foreground">
+                {resetRequestState.email}
+              </span>
+              . Click on the link to reset your password.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full mt-4"
+            onClick={() => {
+              setIsForgotPassword(false);
+              // Clear state
+              window.location.reload();
+            }}
+          >
+            Back to Sign In
+          </Button>
+        </div>
+      );
+    }
+
+    return (
+      <form action={resetRequestAction} className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="email" className="ml-2">
+            Email Address
+          </Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            placeholder="Enter your email address"
+            required
+            disabled={isAnyPending}
+          />
+        </div>
+
+        {resetRequestState?.error && (
+          <div
+            className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+            data-testid="error-alert"
+          >
+            {resetRequestState.error}
+          </div>
+        )}
+
+        <Button type="submit" className="w-full my-4" disabled={isAnyPending}>
+          {isResetRequestPending ? (
+            <span className="flex items-center">
+              <Spinner className="mr-2 h-4 w-4" /> Sending link...
+            </span>
+          ) : (
+            "Send Reset Link"
+          )}
+        </Button>
+
+        <div className="text-center">
+          <Button
+            type="button"
+            variant="link"
+            className="text-xs text-muted-foreground hover:text-foreground p-0"
+            onClick={() => setIsForgotPassword(false)}
+          >
+            Back to Sign In
+          </Button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-6">
@@ -54,9 +161,18 @@ export function SignInForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password" className="ml-2">
-          Password
-        </Label>
+        <div className="flex justify-between items-center px-2">
+          <Label htmlFor="password">Password</Label>
+          <Button
+            type="button"
+            variant="link"
+            tabIndex={-1}
+            className="text-xs h-auto p-0 text-muted-foreground hover:text-foreground"
+            onClick={() => setIsForgotPassword(true)}
+          >
+            Forgot password?
+          </Button>
+        </div>
         <PasswordInput
           id="password"
           name="password"

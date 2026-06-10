@@ -120,6 +120,71 @@ export async function resendVerificationEmailAction(
   }
 }
 
+export async function requestPasswordResetAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = formData.get("email") as string;
+  if (!email) {
+    return { error: "Email is required", success: false };
+  }
+
+  try {
+    await auth.api.requestPasswordReset({
+      body: {
+        email,
+        redirectTo: `${process.env.BETTER_AUTH_URL}/auth/reset-password`,
+      },
+    });
+    return {
+      error: "",
+      success: true,
+      code: "RESET_REQUEST_SUCCESS",
+      email,
+    };
+  } catch (err) {
+    if (isAPIError(err)) {
+      return { error: err.message, success: false };
+    }
+    return { error: "An unexpected error occurred", success: false };
+  }
+}
+
+export async function resetPasswordAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const password = formData.get("password") as string;
+  const token = formData.get("token") as string;
+
+  if (!password || !token) {
+    return { error: "Password and token are required", success: false };
+  }
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters", success: false };
+  }
+
+  try {
+    await auth.api.resetPassword({
+      body: {
+        newPassword: password,
+        token,
+      },
+    });
+    return {
+      error: "",
+      success: true,
+      code: "RESET_PASSWORD_SUCCESS",
+    };
+  } catch (err) {
+    if (isAPIError(err)) {
+      return { error: err.message, success: false };
+    }
+    return { error: "An unexpected error occurred", success: false };
+  }
+}
+
 export async function signOutAction() {
   await auth.api.signOut({
     headers: await headers(),

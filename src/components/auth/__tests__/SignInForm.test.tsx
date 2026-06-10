@@ -18,11 +18,13 @@ const mockUseActionState = vi.hoisted(() => vi.fn());
 const mockSignIn = vi.hoisted(() => vi.fn());
 const mockSignInAction = vi.hoisted(() => vi.fn());
 const mockResendVerificationEmailAction = vi.hoisted(() => vi.fn());
+const mockRequestPasswordResetAction = vi.hoisted(() => vi.fn());
 
 vi.mock("@/actions/auth", () => ({
   signInAction: mockSignInAction,
   signUpAction: vi.fn(),
   resendVerificationEmailAction: mockResendVerificationEmailAction,
+  requestPasswordResetAction: mockRequestPasswordResetAction,
 }));
 
 vi.mock("@/lib/auth-client", () => ({
@@ -49,10 +51,20 @@ function setupState(
     email?: string;
   } | null = null,
   isResendPending = false,
+  resetRequestState: {
+    error: string;
+    success: boolean;
+    code?: string;
+    email?: string;
+  } | null = null,
+  isResetRequestPending = false,
 ) {
   mockUseActionState.mockImplementation((action) => {
     if (action === mockResendVerificationEmailAction) {
       return [resendState, vi.fn(), isResendPending];
+    }
+    if (action === mockRequestPasswordResetAction) {
+      return [resetRequestState, vi.fn(), isResetRequestPending];
     }
     return [state, vi.fn(), isPending];
   });

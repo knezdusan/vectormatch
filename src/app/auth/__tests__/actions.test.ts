@@ -1,5 +1,5 @@
 /**
- * Unit tests for Better Auth server actions (signUpAction / signInAction / resendVerificationEmailAction).
+ * Unit tests for Better Auth server actions (signUpAction / signInAction / resendVerificationEmailAction / requestPasswordResetAction / resetPasswordAction).
  *
  * Strategy:
  *  - Use vi.hoisted() so mock fn refs exist when vi.mock factory runs (required
@@ -13,7 +13,9 @@
 
 import { redirect } from "next/navigation";
 import {
+  requestPasswordResetAction,
   resendVerificationEmailAction,
+  resetPasswordAction,
   signInAction,
   signUpAction,
 } from "@/actions/auth";
@@ -22,12 +24,19 @@ import {
 // vi.hoisted runs before module imports so these refs are available when
 // vi.mock factory closes over them.
 
-const { mockSignUpEmail, mockSignInEmail, mockSendVerificationEmail } =
-  vi.hoisted(() => ({
-    mockSignUpEmail: vi.fn(),
-    mockSignInEmail: vi.fn(),
-    mockSendVerificationEmail: vi.fn(),
-  }));
+const {
+  mockSignUpEmail,
+  mockSignInEmail,
+  mockSendVerificationEmail,
+  mockRequestPasswordReset,
+  mockResetPassword,
+} = vi.hoisted(() => ({
+  mockSignUpEmail: vi.fn(),
+  mockSignInEmail: vi.fn(),
+  mockSendVerificationEmail: vi.fn(),
+  mockRequestPasswordReset: vi.fn(),
+  mockResetPassword: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   auth: {
@@ -35,6 +44,8 @@ vi.mock("@/lib/auth", () => ({
       signUpEmail: mockSignUpEmail,
       signInEmail: mockSignInEmail,
       sendVerificationEmail: mockSendVerificationEmail,
+      requestPasswordReset: mockRequestPasswordReset,
+      resetPassword: mockResetPassword,
     },
   },
 }));
@@ -311,6 +322,91 @@ describe("resendVerificationEmailAction", () => {
       success: true,
       code: "RESEND_SUCCESS",
       email: "alice@example.com",
+    });
+  });
+});
+
+// ─── requestPasswordResetAction ─────────────────────────────────────────────────
+
+describe("requestPasswordResetAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequestPasswordReset.mockResolvedValue({ status: true });
+  });
+
+  it("returns error when email is missing", async () => {
+    const fd = makeFormData({});
+    const result = await requestPasswordResetAction(null, fd);
+    expect(result).toMatchObject({
+      success: false,
+      error: "Email is required",
+    });
+    expect(mockRequestPasswordReset).not.toHaveBeenCalled();
+  });
+
+  it("calls auth.api.requestPasswordReset on success", async () => {
+    const fd = makeFormData({ email: "alice@example.com" });
+    const result = await requestPasswordResetAction(null, fd);
+    expect(mockRequestPasswordReset).toHaveBeenCalledOnce();
+    const call = mockRequestPasswordReset.mock.calls[0][0];
+    expect(call.body).toMatchObject({
+      email: "alice@example.com",
+    });
+    expect(result).toMatchObject({
+      success: true,
+      code: "RESET_REQUEST_SUCCESS",
+      email: "alice@example.com",
+    });
+  });
+});
+
+// ─── resetPasswordAction ────────────────────────────────────────────────────────
+
+describe("resetPasswordAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockResetPassword.mockResolvedValue({ status: true });
+  });
+
+  it("returns error when password or token is missing", async () => {
+    const fd1 = makeFormData({ password: "secure" });
+    const result1 = await resetPasswordAction(null, fd1);
+    expect(result1).toMatchObject({
+      success: false,
+      error: "Password and token are required",
+    });
+
+    const fd2 = makeFormData({ token: "tok" });
+    const result2 = await resetPasswordAction(null, fd2);
+    expect(result2).toMatchObject({
+      success: false,
+      error: "Password and token are required",
+    });
+    expect(mockResetPassword).not.toHaveBeenCalled();
+  });
+
+  it("returns error when password is too short (< 8 chars)", async () => {
+    const fd = makeFormData({ password: "short", token: "tok" });
+    const result = await resetPasswordAction(null, fd);
+    expect(result).toMatchObject({
+      success: false,
+      error: "Password must be at least 8 characters",
+    });
+    expect(mockResetPassword).not.toHaveBeenCalled();
+  });
+
+  it("calls auth.api.resetPassword on success", async () => {
+    const fd = makeFormData({ password: "securepassword", token: "tok" });
+    const result = await resetPasswordAction(null, fd);
+    expect(mockResetPassword).toHaveBeenCalledOnce();
+    const call = mockResetPassword.mock.calls[0][0];
+    expect(call.body).toMatchObject({
+      newPassword: "securepassword",
+      token: "tok",
+    });
+    expect(result).toMatchObject({
+      success: true,
+      code: "RESET_PASSWORD_SUCCESS",
     });
   });
 });
