@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { db } from "@/db/db";
-import { sendVerificationEmail } from "@/lib/email";
+import { sendAlreadyRegisteredEmail, sendVerificationEmail } from "@/lib/email";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -19,6 +19,26 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    onExistingUserSignUp: async ({ user }) => {
+      // Background security flow to prevent user enumeration attacks while
+      // sending the correct, high-UX follow-up email depending on verification state.
+      if (user.emailVerified) {
+        // Verified: send "Already registered - login here" link
+        const signInUrl = `${process.env.BETTER_AUTH_URL}/auth?tab=signin`;
+        await sendAlreadyRegisteredEmail({
+          email: user.email,
+          signInUrl,
+        });
+      } else {
+        // Unverified: trigger a fresh, secure verification email to complete sign-up
+        await auth.api.sendVerificationEmail({
+          body: {
+            email: user.email,
+            callbackURL: "/dashboard",
+          },
+        });
+      }
+    },
   },
   emailVerification: {
     sendOnSignUp: true,
