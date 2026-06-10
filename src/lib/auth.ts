@@ -24,13 +24,16 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      // Better Auth defaults verification links to /verify-email.
-      // Route directly to the API endpoint /api/auth/verify-email to verify natively on the
-      // server and redirect directly to the callbackURL (/dashboard).
-      const apiVerificationUrl = url.replace(
-        "/verify-email",
-        "/api/auth/verify-email",
-      );
+      // Better Auth defaults some verification links to /verify-email (signup/signin)
+      // and others to /api/auth/verify-email (resend-verification).
+      // We ensure it points directly to the API endpoint /api/auth/verify-email exactly once.
+      let apiVerificationUrl = url;
+      if (!url.includes("/api/auth/verify-email")) {
+        apiVerificationUrl = url.replace(
+          "/verify-email",
+          "/api/auth/verify-email",
+        );
+      }
       await sendVerificationEmail({
         email: user.email,
         url: apiVerificationUrl,
