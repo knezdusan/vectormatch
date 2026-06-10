@@ -3,6 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { db } from "@/db/db";
+import { sendVerificationEmail } from "@/lib/email";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -17,6 +18,24 @@ export const auth = betterAuth({
   plugins: [nextCookies()],
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      // Better Auth defaults verification links to /verify-email.
+      // Route directly to the API endpoint /api/auth/verify-email to verify natively on the
+      // server and redirect directly to the callbackURL (/dashboard).
+      const apiVerificationUrl = url.replace(
+        "/verify-email",
+        "/api/auth/verify-email",
+      );
+      await sendVerificationEmail({
+        email: user.email,
+        url: apiVerificationUrl,
+      });
+    },
   },
   socialProviders: {
     google: {
@@ -51,6 +70,10 @@ export const auth = betterAuth({
       },
       // Better Auth names this endpoint /request-password-reset
       "/request-password-reset": {
+        window: 60,
+        max: 3,
+      },
+      "/send-verification-email": {
         window: 60,
         max: 3,
       },

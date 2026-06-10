@@ -9,6 +9,8 @@ import { auth } from "@/lib/auth";
 export type ActionState = {
   error: string;
   success: boolean;
+  code?: string;
+  email?: string;
 } | null;
 
 export async function signUpAction(
@@ -39,7 +41,12 @@ export async function signUpAction(
     return { error: "An unexpected error occurred", success: false };
   }
 
-  redirect("/dashboard");
+  return {
+    error: "",
+    success: true,
+    code: "SIGNUP_SUCCESS",
+    email: parsed.data.email,
+  };
 }
 
 export async function signInAction(
@@ -64,12 +71,50 @@ export async function signInAction(
     });
   } catch (err) {
     if (isAPIError(err)) {
+      if (err.body?.code === "EMAIL_NOT_VERIFIED") {
+        return {
+          error: "Your email address is not verified yet.",
+          success: false,
+          code: "EMAIL_NOT_VERIFIED",
+          email: parsed.data.email,
+        };
+      }
       return { error: err.message, success: false };
     }
     return { error: "An unexpected error occurred", success: false };
   }
 
   redirect("/dashboard");
+}
+
+export async function resendVerificationEmailAction(
+  _prevState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const email = formData.get("email") as string;
+  if (!email) {
+    return { error: "Email is required", success: false };
+  }
+
+  try {
+    await auth.api.sendVerificationEmail({
+      body: {
+        email,
+        callbackURL: "/dashboard",
+      },
+    });
+    return {
+      error: "",
+      success: true,
+      code: "RESEND_SUCCESS",
+      email,
+    };
+  } catch (err) {
+    if (isAPIError(err)) {
+      return { error: err.message, success: false };
+    }
+    return { error: "An unexpected error occurred", success: false };
+  }
 }
 
 export async function signOutAction() {

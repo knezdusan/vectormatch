@@ -16,10 +16,13 @@ import { SignInForm } from "@/components/auth/SignInForm";
 
 const mockUseActionState = vi.hoisted(() => vi.fn());
 const mockSignIn = vi.hoisted(() => vi.fn());
+const mockSignInAction = vi.hoisted(() => vi.fn());
+const mockResendVerificationEmailAction = vi.hoisted(() => vi.fn());
 
 vi.mock("@/actions/auth", () => ({
-  signInAction: vi.fn(),
+  signInAction: mockSignInAction,
   signUpAction: vi.fn(),
+  resendVerificationEmailAction: mockResendVerificationEmailAction,
 }));
 
 vi.mock("@/lib/auth-client", () => ({
@@ -32,10 +35,27 @@ vi.mock("react", async (importOriginal) => {
 });
 
 function setupState(
-  state: { error: string; success: boolean } | null,
+  state: {
+    error: string;
+    success: boolean;
+    code?: string;
+    email?: string;
+  } | null,
   isPending = false,
+  resendState: {
+    error: string;
+    success: boolean;
+    code?: string;
+    email?: string;
+  } | null = null,
+  isResendPending = false,
 ) {
-  mockUseActionState.mockReturnValue([state, vi.fn(), isPending]);
+  mockUseActionState.mockImplementation((action) => {
+    if (action === mockResendVerificationEmailAction) {
+      return [resendState, vi.fn(), isResendPending];
+    }
+    return [state, vi.fn(), isPending];
+  });
 }
 
 // ─── Default state ─────────────────────────────────────────────────────────────
@@ -79,6 +99,50 @@ describe("SignInForm — error state", () => {
     const el = screen.getByText("Invalid email or password");
     expect(el).toBeInTheDocument();
     expect(el.className).toContain("destructive");
+  });
+});
+
+// ─── Unverified email state ───────────────────────────────────────────────────
+
+describe("SignInForm — EMAIL_NOT_VERIFIED state", () => {
+  beforeEach(() => {
+    mockSignIn.mockReset();
+  });
+
+  it("renders a unverified alert when code is EMAIL_NOT_VERIFIED", () => {
+    setupState({
+      error: "Your email address is not verified yet.",
+      success: false,
+      code: "EMAIL_NOT_VERIFIED",
+      email: "alice@example.com",
+    });
+    render(<SignInForm />);
+    expect(screen.getByTestId("unverified-alert")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /resend verification email/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders a verification resent success message when resend is successful", () => {
+    setupState(
+      {
+        error: "Your email address is not verified yet.",
+        success: false,
+        code: "EMAIL_NOT_VERIFIED",
+        email: "alice@example.com",
+      },
+      false,
+      {
+        error: "",
+        success: true,
+        code: "RESEND_SUCCESS",
+      },
+    );
+    render(<SignInForm />);
+    expect(screen.getByText(/verification email resent!/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /resend verification email/i }),
+    ).not.toBeInTheDocument();
   });
 });
 

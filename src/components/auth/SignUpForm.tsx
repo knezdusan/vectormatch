@@ -27,6 +27,41 @@ export function SignUpForm() {
 
   const isAnyPending = isPending || isSocialPending !== null;
 
+  if (state?.code === "SIGNUP_SUCCESS") {
+    return (
+      <div
+        className="text-center space-y-6 py-6"
+        data-testid="signup-success-container"
+      >
+        <div className="inline-flex items-center justify-center rounded-full bg-primary/10 p-4">
+          <svg
+            className="h-10 w-10 text-primary"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <title>Envelope Icon</title>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.633a2 2 0 012.22 0l8 5.633A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"
+            />
+          </svg>
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold">Please check your email</h2>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            We sent a verification link to{" "}
+            <span className="font-semibold text-foreground">{state.email}</span>
+            . Click on the link to activate your account.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form action={formAction} className="space-y-6">
       <div className="space-y-2">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { signInAction } from "@/actions/auth";
+import { resendVerificationEmailAction, signInAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +11,10 @@ import { PasswordInput } from "./PasswordInput";
 
 export function SignInForm() {
   const [state, formAction, isPending] = useActionState(signInAction, null);
+  const [resendState, resendAction, isResendPending] = useActionState(
+    resendVerificationEmailAction,
+    null,
+  );
   const [isSocialPending, setIsSocialPending] = useState<
     "google" | "github" | null
   >(null);
@@ -23,6 +27,12 @@ export function SignInForm() {
       console.error(error);
       setIsSocialPending(null);
     }
+  };
+
+  const handleResend = () => {
+    const formData = new FormData();
+    formData.append("email", state?.email || "");
+    resendAction(formData);
   };
 
   const isAnyPending = isPending || isSocialPending !== null;
@@ -56,11 +66,90 @@ export function SignInForm() {
         />
       </div>
 
-      {state?.error && (
-        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+      {state?.code === "EMAIL_NOT_VERIFIED" ? (
+        <div
+          className="rounded-md bg-amber-500/15 border border-amber-500/30 p-4 text-sm text-amber-500 space-y-3"
+          data-testid="unverified-alert"
+        >
+          <div className="flex items-start">
+            <div className="shrink-0 pt-0.5">
+              <svg
+                className="h-4 w-4 text-amber-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <title>Warning Alert Icon</title>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="font-medium text-foreground">
+                Email address not verified
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                You must verify your email address before you can log in.
+              </p>
+            </div>
+          </div>
+          <div className="pl-7">
+            {resendState?.success ? (
+              <p className="text-xs font-semibold text-emerald-500 flex items-center">
+                <svg
+                  className="h-3 w-3 mr-1 text-emerald-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <title>Check Icon</title>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                Verification email resent! Please check your inbox.
+              </p>
+            ) : (
+              <div>
+                <Button
+                  type="button"
+                  variant="link"
+                  onClick={handleResend}
+                  className="h-auto p-0 text-xs font-semibold text-primary hover:text-primary/90 underline"
+                  disabled={isResendPending}
+                >
+                  {isResendPending ? (
+                    <span className="flex items-center">
+                      <Spinner className="mr-1 h-3 w-3" /> Sending...
+                    </span>
+                  ) : (
+                    "Resend verification email"
+                  )}
+                </Button>
+                {resendState?.error && (
+                  <p className="mt-1 text-xs text-destructive">
+                    {resendState.error}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : state?.error ? (
+        <div
+          className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+          data-testid="error-alert"
+        >
           {state.error}
         </div>
-      )}
+      ) : null}
 
       <Button type="submit" className="w-full my-4" disabled={isAnyPending}>
         {isPending ? "Signing in..." : "Sign In"}

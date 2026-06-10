@@ -1,5 +1,5 @@
 /**
- * Unit tests for Better Auth server actions (signUpAction / signInAction).
+ * Unit tests for Better Auth server actions (signUpAction / signInAction / resendVerificationEmailAction).
  *
  * Strategy:
  *  - Use vi.hoisted() so mock fn refs exist when vi.mock factory runs (required
@@ -12,22 +12,29 @@
  */
 
 import { redirect } from "next/navigation";
-import { signInAction, signUpAction } from "@/actions/auth";
+import {
+  resendVerificationEmailAction,
+  signInAction,
+  signUpAction,
+} from "@/actions/auth";
 
 // ─── Hoisted mock refs ─────────────────────────────────────────────────────────
 // vi.hoisted runs before module imports so these refs are available when
 // vi.mock factory closes over them.
 
-const { mockSignUpEmail, mockSignInEmail } = vi.hoisted(() => ({
-  mockSignUpEmail: vi.fn(),
-  mockSignInEmail: vi.fn(),
-}));
+const { mockSignUpEmail, mockSignInEmail, mockSendVerificationEmail } =
+  vi.hoisted(() => ({
+    mockSignUpEmail: vi.fn(),
+    mockSignInEmail: vi.fn(),
+    mockSendVerificationEmail: vi.fn(),
+  }));
 
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
       signUpEmail: mockSignUpEmail,
       signInEmail: mockSignInEmail,
+      sendVerificationEmail: mockSendVerificationEmail,
     },
   },
 }));
@@ -122,10 +129,15 @@ describe("signUpAction", () => {
     });
   });
 
-  it("calls redirect('/dashboard') after successful signup", async () => {
+  it("returns success and code='SIGNUP_SUCCESS' after successful signup without immediate redirect", async () => {
     const fd = makeFormData(VALID_SIGNUP);
-    await signUpAction(null, fd);
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
+    const result = await signUpAction(null, fd);
+    expect(result).toMatchObject({
+      success: true,
+      code: "SIGNUP_SUCCESS",
+      email: VALID_SIGNUP.email,
+    });
+    expect(redirect).not.toHaveBeenCalled();
   });
 
   it("passes awaited request headers to auth.api.signUpEmail", async () => {
@@ -214,6 +226,24 @@ describe("signInAction", () => {
 
   // --- Error handling ---
 
+  it("returns EMAIL_NOT_VERIFIED status when auth.api.signInEmail throws EMAIL_NOT_VERIFIED", async () => {
+    const { APIError } = await import("better-auth");
+    mockSignInEmail.mockRejectedValueOnce(
+      new APIError("FORBIDDEN", {
+        message: "Email not verified",
+        code: "EMAIL_NOT_VERIFIED",
+      }),
+    );
+    const fd = makeFormData(VALID_SIGNIN);
+    const result = await signInAction(null, fd);
+    expect(result).toMatchObject({
+      success: false,
+      code: "EMAIL_NOT_VERIFIED",
+      email: VALID_SIGNIN.email,
+    });
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
   it("returns APIError message when auth.api.signInEmail throws APIError", async () => {
     const { APIError } = await import("better-auth");
     // First arg is an HTTP status name; custom code goes in body.code
@@ -247,5 +277,40 @@ describe("signInAction", () => {
     const fd = makeFormData(VALID_SIGNIN);
     await signInAction(prevError, fd);
     expect(mockSignInEmail).toHaveBeenCalledOnce();
+  });
+});
+
+// ─── resendVerificationEmailAction ──────────────────────────────────────────────
+
+describe("resendVerificationEmailAction", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSendVerificationEmail.mockResolvedValue({ status: true });
+  });
+
+  it("returns error when email is missing", async () => {
+    const fd = makeFormData({});
+    const result = await resendVerificationEmailAction(null, fd);
+    expect(result).toMatchObject({
+      success: false,
+      error: "Email is required",
+    });
+    expect(mockSendVerificationEmail).not.toHaveBeenCalled();
+  });
+
+  it("calls auth.api.sendVerificationEmail on success", async () => {
+    const fd = makeFormData({ email: "alice@example.com" });
+    const result = await resendVerificationEmailAction(null, fd);
+    expect(mockSendVerificationEmail).toHaveBeenCalledOnce();
+    const call = mockSendVerificationEmail.mock.calls[0][0];
+    expect(call.body).toMatchObject({
+      email: "alice@example.com",
+      callbackURL: "/dashboard",
+    });
+    expect(result).toMatchObject({
+      success: true,
+      code: "RESEND_SUCCESS",
+      email: "alice@example.com",
+    });
   });
 });
