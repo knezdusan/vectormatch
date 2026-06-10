@@ -168,7 +168,7 @@ export function Hero() {
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-[18px] lg:justify-start">
             <Button asChild className="btn-brand btn-xl max-sm:flex-1">
-              <a href="/signup">
+              <a href="/auth?tab=signup">
                 Start Your AI Job Hunt
                 <ArrowRight className="size-[18px]" />
               </a>

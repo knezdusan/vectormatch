@@ -249,7 +249,7 @@ export function Pitch() {
           </ul>
           <div className="mt-10 flex flex-wrap items-center gap-[18px]">
             <Button asChild className="btn-brand btn-xl max-sm:flex-1">
-              <a href="/signup">
+              <a href="/auth?tab=signup">
                 Start Pitching Smarter
                 <ArrowRight className="size-[18px]" />
               </a>

@@ -11,5 +11,12 @@
   "files.associations": {
     "*.css": "tailwindcss"
   },
-  "css.validate": false
+  "css.validate": false,
+  "search.exclude": {
+    "**/.next": true,
+    "**/.vscode": true,
+    "**/.git": true,
+    "**/.devin": true,
+    "**/*.test.{ts,tsx}": true
+  }
 }
