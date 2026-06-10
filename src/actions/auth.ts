@@ -31,7 +31,10 @@ export async function signUpAction(
 
   try {
     await auth.api.signUpEmail({
-      body: parsed.data,
+      body: {
+        ...parsed.data,
+        callbackURL: "/dashboard",
+      },
       headers: await headers(),
     });
   } catch (err) {

@@ -8,7 +8,10 @@ export function proxy(request: NextRequest) {
 
   // 1. Read the Better Auth session token cookie (Optimistic Check)
   // Better Auth's standard session token cookie name is 'better-auth.session_token'
-  const sessionToken = request.cookies.get("better-auth.session_token")?.value;
+  // or '__Secure-better-auth.session_token' in secure environments.
+  const sessionToken =
+    request.cookies.get("better-auth.session_token")?.value ||
+    request.cookies.get("__Secure-better-auth.session_token")?.value;
 
   const isAuthPage = pathname.startsWith("/auth");
   const isDashboardPage = pathname.startsWith("/dashboard");

@@ -17,6 +17,7 @@
     "**/.vscode": true,
     "**/.git": true,
     "**/.devin": true,
-    "**/*.test.{ts,tsx}": true
+    "**/*.test.ts": true,
+    "**/*.test.tsx": true
   }
 }
