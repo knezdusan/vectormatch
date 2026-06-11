@@ -14,15 +14,20 @@
       "command": "npx",
       "args": ["-y", "mcp-remote@latest", "https://mcp.neon.tech/mcp"]
     },
-    "exclude": [
-      "**/node_modules/**",
-      "**/.next/**",
-      "**/build/**",
-      "**/dist/**",
-      "**/.git/**",
-      "**/package-lock.json",
-      "**/yarn.lock",
-      "**/pnpm-lock.yaml"
-    ]
-  }
+    "playwright": {
+      "transport": "STDIO",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  },
+  "exclude": [
+    "**/node_modules/**",
+    "**/.next/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/.git/**",
+    "**/package-lock.json",
+    "**/yarn.lock",
+    "**/pnpm-lock.yaml"
+  ]
 }

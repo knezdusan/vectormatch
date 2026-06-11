@@ -18,6 +18,8 @@
     "**/.git": true,
     "**/.devin": true,
     "**/*.test.ts": true,
-    "**/*.test.tsx": true
+    "**/*.test.tsx": true,
+    "**/*.spec.ts": true,
+    "**/*.spec.tsx": true
   }
 }

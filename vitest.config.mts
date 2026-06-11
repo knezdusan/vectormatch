@@ -13,7 +13,7 @@ export default defineConfig({
     environment: "happy-dom",
     globals: true, // Avoid importing 'describe', 'it', 'expect' in every file
     setupFiles: ["./vitest.setup.ts"],
-    exclude: ["node_modules", ".next", "tests-e2e/**/*"], // Skip E2E Playwright tests
+    exclude: ["node_modules", ".next", "e2e/**/*", "tests-e2e/**/*"], // Skip E2E Playwright tests
     coverage: {
       provider: "v8", // Out-of-the-box native V8 coverage is much faster than Istanbul
       reporter: ["text", "json", "html"],

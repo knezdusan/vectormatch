@@ -49,11 +49,105 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **Types**: Use strict TypeScript (enforced) + Zod schemas for all external data (ATS payloads, forms)
 - **Performance**: Keep queries under 20ms for Gate 1+2. Use indexes properly.
 
-## Testing
-- **Skill**: Use the `vitest-best-practices` skill for all testing work — it reads config files and fetches latest docs automatically
+## Testing Strategy
+
+This project runs **two separate test frameworks with zero overlap.** They serve different purposes, live in different directories, and use different file extensions. Never mix them.
+
+### Test Hierarchy — which tool for which job
+
+| Test Type | Tool | File Location | File Extension | When to write |
+|---|---|---|---|---|
+| **Unit tests** | Vitest | `src/**/__tests__/` or alongside source | `.test.ts` / `.test.tsx` | Individual functions, hooks, utilities, Zod schema validation |
+| **Integration tests** | Vitest | `src/**/__tests__/` | `.test.ts` | Server Actions, auth flow logic, DB operations (mocked) |
+| **Component tests** | Vitest | `src/components/**/__tests__/` | `.test.tsx` | React components in isolation (`happy-dom`) |
+| **E2E tests** | Playwright | `e2e/` only | `.spec.ts` | Full user journeys across real browser: auth, navigation, critical paths |
+
+### Separation rules — preventing interference
+
+- **Vitest territory**: `src/` directory, files ending in `.test.ts` or `.test.tsx`. Vitest config excludes `tests-e2e/**/*` and scans `src/` automatically. It uses `happy-dom` (not a real browser).
+- **Playwright territory**: `e2e/` directory, files ending in `.spec.ts`. Playwright config `testDir: "./e2e"`. It launches real Chromium/Firefox/WebKit browsers.
+- **Never** place `.test.ts` files in `e2e/`. **Never** place `.spec.ts` files in `src/`.
+- Both use `test` / `describe` / `expect`, but the **import source differs**: Vitest uses globals (or `import { vi } from "vitest"`); Playwright uses `import { test, expect } from "@playwright/test"`.
+
+### When NOT to generate tests
+
+Do **not** write tests for these changes. They add noise without value:
+
+- Pure UI/styling changes (Tailwind classes, dark mode adjustments, spacing)
+- Layout refactoring with no logic change
+- Shadcn/ui component updates (generated upstream code, already tested)
+- Copy/text changes, static content additions
+- README or documentation updates
+- Moving files between directories with no behavioral change
+
+### When TO generate tests
+
+Always add or update tests for these:
+
+- **New auth flows**: sign-up, sign-in, password reset, email verification, OAuth callbacks
+- **New form validations**: Zod schemas, Server Actions with `useActionState`
+- **Database schema changes** affecting queries or Drizzle relations
+- **New API endpoints** or route handlers (`app/api/**/route.ts`)
+- **New background jobs** (Inngest functions, event handlers)
+- **New business logic**: matching algorithms, scoring, filtering
+- **Bug fixes**: always add a regression test (unit or E2E, whichever fits)
+- **Critical user journeys**: onboarding, job matching flow, payments
+
+### Vitest configuration
+
+- **Skill**: Use the `vitest-best-practices` skill for all unit/integration/component testing
 - **Stack**: Vitest 4.1.8 + @testing-library/react 16.3.2 + happy-dom 20.10.2
-- **Config files**: `vitest.config.mts` (environment, coverage) and `vitest.setup.ts` (Next.js 16 mocks)
+- **Config**: `vitest.config.mts` (environment: happy-dom, coverage: v8, globals: true)
+- **Setup**: `vitest.setup.ts` — global mocks for `next/navigation` and `next/headers` (async APIs for Next.js 16)
 - **Commands**: `npm run test` (watch) · `npm run test:ui` (visual) · `npm run test:coverage`
+
+### Playwright E2E configuration
+
+- **Skill**: Use the `playwright-e2e` skill for all E2E work — it covers auth bypass, rate limits, and Next.js 16 hydration
+- **Stack**: `@playwright/test` v1.60 + `@playwright/mcp@latest` (browser exploration tools)
+- **Config**: `playwright.config.ts` — 5 projects (Chromium, Firefox, WebKit, Mobile Chrome, Mobile Safari), baseURL `http://localhost:3000`, dev server auto-start
+- **Artifacts**: screenshots/videos/traces in `e2e/test-results/`, HTML report in `e2e/playwright-report/`
+- **Commands**: `npm run test:e2e` (headless all) · `npx playwright test --project=chromium` (dev) · `npm run test:e2e:ui` (interactive)
+
+### Better Auth E2E testing rules
+
+Better Auth applies **strict rate limits** that will break naive E2E tests:
+- `/api/auth/sign-in/email` — **3 attempts per 10 seconds**
+- `/api/auth/sign-up/email` — **3 attempts per 10 seconds**
+- `/api/auth/request-password-reset` — **3 attempts per 60 seconds**
+
+**Do not** write E2E tests that repeatedly submit auth forms through the UI. Instead:
+1. **For authenticated state**: Create the session via Better Auth API once, then use Playwright `storageState` to reuse it across tests.
+2. **For auth flow validation**: Test each flow once (sign-in, sign-up, reset) with a single test per flow. Use the MCP browser tools (`browser_navigate`, `browser_snapshot`) to verify DOM state before writing the permanent test.
+3. **For validation errors**: Test empty-field and invalid-format errors via Vitest on the Server Action, not via Playwright on the UI. The UI just renders what the action returns.
+
+### Next.js 16 hydration awareness
+
+React 19 + Next.js 16 can produce hydration mismatches. Both test types must account for this:
+- **Vitest**: `vitest.setup.ts` mocks async `useParams`, `useSearchParams`, `cookies()`, `headers()`. Server Components render synchronously in `happy-dom`; hydration is not a factor.
+- **Playwright**: After `page.goto('/')`, always wait for selectors before asserting. Monitor `page.on('console')` for errors containing "hydrat". Use `page.waitForSelector` with timeouts — do not assert immediately after navigation.
+
+### AI-assisted test exploration (Playwright MCP)
+
+The project has `@playwright/mcp@latest` registered in `.devin/config.json`. This lets Devin use browser tools (`browser_navigate`, `browser_click`, `browser_snapshot`) to explore pages before writing tests.
+
+**Use MCP for**: discovering selectors, verifying page structure, exploring complex flows before codifying them.
+**Do NOT use MCP for**: running the actual test suite. MCP is exploration only. The permanent test must be written as standard Playwright code in `e2e/*.spec.ts`.
+
+### Running the full test suite
+
+```bash
+# 1. Unit + integration tests (Vitest)
+npm run test        # watch mode
+npm run test:coverage
+
+# 2. E2E tests (Playwright) — after Vitest passes
+npm run test:e2e    # all browsers, headless
+# or during development:
+npx playwright test --project=chromium
+
+# Both suites must pass before committing.
+```
 
 ## Data & Caching
 - Use **Cache Components** for data caching (see `node_modules/next/dist/docs/` for reference)
