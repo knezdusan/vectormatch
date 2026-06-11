@@ -173,7 +173,7 @@ export function Hero() {
                 <ArrowRight className="size-[18px]" />
               </a>
             </Button>
-            <Button asChild className="btn-brand-ghost btn-xl px-1.5">
+            <Button asChild variant="ghost" className="btn-xl px-1.5">
               <a href="#how">
                 <span className="grid size-8 place-items-center rounded-full border border-primary-bright/40 bg-primary/15 text-primary-bright">
                   <Play className="size-3 fill-current" />
