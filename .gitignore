@@ -72,3 +72,6 @@ Thumbs.db
 
 # Inngest (if using local dev server)
 .inngest/
+
+# Documentation and secrets
+/docs/
