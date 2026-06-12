@@ -73,6 +73,10 @@ describe("session schema — Better Auth contract", () => {
       expect(cols).toContain(col);
     }
   });
+
+  it("has 'impersonatedBy' column (required by admin plugin)", () => {
+    expect(cols).toContain("impersonatedBy");
+  });
 });
 
 // ─── account table ────────────────────────────────────────────────────────────
@@ -113,5 +117,21 @@ describe("user schema — Better Auth contract", () => {
     for (const col of required) {
       expect(cols).toContain(col);
     }
+  });
+
+  it("has 'role' column (required by admin plugin)", () => {
+    expect(cols).toContain("role");
+  });
+
+  it("has 'banned' column (required by admin plugin)", () => {
+    expect(cols).toContain("banned");
+  });
+
+  it("has 'banReason' column (required by admin plugin)", () => {
+    expect(cols).toContain("banReason");
+  });
+
+  it("has 'banExpires' column (required by admin plugin)", () => {
+    expect(cols).toContain("banExpires");
   });
 });

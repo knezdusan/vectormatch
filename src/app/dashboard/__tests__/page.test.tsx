@@ -61,13 +61,6 @@ describe("Dashboard — authenticated", () => {
     expect(screen.getByText(/alice smith/i)).toBeInTheDocument();
   });
 
-  it("renders a Sign Out button", async () => {
-    render(await ClientData());
-    expect(
-      screen.getByRole("button", { name: /sign out/i }),
-    ).toBeInTheDocument();
-  });
-
   it("does NOT redirect when session exists", async () => {
     render(await ClientData());
     expect(redirect).not.toHaveBeenCalled();

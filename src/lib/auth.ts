@@ -1,7 +1,9 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { admin } from "better-auth/plugins/admin";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { db } from "@/db/db";
 import {
   sendAlreadyRegisteredEmail,
@@ -19,7 +21,7 @@ export const auth = betterAuth({
       maxAge: 5 * 60, // 5 minutes
     },
   },
-  plugins: [nextCookies()],
+  plugins: [nextCookies(), admin()],
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -127,4 +129,19 @@ export async function getAuthSession() {
   return await auth.api.getSession({
     headers: await headers(),
   });
+}
+
+/**
+ * Require a specific role to access a page or action.
+ * Redirects to the given path if the user is not authenticated
+ * or does not have the required role.
+ */
+export async function requireRole(role: string, redirectTo = "/dashboard") {
+  const session = await getAuthSession();
+
+  if (!session || session.user.role !== role) {
+    redirect(redirectTo);
+  }
+
+  return session;
 }

@@ -35,6 +35,7 @@
 import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthClient } from "better-auth/client";
+import { admin } from "better-auth/plugins/admin";
 
 // ─── Factory helpers ──────────────────────────────────────────────────────────
 
@@ -319,5 +320,147 @@ describe("rate limiting — /get-session is exempt", () => {
     for (const status of errors) {
       expect(status).not.toBe(429);
     }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ADMIN PLUGIN  (authAdmin — admin plugin enabled, rate limiting disabled)
+// ═════════════════════════════════════════════════════════════════════════════
+
+function makeAdminAuthInstance() {
+  const store = {
+    user: [],
+    session: [],
+    account: [],
+    verification: [],
+  };
+  const auth = betterAuth({
+    baseURL: "http://localhost:3000",
+    secret: "integration-test-secret-that-is-32chars!",
+    database: memoryAdapter(store),
+    emailAndPassword: { enabled: true },
+    plugins: [admin()],
+    rateLimit: { enabled: false },
+  });
+
+  const customFetchImpl: typeof fetch = (url, init) =>
+    auth.handler(new Request(url as string, init));
+
+  const client = createAuthClient({
+    baseURL: "http://localhost:3000/api/auth",
+    fetchOptions: { customFetchImpl },
+  });
+
+  return { auth, client, store };
+}
+
+const {
+  auth: authAdmin,
+  client: clientAdmin,
+  store: adminStore,
+} = makeAdminAuthInstance();
+
+describe("admin plugin — default role", () => {
+  it("assigns 'user' as the default role on sign-up", async () => {
+    const { data, error } = await clientAdmin.signUp.email({
+      name: "Regular User",
+      email: "regular@example.com",
+      password: "secure-password",
+    });
+
+    expect(error).toBeNull();
+    expect(data?.user.role).toBe("user");
+  });
+});
+
+describe("admin plugin — setRole endpoint", () => {
+  const ADMIN_EMAIL = "admin-setrole@example.com";
+  const ADMIN_PASSWORD = "admin-password";
+  const USER_EMAIL = "target-setrole@example.com";
+
+  beforeAll(async () => {
+    // Create admin user
+    await clientAdmin.signUp.email({
+      name: "Admin User",
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+    });
+
+    // Promote admin user to admin role by directly mutating the memory store.
+    // The setRole endpoint requires an authenticated admin session, so we
+    // bypass the API layer for test setup.
+    const adminUser = adminStore.user.find(
+      (u: { email: string }) => u.email === ADMIN_EMAIL,
+    );
+    if (adminUser) {
+      adminUser.role = "admin";
+    }
+
+    // Create regular user
+    await clientAdmin.signUp.email({
+      name: "Target User",
+      email: USER_EMAIL,
+      password: "target-password",
+    });
+  });
+
+  it("allows an admin to change another user's role", async () => {
+    // Sign in as admin and capture session cookie
+    let token: string | null = null;
+    await clientAdmin.signIn.email({
+      email: ADMIN_EMAIL,
+      password: ADMIN_PASSWORD,
+      fetchOptions: {
+        onSuccess(ctx) {
+          token = extractSessionCookie(ctx.response);
+        },
+      },
+    });
+    expect(token).toBeTruthy();
+
+    const headers = new Headers({
+      cookie: `better-auth.session_token=${token}`,
+    });
+
+    // Find target user (requires admin session)
+    const targetList = await authAdmin.api.listUsers({
+      query: {
+        searchField: "email",
+        searchOperator: "contains",
+        searchValue: USER_EMAIL,
+      },
+      headers,
+    });
+    const targetUserId = (targetList.users as { id: string }[])[0]?.id;
+
+    // Set role to admin
+    const result = await authAdmin.api.setRole({
+      body: { userId: targetUserId, role: "admin" },
+      headers,
+    });
+
+    expect(result.user.role).toBe("admin");
+  });
+
+  it("includes role in the session object after sign-in", async () => {
+    let token: string | null = null;
+    await clientAdmin.signIn.email({
+      email: USER_EMAIL,
+      password: "target-password",
+      fetchOptions: {
+        onSuccess(ctx) {
+          token = extractSessionCookie(ctx.response);
+        },
+      },
+    });
+
+    expect(token).toBeTruthy();
+
+    const session = await authAdmin.api.getSession({
+      headers: new Headers({ cookie: `better-auth.session_token=${token}` }),
+    });
+
+    expect(session).not.toBeNull();
+    expect(session?.user.role).toBe("admin");
   });
 });

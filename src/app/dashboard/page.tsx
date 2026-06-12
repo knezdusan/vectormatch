@@ -5,7 +5,8 @@ import { SignOutFormButton } from "@/components/auth/SignOutFormButton";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthSession } from "@/lib/auth";
 
-async function ClientData() {
+// fallow-ignore-next-line
+export async function ClientData() {
   // Use the server-side SDK — it reads the session cookie from the current
   // request headers directly, no outbound HTTP fetch required.
   const session = await getAuthSession();
