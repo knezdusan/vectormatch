@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": ["src/index.{ts,tsx,js,jsx}", "src/main.{ts,tsx,js,jsx}"],
+  "ignorePatterns": [
+    "**/__tests__/**",
+    "**/*.test.{ts,tsx,js,jsx}",
+    "**/*.spec.{ts,tsx,js,jsx}",
+    "e2e/**",
+    "src/db/migrations/**",
+    "src/components/ui/**",
+    "vitest.config.mts",
+    "vitest.setup.ts",
+    "playwright.config.ts"
+  ],
+  "duplicates": {
+    "minOccurrences": 3,
+    "ignore": [
+      "src/components/auth/SignInForm.tsx",
+      "src/components/auth/SignUpForm.tsx"
+    ]
+  },
+  "rules": {
+    "unused-dependencies": "warn"
+  }
+}

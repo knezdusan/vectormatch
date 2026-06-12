@@ -18,6 +18,11 @@
       "transport": "STDIO",
       "command": "npx",
       "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "fallow": {
+      "transport": "STDIO",
+      "command": "npx",
+      "args": ["-y", "fallow-mcp"]
     }
   },
   "exclude": [

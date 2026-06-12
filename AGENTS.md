@@ -231,5 +231,15 @@ BEGIN:agent-rules-on-hold - DISABLED UNTIL FURTHER NOTICE
 - Run `biome check --apply .` before every commit
 - Use Inngest dev server for local testing
 - Always test the full 3-gate funnel after major changes
+## Fallow (Codebase Intelligence)
+
+This project has **Fallow** (v2.95.0) installed for structural analysis: dead code, duplication, complexity, circular dependencies, and boundary violations. Use it via the `fallow` skill (`.devin/skills/fallow/SKILL.md`) or the `fallow` MCP server registered in `.devin/config.json`.
+
+**When to use Fallow**: architectural reviews, large feature builds, cleanup requests, PR audits, or complexity concerns. Invoke the skill or MCP tool for these scenarios.
+
+**When NOT to use Fallow**: routine changes, individual component edits, or anything already covered by Vitest, Playwright, and Biome. Do not run fallow on every turn — it is overkill for small tasks.
+
+**Agent**: Devin Desktop (not Windsurf). `FALLOW_AGENT_SOURCE` is intentionally unset because Devin is not in the Fallow allowlist; this does not affect functionality.
+
 END:agent-rules-on-hold
 -->

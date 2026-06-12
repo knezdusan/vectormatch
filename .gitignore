@@ -82,3 +82,4 @@ Thumbs.db
 /e2e/blob-report/
 /e2e/playwright/.cache/
 /e2e/playwright/.auth/
+.fallow/
