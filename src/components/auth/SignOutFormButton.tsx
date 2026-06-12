@@ -8,6 +8,8 @@ import { Button } from "../ui/button";
 export function SignOutFormButton({
   variant,
   size,
+  className,
+  ...props
 }: React.ComponentProps<typeof Button>) {
   const [state, formAction, isPending] = useActionState(signOutAction, null);
   if (state?.error) {
@@ -15,7 +17,13 @@ export function SignOutFormButton({
   }
   return (
     <form action={formAction}>
-      <Button type="submit" variant={variant || "outline"} size={size || "lg"}>
+      <Button
+        type="submit"
+        variant={variant || "outline"}
+        size={size || "lg"}
+        className={className}
+        {...props}
+      >
         {isPending ? "Signing out..." : "Sign out"}
       </Button>
     </form>

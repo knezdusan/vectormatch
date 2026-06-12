@@ -257,14 +257,34 @@
   [data-slot="button"].btn-brand-ghost {
     background: transparent;
     font-weight: 600;
-    color: var(--foreground);
     transition: color 0.2s ease-in-out;
+    color: var(--muted-foreground);
   }
   button.btn-brand-ghost:hover,
   a.btn-brand-ghost:hover,
   [data-slot="button"].btn-brand-ghost:hover {
     color: #fff;
   }
+
+
+
+button.btn-brand-outline,
+a.btn-brand-outline,
+[data-slot="button"].btn-brand-outline {
+  border: 1px solid color-mix(in oklch, var(--primary-bright) 42%, transparent);
+  background: color-mix(in oklch, var(--primary-bright) 15%, transparent);
+  color: var(--primary-bright);
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+  button.btn-brand-outline:hover,
+  a.btn-brand-outline:hover,
+  [data-slot="button"].btn-brand-outline:hover {
+    color: #fff;
+  }
+
+
+
 
   button.btn-xl,
   a.btn-xl,

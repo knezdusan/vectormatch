@@ -15,7 +15,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { redirect } from "next/navigation";
-import Dashboard from "@/app/dashboard/page";
+import { ClientData } from "@/app/dashboard/page";
 
 // ─── Hoisted mock refs ─────────────────────────────────────────────────────────
 
@@ -52,28 +52,29 @@ describe("Dashboard — authenticated", () => {
   });
 
   it("displays the logged-in user's email", async () => {
-    render(await Dashboard());
+    render(await ClientData());
     expect(screen.getByText(/alice@example\.com/i)).toBeInTheDocument();
   });
 
   it("displays the logged-in user's name", async () => {
-    render(await Dashboard());
+    render(await ClientData());
     expect(screen.getByText(/alice smith/i)).toBeInTheDocument();
   });
 
-  it("renders the Sign Out form targeting /api/auth/sign-out", async () => {
-    render(await Dashboard());
-    const form = document.querySelector('form[action="/api/auth/sign-out"]');
-    expect(form).toBeInTheDocument();
+  it("renders a Sign Out button", async () => {
+    render(await ClientData());
+    expect(
+      screen.getByRole("button", { name: /sign out/i }),
+    ).toBeInTheDocument();
   });
 
   it("does NOT redirect when session exists", async () => {
-    render(await Dashboard());
+    render(await ClientData());
     expect(redirect).not.toHaveBeenCalled();
   });
 
   it("calls auth.api.getSession with the request headers", async () => {
-    render(await Dashboard());
+    render(await ClientData());
     expect(mockGetSession).toHaveBeenCalledOnce();
     const arg = mockGetSession.mock.calls[0][0];
     // The headers argument must be present — proves we're not using authClient
@@ -81,7 +82,7 @@ describe("Dashboard — authenticated", () => {
   });
 });
 
-// ─── Unauthenticated redirect ─────────────────────────────────────────────────
+// ─── Unauthenticated redirect ─────────────────────────────────────────────────────
 //
 // Real Next.js redirect() THROWS a special error to stop component execution.
 // Our global mock is a no-op vi.fn(), so without the override below the component
@@ -104,13 +105,13 @@ describe("Dashboard — unauthenticated", () => {
 
   it("redirects to /auth when session is null", async () => {
     mockGetSession.mockResolvedValue(null);
-    await expect(Dashboard()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(ClientData()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/auth");
   });
 
   it("redirects to /auth when session is undefined", async () => {
     mockGetSession.mockResolvedValue(undefined);
-    await expect(Dashboard()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(ClientData()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/auth");
   });
 });

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, PT_Serif } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/custom/ThemeProvider";
-import { Footer } from "@/components/public/home/Footer";
-import { Navbar } from "@/components/public/home/Navbar";
+import { Footer } from "@/components/public/Footer";
+import { Navbar } from "@/components/public/Navbar";
 import { Toaster } from "@/components/ui/sonner";
 
 const fontSans = Geist({
@@ -45,11 +45,8 @@ export default function RootLayout({
           defaultTheme="dark"
           forcedTheme="dark"
           disableTransitionOnChange
-        >
-          <Navbar />
-          {children}
-          <Footer />
-        </ThemeProvider>
+        ></ThemeProvider>
+        {children}
         <Toaster />
       </body>
     </html>
