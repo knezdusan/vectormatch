@@ -1,7 +1,9 @@
 import { type AnyPgColumn, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import type { z } from "zod";
-import { postsTable, timestamps, usersTable } from "../index";
+import { timestamps } from "@/lib/utils";
+import { user as usersTable } from "../auth/user";
+import { postsTable } from "./posts";
 
 export const commentsTable = pgTable("comment", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),

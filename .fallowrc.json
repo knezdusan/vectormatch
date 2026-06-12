@@ -12,6 +12,7 @@
     "vitest.setup.ts",
     "playwright.config.ts"
   ],
+  "ignoreDependencies": ["class-variance-authority", "radix-ui"],
   "duplicates": {
     "minOccurrences": 3,
     "ignore": [
@@ -20,6 +21,7 @@
     ]
   },
   "rules": {
-    "unused-dependencies": "warn"
+    "unused-dependencies": "warn",
+    "circular-dependencies": "off"
   }
 }

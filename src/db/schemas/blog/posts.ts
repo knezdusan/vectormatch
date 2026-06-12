@@ -9,8 +9,10 @@ import {
 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-
-import { categoriesTable, tagsTable, timestamps, usersTable } from "../index";
+import { timestamps } from "@/lib/utils";
+import { user as usersTable } from "../auth/user";
+import { categoriesTable } from "./categories";
+import { tagsTable } from "./tags";
 
 export const statusEnum = pgEnum("status", ["draft", "published", "archived"]);
 
