@@ -1,8 +1,16 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { DashboardLayout as DashboardLayoutComponent } from "@/components/dashboard/DashboardLayout";
+import { DashboardMain } from "@/components/dashboard/DashboardMain";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthSession } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "Dashboard | VectorMatch",
+  description: "Manage your job matching preferences and profile",
+};
 
 async function DashboardLayoutInner({
   children,
@@ -12,10 +20,18 @@ async function DashboardLayoutInner({
   const session = await getAuthSession();
 
   if (!session) {
-    redirect("/auth");
+    const callbackUrl = encodeURIComponent(
+      typeof window !== "undefined" ? window.location.pathname : "/dashboard",
+    );
+    redirect(`/auth?callbackUrl=${callbackUrl}`);
   }
 
-  return <DashboardSidebar session={session}>{children}</DashboardSidebar>;
+  return (
+    <DashboardLayoutComponent session={session}>
+      <DashboardSidebar session={session} />
+      <DashboardMain>{children}</DashboardMain>
+    </DashboardLayoutComponent>
+  );
 }
 
 export default function DashboardLayout({

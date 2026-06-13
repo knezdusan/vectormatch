@@ -2,62 +2,138 @@
  * Unit tests for the /dashboard/admin page.
  *
  * Verifies that the admin page is accessible only to users with the "admin" role
- * and redirects non-admin users to /dashboard.
+ * and redirects non-admin users to /dashboard. Also verifies that the users table
+ * renders correctly.
  *
  * Mock strategy:
- *   - Mock @/lib/auth so we can control what getSession returns.
+ *   - Mock @/lib/auth so we can control what requireRole returns and what
+ *     auth.api.listUsers returns.
  *   - redirect() is already mocked globally in vitest.setup.ts.
  */
 
 import { render, screen } from "@testing-library/react";
 import { redirect } from "next/navigation";
-import { AdminData } from "@/app/dashboard/admin/page";
+import AdminPage from "@/app/dashboard/admin/page";
 
 // ─── Hoisted mock refs ─────────────────────────────────────────────────────────
 
-const { mockGetSession } = vi.hoisted(() => ({
-  mockGetSession: vi.fn(),
+const { mockRequireRole, mockListUsers } = vi.hoisted(() => ({
+  mockRequireRole: vi.fn(),
+  mockListUsers: vi.fn().mockResolvedValue({ users: [] }),
 }));
 
 vi.mock("@/lib/auth", () => ({
-  getAuthSession: async () => mockGetSession(),
+  auth: {
+    api: {
+      listUsers: mockListUsers,
+    },
+  },
   requireRole: async (role: string, redirectTo = "/dashboard") => {
-    const session = await mockGetSession();
-    if (!session || session.user.role !== role) {
-      redirect(redirectTo);
-    }
-    return session;
+    return mockRequireRole(role, redirectTo);
   },
 }));
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const ADMIN_SESSION = {
-  user: { email: "admin@example.com", name: "Admin User", role: "admin" },
-  session: { id: "sess_admin", token: "tok_admin" },
+  user: {
+    id: "admin-id",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    email: "admin@example.com",
+    emailVerified: true,
+    name: "Admin User",
+    role: "admin",
+    image: null,
+    banned: null,
+  },
+  session: {
+    id: "sess_admin",
+    token: "tok_admin",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    userId: "admin-id",
+    expiresAt: new Date(),
+  },
 };
 
 const USER_SESSION = {
-  user: { email: "user@example.com", name: "Regular User", role: "user" },
-  session: { id: "sess_user", token: "tok_user" },
+  user: {
+    id: "user-id",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    email: "user@example.com",
+    emailVerified: true,
+    name: "Regular User",
+    role: "user",
+    image: null,
+    banned: null,
+  },
+  session: {
+    id: "sess_user",
+    token: "tok_user",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    userId: "user-id",
+    expiresAt: new Date(),
+  },
 };
+
+const MOCK_USERS = [
+  {
+    id: "u1",
+    name: "Alice Smith",
+    email: "alice@example.com",
+    role: "user",
+    banned: false,
+    emailVerified: true,
+    createdAt: new Date("2025-09-16"),
+  },
+  {
+    id: "u2",
+    name: "Bob Jones",
+    email: "bob@example.com",
+    role: "admin",
+    banned: false,
+    emailVerified: false,
+    createdAt: new Date("2025-09-16"),
+  },
+];
 
 // ─── Admin access ──────────────────────────────────────────────────────────────
 
 describe("AdminPage — admin access", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetSession.mockResolvedValue(ADMIN_SESSION);
+    mockRequireRole.mockResolvedValue(ADMIN_SESSION);
+    mockListUsers.mockResolvedValue({ users: [] });
   });
 
   it("renders the admin page for admin users", async () => {
-    render(await AdminData());
-    expect(screen.getByText("Admin")).toBeInTheDocument();
+    render(await AdminPage());
+    expect(screen.getByText("Users (0)")).toBeInTheDocument();
   });
 
   it("does NOT redirect when user has admin role", async () => {
-    render(await AdminData());
+    render(await AdminPage());
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("renders the users table with data", async () => {
+    mockListUsers.mockResolvedValue({ users: MOCK_USERS });
+    render(await AdminPage());
+    expect(screen.getByText("Users (2)")).toBeInTheDocument();
+    expect(screen.getByText("Alice Smith")).toBeInTheDocument();
+    expect(screen.getByText("Bob Jones")).toBeInTheDocument();
+    expect(
+      screen.getByText("Manage user accounts, roles, and permissions"),
+    ).toBeInTheDocument();
+  });
+
+  it("renders 'Back to Home' link", async () => {
+    render(await AdminPage());
+    const link = screen.getByRole("link", { name: /back to home/i });
+    expect(link).toHaveAttribute("href", "/");
   });
 });
 
@@ -76,20 +152,21 @@ describe("AdminPage — non-admin redirect", () => {
   });
 
   it("redirects to /dashboard for regular users", async () => {
-    mockGetSession.mockResolvedValue(USER_SESSION);
-    await expect(AdminData()).rejects.toThrow("NEXT_REDIRECT");
+    mockRequireRole.mockImplementation((role, redirectTo) => {
+      if (role === "admin") {
+        redirect(redirectTo);
+      }
+      return USER_SESSION;
+    });
+    await expect(AdminPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/dashboard");
   });
 
   it("redirects to /dashboard when session is null", async () => {
-    mockGetSession.mockResolvedValue(null);
-    await expect(AdminData()).rejects.toThrow("NEXT_REDIRECT");
-    expect(redirect).toHaveBeenCalledWith("/dashboard");
-  });
-
-  it("redirects to /dashboard when session is undefined", async () => {
-    mockGetSession.mockResolvedValue(undefined);
-    await expect(AdminData()).rejects.toThrow("NEXT_REDIRECT");
+    mockRequireRole.mockImplementation((_role, redirectTo) => {
+      redirect(redirectTo);
+    });
+    await expect(AdminPage()).rejects.toThrow("NEXT_REDIRECT");
     expect(redirect).toHaveBeenCalledWith("/dashboard");
   });
 });

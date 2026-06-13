@@ -11,6 +11,7 @@
 
 import { render, screen } from "@testing-library/react";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { DashboardSidebarProvider } from "@/components/dashboard/DashboardSidebarProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 // ─── Hoisted mock refs ─────────────────────────────────────────────────────────
@@ -44,20 +45,46 @@ vi.mock("@/components/public/home/icons", () => ({
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 const USER_SESSION = {
+  session: {
+    id: "session-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    userId: "user-1",
+    expiresAt: new Date(),
+    token: "token-1",
+  },
   user: {
-    name: "Alice Smith",
+    id: "user-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
     email: "alice@example.com",
+    emailVerified: true,
+    name: "Alice Smith",
     role: "user",
     image: null,
+    banned: null,
   },
 };
 
 const ADMIN_SESSION = {
+  session: {
+    id: "session-2",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    userId: "user-2",
+    expiresAt: new Date(),
+    token: "token-2",
+  },
   user: {
-    name: "Admin User",
+    id: "user-2",
+    createdAt: new Date(),
+    updatedAt: new Date(),
     email: "admin@example.com",
+    emailVerified: true,
+    name: "Admin User",
     role: "admin",
     image: null,
+    banned: null,
   },
 };
 
@@ -66,9 +93,9 @@ function renderSidebar(session: typeof USER_SESSION, _pathname = "/dashboard") {
   // The global vitest.setup.ts returns "/" by default.
   return render(
     <TooltipProvider>
-      <DashboardSidebar session={session}>
-        <div data-testid="page-content">Page Content</div>
-      </DashboardSidebar>
+      <DashboardSidebarProvider>
+        <DashboardSidebar session={session} />
+      </DashboardSidebarProvider>
     </TooltipProvider>,
   );
 }
@@ -118,11 +145,6 @@ describe("DashboardSidebar — desktop", () => {
     renderSidebar(USER_SESSION);
     const button = screen.getByRole("button", { name: /sign out/i });
     expect(button).toHaveClass("btn-brand-outline");
-  });
-
-  it("renders children inside the inset area", () => {
-    renderSidebar(USER_SESSION);
-    expect(screen.getByTestId("page-content")).toBeInTheDocument();
   });
 });
 

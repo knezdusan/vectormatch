@@ -13,6 +13,8 @@ import {
   sendVerificationEmail,
 } from "@/lib/email";
 
+export type AuthSession = Awaited<ReturnType<typeof getAuthSession>>;
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
@@ -23,7 +25,7 @@ export const auth = betterAuth({
       maxAge: 5 * 60, // 5 minutes
     },
   },
-  plugins: [nextCookies(), admin()],
+  plugins: [admin(), nextCookies()],
   user: {
     deleteUser: {
       enabled: true,
@@ -92,7 +94,7 @@ export const auth = betterAuth({
     },
   },
   rateLimit: {
-    enabled: true,
+    enabled: process.env.BETTER_AUTH_SKIP_RATE_LIMIT !== "true",
     window: 10, // 10-second window
     max: 100, // 100 requests per window (global)
     storage: "database", // Persist across server restarts

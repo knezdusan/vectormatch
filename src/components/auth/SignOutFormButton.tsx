@@ -1,9 +1,15 @@
 "use client";
 
 import { useActionState } from "react";
-import { toast } from "sonner";
 import { signOutAction } from "@/actions/auth";
 import { Button } from "../ui/button";
+
+function signOutAdapter(
+  _prevState: unknown,
+  formData: FormData,
+): Promise<void> {
+  return signOutAction(formData);
+}
 
 export function SignOutFormButton({
   children,
@@ -12,10 +18,7 @@ export function SignOutFormButton({
   className,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const [state, formAction, isPending] = useActionState(signOutAction, null);
-  if (state?.error) {
-    toast.error(state.error);
-  }
+  const [, formAction, isPending] = useActionState(signOutAdapter, null);
   return (
     <form action={formAction}>
       <Button

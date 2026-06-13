@@ -30,7 +30,11 @@ import { user } from "@/db/schemas/auth/user";
 describe("rateLimit schema — Better Auth v1.6+ contract", () => {
   const cols = Object.keys(getTableColumns(rateLimit));
 
-  it("has 'key' primary key column", () => {
+  it("has 'id' primary key column", () => {
+    expect(cols).toContain("id");
+  });
+
+  it("has 'key' column", () => {
     expect(cols).toContain("key");
   });
 

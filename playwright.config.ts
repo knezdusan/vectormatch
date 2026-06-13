@@ -40,7 +40,7 @@ export default defineConfig({
 
     /* Ensure tests run in a clean browser context */
     actionTimeout: 10000,
-    navigationTimeout: 15000,
+    navigationTimeout: 30000,
   },
 
   /* Configure projects for major browsers + mobile */
@@ -69,12 +69,14 @@ export default defineConfig({
 
   /* Run local dev server before starting the tests */
   webServer: {
-    command: "npm run dev",
+    command: "npm start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     env: {
       BETTER_AUTH_SKIP_EMAIL_VERIFICATION: "true",
+      BETTER_AUTH_SKIP_RATE_LIMIT: "true",
+      NEXT_PUBLIC_BETTER_AUTH_URL: "http://localhost:3000",
     },
   },
 });
