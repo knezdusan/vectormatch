@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import {
   requestPasswordResetAction,
   resendVerificationEmailAction,
@@ -36,10 +36,14 @@ export function SignInForm() {
     }
   };
 
+  const [isResendTransitioning, startResendTransition] = useTransition();
+
   const handleResend = () => {
-    const formData = new FormData();
-    formData.append("email", state?.email || "");
-    resendAction(formData);
+    startResendTransition(() => {
+      const formData = new FormData();
+      formData.append("email", state?.email || "");
+      resendAction(formData);
+    });
   };
 
   const isAnyPending =
@@ -239,9 +243,9 @@ export function SignInForm() {
                   variant="link"
                   onClick={handleResend}
                   className="h-auto p-0 text-xs font-semibold text-primary hover:text-primary/90 underline"
-                  disabled={isResendPending}
+                  disabled={isResendPending || isResendTransitioning}
                 >
-                  {isResendPending ? (
+                  {isResendPending || isResendTransitioning ? (
                     <span className="flex items-center">
                       <Spinner className="mr-1 h-3 w-3" /> Sending...
                     </span>

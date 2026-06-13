@@ -2,9 +2,11 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { admin } from "better-auth/plugins/admin";
+import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/db";
+import { account } from "@/db/schemas";
 import {
   sendAlreadyRegisteredEmail,
   sendResetPasswordEmail,
@@ -22,9 +24,15 @@ export const auth = betterAuth({
     },
   },
   plugins: [nextCookies(), admin()],
+  user: {
+    deleteUser: {
+      enabled: true,
+    },
+  },
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true,
+    requireEmailVerification:
+      process.env.BETTER_AUTH_SKIP_EMAIL_VERIFICATION !== "true",
     sendResetPassword: async ({ user, url }) => {
       await sendResetPasswordEmail({
         email: user.email,
@@ -144,4 +152,15 @@ export async function requireRole(role: string, redirectTo = "/dashboard") {
   }
 
   return session;
+}
+
+export async function hasCredentialAccount(userId: string): Promise<boolean> {
+  const credentialAccount = await db
+    .select()
+    .from(account)
+    .where(eq(account.userId, userId))
+    .limit(1);
+  return credentialAccount.some(
+    (a) => a.providerId === "credential" && a.password !== null,
+  );
 }

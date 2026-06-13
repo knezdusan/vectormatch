@@ -2,6 +2,10 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function isTestEmail(email: string): boolean {
+  return email.endsWith("@example.com");
+}
+
 export async function sendVerificationEmail({
   email,
   url,
@@ -9,6 +13,10 @@ export async function sendVerificationEmail({
   email: string;
   url: string;
 }) {
+  if (isTestEmail(email)) {
+    console.log("[test] skip sendVerificationEmail", email, url);
+    return { id: "test-id" };
+  }
   const { data, error } = await resend.emails.send({
     from: "VectorMatch <onboarding@resend.dev>",
     to: email,
@@ -58,6 +66,10 @@ export async function sendAlreadyRegisteredEmail({
   email: string;
   signInUrl: string;
 }) {
+  if (isTestEmail(email)) {
+    console.log("[test] skip sendAlreadyRegisteredEmail", email);
+    return { id: "test-id" };
+  }
   const { data, error } = await resend.emails.send({
     from: "VectorMatch <onboarding@resend.dev>",
     to: email,
@@ -104,6 +116,10 @@ export async function sendResetPasswordEmail({
   email: string;
   url: string;
 }) {
+  if (isTestEmail(email)) {
+    console.log("[test] skip sendResetPasswordEmail", email, url);
+    return { id: "test-id" };
+  }
   const { data, error } = await resend.emails.send({
     from: "VectorMatch <onboarding@resend.dev>",
     to: email,
