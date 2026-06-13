@@ -10,8 +10,8 @@ export default async function AccountPage() {
   const hasPassword = await hasCredentialAccount(session.user.id);
 
   return (
-    <main className="flex flex-col gap-4 sm:gap-6 px-4 py-6 sm:px-6 max-w-2xl mx-auto w-full">
-      <h1 className="text-2xl font-bold">Account</h1>
+    <main className="flex flex-col gap-4 sm:gap-6 px-4 py-6 sm:px-6 max-w-xl mx-auto w-full">
+      <h1 className="text-2xl font-bold">Account Settings</h1>
       <ProfileCard initialName={session.user.name || ""} />
       {hasPassword && <SecurityCard />}
       <DeleteAccountCard />
