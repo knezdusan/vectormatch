@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, PT_Serif } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/custom/ThemeProvider";
-import { Footer } from "@/components/public/Footer";
-import { Navbar } from "@/components/public/Navbar";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const fontSans = Geist({
   variable: "--font-geist-sans",
@@ -46,7 +45,7 @@ export default function RootLayout({
           forcedTheme="dark"
           disableTransitionOnChange
         ></ThemeProvider>
-        {children}
+        <TooltipProvider>{children}</TooltipProvider>
         <Toaster />
       </body>
     </html>

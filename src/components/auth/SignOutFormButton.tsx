@@ -6,6 +6,7 @@ import { signOutAction } from "@/actions/auth";
 import { Button } from "../ui/button";
 
 export function SignOutFormButton({
+  children,
   variant,
   size,
   className,
@@ -24,7 +25,7 @@ export function SignOutFormButton({
         className={className}
         {...props}
       >
-        {isPending ? "Signing out..." : "Sign out"}
+        {children ?? (isPending ? "Signing out..." : "Sign out")}
       </Button>
     </form>
   );

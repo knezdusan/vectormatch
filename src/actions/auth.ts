@@ -185,20 +185,13 @@ export async function resetPasswordAction(
   }
 }
 
-export async function signOutAction() {
-  await auth.api.signOut({
-    headers: await headers(),
-  });
-
+export async function signOutAction(_formData: FormData): Promise<void> {
   try {
     await auth.api.signOut({
       headers: await headers(),
     });
-  } catch (err) {
-    if (isAPIError(err)) {
-      return { error: err.message, success: false };
-    }
-    return { error: "An unexpected error occurred", success: false };
+  } catch {
+    // Silently ignore errors on sign out
   }
   redirect("/");
 }
