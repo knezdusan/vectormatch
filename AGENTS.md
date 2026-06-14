@@ -27,6 +27,7 @@ Prioritize performance, accuracy, and developer-centric UX.
 - Dropping database schemas or truncating tables
 - **ALWAYS** verify the current project context before running initialization/scaffolding commands
 - **STOP and ask for explicit confirmation** if a command would overwrite existing work
+- **NEVER run any Git commands** (such as `git add`, `git commit`, `git push`, `git checkout`, etc.). All version control operations must be left entirely to the user.
 
 # This is NOT the Next.js or Tailwind you know
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data.
