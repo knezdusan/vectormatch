@@ -111,14 +111,15 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-
-    %% ENUM
-    enum status {
-        draft
-        published
-        archived
-    }
 ```
+
+## Enum Types
+
+### status
+Used in: `post.status`
+- `draft` - Post is in draft state, not published
+- `published` - Post is live and visible
+- `archived` - Post is archived and no longer active
 
 ## Table Relationships
 
