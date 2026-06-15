@@ -123,11 +123,19 @@ describe("DashboardSidebar — desktop", () => {
   it("does NOT render Admin link for non-admin users", () => {
     renderSidebar(USER_SESSION);
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+    expect(screen.queryByText("Users")).not.toBeInTheDocument();
+    expect(screen.queryByText("Blog")).not.toBeInTheDocument();
   });
 
   it("renders Admin link for admin users", () => {
     renderSidebar(ADMIN_SESSION);
     expect(screen.getByText("Admin")).toBeInTheDocument();
+  });
+
+  it("renders Users and Blog sub-items for admin users", () => {
+    renderSidebar(ADMIN_SESSION);
+    expect(screen.getByText("Users")).toBeInTheDocument();
+    expect(screen.getByText("Blog")).toBeInTheDocument();
   });
 
   it("renders user avatar fallback with initials in footer", () => {

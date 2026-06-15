@@ -1,7 +1,5 @@
-import { ArrowLeft, Users } from "lucide-react";
-import { headers } from "next/headers";
+import { ArrowLeft, Newspaper, Users } from "lucide-react";
 import Link from "next/link";
-import { AdminUsersTable } from "@/components/admin/AdminUsersTable";
 import {
   Card,
   CardContent,
@@ -9,15 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { auth, requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 
 export default async function AdminPage() {
-  const session = await requireRole("admin", "/dashboard");
-
-  const { users } = await auth.api.listUsers({
-    query: { limit: 100, sortBy: "createdAt", sortDirection: "desc" },
-    headers: await headers(),
-  });
+  await requireRole("admin", "/dashboard");
 
   return (
     <main className="flex flex-col gap-4 sm:gap-6 px-4 py-6 sm:px-6 max-w-5xl mx-auto w-full">
@@ -29,33 +22,43 @@ export default async function AdminPage() {
         Back to Home
       </Link>
 
-      <Card>
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-2">
-            <Users className="size-5 text-muted-foreground" />
-            <CardTitle>Users ({users.length})</CardTitle>
-          </div>
-          <CardDescription>
-            Manage user accounts, roles, and permissions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AdminUsersTable
-            users={
-              users as unknown as Array<{
-                id: string;
-                name: string;
-                email: string;
-                role?: string | null;
-                banned?: boolean | null;
-                emailVerified?: boolean | null;
-                createdAt?: Date | null;
-              }>
-            }
-            currentUserId={session.user.id}
-          />
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link href="/dashboard/admin/users">
+          <Card className="hover:bg-sidebar-accent/50 transition-colors h-full">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="size-5 text-muted-foreground" />
+                <CardTitle>Users</CardTitle>
+              </div>
+              <CardDescription>
+                Manage user accounts, roles, and permissions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                View, ban, unban, impersonate, and delete user accounts.
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/admin/blog">
+          <Card className="hover:bg-sidebar-accent/50 transition-colors h-full">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Newspaper className="size-5 text-muted-foreground" />
+                <CardTitle>Blog</CardTitle>
+              </div>
+              <CardDescription>Manage blog posts and content</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Create, edit, and publish blog articles.
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
     </main>
   );
 }

@@ -125,7 +125,7 @@ test.describe("Admin page", () => {
         }),
       );
     }
-    await page.goto("/dashboard/admin", { waitUntil: "load" });
+    await page.goto("/dashboard/admin/users", { waitUntil: "load" });
     await page.waitForSelector("text=Users", { state: "visible" });
   });
 
