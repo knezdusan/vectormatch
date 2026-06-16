@@ -3,7 +3,7 @@
  *
  * Verifies that the admin page is accessible only to users with the "admin" role
  * and redirects non-admin users to /dashboard. Also verifies that the landing
- * cards for Users and Blog render correctly.
+ * card for Users renders correctly.
  *
  * Mock strategy:
  *   - Mock @/lib/auth so we can control what requireRole returns.
@@ -14,7 +14,7 @@ import { render, screen } from "@testing-library/react";
 import { redirect } from "next/navigation";
 import AdminPage from "@/app/dashboard/admin/page";
 
-// ─── Hoisted mock refs ─────────────────────────────────────────────────────────
+// --- Hoisted mock refs ---
 
 const { mockRequireRole } = vi.hoisted(() => ({
   mockRequireRole: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
-// ─── Helpers ───────────────────────────────────────────────────────────────────
+// --- Helpers ---
 
 const ADMIN_SESSION = {
   user: {
@@ -77,7 +77,7 @@ const USER_SESSION = {
   },
 };
 
-// ─── Admin access ──────────────────────────────────────────────────────────────
+// --- Admin access ---
 
 describe("AdminPage — admin access", () => {
   beforeEach(() => {
@@ -88,7 +88,6 @@ describe("AdminPage — admin access", () => {
   it("renders the admin landing page for admin users", async () => {
     render(await AdminPage());
     expect(screen.getByText("Users")).toBeInTheDocument();
-    expect(screen.getByText("Blog")).toBeInTheDocument();
   });
 
   it("does NOT redirect when user has admin role", async () => {
@@ -108,16 +107,6 @@ describe("AdminPage — admin access", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders Blog card with description", async () => {
-    render(await AdminPage());
-    expect(
-      screen.getByText("Manage blog posts and content"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Create, edit, and publish blog articles."),
-    ).toBeInTheDocument();
-  });
-
   it("renders 'Back to Home' link", async () => {
     render(await AdminPage());
     const link = screen.getByRole("link", { name: /back to home/i });
@@ -129,15 +118,9 @@ describe("AdminPage — admin access", () => {
     const usersCard = screen.getByRole("link", { name: /users/i });
     expect(usersCard).toHaveAttribute("href", "/dashboard/admin/users");
   });
-
-  it("links Blog card to /dashboard/admin/blog", async () => {
-    render(await AdminPage());
-    const blogCard = screen.getByRole("link", { name: /blog/i });
-    expect(blogCard).toHaveAttribute("href", "/dashboard/admin/blog");
-  });
 });
 
-// ─── Non-admin redirect ────────────────────────────────────────────────────────
+// --- Non-admin redirect ---
 
 describe("AdminPage — non-admin redirect", () => {
   beforeEach(() => {

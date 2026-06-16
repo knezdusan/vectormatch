@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/custom/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SITE_URL } from "@/lib/site";
 
 const fontSans = Geist({
   variable: "--font-geist-sans",
@@ -22,9 +23,15 @@ const fontMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "VectorMatch — The AI Agent for Web Developers",
   description:
     "VectorMatch finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner.",
+  alternates: {
+    types: {
+      "application/rss+xml": [{ url: "/rss.xml", title: "VectorMatch Blog" }],
+    },
+  },
 };
 
 export default function RootLayout({

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="How Greenhouse ATS Works">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d28d9"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#140f1f"/>
+  <rect width="1200" height="630" fill="url(#g)" opacity="0.85"/>
+  <text x="64" y="540" font-family="Georgia, serif" font-size="40" fill="#ffffff" opacity="0.95">VectorMatch</text>
+  <text x="64" y="320" font-family="Georgia, serif" font-size="68" font-weight="bold" fill="#ffffff" style="max-width:1000px">How Greenhouse ATS Works</text>
+</svg>

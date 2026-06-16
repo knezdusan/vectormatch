@@ -124,7 +124,6 @@ describe("DashboardSidebar — desktop", () => {
     renderSidebar(USER_SESSION);
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
     expect(screen.queryByText("Users")).not.toBeInTheDocument();
-    expect(screen.queryByText("Blog")).not.toBeInTheDocument();
   });
 
   it("renders Admin link for admin users", () => {
@@ -132,10 +131,9 @@ describe("DashboardSidebar — desktop", () => {
     expect(screen.getByText("Admin")).toBeInTheDocument();
   });
 
-  it("renders Users and Blog sub-items for admin users", () => {
+  it("renders Users sub-item for admin users", () => {
     renderSidebar(ADMIN_SESSION);
     expect(screen.getByText("Users")).toBeInTheDocument();
-    expect(screen.getByText("Blog")).toBeInTheDocument();
   });
 
   it("renders user avatar fallback with initials in footer", () => {

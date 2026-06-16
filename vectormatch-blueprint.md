@@ -10,6 +10,7 @@ To maintain absolute alignment between this blueprint and the active codebase, e
 - **`[Status: Implemented]`**: The feature or component is fully written, integrated, and active in the current codebase.
 - **`[Status: Partially Implemented]`**: The UI structure, routing, or database placeholders exist in the codebase, but core matching logic, background jobs, or third-party integrations are not yet wired up.
 - **`[Status: Planned / TO DO]`**: The feature or module is technically architected but has not yet been introduced to the codebase.
+- **`[Status: Deprecated — Retained Historically]`**: The code/table exists in the codebase but has been superseded by a newer architectural decision. It is intentionally kept (e.g. to preserve migration history) and must not be referenced by new application code.
 
 ## Technical Architecture
 
@@ -21,6 +22,7 @@ To maintain absolute alignment between this blueprint and the active codebase, e
 - **Orchestration**: Inngest v3 for durable, event-driven background jobs and workflows
 - **AI SDK**: Vercel AI SDK (`gpt-4o` for complex reasoning, `gpt-4o-mini` for scale, `text-embedding-3-small` for vector generation)
 - **Styling & UI**: Tailwind CSS v4 + Shadcn UI (using CSS-first `@theme` configuration)
+- **Blog / Content**: File-based **MDX** (`next-mdx-remote/rsc` + `gray-matter`) stored in-repo at `blog/_posts/*.mdx`. Statically generated, zero database dependency. Comments via **Giscus** (GitHub Discussions). See *Blog & Content Architecture* below.
 
 ### Database Schema & Performance Tuning
 - **`users` table** `[Status: Partially Implemented]`: Managed by Better Auth.
@@ -31,9 +33,9 @@ To maintain absolute alignment between this blueprint and the active codebase, e
   - *Gate 2 Optimization*: Indexed using **HNSW** (`USING hnsw (persona_embedding vector_cosine_ops)`) to achieve sub-millisecond vector similarity calculation during routing.
 - **`jobs` table** `[Status: Planned / TO DO]`: Stores job listings with `ats_slug`, `title`, `raw_json`, and `extracted_tags` (text array).
 - **`match_queue` table** `[Status: Planned / TO DO]`: Maps `job_id` to `user_id` with a `status` state (pending, approved, rejected) to buffer and queue high-fidelity LLM evaluations.
-- **`blog_categories`, `blog_tags`, `blog_posts`, `blog_post_tags`, and `blog_comments` tables** `[Status: Partially Implemented]`: Provides a full database schema for a relational blog and nested commenting system.
+- **`blog_categories`, `blog_tags`, `blog_posts`, `blog_post_tags`, and `blog_comments` tables** `[Status: Deprecated — Retained Historically]`: A full relational blog and nested commenting schema that predates the architectural decision to move the blog to file-based MDX.
   - *Drizzle Path*: `src/db/schemas/blog/` (defines `posts.ts`, `categories.ts`, `tags.ts`, `comments.ts`)
-  - *Current State*: Database tables, relations, and index structures are fully implemented in the Drizzle code and Postgres migrations. However, the blog frontend `/blog` page and admin blog management features are still `[Status: Planned / TO DO]`.
+  - *Decision*: The blog is now implemented as static **MDX** (see *Blog & Content Architecture*). These tables, their relations, and migrations are **retained as historical artifacts** and **must not be referenced by any new application code**. They are not deleted to preserve migration history. The `blog_comments` table is fully superseded by Giscus.
 
 ## Application Architecture & User Flow
 
@@ -44,6 +46,18 @@ To maintain absolute alignment between this blueprint and the active codebase, e
 - **How It Works Section**: Step-by-step explanation of the CV analysis → ATS matching → application workflow
 - **Pitch Section**: Benefits and differentiators compared to traditional job boards
 - **Footer**: Standard links (Copyright, About, FAQ, Terms, Privacy Policy)
+
+### Blog & Content Architecture `[Status: Planned / TO DO]`
+The blog is a static, file-based MDX system whose purpose is organic SEO acquisition, product/ATS education, developer career guidance, and conversion of anonymous visitors into registered users. It is deliberately **decoupled from the core product database** — no Neon reads, no CMS, no admin UI — so engineering effort stays focused on the matching pipeline.
+
+- **Content Storage**: Articles live in-repo as `blog/_posts/*.mdx`. Publishing a post is a commit + deploy; no admin panel required. Frontmatter schema: `title`, `description`, `publishedAt`, `updatedAt`, `author`, `tags[]`, `featured`, `coverImage`, `category` (slug derived from filename).
+- **Rendering**: `next-mdx-remote/rsc` + `gray-matter`. All blog routes are **fully static** under Next.js Cache Components — filesystem reads are wrapped with `'use cache'` + `cacheLife('max')`, and dynamic routes export `generateStaticParams`. No request-time data and no runtime content fetches.
+- **Routes**: `/blog` (index), `/blog/[slug]` (article), `/blog/category/[category]`, `/blog/tag/[tag]`. URLs are permanent/stable. Rendered under the existing `(public)` layout (inherits Navbar + Footer).
+- **Content Layer**: `src/lib/blog/` exposes `getAllPosts()`, `getPostBySlug()`, `getAllSlugs()`, and category/tag helpers, with Zod-validated frontmatter. A static JSON search index is generated for future local search (no Algolia/external search initially).
+- **MDX Component Library** (`src/components/mdx/`, styled to the dark-first design system): `Callout`, `CTA` (primary signup conversion → `/signup?ref=blog-cta`), `ArticleCard` (build-time resolved internal post promotion, never a runtime fetch), `Badge` (ATS-platform variants via `@theme` tokens), `TechStack` (Simple Icons logos), and `YouTube` (privacy-friendly embed).
+- **Comments**: **Giscus** (GitHub Discussions), mapped to article URLs and configured via `NEXT_PUBLIC_GISCUS_*` env vars. No comment database, moderation UI, or spam handling required.
+- **SEO Foundation**: Per-post Open Graph + Twitter metadata, `Article`/`BreadcrumbList` JSON-LD, an auto-generated `sitemap.xml`, `robots.ts`, and an RSS feed at `/rss.xml` (with a `rel="alternate"` link in the document head). Performance targets: Lighthouse ≥ 95, LCP < 2.5s, CLS < 0.1, TTFB < 500ms.
+- **Future Flexibility**: If a CMS becomes necessary later (Sanity, Contentful, Payload, etc.), content can migrate without changing URL structures.
 
 ### User Acquisition & Authentication Flow
 **Standard Authentication Flow** `[Status: Implemented]`
@@ -63,7 +77,7 @@ To maintain absolute alignment between this blueprint and the active codebase, e
 **Navigation Structure** `[Status: Implemented]`
 - Collapsible sidebar with role-based navigation items
 - Main navigation items: Account, CV, Jobs
-- Admin-only navigation: Admin panel (for user management, system oversight, blog management `[Status: Planned / TO DO]`)
+- Admin-only navigation: Admin panel (for user management and system oversight). *Note: there is no blog management in the dashboard — blog content is authored as MDX files in the repository, so the previously scaffolded admin Blog page and its sidebar entry are removed.*
 - Responsive design supporting mobile and desktop layouts
 
 **Core Dashboard Sections**
@@ -85,7 +99,7 @@ To maintain absolute alignment between this blueprint and the active codebase, e
   - Extracted text is sent to `gpt-4o` with a structured `zod` schema to guarantee clean JSON.
   - **Overlap Merge Algorithm**: Uses a specialized CoT (Chain-of-Thought) prompt to detect overlapping employment dates and calculate deduplicated, non-double-counted years-of-experience.
   - **Canonical Normalization**: Force matches technologies to a strict list of `CANONICAL_TAGS` (e.g., normalizes "ReactJS", "react.js", and "React" to "react").
-  - Extracts chronological employment history, technical skillsets, and experience level.
+  - Extracts chronological employment history, technical skill-sets, and experience level.
 - **Developer-Centric Customization**:
   - Extracted data is loaded into a responsive form where users can review and correct errors.
   - **The "5 Major Skills" Constraint**: Users use a drag-and-drop component to select up to 5 major skills. These 5 skills populate the user's active persona and are saved in `must_have_tags` for Gate 1 GIN indexing. This constraint ensures highly targeted matches with zero "muddy" vector overlap.

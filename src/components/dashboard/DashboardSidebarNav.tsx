@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Briefcase,
-  FileText,
-  Newspaper,
-  Shield,
-  User,
-  Users,
-} from "lucide-react";
+import { Briefcase, FileText, Shield, User, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -74,17 +67,6 @@ export function DashboardSidebarNav({ role }: { role?: string | null }) {
                 <Link href="/dashboard/admin/users">
                   <Users />
                   <span>Users</span>
-                </Link>
-              </SidebarMenuSubButton>
-            </SidebarMenuSubItem>
-            <SidebarMenuSubItem>
-              <SidebarMenuSubButton
-                asChild
-                isActive={pathname === "/dashboard/admin/blog"}
-              >
-                <Link href="/dashboard/admin/blog">
-                  <Newspaper />
-                  <span>Blog</span>
                 </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>

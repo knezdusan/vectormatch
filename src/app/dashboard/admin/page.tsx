@@ -1,4 +1,4 @@
-import { ArrowLeft, Newspaper, Users } from "lucide-react";
+import { ArrowLeft, Users } from "lucide-react";
 import Link from "next/link";
 import {
   Card,
@@ -37,23 +37,6 @@ export default async function AdminPage() {
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 View, ban, unban, impersonate, and delete user accounts.
-              </p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/admin/blog">
-          <Card className="hover:bg-sidebar-accent/50 transition-colors h-full">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Newspaper className="size-5 text-muted-foreground" />
-                <CardTitle>Blog</CardTitle>
-              </div>
-              <CardDescription>Manage blog posts and content</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Create, edit, and publish blog articles.
               </p>
             </CardContent>
           </Card>
