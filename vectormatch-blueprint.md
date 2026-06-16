@@ -4,6 +4,26 @@ The web development job market faces a profound crisis as rapid AI advancement i
 ## Mission & Concept
 VectorMatch.dev bypasses traditional HR bottlenecks by connecting software engineers directly to major Applicant Tracking Systems (ATS) platforms like Greenhouse, Lever, and Workday. Instead of competing in oversaturated job boards, developers upload their CVs which are analyzed by AI to extract chronological experience and technical skill-sets. This structured data powers intelligent matching against live ATS job postings, enabling developers to discover and apply for opportunities that precisely match their capabilities—before they ever reach human recruiters. 
 
+## Breakdown of the Application Technical Implementation
+The TDD (Technical Development Design) system is architected into four distinct modules:
+- **Module A: Developer-Centric Onboarding (Frontend & API)**
+
+  Converts raw, messy developer resumes (PDFs) into structured, validated data using client-side extraction and a specialized server-side AI overlap merge algorithm to accurately calculate years of experience. It also handles the "5 Major Skills" drag-and-drop constraint to create a clean user persona without muddy vector overlap.  
+
+- **Module B: Seeding & Ingestion Engine**
+
+  Discovers job boards and candidate companies for $0 by pulling from public data sets like Google BigQuery, Hacker News, and SSL certificates. It feeds these discovered targets into a rate-limited background worker (the "Phalanx" Poller) to fetch live job postings.  
+
+- **Module C: Event-Driven Routing (The 3-Gate Funnel)**
+
+  The core matching brain. It processes incoming jobs by indexing them and running an optimized, ultra-fast 3-gate funnel (Exact Filtering $\rightarrow$ Semantic Vector Similarity $\rightarrow$ Parallel High-Fidelity LLM Evaluation) to match jobs to users.  
+
+- **Module D: Business Logic & Compliance (Go-To-Market)**
+
+  Generates automated, personalized, peer-to-peer cold outreach emails ("Minute Zero" pitches) for developers to send directly to CTOs, and bundles them with a B2B contract compliance legal sheet (W-8BEN instructions) to lower the corporate friction of hiring independent contractors.  
+
+
+
 
 ## Status Designation Legend
 To maintain absolute alignment between this blueprint and the active codebase, every component, module, and table is labeled with one of the following statuses:
@@ -47,7 +67,7 @@ To maintain absolute alignment between this blueprint and the active codebase, e
 - **Pitch Section**: Benefits and differentiators compared to traditional job boards
 - **Footer**: Standard links (Copyright, About, FAQ, Terms, Privacy Policy)
 
-### Blog & Content Architecture `[Status: Planned / TO DO]`
+### Blog & Content Architecture `[Status: Implemented]`
 The blog is a static, file-based MDX system whose purpose is organic SEO acquisition, product/ATS education, developer career guidance, and conversion of anonymous visitors into registered users. It is deliberately **decoupled from the core product database** — no Neon reads, no CMS, no admin UI — so engineering effort stays focused on the matching pipeline.
 
 - **Content Storage**: Articles live in-repo as `src/app/(public)/blog/_posts/*.mdx`. Publishing a post is a commit + deploy; no admin panel required. Frontmatter schema: `title`, `description`, `publishedAt`, `updatedAt`, `author`, `tags[]`, `featured`, `coverImage`, `category` (slug derived from filename).
