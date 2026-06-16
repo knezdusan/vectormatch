@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import { CoverImage } from "@/components/blog/CoverImage";
 import { Giscus } from "@/components/blog/Giscus";
 import { JsonLd } from "@/components/blog/JsonLd";
 import { ArticleCard } from "@/components/mdx/ArticleCard";
@@ -14,6 +15,7 @@ import {
   getPostBySlug,
   slugify,
 } from "@/lib/blog/posts";
+import { estimateReadTime, formatDate } from "@/lib/blog/utils";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -61,20 +63,6 @@ export async function generateMetadata({
       images: [post.frontmatter.coverImage],
     },
   };
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function estimateReadTime(content: string): number {
-  const wordsPerMinute = 200;
-  const wordCount = content.split(/\s+/).length;
-  return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 }
 
 export default async function BlogPostPage({ params }: PageProps) {
@@ -190,11 +178,12 @@ export default async function BlogPostPage({ params }: PageProps) {
         </div>
 
         <div className="mx-auto mt-8 max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="aspect-video w-full overflow-hidden rounded-xl bg-muted">
-            <img
+          <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-muted">
+            <CoverImage
               src={post.frontmatter.coverImage}
               alt={post.frontmatter.title}
-              className="h-full w-full object-cover"
+              sizes="(min-width: 768px) 768px, 100vw"
+              priority
             />
           </div>
         </div>

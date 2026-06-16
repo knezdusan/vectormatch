@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CoverImage } from "@/components/blog/CoverImage";
 import type { Post } from "@/lib/blog/types";
 
 export function ArticleCard({ post }: { post?: Post }) {
@@ -9,12 +10,12 @@ export function ArticleCard({ post }: { post?: Post }) {
       href={`/blog/${post.slug}`}
       className="group block overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
     >
-      <div className="aspect-video w-full overflow-hidden bg-muted">
-        <img
+      <div className="relative aspect-video w-full overflow-hidden bg-muted">
+        <CoverImage
           src={post.frontmatter.coverImage}
           alt={post.frontmatter.title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
+          className="transition-transform duration-300 group-hover:scale-105"
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
         />
       </div>
       <div className="p-4">

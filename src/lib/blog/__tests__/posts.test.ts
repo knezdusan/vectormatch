@@ -63,7 +63,7 @@ describe("PostFrontmatterSchema", () => {
   });
 });
 
-describe("post queries (reads real blog/_posts MDX)", () => {
+describe("post queries (reads real src/app/(public)/blog/_posts MDX)", () => {
   it("returns posts sorted by publishedAt descending", async () => {
     const posts = await getAllPosts();
     expect(posts.length).toBeGreaterThan(0);

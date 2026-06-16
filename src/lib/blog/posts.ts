@@ -5,7 +5,14 @@ import matter from "gray-matter";
 import { cacheLife, cacheTag } from "next/cache";
 import { type Post, PostFrontmatterSchema } from "./types";
 
-const POSTS_DIR = path.join(process.cwd(), "blog", "_posts");
+const POSTS_DIR = path.join(
+  process.cwd(),
+  "src",
+  "app",
+  "(public)",
+  "blog",
+  "_posts",
+);
 
 export function slugify(input: string): string {
   return input

@@ -2,7 +2,9 @@ import { Calendar, Clock, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CoverImage } from "@/components/blog/CoverImage";
 import { getAllTags, getPostsByTag, slugify } from "@/lib/blog/posts";
+import { estimateReadTime, formatDate } from "@/lib/blog/utils";
 
 interface PageProps {
   params: Promise<{ tag: string }>;
@@ -27,20 +29,6 @@ export async function generateMetadata({
       displayName +
       '". Insights for web developers navigating the hidden job market.',
   };
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function estimateReadTime(content: string): number {
-  const wordsPerMinute = 200;
-  const wordCount = content.split(/\s+/).length;
-  return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
 }
 
 export default async function TagPage({ params }: PageProps) {
@@ -87,12 +75,12 @@ export default async function TagPage({ params }: PageProps) {
                 href={`/blog/${post.slug}`}
                 className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
               >
-                <div className="aspect-video w-full overflow-hidden bg-muted">
-                  <img
+                <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                  <CoverImage
                     src={post.frontmatter.coverImage}
                     alt={post.frontmatter.title}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    loading="lazy"
+                    className="transition-transform duration-300 group-hover:scale-105"
+                    sizes="(min-width: 640px) 50vw, 100vw"
                   />
                 </div>
                 <div className="flex flex-1 flex-col p-5">

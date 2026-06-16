@@ -1,5 +1,6 @@
 import { Calendar, Clock, Tag } from "lucide-react";
 import Link from "next/link";
+import { CoverImage } from "@/components/blog/CoverImage";
 import { ArticleCard } from "@/components/mdx/ArticleCard";
 import {
   getAllCategories,
@@ -89,12 +90,12 @@ export default async function BlogIndexPage() {
                       href={`/blog/${post.slug}`}
                       className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-primary/40"
                     >
-                      <div className="aspect-video w-full overflow-hidden bg-muted">
-                        <img
+                      <div className="relative aspect-video w-full overflow-hidden bg-muted">
+                        <CoverImage
                           src={post.frontmatter.coverImage}
                           alt={post.frontmatter.title}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          loading="lazy"
+                          className="transition-transform duration-300 group-hover:scale-105"
+                          sizes="(min-width: 640px) 50vw, 100vw"
                         />
                       </div>
                       <div className="flex flex-1 flex-col p-5">
