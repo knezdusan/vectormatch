@@ -12,6 +12,7 @@ The TDD (Technical Development Design) system is architected into four distinct 
 
 - **Module B: Seeding & Ingestion Engine**
 
+  An automated discovery engine for raw, untapped corporate data sources.
   Discovers job boards and candidate companies for $0 by pulling from public data sets like Google BigQuery, Hacker News, and SSL certificates. It feeds these discovered targets into a rate-limited background worker (the "Phalanx" Poller) to fetch live job postings.  
 
 - **Module C: Event-Driven Routing (The 3-Gate Funnel)**
