@@ -369,7 +369,7 @@ describe("admin plugin — default role", () => {
     });
 
     expect(error).toBeNull();
-    expect(data?.user.role).toBe("user");
+    expect((data?.user as unknown as { role: string }).role).toBe("user");
   });
 });
 
@@ -393,7 +393,7 @@ describe("admin plugin — setRole endpoint", () => {
       (u: { email: string }) => u.email === ADMIN_EMAIL,
     );
     if (adminUser) {
-      adminUser.role = "admin";
+      (adminUser as unknown as { role: string }).role = "admin";
     }
 
     // Create regular user

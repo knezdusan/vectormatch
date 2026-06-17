@@ -1,7 +1,12 @@
-import { expect, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  expect,
+  type Page,
+  test,
+} from "@playwright/test";
 
 async function signUpAndGetCookies(
-  request: Parameters<Parameters<typeof test>[1]>[0]["request"],
+  request: APIRequestContext,
   email: string,
   password: string,
   name: string,
@@ -13,8 +18,8 @@ async function signUpAndGetCookies(
 }
 
 async function signInAndSetCookies(
-  page: Parameters<Parameters<typeof test>[1]>[0]["page"],
-  request: Parameters<Parameters<typeof test>[1]>[0]["request"],
+  page: Page,
+  request: APIRequestContext,
   email: string,
   password: string,
 ) {
