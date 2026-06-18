@@ -82,7 +82,7 @@ erDiagram
         text shortDescription
         text content
         integer categoryId FK
-        status status
+        varchar status
         timestamp createdAt
         timestamp updatedAt
     }
