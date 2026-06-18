@@ -27,3 +27,12 @@ export const complianceEnum = pgEnum("compliance", [
   "w8ben", // Foreign Solo Contractor for US Client (0% US tax withholding, exempt from IRS reporting)
   "ic_global", // International Solo Contractor for non-US Client (filing taxes locally)
 ]);
+
+// CV upload lifecycle status — drives the onboarding state machine
+// (see Module A §2d: State 1 → State 2 transition logic)
+export const cvUploadStatusEnum = pgEnum("cv_upload_status", [
+  "processing", // PDF worker is extracting text / LLM parse in flight
+  "valid", // LLM extraction succeeded, CV passed validity checks, ready for onboarding review
+  "invalid", // LLM extraction failed or CV failed validity checks (rejected, ask user for better CV)
+  "abandoned", // User uploaded a CV but never completed onboarding (orphan, eligible for cleanup)
+]);
