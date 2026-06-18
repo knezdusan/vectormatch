@@ -43,6 +43,13 @@
       "when": 1781692154652,
       "tag": "0005_nostalgic_enchantress",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781710022059,
+      "tag": "0006_greedy_king_bedlam",
+      "breakpoints": true
     }
   ]
 }

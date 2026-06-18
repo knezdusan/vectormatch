@@ -30,6 +30,10 @@ export const job = pgTable(
       "gin",
       table.extractedTags,
     ),
+    embeddingIdx: index("job_embedding_hnsw_idx").using(
+      "hnsw",
+      table.jobEmbedding.op("vector_cosine_ops"),
+    ),
   }),
 );
 

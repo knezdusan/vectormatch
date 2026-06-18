@@ -16,6 +16,7 @@ import { tagsTable } from "./tags";
 
 export const statusEnum = pgEnum("status", ["draft", "published", "archived"]);
 
+/** @deprecated Superseded by static MDX blog. Do not use in new code. */
 export const postsTable = pgTable("post", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   userId: text("user_id")
@@ -32,6 +33,7 @@ export const postsTable = pgTable("post", {
   ...timestamps,
 });
 
+/** @deprecated Superseded by static MDX blog. Do not use in new code. */
 export const postTagsTable = pgTable(
   "post_tags",
   {

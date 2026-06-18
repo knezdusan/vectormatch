@@ -1,3 +1,13 @@
+// ============================================================================
+// BLOG SCHEMAS
+// ⚠️ DEPRECATED — RETAINED HISTORICALLY (see vectormatch-blueprint.md)
+// The blog is now static MDX (src/app/(public)/blog/_posts/*.mdx). These
+// tables are kept ONLY to preserve migration history. DO NOT import or
+// reference categoriesTable, tagsTable, postsTable, postTagsTable, or
+// commentsTable in any new application code. Comments are fully superseded
+// by Giscus.
+// ============================================================================
+
 import { relations } from "drizzle-orm";
 
 export { timestamps } from "@/lib/utils";
@@ -39,8 +49,8 @@ import { persona } from "./jobs/persona";
 export const userRelations = relations(usersTable, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
-  posts: many(postsTable),
-  comments: many(commentsTable),
+  // posts: many(postsTable),
+  // comments: many(commentsTable),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

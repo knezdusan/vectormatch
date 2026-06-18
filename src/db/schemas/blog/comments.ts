@@ -5,6 +5,7 @@ import { timestamps } from "@/lib/utils";
 import { user as usersTable } from "../auth/user";
 import { postsTable } from "./posts";
 
+/** @deprecated Superseded by static MDX blog. Do not use in new code. */
 export const commentsTable = pgTable("comment", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   parentId: integer("parent_id").references(

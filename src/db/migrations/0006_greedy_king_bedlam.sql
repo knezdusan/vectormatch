@@ -1,0 +1,1 @@
+CREATE INDEX "job_embedding_hnsw_idx" ON "job" USING hnsw ("job_embedding" vector_cosine_ops);

@@ -2,6 +2,7 @@ import { integer, pgTable, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import type { z } from "zod";
 
+/** @deprecated Superseded by static MDX blog. Do not use in new code. */
 export const categoriesTable = pgTable("category", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: varchar("name", { length: 255 }).notNull().unique(),
