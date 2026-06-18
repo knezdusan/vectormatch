@@ -168,38 +168,6 @@ erDiagram
     applicant ||--o{ match_queue : "matched in"
     job ||--o{ match_queue : "matched in"
     persona ||--|| applicant : "belongs to"
-
-    %% ENUMS
-    enum assignment_type {
-        remote
-        hybrid
-        on-site
-        remote_local
-    }
-
-    enum modality {
-        full-time
-        part-time
-        contract
-        freelance
-        internship
-    }
-
-    enum compliance {
-        w2
-        local_employment
-        eor
-        b2b
-        1099
-        w8ben
-        ic_global
-    }
-
-    enum status {
-        draft
-        published
-        archived
-    }
 ```
 
 ## Schema Overview
@@ -249,3 +217,32 @@ These tables are retained for migration history only. The blog now uses static M
 1. **Gate 1 (GIN Index)**: Tag overlap filtering using `must_have_tags` and `blocklist_tags`
 2. **Gate 2 (HNSW Vector)**: Cosine similarity on persona embeddings vs job embeddings
 3. **Gate 3 (LLM)**: GPT-4o arbitration using `embeddingSummary` and full context
+
+## Enum Values
+
+### assignment_type
+- `remote`
+- `hybrid`
+- `on-site`
+- `remote_local`
+
+### modality
+- `full-time`
+- `part-time`
+- `contract`
+- `freelance`
+- `internship`
+
+### compliance
+- `w2` - US Corporate Employment
+- `local_employment` - Standard domestic employment
+- `eor` - Employer of Record
+- `b2b` - Company-to-Company
+- `1099` - US Resident Solo Contractor
+- `w8ben` - Foreign Solo Contractor for US Client
+- `ic_global` - International Solo Contractor for non-US Client
+
+### status
+- `draft`
+- `published`
+- `archived`
