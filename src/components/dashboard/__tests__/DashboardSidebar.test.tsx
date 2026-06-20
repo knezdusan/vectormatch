@@ -3,7 +3,7 @@
  *
  * Covers:
  *   - Logo presence in header
- *   - Navigation items (Account, CV, Jobs, conditional Admin)
+ *   - Navigation items (Account, Profile Management, Jobs, conditional Admin)
  *   - Footer user info (avatar, name, email)
  *   - Sign Out button styling
  *   - Responsive collapse behaviour
@@ -113,10 +113,10 @@ describe("DashboardSidebar — desktop", () => {
     expect(screen.getByTestId("logo")).toBeInTheDocument();
   });
 
-  it("renders Account, CV, and Jobs nav items", () => {
+  it("renders Account, Profile Management, and Jobs nav items", () => {
     renderSidebar(USER_SESSION);
     expect(screen.getByText("Account")).toBeInTheDocument();
-    expect(screen.getByText("CV")).toBeInTheDocument();
+    expect(screen.getByText("Profile Management")).toBeInTheDocument();
     expect(screen.getByText("Jobs")).toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe("DashboardSidebar — mobile", () => {
     // Labels may be visually hidden when collapsed, but the buttons are still
     // present in the DOM via SidebarMenuButton.
     expect(screen.getByText("Account")).toBeInTheDocument();
-    expect(screen.getByText("CV")).toBeInTheDocument();
+    expect(screen.getByText("Profile Management")).toBeInTheDocument();
     expect(screen.getByText("Jobs")).toBeInTheDocument();
   });
 

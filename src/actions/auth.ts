@@ -3,6 +3,7 @@
 import { isAPIError } from "better-auth/api";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
 import { signInSchema, signUpSchema } from "@/db/schemas";
 import { auth } from "@/lib/auth";
 
@@ -21,7 +22,7 @@ export async function signUpAction(
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
-    callbackURL: "/dashboard",
+    callbackURL: "/dashboard/profile-management",
   };
 
   const parsed = signUpSchema.safeParse(data);
@@ -33,7 +34,7 @@ export async function signUpAction(
     await auth.api.signUpEmail({
       body: {
         ...parsed.data,
-        callbackURL: "/dashboard",
+        callbackURL: "/dashboard/profile-management",
       },
       headers: await headers(),
     });
@@ -59,7 +60,7 @@ export async function signInAction(
   const data = {
     email: formData.get("email"),
     password: formData.get("password"),
-    callbackURL: "/dashboard",
+    callbackURL: "/dashboard/profile-management",
   };
 
   const parsed = signInSchema.safeParse(data);
@@ -87,6 +88,12 @@ export async function signInAction(
     return { error: "An unexpected error occurred", success: false };
   }
 
+  // Redirect to /dashboard — the dashboard page is a separate request that
+  // will have the session cookie set by signInEmail. It checks isOnboarded
+  // and redirects to /dashboard/jobs or /dashboard/profile-management.
+  // We can't check isOnboarded here because the session cookie is set in
+  // the response headers, not the request headers — getSession() would
+  // return null in this same request.
   redirect("/dashboard");
 }
 
@@ -103,7 +110,7 @@ export async function resendVerificationEmailAction(
     await auth.api.sendVerificationEmail({
       body: {
         email,
-        callbackURL: "/dashboard",
+        callbackURL: "/dashboard/profile-management",
       },
     });
     return {

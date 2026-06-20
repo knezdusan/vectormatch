@@ -7,7 +7,7 @@
 
 ## 1. TECHNOLOGY STACK
 *   **Framework:** Next.js 16 (App Router + Cache Components, standalone Docker output)
-*   **Database:** PostgreSQL (Neon)
+*   **Database:** PostgreSQL (Neon) — connected via `@neondatabase/serverless` Pool (not HTTP driver) to support Drizzle transactions required by `recomputeTagsExperience()`
 *   **ORM:** Drizzle ORM
 *   **Authentication:** Better Auth (database-integrated)
 *   **Background Jobs / Orchestration:** Inngest (v3, Durable Execution)
@@ -187,36 +187,298 @@ export const matchQueue = pgTable(
     uniqueMatch: index("match_queue_unique").on(table.jobId, table.applicantId),
   }),
 );
+
+// 5. CV UPLOAD TABLE (Module A — Onboarding source data)
+// src/db/schemas/jobs/cvUpload.ts
+// Persists every CV upload attempt: raw extracted text (from pdfjs-dist Web
+// Worker), the full LLM extraction payload (Schema 1 JSONB), and a lifecycle
+// status that drives the onboarding state machine. A user may have multiple
+// CV uploads (paid tier). See Module A §3.4 for the state machine.
+export const cvUploadStatusEnum = pgEnum("cv_upload_status", [
+  "processing", // PDF worker extracting text / LLM parse in flight
+  "valid", // LLM extraction succeeded, CV passed validity checks
+  "invalid", // LLM extraction failed or CV failed validity checks
+  "abandoned", // User uploaded but never completed onboarding (orphan)
+]);
+
+export const cvUpload = pgTable("cv_upload", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: text("applicant_id").notNull()
+    .references(() => applicant.userId, { onDelete: "cascade" }),
+  label: text("label").notNull(), // Mandatory user-provided CV name
+  originalFileName: text("original_file_name"),
+  rawText: text("raw_text").notNull(), // PDF worker output (enables re-parse)
+  extractedJson: jsonb("extracted_json"), // Full Schema 1 LLM payload (audit trail)
+  status: cvUploadStatusEnum("status").notNull().default("processing"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+});
+
+// 6. WORKING HISTORY TABLE (Module A — Single source of truth for work history)
+// src/db/schemas/jobs/workingHistory.ts
+// Each row = one employment entry extracted from a CV (by LLM) or added
+// manually post-onboarding. Linked to cvUpload via cvUploadId (CASCADE).
+// This table is the input to recomputeTagsExperience().
+export const workingHistory = pgTable("working_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: text("applicant_id").notNull()
+    .references(() => applicant.userId, { onDelete: "cascade" }),
+  cvUploadId: uuid("cv_upload_id").notNull()
+    .references(() => cvUpload.id, { onDelete: "cascade" }),
+  company: text("company").notNull(),
+  role: text("role").notNull(), // Free-text, CANONICAL_ROLES provides dropdown
+  startDate: date("start_date").notNull(),
+  endDate: date("end_date"),
+  isCurrent: boolean("is_current").notNull(),
+  summary: text("summary"), // Deferred feature (Q9), nullable, column exists for future Gate 3
+  canonicalSkillsDetected: text("canonical_skills_detected").array().notNull(),
+  rawSkillsDetected: text("raw_skills_detected").array().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+});
+
+// 7. TAGS EXPERIENCE TABLE (Module A — Single source of truth for skills + years)
+// src/db/schemas/jobs/tagsExperience.ts
+// NOT populated by the LLM directly — computed by recomputeTagsExperience()
+// which reads workingHistory, merges overlapping date ranges per canonical
+// tag, and upserts results here. The `active` flag lets users deactivate
+// non-critical skills without deleting the row. Unique constraint on
+// (applicantId, canonicalTag) enables upsert during re-aggregation.
+// Note: isPersonaDefining is NOT stored here — it's a global static property
+// of the tag in CANONICAL_TAGS. Derive it at query time via PERSONA_DEFINING_TAGS.
+export const tagsExperience = pgTable("tags_experience", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  applicantId: text("applicant_id").notNull()
+    .references(() => applicant.userId, { onDelete: "cascade" }),
+  canonicalTag: text("canonical_tag").notNull(),
+  yearsOfExperience: numeric("years_of_experience", { precision: 3, scale: 1 }).notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+});
 ```
 
 ---
 
 ## 3. MODULE A: DEVELOPER-CENTRIC ONBOARDING (FRONTEND & API)
 
-**Goal:** Convert messy PDF resumes into explicit `zod` validated data, preventing LLM math hallucinations on overlapping job dates, and giving the developer ultimate control over their "Active Persona" while ensuring strict backend data integrity.
+**Goal:** Convert messy PDF resumes into structured, validated, vectorizable data using a 3-schema pipeline (LLM extraction → user-validated submission → DB persistence), preventing LLM math hallucinations on overlapping job dates, and giving the developer ultimate control over their "Active Persona."
 
-### 3.1 Phase 1: Client-Side Parsing & Edge-Protected API
+**Governing Documents:** This section is governed by `docs/MODULE_A_DECISIONS.md` (locked decisions) and `docs/RESEARCH_NOTE_schemas.md` (research rationale). If this TDD and those documents conflict, the decisions document wins.
+
+### 3.1 The 3-Schema Pipeline
+
+Module A defines three distinct schemas that must not be conflated:
+
+| Schema | What it is | Where it lives | When it's created |
+|---|---|---|---|
+| **Schema 1** | Raw LLM extraction output (gpt-4o via `generateObject`) | `cvUpload.extractedJson` (JSONB) | When the PDF is parsed |
+| **Schema 2** | Validated onboarding submission (user-reviewed + user-collected) | Transient — passed to Server Action | When the user submits the onboarding form |
+| **Schema 3** | DB tables (`applicant`, `persona`, `workingHistory`, `tagsExperience`) | PostgreSQL via Drizzle ORM | When the Server Action persists Schema 2 |
+
+**Zod contracts:** `src/lib/onboarding/schemas.ts` defines `resumeExtractionSchema` (Schema 1) and `onboardingPayloadSchema` (Schema 2). Schema 3 is defined by the Drizzle table definitions in `src/db/schemas/jobs/`.
+
+**Design principle:** The LLM returns raw `roles[]` data with date ranges. The server computes `yearsOfExperience` from merged date ranges — the LLM does NOT return a top-level `calculated_years_of_experience`. The LLM shows its work; the math is done in TypeScript. This is the anti-hallucination principle.
+
+### 3.2 CANONICAL_TAGS & CANONICAL_ROLES (The Taxonomy Layer)
+
+Two typed constant arrays govern tag and role normalization:
+
+**CANONICAL_TAGS** (`src/lib/jobs/tech-tags.ts`):
+- 144 entries (initial implementation, target ~300 after real-CV testing)
+- Each entry: `{ tag, label, classification, category }`
+- `classification`: `"persona_defining"` (can anchor a persona identity, e.g., `react`) or `"supporting"` (enhances but doesn't define, e.g., `css`)
+- `category`: `"language" | "frontend" | "backend" | "database" | "devops" | "library" | "mobile" | "methodology"`
+- Derived lookups: `CANONICAL_TAG_MAP` (O(1) by slug), `PERSONA_DEFINING_TAGS` (O(1) Set for validation), `TAGS_BY_CATEGORY` (grouped for UI)
+- Seeded from Stack Overflow Developer Survey 2025 technology taxonomy
+
+**CANONICAL_ROLES** (`src/lib/jobs/roles.ts`):
+- ~90 entries (initial draft, target ~300 after real-CV testing)
+- Each entry: `{ label, onetSoc }` (O*NET SOC code for traceability)
+- Seniority is inline in the role title (Junior, Mid-level, Senior, Staff, Principal, Lead) — no separate DB column. True seniority is derived dynamically via `tagsExperience.yearsOfExperience`.
+- Product Manager is included (for work history accuracy) but excluded from CANONICAL_TAGS — the LLM must never anchor a matching persona on it.
+- Seeded from O*NET SOC 15-0000 + Stack Overflow developer-type self-identification
+
+**Classification decisions (locked in MODULE_A_DECISIONS.md):**
+- Cloud platforms (AWS/Azure/GCP) = `persona_defining` (dedicated Cloud Architects are major B2B personas)
+- `kubernetes` = `persona_defining`, `terraform` = `supporting` (K8s has dedicated admins/CKA; Terraform is a tool)
+- `tensorflow`/`pytorch`/`spark` = `persona_defining`; `scikit-learn`/`langchain`/`huggingface` = `supporting` (tools used by AI Engineer, not the anchor)
+- `nextjs` = `persona_defining`; `nuxt`/`sveltekit`/`remix`/`astro` = `supporting` (Next.js has breakout market velocity)
+- `php`/`ruby` = `persona_defining` (waning market share doesn't erase distinct B2B identities)
+
+### 3.3 Phase 1: Client-Side PDF Parsing & LLM Extraction
+
 Do not use `pdf-parse` on the server.
-*   **Implementation:** Use `pdfjs-dist` in a Web Worker inside the browser.
-*   **The Flow:** The Worker extracts the raw text and sends it to the Main (React) Thread via `postMessage`. The Main Thread then triggers the Vercel AI SDK `useObject` hook.
-*   **API Route vs. Server Action:** The target endpoint MUST be an API Route (`/api/onboarding/parse`), not a Server Action. This is a deliberate architectural decision required to:
-    1. Support the `useObject` hook for real-time JSON streaming (preventing Cloudflare 524 timeouts).
-    2. Allow Cloudflare WAF to apply strict URL-based rate limiting to protect OpenAI billing.
 
-### 3.2 Phase 2: The Skillset Math & Canonical Tagging (Server-Side AI)
-To prevent "hallucinated years of experience" and "muddy vectors", use `gpt-4o` (not mini) with a strict `zod` schema (`ResumeExtractionSchema`).
-*   **The Overlap Algorithm:** The system prompt must enforce a 4-step Chain of Thought to merge overlapping date ranges before outputting `years_of_experience`.
-*   **The CANONICAL_TAGS Dictionary:** The LLM is strictly prohibited from inventing tech tags. It must map findings to a hardcoded dictionary split into:
-    *   **Core Skills** (e.g., "React", "Python"): Technologies capable of defining an entire Persona (`mustHaveTags`).
-    *   **Optional Skills** (e.g., "CSS", "Agile", "Jira"): Contextual modifiers saved in the applicant's global knowledge base (`allTags`) for Gate 3 LLM evaluation.
+*   **Implementation:** Use `pdfjs-dist` in "fake worker" (same-thread) mode on the browser main thread.
+*   **Architecture Decision — Main-Thread Fake Worker Mode (Revised from Web Worker):**
+    The original design called for `pdfjs-dist` to run inside a Web Worker. This was revised during implementation due to a fundamental browser constraint: **browsers do not allow spawning a Worker from inside another Worker.** `pdfjs-dist` internally attempts to spawn its own Worker (via `GlobalWorkerOptions.workerSrc`) to parse PDFs. When running inside our custom Web Worker, this nested spawn fails silently, resulting in near-empty text extraction (9 characters instead of thousands).
+    
+    The solution is to run `pdfjs-dist` on the **main thread** in "fake worker" mode. This is achieved by importing the `pdf.worker.min.mjs` module and setting it on `globalThis.pdfjsWorker`. When `pdfjs-dist` detects `globalThis.pdfjsWorker.WorkerMessageHandler`, it runs its parsing logic in the same thread instead of spawning an internal Worker. For typical CV PDFs (1-5 pages), extraction takes <500ms on the main thread, which is acceptable for the onboarding MVP.
+    
+    The original Web Worker file (`src/workers/pdf-extract.worker.ts`) is retained for reference but is not the active code path. The active implementation is in `src/lib/onboarding/pdf-worker-client.ts`.
+    
+    **Future optimization:** If main-thread blocking becomes problematic for very large PDFs, the fallback is server-side extraction (a dedicated API route with `pdf-parse` or a serverless function), or an OffscreenCanvas-based worker with a different PDF library that doesn't internally spawn Workers.
 
-### 3.3 Phase 3: The Hybrid Form Architecture & Data Mutation
-The `/dashboard/cv` UI utilizes a hybrid state architecture to balance complex interactions with Next.js App Router mutation standards.
-*   **Client State (React Hook Form):** Manages the highly interactive draft state (uncontrolled inputs for performance) and complex dynamic arrays like the drag-and-drop "5 Major Skills" constraint. Performs initial Zod validation for immediate UX feedback.
-*   **Server Execution (Server Actions + `useActionState`):** RHF hands the validated data over to a Server Action as a JSON-stringified payload in `FormData`. Note: This intentionally sacrifices non-JS progressive enhancement in favor of complex dashboard UI requirements.
-*   **Strict Double-Validation Constraint:** The Server Action MUST NOT trust the RHF payload. It must independently execute `PersonaFormSchema.safeParse()` to validate the payload server-side before invoking `text-embedding-3-small` to generate the vectors and executing the Drizzle ORM inserts.
+*   **SSR Compatibility — Dynamic Imports:** `pdfjs-dist` references browser-only APIs (`DOMMatrix`) at module evaluation time. Importing it at the top level of any module that runs during SSR causes a `ReferenceError: DOMMatrix is not defined`. The `extractPdfText()` function in `pdf-worker-client.ts` uses **dynamic `import()`** inside the function body so `pdfjs-dist` only loads in the browser when the function is actually called, never during server-side rendering.
+
+*   **The Flow:** The client component calls `extractPdfText(file)` (an async function, not a Worker `postMessage`). The function dynamically imports `pdfjs-dist`, extracts raw text from the PDF on the main thread, and returns it. The component then constructs a `FormData` with the raw text, label, and original filename, and calls the Server Action via `formAction(formData)` inside a `startTransition()` (see §3.5).
+*   **Pre-LLM CV Validity Check:** Before calling the LLM, the server runs `validateCvRawText(rawText)` which rejects:
+    - Raw text < 200 characters (image-only PDFs, corrupt files, blank pages)
+    - No year-like patterns found (no date evidence)
+*   **Server Action (Parse):** The Server Action calls `gpt-4o` via Vercel AI SDK `generateObject()` with `resumeExtractionSchema` (Schema 1). Application-level rate limiting: 3 parses/hour/user.
+*   **System Prompt with Canonical Tags (Critical):** The `generateObject()` system prompt must include the full list of `CANONICAL_TAGS` and `PERSONA_DEFINING_TAGS` so the LLM can accurately map skills. Without the tag list injected into the prompt, the LLM invents tag names that don't exist in the canonical set, causing `generateObject()` to fail with "response did not match schema." The prompt is built **dynamically** at runtime from the same `CANONICAL_TAGS` and `PERSONA_DEFINING_TAGS` constants that the Zod schema validates against — there is no hardcoded tag list in the prompt. When new tags are added to `tech-tags.ts`, they automatically appear in the next LLM call's prompt. Token cost: ~400 tokens for the tag list, negligible for a per-user onboarding action.
+*   **Applicant Row Upsert (Critical):** The `cv_upload.applicant_id` foreign key references `applicant.user_id`. First-time users have a Better Auth `user` record but no `applicant` row yet. The `parseCvAction` must upsert an `applicant` row (with `onConflictDoNothing` on `userId`) before inserting into `cv_upload`. Without this, the FK constraint fails with a foreign key violation.
+*   **API Route vs Server Action:** Default is a Server Action (called from the client component after extraction completes). An API route (`/api/onboarding/parse`) is reserved only if Cloudflare WAF URL-based rate limiting on this endpoint becomes a hard requirement.
+*   **Schema 1 Output:** The LLM returns `roles[]` (work history with per-role canonical/raw skills), aggregated skill arrays, and `proposed_stacks[]` (1-2 LLM-proposed personas with 5 `must_have_tags` each). A Zod `.refine()` enforces that each proposed stack contains ≥1 `persona_defining` tag.
+*   **Persistence on Parse:** The `cvUpload` row is created immediately (status=`processing`), then updated with `extractedJson` and status=`valid` or `invalid` when the LLM completes. This survives page refreshes and gives a stable ID for the onboarding flow.
+
+### 3.4 Phase 2: The Onboarding UI (3-Presentation State Machine)
+
+Route: `/dashboard/profile-management` (single route, three presentations based on `isOnboarded` and CV parse state).
+
+```
+State 1: isOnboarded=false, no CV parsed
+  → Presentation: CV upload form
+  → Transition: upload + worker parse + LLM extraction → State 2
+
+State 2: isOnboarded=false, CV parse result in session (cvUpload row exists)
+  → Presentation: Onboarding review (LLM data + user fields + persona confirmation)
+  → Transition: submit → persist applicant + persona(s) + workingHistory + tagsExperience → set isOnboarded=true → State 3
+  → Transition: reject CV (failed validity) → back to State 1
+
+State 3: isOnboarded=true
+  → Presentation: Profile management (full editing)
+  → No transition (steady state)
+```
+
+**State 2 — Onboarding Review (goal: <3 minutes from upload to onboarded):**
+- Shows LLM-extracted data (read-only summary with "edit" toggles for corrections)
+- Shows LLM-proposed persona(s) — 1 or 2, with 5 `mustHaveTags` pre-filled
+- User fills in mandatory user-collected fields (country, work preferences)
+- User confirms or adjusts the 5 skills per persona
+- Single submit → Server Action persists everything
+
+**State 3 — Profile Management (post-onboarding):**
+- *MVP status: read-only display of onboarding data. Full editing capabilities (add/remove jobs, deactivate skills, edit/delete personas) are a post-MVP follow-up.*
+- Full Applicant section (edit employment history, add jobs, skills update) — *planned*
+- Skills section (view all, deactivate non-critical — users cannot delete skills, only deactivate, because skills are derived from employment history) — *planned*
+- Persona section (edit existing, add up to 3, delete) — *planned*
+
+**UI sections (State 2 and 3):**
+1. **Applicant Section**: Form reflecting user data from CV + mandatory fields not in CV (country, canWorkUsHours, assignmentTypes, modalities, preferredCompliance). Editing employment history here is the only way to add/modify skills.
+2. **Skills Section**: Read-only list of all skills from `tagsExperience`, mapped against `CANONICAL_TAGS`. Users can deactivate non-critical skills but cannot add skills directly (they add skills by editing employment history in the Applicant section).
+3. **Persona Section**: One or multiple (max 3) personas based on stacks derived from user data and skills. Each persona has exactly 5 `mustHaveTags` (the "5 Major Skills" constraint). The LLM proposes initial personas; the user edits/confirms.
+
+### 3.5 Phase 3: Form State & Server Action Mutation
+
+*   **Client State (React Hook Form):** Manages form field values, drag-and-drop state for the 5 Major Skills constraint, and real-time client validation via Zod resolver. RHF runs in the browser only.
+*   **Server Execution (Server Actions + `useActionState`):** RHF hands the validated data to a Server Action. The Server Action independently re-validates with `onboardingPayloadSchema.safeParse()` (strict double-validation — never trust client payload).
+*   **`useActionState` + `startTransition` (Critical React 19 Pattern):** The `formAction` dispatch returned by `useActionState` must be called inside a `startTransition()` callback. Without this, React logs a console error ("An async function with useActionState was called outside of a transition") and `isPending` does not update correctly. Both `CvUploadForm` and `OnboardingReview` wrap their `formAction(formData)` calls in `startTransition()`.
+*   **Direct `formAction(formData)` instead of `requestSubmit()` + hidden fields:** The original approach of populating a hidden `<input>` field and calling `formRef.requestSubmit()` to trigger the bound form action is unreliable in React 19 + Next.js 16. Instead, the component constructs a `FormData` object manually (e.g., `formData.set("payload", JSON.stringify(data))`) and calls `formAction(formData)` directly inside `startTransition()`. This bypasses the HTML form submission mechanism entirely and gives full control over the payload.
+*   **`router.refresh()` in `useEffect`, not during render:** Calling `router.refresh()` directly in the component body (during render) causes side effects during render, which React 19 discourages. The pattern is to watch the `useActionState` result in a `useEffect` and call `router.refresh()` there when the action succeeds. This also ensures the refresh only fires once after the action completes, not on every render.
+*   **Toast Notifications (sonner):** User-facing success and error feedback is provided via `sonner` toasts (the `<Toaster />` component is mounted in the root layout). Both the CV upload and onboarding completion transitions fire toasts: green success toasts on successful state transitions, red error toasts with the error message on failures. This provides prominent, non-blocking confirmation that the action succeeded.
+*   **Inline Form Validation Errors:** The `OnboardingReview` form displays validation errors at two levels: (1) a summary error box at the bottom of the form listing all failed fields (e.g., "Country is required", "Select at least one assignment type"), and (2) inline red error text next to each field that fails validation (country, assignment types, modalities, preferred compliance, persona label, persona embedding summary, persona must-have tags). The `errors` prop from RHF's `formState.errors` is passed down to `ApplicantSection` and `PersonaSection` sub-components for inline display.
+*   **Persistence Flow (on submit):**
+    1. Upsert `applicant` (country, canWorkUsHours, assignmentTypes, modalities, preferredCompliance, `isOnboarded=true`)
+    2. Insert `workingHistory` rows (linked to `cvUploadId`)
+    3. Call `recomputeTagsExperience(applicantId)` — transactional (see §3.6)
+    4. Rebuild `applicant.allTags` as union of active `tagsExperience.canonicalTag` values
+    5. Insert `persona` rows with `personaEmbedding` generated from `embeddingSummary` via `text-embedding-3-small`
+*   **Embedding Generation:** Synchronous in the Server Action (~2s, well under the 100s Cloudflare budget). Do NOT route through Inngest — it's a single low-latency call.
 
 <!-- ⚠️ GOTCHA: Never average 30 skills into one vector. Cap at 5 Major Skills per persona, or split into a separate persona row. -->
+
+### 3.6 The Re-aggregation Function (Transactional)
+
+`recomputeTagsExperience(applicantId)` must be wrapped in a Drizzle PostgreSQL transaction. If it fails halfway, the entire operation rolls back to prevent persona corruption.
+
+```typescript
+await db.transaction(async (tx) => {
+  // 1. Read all workingHistory rows for applicant
+  // 2. Merge overlapping date ranges per canonical tag (the overlap algorithm)
+  // 3. Delete existing tagsExperience rows for this applicant
+  // 4. Insert recomputed tagsExperience rows (upsert via unique constraint)
+  // 5. Rebuild applicant.allTags as union of active tagsExperience.canonicalTag values
+  // 6. If any persona.mustHaveTags changed, regenerate persona embeddings
+});
+```
+
+**Called from:**
+1. Onboarding submit (initial population)
+2. Post-onboarding work history edit (re-aggregation)
+3. Post-onboarding CV re-parse (full re-aggregation)
+
+**Persona embedding auto-regeneration:** When `mustHaveTags` change on any persona, the embedding is automatically regenerated via `text-embedding-3-small`. This is automatic, not a user-confirmed action.
+
+### 3.7 Onboarding Completion Constraints
+
+`isOnboarded = true` requires ALL of:
+
+**User-collected (mandatory):**
+- `country` (ISO 3166-1 alpha-2)
+- `canWorkUsHours` (boolean)
+- `assignmentTypes` (≥1 from enum)
+- `modalities` (≥1 from enum)
+- `preferredCompliance` (≥1 from enum)
+
+**LLM-extracted (mandatory for CV validity):**
+- ≥1 employment entry (role, company, start date, end date)
+- ≥3 canonical skills mapped to CANONICAL_TAGS
+
+**Derived (mandatory for persona creation):**
+- ≥1 persona with exactly 5 `mustHaveTags`
+- `embeddingSummary` (3-sentence narrative)
+- `personaEmbedding` (generated, non-null)
+
+**Experience level:** Derived purely at query time from `tagsExperience.yearsOfExperience` (junior/mid/senior/staff/lead). No stored enum field on `applicant`.
+
+### 3.8 Orphaned cvUpload Cleanup (Follow-up Task)
+
+An Inngest cron job (post-MVP) deletes `cvUpload` rows where:
+- `status` = `processing` or `valid` (not yet consumed by onboarding)
+- `createdAt` is older than 24 hours
+- The associated `applicant.isOnboarded` = `false`
+
+Not blocking for Module A MVP.
+
+### 3.9 Module A Pending Items (Post-MVP Follow-up)
+
+The Module A MVP is functionally complete — the full onboarding flow (CV upload → LLM extraction → user review → persona persistence → profile display) works end-to-end. The following items are documented as pending with a prioritized timing strategy:
+
+**Timing Strategy Rationale:** Module B (ingestion) and Module C (matching) are the core product value — without jobs to match against, onboarding has no purpose. The current MVP sufficiently populates `persona`, `tagsExperience`, and `applicant.allTags` for Module B/C to consume. Therefore, only P3 is done immediately; P1 and P2 are deferred to a pre-launch hardening sprint; P4 and P5 are post-launch.
+
+| Item | Priority | When to Address | Rationale |
+|------|----------|-----------------|-----------|
+| P3 — Smart Redirect | ✅ Done | Before Module B | Implemented via two-layer redirect: `signInAction` checks `isOnboarded` post-login; `/dashboard` page checks `isOnboarded` as catch-all for social sign-in and direct URLs |
+| P1 — State 3 Editing | Critical (pre-launch) | After Module B/C, before public launch | Read-only is sufficient for testing the matching pipeline; full editing is days of UI work that only matters once real users are using the product |
+| P2 — Rate Limiting | Critical (pre-launch) | After Module B/C, before public launch | Cost protection against gpt-4o API abuse; pre-launch with no traffic, LLM cost is a natural limiter |
+| P4 — Multiple CV Upload | Medium (post-launch) | Post-launch, tied to paid-tier feature | Feature expansion, not a gap; MVP works with single CV |
+| P5 — Orphaned Cleanup | Low (post-launch) | Post-launch, when orphan volume matters | Operational hygiene; orphaned rows don't break anything |
+
+**P1 — State 3 Full Editing (Profile Management):**
+Currently implemented as read-only display. The following editing capabilities are required:
+- **Employment history CRUD**: Add new jobs, edit existing entries (company, role, dates, skills), delete entries. Each edit triggers `recomputeTagsExperience(applicantId)` transactionally to recompute `tagsExperience` and rebuild `applicant.allTags`.
+- **Skills deactivation**: Users can toggle the `active` flag on `tagsExperience` rows (deactivate non-critical skills, cannot delete — skills are derived from employment history). Deactivating a skill removes it from `applicant.allTags` and affects persona matching.
+- **Persona CRUD**: Edit existing personas (label, embedding summary, must-have tags, blocklist tags), add new personas (up to max 3), delete personas. Editing `mustHaveTags` triggers persona embedding auto-regeneration via `text-embedding-3-small`.
+- **CV re-parse**: Post-onboarding, user can re-upload a CV which triggers full re-aggregation (new `cvUpload` row → LLM extraction → replace `workingHistory` → `recomputeTagsExperience` → rebuild personas if needed).
+
+**P2 — Rate Limiting (3 parses/hour/user):**
+The `parseCvAction` currently has a TODO comment for rate limiting. Implementation: query count of `cvUpload` rows created in the last 3600 seconds for the `applicantId`. If count ≥ 3, reject with error: "You have reached the 3 CV parses per hour limit. Please try again later." Currently relies on LLM cost as a natural rate limiter, which is insufficient for production.
+
+**P3 — Smart Dashboard Redirection Logic (✅ Implemented):**
+Implemented via a two-layer redirect strategy that covers all auth entry paths:
+- **Layer 1 — `signInAction`** (`src/actions/auth.ts`): After successful email sign-in, redirects to `/dashboard`. It does NOT check `isOnboarded` here because `auth.api.signInEmail` sets the session cookie in the *response* headers, but `auth.api.getSession()` reads from the *request* headers — the new cookie isn't available in the same request. The redirect target decision is deferred to Layer 2.
+- **Layer 2 — `/dashboard` page** (`src/app/dashboard/page.tsx`): Server component that calls `getAuthSession()` (the session cookie is available in this new request), queries `applicant.isOnboarded`, and redirects to `/dashboard/jobs` (if onboarded) or `/dashboard/profile-management` (if not). This catches all paths: email sign-in (via Layer 1 redirect), social sign-in callback, direct URL access, bookmarks.
+- **Sign-up / email verification**: `callbackURL` changed from `/dashboard` to `/dashboard/profile-management` in `signUpAction`, `resendVerificationEmailAction`, `auth.ts` config (`onExistingUserSignUp`), and `auth-client.ts` (social sign-in). New users always need onboarding.
+
+**P4 — Multiple CV Upload / CV List View:**
+The DB schema supports multiple `cvUpload` rows per applicant (no unique constraint), but the UI only shows the latest. Required:
+- **State 1**: "Add New CV" prominent action button (multiple CV upload allowed only for paid users — tier gating is a post-MVP feature).
+- **State 3**: CV list view showing all uploaded CVs with label, upload date, status, and edit/delete actions. Selecting a CV shows its extracted data. Re-parsing a CV triggers full re-aggregation.
+
+**P5 — Orphaned cvUpload Cleanup:**
+See §3.8 above. Inngest cron job to delete abandoned uploads. Not blocking for MVP.
 
 ---
 

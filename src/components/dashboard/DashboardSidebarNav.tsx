@@ -17,7 +17,11 @@ export function DashboardSidebarNav({ role }: { role?: string | null }) {
 
   const items = [
     { href: "/dashboard/account", label: "Account", icon: User },
-    { href: "/dashboard/cv", label: "CV", icon: FileText },
+    {
+      href: "/dashboard/profile-management",
+      label: "Profile Management",
+      icon: FileText,
+    },
     { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
   ];
 

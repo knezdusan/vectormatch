@@ -9,7 +9,7 @@ export const authClient = createAuthClient({
 export const signIn = async (provider: "google" | "github" = "google") => {
   const data = await authClient.signIn.social({
     provider,
-    callbackURL: "/dashboard",
+    callbackURL: "/dashboard/profile-management",
   });
   return data;
 };

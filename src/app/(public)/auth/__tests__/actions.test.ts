@@ -229,7 +229,7 @@ describe("signInAction", () => {
     });
   });
 
-  it("calls redirect('/dashboard') on successful sign-in", async () => {
+  it("calls redirect('/dashboard') on successful sign-in (smart redirect happens on /dashboard page)", async () => {
     const fd = makeFormData(VALID_SIGNIN);
     await signInAction(null, fd);
     expect(redirect).toHaveBeenCalledWith("/dashboard");
@@ -316,7 +316,7 @@ describe("resendVerificationEmailAction", () => {
     const call = mockSendVerificationEmail.mock.calls[0][0];
     expect(call.body).toMatchObject({
       email: "alice@example.com",
-      callbackURL: "/dashboard",
+      callbackURL: "/dashboard/profile-management",
     });
     expect(result).toMatchObject({
       success: true,

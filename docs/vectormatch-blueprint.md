@@ -39,13 +39,14 @@ To maintain absolute alignment between this blueprint and the active codebase, e
 
 Bottom-up order for solo implementation. Update the status tag as each step completes.
 
-1. **Database & Schema Layer** `[Status: Implemented]` — Drizzle schemas for `applicant`, `job`, `persona`, `matchQueue` with GIN + HNSW indexes. (Completed in schema-cleanup session, June 2026.)
-2. **Client-Side PDF Worker & AI Extraction** `[Status: In Progress]` — `pdfjs-dist` Web Worker + `generateObject` call against `ResumeExtractionSchema`.
-3. **Onboarding UI** `[Status: Planned / TO DO]` — React Hook Form ingesting the AI payload, 5-Major-Skills constraint, persona save + embedding generation.
-4. **Inngest Orchestration Base** `[Status: Planned / TO DO]` — `app/api/inngest/route.ts` setup.
-5. **3-Gate Routing Logic** `[Status: Planned / TO DO]` — Combined GIN + HNSW Drizzle query (Module C, section 5.2).
-6. **Ingestion Poller** `[Status: Planned / TO DO]` — Greenhouse/Lever background worker feeding the 3-Gate router (Module B).
-7. **Seeders** `[Status: Planned / TO DO]` — HN Algolia + BigQuery scripts for initial company list (Module B).
+1. **Database & Schema Layer** `[Status: Implemented]` — Drizzle schemas for `applicant`, `job`, `persona`, `matchQueue`, `cvUpload`, `workingHistory`, `tagsExperience` with GIN + HNSW indexes. (Completed in schema-cleanup session + Module A schema phase, June 2026.)
+2. **Module A Contracts** `[Status: Implemented]` — `CANONICAL_TAGS` (144 entries, `src/lib/jobs/tech-tags.ts`), `CANONICAL_ROLES` (~90 entries, `src/lib/jobs/roles.ts`), `resumeExtractionSchema` + `onboardingPayloadSchema` Zod schemas (`src/lib/onboarding/schemas.ts`). (Completed in Module A contract phase, June 2026.)
+3. **Client-Side PDF Extraction & AI Parsing** `[Status: Implemented]` — `pdfjs-dist` in main-thread "fake worker" mode (`src/lib/onboarding/pdf-worker-client.ts`) + `generateObject` call against `resumeExtractionSchema` (Schema 1) with dynamic canonical tag list in system prompt. (Completed in Module A implementation, June 2026. Revised from Web Worker to main-thread due to browser nested-Worker limitation — see TDD §3.3.)
+4. **Onboarding UI** `[Status: Implemented]` — `/dashboard/profile-management` page with 3-presentation state machine (CV upload → onboarding review → profile management), React Hook Form + Server Actions via `useActionState` + `startTransition`, 5-Major-Skills drag-and-drop constraint, inline validation errors, sonner toast notifications, persona save + embedding generation. (Completed in Module A implementation, June 2026.)
+5. **Inngest Orchestration Base** `[Status: Planned / TO DO]` — `app/api/inngest/route.ts` setup.
+6. **3-Gate Routing Logic** `[Status: Planned / TO DO]` — Combined GIN + HNSW Drizzle query (Module C, section 5.2).
+7. **Ingestion Poller** `[Status: Planned / TO DO]` — Greenhouse/Lever background worker feeding the 3-Gate router (Module B).
+8. **Seeders** `[Status: Planned / TO DO]` — HN Algolia + BigQuery scripts for initial company list (Module B).
 
 
 ## Technical Architecture
@@ -66,16 +67,22 @@ Bottom-up order for solo implementation. Update the status tag as each step comp
   - *Drizzle Path*: `src/db/schemas/auth/user.ts`
 - **`applicant` table** `[Status: Implemented]`: 1:1 extension of `users`. Primary key `user_id` is a foreign key to `user.id` with CASCADE delete.
   - *Drizzle Path*: `src/db/schemas/jobs/applicant.ts`
-  - *Enum Definitions*: `src/db/schemas/jobs/enums.ts` (`assignment_type`, `modality`, `compliance`)
+  - *Enum Definitions*: `src/db/schemas/jobs/enums.ts` (`assignment_type`, `modality`, `compliance`, `cv_upload_status`)
   - *Onboarding State*: `is_onboarded` (boolean), `country` (ISO 3166-1 alpha-2), `can_work_us_hours` (boolean)
   - *Work Preferences*: `assignment_types` (enum array), `modalities` (enum array), `preferred_compliance` (enum array)
-  - *Gate 3 Knowledge Base `[Status: Implemented]`*: Contains `all_tags` (text array) — the global knowledge base used by the LLM arbitrator during high-fidelity candidate evaluation.
+  - *Gate 3 Knowledge Base `[Status: Implemented]`*: Contains `all_tags` (text array) — the global knowledge base used by the LLM arbitrator during high-fidelity candidate evaluation. Rebuilt as union of active `tagsExperience.canonical_tag` values by `recomputeTagsExperience()`.
 - **`persona` table** `[Status: Implemented]`: Supports multi-persona matching. Contains `persona_label`, `embedding_summary`, `persona_embedding` (vector 1536), `must_have_tags` (text array), and `blocklist_tags` (text array).
   - *Gate 1 Optimization*: `must_have_tags` and `blocklist_tags` are indexed using a **Postgres GIN index** to support instant `&&` (overlap) query operations.
   - *Gate 2 Optimization*: Indexed using **HNSW** (`USING hnsw (persona_embedding vector_cosine_ops)`) to achieve sub-millisecond vector similarity calculation during routing.
   - *Business Rule*: To prevent abuse, users are strictly limited to a maximum of 3 personas, enforced at the API/Zod validation layer.
-- **`jobs` table** `[Status: Implemented]: Stores job listings with `ats_slug`, `title`, `raw_json`, and `extracted_tags` (text array).
-- **`match_queue` table** `[Status: Implemented]: Maps `job_id` to `user_id` with a `status` state (pending, approved, rejected) to buffer and queue high-fidelity LLM evaluations.
+- **`cv_upload` table** `[Status: Implemented]`: Persists every CV upload attempt — raw extracted text (from `pdfjs-dist` Web Worker), the full LLM extraction payload (Schema 1 JSONB), and a lifecycle status (`processing`, `valid`, `invalid`, `abandoned`) that drives the onboarding state machine.
+  - *Drizzle Path*: `src/db/schemas/jobs/cvUpload.ts`
+- **`working_history` table** `[Status: Implemented]`: Single source of truth for the user's work history. Each row represents one employment entry extracted from a CV (by the LLM) or added manually post-onboarding. Linked to `cv_upload` via `cv_upload_id` (CASCADE delete). This table is the input to `recomputeTagsExperience()`.
+  - *Drizzle Path*: `src/db/schemas/jobs/workingHistory.ts`
+- **`tags_experience` table** `[Status: Implemented]`: Single source of truth for the user's skills and years of experience per skill. NOT populated by the LLM directly — computed by `recomputeTagsExperience(applicantId)` which reads `working_history`, merges overlapping date ranges per canonical tag, and upserts results here. The `active` flag lets users deactivate non-critical skills. Unique constraint on `(applicant_id, canonical_tag)` enables upsert.
+  - *Drizzle Path*: `src/db/schemas/jobs/tagsExperience.ts`
+- **`jobs` table** `[Status: Implemented]`: Stores job listings with `ats_slug`, `title`, `raw_json`, and `extracted_tags` (text array).
+- **`match_queue` table** `[Status: Implemented]`: Maps `job_id` to `user_id` with a `status` state (pending, approved, rejected) to buffer and queue high-fidelity LLM evaluations.
 - **`blog_categories`, `blog_tags`, `blog_posts`, `blog_post_tags`, and `blog_comments` tables** `[Status: Deprecated — Retained Historically]`: A full relational blog and nested commenting schema that predates the architectural decision to move the blog to file-based MDX.
   - *Drizzle Path*: `src/db/schemas/blog/` (defines `posts.ts`, `categories.ts`, `tags.ts`, `comments.ts`)
   - *Decision*: The blog is now implemented as static **MDX** (see *Blog & Content Architecture*). These tables, their relations, and migrations are **retained as historical artifacts** and **must not be referenced by any new application code**. They are not deleted to preserve migration history. The `blog_comments` table is fully superseded by Giscus.
@@ -108,18 +115,18 @@ The blog is a static, file-based MDX system whose purpose is organic SEO acquisi
 - Primary conversion element is a call-to-action button linking directly to the separate `/auth` page.
 - Fully supports traditional sign-up/sign-in forms with email/password authentication (as well as Google/GitHub OAuth integrations).
 
-**Smart Dashboard Redirection Logic** `[Status: Planned / TO DO]`
+**Smart Dashboard Redirection Logic** `[Status: Implemented]`
 - **On Sign-Up (New Users)**:
-  - Once signed-up, the user must be automatically redirected to the `/dashboard/cv` page. This ensures a natural onboarding workflow where the user is immediately prompted to upload and parse their CV.
+  - Once signed-up, the user must be automatically redirected to the `/dashboard/profile-management` page. This ensures a natural onboarding workflow where the user is immediately prompted to upload and parse their CV (State 1 of the 3-presentation state machine).
 - **On Log-In (Existing Users)**:
   - When an existing user logs in, they should be intelligently redirected based on their profile completion:
-    - **a) If the user does not have a parsed CV** in the database: redirect them to the `/dashboard/cv` page to complete onboarding.
-    - **b) If the user has a parsed CV** in the database: redirect them to the `/dashboard/jobs` page to view active matches.
+    - **a) If the user is not onboarded** (`applicant.is_onboarded = false`): redirect them to the `/dashboard/profile-management` page to complete onboarding.
+    - **b) If the user is onboarded** (`applicant.is_onboarded = true`): redirect them to the `/dashboard/jobs` page to view active matches.
 
 ### Dashboard Area (Authenticated User Workspace)
 **Navigation Structure** `[Status: Implemented]`
 - Collapsible sidebar with role-based navigation items
-- Main navigation items: Account, CV, Jobs
+- Main navigation items: Account, Profile Management, Jobs
 - Admin-only navigation: Admin panel (for user management and system oversight). *Note: there is no blog management in the dashboard — blog content is authored as MDX files in the repository, so the previously scaffolded admin Blog page and its sidebar entry are removed.*
 - Responsive design supporting mobile and desktop layouts
 
@@ -131,26 +138,82 @@ The blog is a static, file-based MDX system whose purpose is organic SEO acquisi
 - Subscription plan management `[Status: Planned / TO DO]`
 - Account deletion option `[Status: Implemented]`
 
-**CV Management & Onboarding Flow** `[Status: Planned / TO DO]` (Navigation link is `[Status: Implemented]`)
-- List view of all uploaded CVs with edit/delete actions
-- "Add New CV" prominent action button (Multiple CV upload allowed only for paid users)
-- CV upload modal with mandatory CV naming field
-- **Phase 1: Zero-Tax Client-Side Extraction & Streaming API**:
-  - The browser loads `pdfjs-dist` inside a background **Web Worker** to extract raw text directly in the client, bypassing Vercel memory limits.
-  - *Worker Communication*: The Worker sends the text back to the React Main Thread via `postMessage`.
-  - *API & Streaming*: The Main Thread calls the Vercel AI SDK `useObject` hook pointing to a dedicated API route (`/api/onboarding/parse`). This route is kept as a standard API route (not a Server Action) to allow real-time JSON streaming to the UI and to enable strict Cloudflare WAF URL-level rate limiting (protecting OpenAI API costs).
-  - *AI Processing*: `gpt-4o` applies a Chain-of-Thought Overlap Merge Algorithm to calculate deduplicated years of experience, forcing all extracted skills to match a predefined `CANONICAL_TAGS` dictionary.
-- **Phase 2: Developer-Centric Customization (The UI State)**:
-  - Extracted data populates a responsive dashboard interface divided into three sections:
-    1. **Applicant Section**: Basic profile and mandatory fields (location, assignment_types, modalities).
-    2. **Skills Section**: A read-only list of all LLM-extracted skills mapped against `CANONICAL_TAGS`. Users can deactivate irrelevant skills, but cannot arbitrarily type new ones (maintaining taxonomy integrity).
-    3. **Persona Section**: The LLM auto-generates 1-2 initial Personas based on the user's main tech stacks.
-  - **The "5 Major Skills" Constraint**: Users use a drag-and-drop UI to refine up to 5 Core Skills per Persona. This prevents "muddy" vector overlap in the database.
-- **Phase 3: The Hybrid Mutation Pattern (Save & Vectorize)**:
+**Profile Management & Onboarding Flow** `[Status: Implemented]` (Navigation link is `[Status: Implemented]`)
+
+This is a single route (`/dashboard/profile-management`) with three different presentations depending on the user's onboarding status. The three presentations are not three routes — they're one route with a server-side render branch based on `isOnboarded` and whether a CV parse result exists.
+
+**The 3-Presentation State Machine:**
+
+- **State 1 — CV Upload Form** (`isOnboarded=false`, no CV parsed):
+  - This is the first page a new user sees after sign-up (default redirect target).
+  - CV upload modal with mandatory CV naming field (`label`).
+  - "Add New CV" prominent action button (Multiple CV upload allowed only for paid users).
+  - List view of all uploaded CVs with edit/delete actions (post-onboarding).
+
+- **State 2 — Onboarding Review** (`isOnboarded=false`, CV parse result in session):
+  - After the user submits a CV and the Web Worker parsing + LLM extraction is complete.
+  - Shows the LLM-extracted data (read-only summary with "edit" toggles for corrections).
+  - Shows the LLM-proposed persona(s) — 1 or 2, with 5 `mustHaveTags` pre-filled.
+  - User fills in mandatory user-collected fields (country, work preferences).
+  - User confirms or adjusts the 5 skills per persona.
+  - Single submit → creates `applicant` + `persona(s)` + `workingHistory` + `tagsExperience` + sets `isOnboarded=true`.
+  - *Goal: under 3 minutes from upload to "onboarded."*
+
+- **State 3 — Profile Management** (`isOnboarded=true`) `[Status: Partially Implemented]`:
+  - Same page, but now in "management mode" (user is already onboarded).
+  - Full Applicant section (edit employment history, add jobs, skills update) `[Status: Planned / TO DO]` — currently read-only display of onboarding data.
+  - Skills section (view all, deactivate non-critical) `[Status: Planned / TO DO]` — currently read-only display.
+  - Persona section (edit existing, add up to 3, delete) `[Status: Planned / TO DO]` — currently read-only display.
+  - *Note*: State 3 is implemented as a read-only MVP for Module A. Full editing capabilities (add/remove jobs, deactivate skills, edit/delete personas) are a post-MVP follow-up.
+
+**The 3 UI Sections (States 2 and 3):**
+
+1. **Applicant Section**: Form reflecting user data collected from the CV with possibility to edit existing data and add new data. Also contains mandatory fields not present in the CV (country, `can_work_us_hours`, `assignment_types`, `modalities`, `preferred_compliance`). Editing employment history here is the only way to add/modify skills — skills are derived from work history, maintaining the single-source-of-truth principle.
+
+2. **Skills Section**: Read-only list of all user skills extracted by the LLM, mapped against `CANONICAL_TAGS`. Users cannot delete skills but can only deactivate skills that are not critical for the job position. Users can add skills only by editing the Applicant section form (e.g., adding a new job position with new skills). The content of this form is validated against the `CANONICAL_TAGS` array and is the single source of truth for the skillset selection form used in the Persona section.
+
+3. **Persona Section**: One or multiple (max 3) personas (editable forms) based on one or multiple stacks derived from the user data and skills. Each stack contains core and optional skills, is based on exactly 5 skills (the "5 Major Skills" constraint), and is validated against `CANONICAL_TAGS`. The LLM proposes 1-2 initial personas based on the parsed CV data; the user then edits, adds, or deletes personas. Users must have at least one persona.
+
+**Phase 1: Zero-Tax Client-Side Extraction & Server Action** `[Status: Implemented]`:
+  - The browser loads `pdfjs-dist` in **main-thread "fake worker" mode** to extract raw text directly in the client, bypassing server memory limits. The original Web Worker approach was revised because browsers do not allow `pdfjs-dist` to spawn its own internal Worker from inside a custom Web Worker (nested Worker spawning fails silently, producing near-empty text). In fake-worker mode, `pdfjs-dist` detects `globalThis.pdfjsWorker.WorkerMessageHandler` and runs parsing in the same thread. For typical CV PDFs (1-5 pages), extraction takes <500ms on the main thread. See TDD §3.3 for the full architectural rationale.
+  - *SSR Compatibility*: `pdfjs-dist` references browser-only APIs (`DOMMatrix`) at module evaluation time. The `extractPdfText()` function uses dynamic `import()` inside the function body so the library only loads in the browser, never during SSR.
+  - *Server Action (Parse)*: The client component constructs a `FormData` with the raw text, label, and original filename, then calls the Server Action via `formAction(formData)` inside a `startTransition()` (required by `useActionState` in React 19). The Server Action calls `gpt-4o` via Vercel AI SDK `generateObject()` with `resumeExtractionSchema` (Schema 1). Application-level rate limiting: 3 parses/hour/user.
+  - *System Prompt with Canonical Tags*: The `generateObject()` system prompt is built dynamically at runtime to include the full `CANONICAL_TAGS` and `PERSONA_DEFINING_TAGS` lists. Without the tag list, the LLM invents tag names that fail Zod schema validation. The prompt and schema read from the same source (`src/lib/jobs/tech-tags.ts`), so new tags automatically appear in both.
+  - *Applicant Row Upsert*: The `parseCvAction` upserts an `applicant` row (with `onConflictDoNothing`) before inserting into `cv_upload`, because the FK constraint requires `applicant.user_id` to exist. First-time users have a Better Auth `user` record but no `applicant` row yet.
+  - *Pre-LLM CV Validity*: Before calling the LLM, `validateCvRawText()` rejects raw text < 200 characters or text with no year-like patterns.
+  - *AI Processing*: `gpt-4o` applies a Chain-of-Thought Overlap Merge Algorithm to merge overlapping employment date ranges. All extracted skills are normalized against the `CANONICAL_TAGS` dictionary (`src/lib/jobs/tech-tags.ts`). The LLM also proposes 1-2 personas (`proposed_stacks`) with 5 `must_have_tags` each.
+  - *Persistence on Parse*: The `cvUpload` row is created immediately (status=`processing`), then updated with `extractedJson` and status=`valid` or `invalid` when the LLM completes. This survives page refreshes.
+  - *Toast Notifications*: Sonner toasts provide prominent success/error feedback at the CV upload transition (green toast on successful parse, red toast with error message on failure).
+
+**Phase 2: The Hybrid Mutation Pattern (Save & Vectorize)** `[Status: Implemented]`:
   - The complex dashboard form state is managed via **React Hook Form (RHF)** to handle drag-and-drop interactions and real-time client validation without performance-blocking re-renders.
-  - Upon submission, RHF passes a JSON-stringified payload via `FormData` to a Next.js **Server Action** (`useActionState`). 
-  - *Architectural Trade-off & Security*: By passing stringified JSON, we explicitly accept the loss of progressive enhancement (the form requires JS to submit). However, the Server Action **strictly enforces double-validation** by re-running `Zod.safeParse()` on the server before interacting with the database or generating the `text-embedding-3-small` vectors.
-- **Onboarding Completion Rule**: The applicant's `isOnboarded` flag is set to `true` strictly when they have successfully saved at least one Persona AND completed all mandatory profile fields.
+  - Upon submission, RHF passes the validated data to a Next.js **Server Action** (`useActionState`). The `formAction(formData)` call is wrapped in `startTransition()` (required by React 19's `useActionState` for correct `isPending` tracking). The component constructs a `FormData` manually and calls `formAction` directly, rather than using `requestSubmit()` with hidden fields (which is unreliable in React 19 + Next.js 16).
+  - *Post-Action Side Effects*: `router.refresh()` is called inside a `useEffect` that watches the `useActionState` result, not during render. This ensures the page re-render only fires once after the action completes.
+  - *Inline Validation Errors*: The form displays validation errors at two levels: a summary error box listing all failed fields, and inline red error text next to each field (country, assignment types, modalities, preferred compliance, persona label/summary/must-have tags). RHF's `formState.errors` is passed to sub-components (`ApplicantSection`, `PersonaSection`) for field-level display.
+  - *Toast Notifications*: Sonner toasts provide prominent success/error feedback at the onboarding completion transition (green toast "Onboarding complete!" on success, red toast with server error on failure).
+  - *Strict Double-Validation*: The Server Action independently re-validates with `onboardingPayloadSchema.safeParse()` (Schema 2) before interacting with the database or generating `text-embedding-3-small` vectors.
+  - *Transactional Re-aggregation*: `recomputeTagsExperience(applicantId)` runs inside a Drizzle PostgreSQL transaction — if it fails halfway, the entire operation rolls back to prevent persona corruption.
+  - *Persona Embedding Auto-Regeneration*: When `mustHaveTags` change on any persona, the embedding is automatically regenerated via `text-embedding-3-small`.
+
+**Onboarding Completion Rule**: The applicant's `isOnboarded` flag is set to `true` strictly when ALL of the following are satisfied:
+- *User-collected*: `country`, `can_work_us_hours`, `assignment_types` (≥1), `modalities` (≥1), `preferred_compliance` (≥1)
+- *LLM-extracted*: ≥1 employment entry with start/end dates, ≥3 canonical skills mapped to `CANONICAL_TAGS`
+- *Derived*: ≥1 persona with exactly 5 `mustHaveTags`, `embedding_summary`, and generated `persona_embedding`
+- *Experience level* is derived purely at query time from `tagsExperience.yearsOf_experience` (no stored enum field).
+
+**Module A Pending Items (Post-MVP Follow-up)** `[Status: Planned / TO DO]`:
+
+The Module A MVP is functionally complete — the full onboarding flow works end-to-end. The following items are documented as pending with a prioritized timing strategy. The rationale: Module B (ingestion) and Module C (matching) are the core product value — the current MVP sufficiently populates `persona`, `tagsExperience`, and `applicant.allTags` for Module B/C to consume, so only P3 is done immediately before starting Module B.
+
+| # | Item | Priority | When | Rationale |
+|---|------|----------|------|-----------|
+| P3 | Smart Dashboard Redirection | ✅ Done | Before Module B | Two-layer redirect: signInAction + /dashboard page check isOnboarded |
+| P1 | State 3 Full Editing | Critical (pre-launch) | After Module B/C | Read-only is sufficient for testing matching pipeline; full editing is days of UI work |
+| P2 | Rate Limiting (3/hour) | Critical (pre-launch) | After Module B/C | Cost protection; pre-launch LLM cost is natural limiter |
+| P4 | Multiple CV Upload | Medium (post-launch) | Post-launch | Feature expansion tied to paid-tier |
+| P5 | Orphaned Cleanup | Low (post-launch) | Post-launch | Operational hygiene |
+
+See TDD §3.9 for full technical detail on each item.
 
 **Job Discovery & Management** `[Status: Planned / TO DO]` (Navigation link is `[Status: Implemented]`)
 - Paginated job listings (10 per page) with responsive tables and search capabilities.
@@ -203,8 +266,8 @@ When a new job listing is successfully ingested, an asynchronous workflow is tri
 ### User Journey Summary
 1. **Discovery**: User lands on homepage, understands value proposition `[Status: Implemented]`
 2. **Conversion**: User registers/logs in via standard Auth page `[Status: Implemented]`
-3. **Onboarding**: Redirected dynamically based on profile status: to `/dashboard/cv` for initial CV upload, or `/dashboard/jobs` if CV has already been parsed `[Status: Planned / TO DO]`
-4. **Engagement**: User manages CVs, reviews matched job opportunities `[Status: Planned / TO DO]`
+3. **Onboarding**: Redirected dynamically based on profile status: to `/dashboard/profile-management` for initial CV upload (if `is_onboarded=false`), or `/dashboard/jobs` if already onboarded `[Status: Partially Implemented]` — onboarding flow (CV upload → review → profile management) is `[Status: Implemented]`; smart redirect logic on sign-in/sign-up is `[Status: Planned / TO DO]`
+4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Partially Implemented]` — profile management (read-only MVP) is `[Status: Implemented]`; job matching and review is `[Status: Planned / TO DO]`
 5. **Application**: User applies to jobs through ATS integration `[Status: Planned / TO DO]`
 6. **Retention**: User returns to track applications and discover new opportunities `[Status: Planned / TO DO]`
 

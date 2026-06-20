@@ -56,7 +56,7 @@ export const auth = betterAuth({
         await auth.api.sendVerificationEmail({
           body: {
             email: user.email,
-            callbackURL: "/dashboard",
+            callbackURL: "/dashboard/profile-management",
           },
         });
       }

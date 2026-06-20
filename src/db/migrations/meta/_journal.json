@@ -50,6 +50,13 @@
       "when": 1781710022059,
       "tag": "0006_greedy_king_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781861632965,
+      "tag": "0007_module_a_onboarding_tables",
+      "breakpoints": true
     }
   ]
 }

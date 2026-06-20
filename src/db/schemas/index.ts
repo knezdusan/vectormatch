@@ -27,10 +27,13 @@ export * from "./blog/posts";
 export * from "./blog/tags";
 // JOBS
 export * from "./jobs/applicant";
+export * from "./jobs/cvUpload";
 export * from "./jobs/enums";
 export * from "./jobs/job";
 export * from "./jobs/matchQueue";
 export * from "./jobs/persona";
+export * from "./jobs/tagsExperience";
+export * from "./jobs/workingHistory";
 
 import { account } from "./auth/account";
 import { session } from "./auth/session";
@@ -40,9 +43,12 @@ import { commentsTable } from "./blog/comments";
 import { postsTable, postTagsTable } from "./blog/posts";
 import { tagsTable } from "./blog/tags";
 import { applicant } from "./jobs/applicant";
+import { cvUpload } from "./jobs/cvUpload";
 import { job } from "./jobs/job";
 import { matchQueue } from "./jobs/matchQueue";
 import { persona } from "./jobs/persona";
+import { tagsExperience } from "./jobs/tagsExperience";
+import { workingHistory } from "./jobs/workingHistory";
 
 // RELATIONS - AUTH
 
@@ -76,6 +82,9 @@ export const applicantRelations = relations(applicant, ({ one, many }) => ({
   }),
   personas: many(persona),
   matches: many(matchQueue),
+  cvUploads: many(cvUpload),
+  workingHistory: many(workingHistory),
+  tagsExperience: many(tagsExperience),
 }));
 
 export const jobRelations = relations(job, ({ many }) => ({
@@ -96,6 +105,32 @@ export const matchQueueRelations = relations(matchQueue, ({ one }) => ({
   }),
   applicant: one(applicant, {
     fields: [matchQueue.applicantId],
+    references: [applicant.userId],
+  }),
+}));
+
+export const cvUploadRelations = relations(cvUpload, ({ one, many }) => ({
+  applicant: one(applicant, {
+    fields: [cvUpload.applicantId],
+    references: [applicant.userId],
+  }),
+  workingHistory: many(workingHistory),
+}));
+
+export const workingHistoryRelations = relations(workingHistory, ({ one }) => ({
+  applicant: one(applicant, {
+    fields: [workingHistory.applicantId],
+    references: [applicant.userId],
+  }),
+  cvUpload: one(cvUpload, {
+    fields: [workingHistory.cvUploadId],
+    references: [cvUpload.id],
+  }),
+}));
+
+export const tagsExperienceRelations = relations(tagsExperience, ({ one }) => ({
+  applicant: one(applicant, {
+    fields: [tagsExperience.applicantId],
     references: [applicant.userId],
   }),
 }));
