@@ -7,6 +7,13 @@
 // which the user picks 5 must_have_tags per persona in PersonaSection.
 
 import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CANONICAL_TAG_MAP, type TagCategory } from "@/lib/jobs/tech-tags";
 
 const CATEGORY_LABELS: Record<TagCategory, string> = {
@@ -47,53 +54,52 @@ export function SkillsSection({
   }
 
   return (
-    <section className="flex flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold tracking-tight">
-          Detected skills
-        </h2>
-        <p className="text-sm text-muted-foreground">
+    <Card>
+      <CardHeader>
+        <CardTitle>Detected skills</CardTitle>
+        <CardDescription>
           These are the skills we extracted from your CV, normalized to our
           canonical tag set. They form the pool you pick your 5 persona-defining
           tags from.
-        </p>
-      </header>
-
-      {skillsByCategory.size === 0 ? (
-        <p className="text-sm text-muted-foreground">No skills detected.</p>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {CATEGORY_ORDER.filter((cat) => skillsByCategory.has(cat)).map(
-            (category) => (
-              <div key={category} className="flex flex-col gap-2">
-                <h3 className="text-sm font-medium text-muted-foreground">
-                  {CATEGORY_LABELS[category]}
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {skillsByCategory.get(category)?.map((tag) => {
-                    const canonical = CANONICAL_TAG_MAP.get(tag);
-                    const isPersonaDefining =
-                      canonical?.classification === "persona_defining";
-                    return (
-                      <Badge
-                        key={tag}
-                        variant={isPersonaDefining ? "default" : "secondary"}
-                        title={
-                          isPersonaDefining
-                            ? "Persona-defining tag"
-                            : "Supporting tag"
-                        }
-                      >
-                        {canonical?.label ?? tag}
-                      </Badge>
-                    );
-                  })}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {skillsByCategory.size === 0 ? (
+          <p className="text-sm text-muted-foreground">No skills detected.</p>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {CATEGORY_ORDER.filter((cat) => skillsByCategory.has(cat)).map(
+              (category) => (
+                <div key={category} className="flex flex-col gap-2">
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    {CATEGORY_LABELS[category]}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {skillsByCategory.get(category)?.map((tag) => {
+                      const canonical = CANONICAL_TAG_MAP.get(tag);
+                      const isPersonaDefining =
+                        canonical?.classification === "persona_defining";
+                      return (
+                        <Badge
+                          key={tag}
+                          variant={isPersonaDefining ? "default" : "secondary"}
+                          title={
+                            isPersonaDefining
+                              ? "Persona-defining tag"
+                              : "Supporting tag"
+                          }
+                        >
+                          {canonical?.label ?? tag}
+                        </Badge>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ),
-          )}
-        </div>
-      )}
-    </section>
+              ),
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

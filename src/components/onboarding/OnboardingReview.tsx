@@ -198,11 +198,7 @@ export function OnboardingReview({
           errors={form.formState.errors}
         />
 
-        <Separator />
-
         <SkillsSection canonicalSkills={allCanonicalSkills} />
-
-        <Separator />
 
         <PersonaSection
           personas={personas as Schema2Persona[]}
@@ -283,8 +279,4 @@ export function OnboardingReview({
       </form>
     </div>
   );
-}
-
-function Separator() {
-  return <div className="h-px bg-border" />;
 }

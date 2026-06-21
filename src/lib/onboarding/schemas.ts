@@ -15,7 +15,7 @@
 
 import { z } from "zod";
 
-import { PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
+import { CANONICAL_TAGS, PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
 
 // =============================================================================
 // SCHEMA 1: Raw LLM Extraction Output
@@ -116,7 +116,22 @@ export const resumeExtractionSchema = z
   .refine((data) => data.canonical_skills_detected.length >= 3, {
     message:
       "At least 3 skills must be mapped to CANONICAL_TAGS for CV validity",
-  });
+  })
+  // CV domain gate Layer 2 (MODULE_A_DECISIONS.md §13): at least 1
+  // persona_defining tag in the aggregated canonical_skills_detected. This
+  // catches adjacent-but-out-of-scope roles (web designers, QA analysts) who
+  // pass the ≥3 canonical skills check with only supporting tags (html, css,
+  // git) but have no identity-anchoring technology.
+  .refine(
+    (data) =>
+      data.canonical_skills_detected.some((tag) =>
+        PERSONA_DEFINING_TAGS.has(tag),
+      ),
+    {
+      message:
+        "Your CV must include at least one primary programming language or framework (such as JavaScript, Python, React, Node.js) to proceed.",
+    },
+  );
 
 export type ResumeExtractionOutput = z.infer<typeof resumeExtractionSchema>;
 export type Schema1Role = z.infer<typeof schema1Role>;
@@ -261,6 +276,86 @@ export function validateCvRawText(rawText: string): string | null {
   }
   if (!YEAR_PATTERN.test(rawText)) {
     return "No date-like patterns (years) found in the CV text. Please upload a resume that includes employment dates.";
+  }
+  return null;
+}
+
+// =============================================================================
+// CV DOMAIN GATE — Layer 1: Pre-LLM Developer Detection
+// (MODULE_A_DECISIONS.md §13)
+// =============================================================================
+// A keyword-presence scan on the raw PDF text, before any LLM call. If zero
+// software development markers are found, the CV is almost certainly not from
+// a developer and is rejected immediately — saving the gpt-4o cost.
+//
+// Markers are derived from PERSONA_DEFINING_TAGS labels (so the list stays in
+// sync with the taxonomy automatically) plus a small supplemental list of
+// dev-culture terms not in CANONICAL_TAGS. Ambiguous short labels that are
+// common English words/letters (C, R, Go) are excluded — they are still
+// enforced at Layer 2 (post-LLM persona_defining refine).
+//
+// Matching uses word-boundary regex (\b{label}(?![\w])) — not naive includes(),
+// which would false-match short tag names inside common words (e.g. "go" in
+// "going", "c" in almost any text). The (?![\w]) negative lookahead handles
+// labels ending in non-word characters (C#, C++, Next.js).
+// =============================================================================
+
+/** Labels excluded from Layer 1 matching — common English words/letters
+ * that would false-match on a non-developer's CV. Still enforced at Layer 2. */
+const AMBIGUOUS_LABELS = new Set(["C", "R", "Go"]);
+
+/** Dev-culture markers not in CANONICAL_TAGS — high-signal terms that would
+ * not appear on a non-developer's professional CV. */
+const SUPPLEMENTAL_DEV_MARKERS: string[] = [
+  "github",
+  "gitlab",
+  "stackoverflow",
+  "vscode",
+  "visual studio code",
+  "intellij",
+  "leetcode",
+  "hackerrank",
+  "npm",
+  "pnpm",
+  "webpack",
+  "vite",
+  "eslint",
+  "golang",
+  "programming",
+  "software engineer",
+  "software developer",
+  "web developer",
+];
+
+/** Escape regex special characters in a string for safe embedding in a RegExp. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** All marker strings: derived from persona_defining tag labels + supplemental. */
+const ALL_DEV_MARKERS: string[] = [
+  ...CANONICAL_TAGS.filter(
+    (t) =>
+      t.classification === "persona_defining" && !AMBIGUOUS_LABELS.has(t.label),
+  ).map((t) => t.label),
+  ...SUPPLEMENTAL_DEV_MARKERS,
+];
+
+/** Pre-compiled word-boundary regexes — one per marker. Built once at module
+ * load. The `i` flag makes matching case-insensitive (CVs use varying cases). */
+const DEV_MARKER_REGEXES: RegExp[] = ALL_DEV_MARKERS.map(
+  (marker) => new RegExp(`\\b${escapeRegex(marker)}(?![\\w])`, "i"),
+);
+
+/**
+ * Layer 1 pre-LLM domain check. Returns null if the raw text contains at least
+ * one software development marker, or an error message if zero markers found.
+ * Called on the raw text after validateCvRawText passes, before the LLM call.
+ */
+export function validateCvDomain(rawText: string): string | null {
+  const hasMarker = DEV_MARKER_REGEXES.some((regex) => regex.test(rawText));
+  if (!hasMarker) {
+    return "VectorMatch is built for software developers and engineers. Your CV doesn't appear to contain technical development experience. Please upload a developer CV.";
   }
   return null;
 }

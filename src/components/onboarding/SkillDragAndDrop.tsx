@@ -19,6 +19,8 @@ import {
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  useDraggable,
+  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -88,6 +90,46 @@ function SortableTag({ tag, onRemove }: SortableTagProps) {
   );
 }
 
+type DraggableBadgeProps = {
+  tag: string;
+  disabled: boolean;
+  onClick: () => void;
+};
+
+function DraggableBadge({ tag, disabled, onClick }: DraggableBadgeProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: `available-${tag}`,
+      data: { tag, source: "available" },
+    });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    cursor: disabled ? "not-allowed" : "grab",
+  };
+
+  const label = CANONICAL_TAG_MAP.get(tag)?.label ?? tag;
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="disabled:opacity-40"
+      aria-label={`Add ${label} to must-have tags`}
+    >
+      <Badge variant="outline" className="hover:bg-muted">
+        {label}
+      </Badge>
+    </button>
+  );
+}
+
 type SkillDragAndDropProps = {
   /** All canonical skills detected in the CV (the full pool). */
   availableSkills: string[];
@@ -115,11 +157,46 @@ export function SkillDragAndDrop({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = mustHaveTags.indexOf(active.id as string);
-    const newIndex = mustHaveTags.indexOf(over.id as string);
-    if (oldIndex === -1 || newIndex === -1) return;
-    onChange(arrayMove(mustHaveTags, oldIndex, newIndex));
+    if (!over) return;
+
+    const activeTag =
+      (active.data.current?.tag as string | undefined) ??
+      (active.id as string).replace(/^available-/, "");
+    const overId = over.id as string;
+
+    const activeIsAvailable = (active.id as string).startsWith("available-");
+    const activeIsMustHave = mustHaveTags.includes(activeTag);
+    const overIsMustHave = mustHaveTags.includes(overId);
+
+    // Case 1: Reordering within the must-have list
+    if (activeIsMustHave && overIsMustHave) {
+      const oldIndex = mustHaveTags.indexOf(activeTag);
+      const newIndex = mustHaveTags.indexOf(overId);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        onChange(arrayMove(mustHaveTags, oldIndex, newIndex));
+      }
+      return;
+    }
+
+    // Case 2: Dragging from available into must-have list
+    if (activeIsAvailable && overIsMustHave) {
+      if (isFull || mustHaveSet.has(activeTag)) return;
+      const overIndex = mustHaveTags.indexOf(overId);
+      const next = [...mustHaveTags];
+      if (overIndex === -1) {
+        next.push(activeTag);
+      } else {
+        next.splice(overIndex, 0, activeTag);
+      }
+      onChange(next.slice(0, MAX_MUST_HAVE));
+      return;
+    }
+
+    // Case 3: Dragging from available onto the empty droppable container
+    if (activeIsAvailable && overId === "must-have-droppable") {
+      if (isFull || mustHaveSet.has(activeTag)) return;
+      onChange([...mustHaveTags, activeTag]);
+    }
   };
 
   const addTag = (tag: string) => {
@@ -132,78 +209,85 @@ export function SkillDragAndDrop({
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* Available skills */}
-      <div className="flex flex-col gap-2">
-        <h4 className="text-sm font-medium text-muted-foreground">
-          Available skills ({remaining.length})
-        </h4>
-        <div className="flex flex-wrap gap-2 min-h-[3rem] rounded-md border border-border bg-muted/20 p-3">
-          {remaining.length === 0 ? (
-            <span className="text-xs text-muted-foreground">
-              All skills selected.
-            </span>
-          ) : (
-            remaining.map((tag) => {
-              const label = CANONICAL_TAG_MAP.get(tag)?.label ?? tag;
-              return (
-                <button
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Available skills */}
+        <div className="flex flex-col gap-2">
+          <h4 className="text-sm font-medium text-muted-foreground">
+            Available skills ({remaining.length})
+          </h4>
+          <div className="flex flex-wrap gap-2 min-h-[3rem] rounded-md border border-border bg-muted/20 p-3">
+            {remaining.length === 0 ? (
+              <span className="text-xs text-muted-foreground">
+                All skills selected.
+              </span>
+            ) : (
+              remaining.map((tag) => (
+                <DraggableBadge
                   key={tag}
-                  type="button"
+                  tag={tag}
                   disabled={isFull}
                   onClick={() => addTag(tag)}
-                  className="disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label={`Add ${label} to must-have tags`}
-                >
-                  <Badge
-                    variant="outline"
-                    className="cursor-pointer hover:bg-muted"
-                  >
-                    {label}
-                  </Badge>
-                </button>
-              );
-            })
+                />
+              ))
+            )}
+          </div>
+          {isFull && (
+            <p className="text-xs text-muted-foreground">
+              Maximum of {MAX_MUST_HAVE} must-have tags reached. Remove one to
+              add another.
+            </p>
           )}
         </div>
-        {isFull && (
-          <p className="text-xs text-muted-foreground">
-            Maximum of {MAX_MUST_HAVE} must-have tags reached. Remove one to add
-            another.
-          </p>
-        )}
-      </div>
 
-      {/* Must-have skills (sortable) */}
-      <div className="flex flex-col gap-2">
-        <h4 className="text-sm font-medium text-muted-foreground">
-          Must-have tags ({mustHaveTags.length}/{MAX_MUST_HAVE}) — drag to
-          reorder
-        </h4>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={mustHaveTags}
-            strategy={verticalListSortingStrategy}
-          >
-            <ul className="flex flex-col gap-2 min-h-[3rem]">
-              {mustHaveTags.length === 0 ? (
-                <li className="text-xs text-muted-foreground p-3 rounded-md border border-dashed border-border">
-                  Drag or click skills from the left to select your 5
-                  persona-defining tags.
-                </li>
-              ) : (
-                mustHaveTags.map((tag) => (
-                  <SortableTag key={tag} tag={tag} onRemove={removeTag} />
-                ))
-              )}
-            </ul>
-          </SortableContext>
-        </DndContext>
+        {/* Must-have skills (sortable + droppable) */}
+        <MustHaveColumn mustHaveTags={mustHaveTags} onRemove={removeTag} />
       </div>
+    </DndContext>
+  );
+}
+
+type MustHaveColumnProps = {
+  mustHaveTags: string[];
+  onRemove: (tag: string) => void;
+};
+
+function MustHaveColumn({ mustHaveTags, onRemove }: MustHaveColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id: "must-have-droppable" });
+
+  return (
+    <div className="flex flex-col gap-2">
+      <h4 className="text-sm font-medium text-muted-foreground">
+        Must-have tags ({mustHaveTags.length}/{MAX_MUST_HAVE}) — drag to reorder
+      </h4>
+      <SortableContext
+        items={mustHaveTags}
+        strategy={verticalListSortingStrategy}
+      >
+        <ul
+          ref={setNodeRef}
+          className={`flex flex-col gap-2 min-h-[3rem] rounded-md border p-3 transition-colors ${
+            isOver
+              ? "border-primary bg-primary/5"
+              : "border-border border-dashed"
+          }`}
+        >
+          {mustHaveTags.length === 0 ? (
+            <li className="text-xs text-muted-foreground">
+              Drag or click skills from the left to select your 5
+              persona-defining tags.
+            </li>
+          ) : (
+            mustHaveTags.map((tag) => (
+              <SortableTag key={tag} tag={tag} onRemove={onRemove} />
+            ))
+          )}
+        </ul>
+      </SortableContext>
     </div>
   );
 }

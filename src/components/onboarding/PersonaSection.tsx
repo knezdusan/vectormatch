@@ -20,6 +20,13 @@ import {
   SkillDragAndDrop,
 } from "@/components/onboarding/SkillDragAndDrop";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,22 +78,21 @@ export function PersonaSection({
   };
 
   return (
-    <section className="flex flex-col gap-4">
-      <header className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold tracking-tight">Personas</h2>
-        <p className="text-sm text-muted-foreground">
+    <Card>
+      <CardHeader>
+        <CardTitle>Personas</CardTitle>
+        <CardDescription>
           Define the developer personas you want to be matched for. Each persona
           needs exactly {MAX_MUST_HAVE_TAGS} must-have tags (at least 1
           persona-defining) and a 3-sentence summary we use to generate your
           matching embedding.
-        </p>
-      </header>
-
-      <div className="flex flex-col gap-6">
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-6">
         {personas.map((persona, index) => (
           <div
             key={persona.personaId}
-            className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5"
+            className="flex flex-col gap-4 rounded-lg border border-border bg-muted/40 p-5"
           >
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-base font-medium">
@@ -188,20 +194,20 @@ export function PersonaSection({
             </div>
           </div>
         ))}
-      </div>
 
-      {personas.length < MAX_PERSONAS && (
-        <Button
-          type="button"
-          variant="outline"
-          onClick={addPersona}
-          className="w-fit"
-        >
-          <Plus className="h-4 w-4 mr-2" /> Add another persona (
-          {personas.length}/{MAX_PERSONAS})
-        </Button>
-      )}
-    </section>
+        {personas.length < MAX_PERSONAS && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addPersona}
+            className="w-fit"
+          >
+            <Plus className="h-4 w-4 mr-2" /> Add another persona (
+            {personas.length}/{MAX_PERSONAS})
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

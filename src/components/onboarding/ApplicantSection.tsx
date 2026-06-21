@@ -22,6 +22,13 @@
 
 import type { FieldErrors } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -126,20 +133,19 @@ export function ApplicantSection({
   return (
     <section className="flex flex-col gap-6">
       {/* Work history */}
-      <div className="flex flex-col gap-4">
-        <header className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold tracking-tight">Work history</h2>
-          <p className="text-sm text-muted-foreground">
+      <Card>
+        <CardHeader>
+          <CardTitle>Work history</CardTitle>
+          <CardDescription>
             Extracted from your CV. Edit any field to correct the AI before
             confirming.
-          </p>
-        </header>
-
-        <div className="flex flex-col gap-4">
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
           {workHistory.map((entry, index) => (
             <div
               key={`${entry.company}-${entry.role}-${entry.startDate}-${index}`}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4"
+              className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
@@ -231,85 +237,97 @@ export function ApplicantSection({
               )}
             </div>
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* User-collected fields */}
-      <div className="flex flex-col gap-4">
-        <header className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Work preferences
-          </h2>
-          <p className="text-sm text-muted-foreground">
+      <Card>
+        <CardHeader>
+          <CardTitle>Work preferences</CardTitle>
+          <CardDescription>
             These details are not extracted from your CV — we need them to route
             the right jobs to you.
-          </p>
-        </header>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <header className="flex flex-col gap-1">
+            <h2 className="text-lg font-semibold tracking-tight">
+              Work preferences
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              These details are not extracted from your CV — we need them to
+              route the right jobs to you.
+            </p>
+          </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="country">Country (ISO 3166-1 alpha-2)</Label>
-            <Input
-              id="country"
-              type="text"
-              maxLength={2}
-              placeholder="e.g. RS, US, DE"
-              value={country}
-              onChange={(e) => onCountryChange(e.target.value.toUpperCase())}
-            />
-            <FieldError message={errors?.country?.message} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="country">Country (ISO 3166-1 alpha-2)</Label>
+              <Input
+                id="country"
+                type="text"
+                maxLength={2}
+                placeholder="e.g. RS, US, DE"
+                value={country}
+                onChange={(e) => onCountryChange(e.target.value.toUpperCase())}
+              />
+              <FieldError message={errors?.country?.message} />
+            </div>
+
+            <div className="flex items-center gap-2 pt-6">
+              <Checkbox
+                id="can-work-us-hours"
+                checked={canWorkUsHours}
+                onCheckedChange={(checked) =>
+                  onCanWorkUsHoursChange(checked === true)
+                }
+              />
+              <Label
+                htmlFor="can-work-us-hours"
+                className="text-sm font-normal"
+              >
+                I can work US business hours
+              </Label>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-6">
-            <Checkbox
-              id="can-work-us-hours"
-              checked={canWorkUsHours}
-              onCheckedChange={(checked) =>
-                onCanWorkUsHoursChange(checked === true)
-              }
-            />
-            <Label htmlFor="can-work-us-hours" className="text-sm font-normal">
-              I can work US business hours
-            </Label>
-          </div>
-        </div>
+          <MultiCheckboxField
+            label="Assignment types"
+            options={assignmentTypesEnum.options}
+            labels={ASSIGNMENT_TYPE_LABELS}
+            values={assignmentTypes}
+            onToggle={(value) =>
+              toggleArrayValue(assignmentTypes, value, onAssignmentTypesChange)
+            }
+            errorMessage={errors?.assignmentTypes?.message}
+          />
 
-        <MultiCheckboxField
-          label="Assignment types"
-          options={assignmentTypesEnum.options}
-          labels={ASSIGNMENT_TYPE_LABELS}
-          values={assignmentTypes}
-          onToggle={(value) =>
-            toggleArrayValue(assignmentTypes, value, onAssignmentTypesChange)
-          }
-          errorMessage={errors?.assignmentTypes?.message}
-        />
+          <MultiCheckboxField
+            label="Modalities"
+            options={modalitiesEnum.options}
+            labels={MODALITY_LABELS}
+            values={modalities}
+            onToggle={(value) =>
+              toggleArrayValue(modalities, value, onModalitiesChange)
+            }
+            errorMessage={errors?.modalities?.message}
+          />
 
-        <MultiCheckboxField
-          label="Modalities"
-          options={modalitiesEnum.options}
-          labels={MODALITY_LABELS}
-          values={modalities}
-          onToggle={(value) =>
-            toggleArrayValue(modalities, value, onModalitiesChange)
-          }
-          errorMessage={errors?.modalities?.message}
-        />
-
-        <MultiCheckboxField
-          label="Preferred compliance"
-          options={preferredComplianceEnum.options}
-          labels={COMPLIANCE_LABELS}
-          values={preferredCompliance}
-          onToggle={(value) =>
-            toggleArrayValue(
-              preferredCompliance,
-              value,
-              onPreferredComplianceChange,
-            )
-          }
-        />
-      </div>
+          <MultiCheckboxField
+            label="Preferred compliance"
+            options={preferredComplianceEnum.options}
+            labels={COMPLIANCE_LABELS}
+            values={preferredCompliance}
+            onToggle={(value) =>
+              toggleArrayValue(
+                preferredCompliance,
+                value,
+                onPreferredComplianceChange,
+              )
+            }
+          />
+        </CardContent>
+      </Card>
     </section>
   );
 }

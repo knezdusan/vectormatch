@@ -38,6 +38,7 @@ import {
   onboardingPayloadSchema,
   type ResumeExtractionOutput,
   resumeExtractionSchema,
+  validateCvDomain,
   validateCvRawText,
 } from "@/lib/onboarding/schemas";
 
@@ -106,6 +107,14 @@ export async function parseCvAction(
   const validityError = validateCvRawText(rawText);
   if (validityError) {
     return { error: validityError, cvUploadId: null, extraction: null };
+  }
+
+  // Pre-LLM domain gate (MODULE_A_DECISIONS.md §13 Layer 1) — reject non-
+  // developer CVs before spending gpt-4o budget. Checks for software development
+  // markers in the raw text; rejects if zero found.
+  const domainError = validateCvDomain(rawText);
+  if (domainError) {
+    return { error: domainError, cvUploadId: null, extraction: null };
   }
 
   // Rate limiting: 3 parses/hour/user (TODO — see post-implementation follow-up).

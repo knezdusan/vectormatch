@@ -114,10 +114,12 @@ Server-side render branch based on `isOnboarded` and `cvUpload` existence. Not t
 **Pre-LLM (reject upload immediately):**
 - Raw text length > 200 characters
 - Contains at least one date-like pattern (year mention)
+- Contains at least one software development marker (§13 Layer 1 — `validateCvDomain`)
 
 **Post-LLM (reject parse result, ask for better CV):**
 - ≥1 employment entry with both start and end dates
 - ≥3 skills mapped to CANONICAL_TAGS
+- ≥1 persona_defining tag in `canonical_skills_detected` (§13 Layer 2)
 
 ## 11. Experience Level — Derived, Not Stored
 
@@ -126,3 +128,47 @@ Experience level (junior/mid/senior/staff/lead) is derived purely at query time 
 ## 12. Persona Embedding Auto-Regeneration
 
 Persona embeddings are **automatically regenerated** when `mustHaveTags` change. The `recomputeTagsExperience()` flow triggers embedding regeneration for any persona whose `mustHaveTags` were affected.
+
+## 13. CV Domain Gate — Three-Layer Developer Detection
+
+**Problem:** The system's target audience is software developers and engineers (per blueprint §1). The CANONICAL_TAGS taxonomy (8 categories, all software development technologies) and CANONICAL_ROLES (seeded from O*NET SOC 15-0000 Computer & Mathematical Occupations) implicitly encode this scope. However, the existing validity checks (§10) only catch garbage files (short text, no dates) and completely non-technical CVs (<3 canonical skills). They leak for **adjacent-but-out-of-scope roles** — a web designer who knows some HTML/CSS/JavaScript, a QA analyst with basic scripting — who pass the ≥3 canonical skills threshold with marginal tag mappings and produce low-quality personas that pollute the matching pool.
+
+**Consequence of leaking:** False matches erode user trust faster than no matches. A web designer onboarded with a thin `javascript` persona receives React Developer job notifications that are obviously wrong. Worse, if that persona feeds a "Minute Zero" cold email to a CTO, the bad match damages VectorMatch's credibility with the exact audience the product needs to impress. At pre-traction, precision is the right optimization target. A gate can always be loosened post-traction; a bad cold email cannot be un-sent.
+
+**Decision:** A three-layer explicit gate, layered across points in the flow where cost and confidence of detection differ:
+
+### Layer 1 — Pre-LLM Heuristic (zero cost, low confidence)
+
+`validateCvDomain(rawText: string): string | null` — a keyword-presence scan on the raw PDF text, before any LLM call. Checks whether the text contains any of a derived marker set:
+
+- **Derived markers:** `label` fields from all `persona_defining` CANONICAL_TAGS, excluding ambiguous short labels that are common English words/letters (`C`, `R`, `Go` — these would false-match on non-developer CVs). Excluded tags are still enforced at Layer 2.
+- **Supplemental markers:** A small curated list of dev-culture terms not in CANONICAL_TAGS (`github`, `gitlab`, `stackoverflow`, `vscode`, `visual studio code`, `intellij`, `leetcode`, `hackerrank`, `npm`, `pnpm`, `webpack`, `vite`, `eslint`, `golang`, `programming`, `software engineer`, `software developer`, `web developer`).
+- **Matching:** Word-boundary regex (case-insensitive) using `\b{label}(?![\w])` — not naive `includes()`, which would false-match short tag names inside common words (e.g., `includes("go")` matches "going", `includes("c")` matches almost every English text). The `(?![\w])` negative lookahead handles labels ending in non-word characters like `C#`, `C++`, `Next.js`.
+
+If zero markers are found, reject immediately: *"VectorMatch is built for software developers and engineers. Your CV doesn't appear to contain technical development experience. Please upload a developer CV."*
+
+**False-rejection risk:** Essentially zero. A software developer's CV will mention at least one programming language, framework, or dev tool. A career-changer who just learned Python will have "Python" in their CV. The excluded ambiguous labels (`C`, `R`, `Go`) are still caught at Layer 2.
+
+**Location:** `src/lib/onboarding/schemas.ts` alongside `validateCvRawText()` — both are pre-LLM validators, same concern, same file.
+
+### Layer 2 — Post-LLM Schema 1 Refine (one LLM call cost, high confidence)
+
+One additional `.refine()` on `resumeExtractionSchema`: the top-level `canonical_skills_detected` array (union of all per-role skills) must contain at least one `persona_defining` tag. This is distinct from the existing Q8 refine (which checks `proposed_stacks[].must_have_tags`) — this checks the raw detected skills, not the proposed persona stacks.
+
+**What this catches that Layer 1 doesn't:** A web designer whose CV mentions "HTML", "CSS", and "JavaScript" (passing Layer 1 on "JavaScript") but whose LLM extraction maps only to `html`, `css`, `git` (non-persona-defining) — perhaps the LLM didn't map "JavaScript" because it appeared in a non-technical context. The ≥3 canonical skills check passes, but the ≥1 persona_defining check fails.
+
+**What this catches that the existing ≥3 check doesn't:** `html + css + git` passes ≥3 canonical skills but fails ≥1 persona_defining. A junior React developer with `react + html + css` passes both — `react` is persona_defining.
+
+**Error message:** *"Your CV must include at least one primary programming language or framework (such as JavaScript, Python, React, Node.js) to proceed."*
+
+### Layer 3 — Persona Confirmation Gate (no extra cost, final backstop)
+
+Already decided in §3 (Q8): each proposed stack in `proposed_stacks` must contain at least 1 `persona_defining` tag in `must_have_tags`, enforced by `.refine()`. This is the final backstop ensuring no persona is created without a real technology anchor, even if Layers 1 and 2 somehow passed an edge case.
+
+### Implementation Scope
+
+- **Zero new tables, zero new API calls, zero CANONICAL_TAGS changes**
+- Layer 1: `validateCvDomain()` function (~30 lines), called in `parseCvAction` after `validateCvRawText()`
+- Layer 2: one `.refine()` on `resumeExtractionSchema`, using existing `PERSONA_DEFINING_TAGS` Set
+- Layer 3: already implemented (§3)
+- Marker list derived from `PERSONA_DEFINING_TAGS` at module load — no drift risk when new tags are added to CANONICAL_TAGS

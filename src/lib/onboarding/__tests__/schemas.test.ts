@@ -11,6 +11,7 @@
 import {
   onboardingPayloadSchema,
   resumeExtractionSchema,
+  validateCvDomain,
   validateCvRawText,
 } from "@/lib/onboarding/schemas";
 
@@ -121,6 +122,47 @@ describe("resumeExtractionSchema", () => {
       ],
     });
     expect(result.success).toBe(false);
+  });
+
+  // Layer 2 domain gate (MODULE_A_DECISIONS.md §13): ≥1 persona_defining tag
+  // in canonical_skills_detected. Catches adjacent-but-out-of-scope roles
+  // (web designers, QA analysts) who pass ≥3 canonical skills with only
+  // supporting tags.
+  it("rejects 3 canonical skills with 0 persona_defining tags (Layer 2 domain gate)", () => {
+    const result = resumeExtractionSchema.safeParse({
+      ...validExtraction,
+      canonical_skills_detected: ["html", "css", "git"],
+      roles: [
+        {
+          ...validRole,
+          canonical_skills_detected: ["html", "css", "git"],
+        },
+      ],
+      // Stack also has no persona_defining tag — but the Layer 2 check
+      // catches it on canonical_skills_detected first
+      proposed_stacks: [
+        {
+          ...validStack,
+          anchor_tag: "css",
+          must_have_tags: ["html", "css", "git", "sass", "bootstrap"],
+        },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts 3 canonical skills with 1 persona_defining tag (Layer 2 domain gate)", () => {
+    const result = resumeExtractionSchema.safeParse({
+      ...validExtraction,
+      canonical_skills_detected: ["react", "html", "css"],
+      roles: [
+        {
+          ...validRole,
+          canonical_skills_detected: ["react", "html", "css"],
+        },
+      ],
+    });
+    expect(result.success).toBe(true);
   });
 
   it("rejects more than 2 proposed_stacks", () => {
@@ -288,5 +330,118 @@ describe("validateCvRawText", () => {
       "Developed Vue.js dashboards and component libraries.\n" +
       "Skills: React, TypeScript, Next.js, Vue, JavaScript, CSS, HTML.";
     expect(validateCvRawText(validText)).toBeNull();
+  });
+});
+
+// ─── validateCvDomain (Layer 1 pre-LLM domain gate) ──────────────────────────
+
+describe("validateCvDomain", () => {
+  it("rejects a non-technical CV with zero dev markers", () => {
+    const nonDevText =
+      "Jane Smith — Marketing Manager\n\n" +
+      "Experience:\n" +
+      "Acme Corp — Marketing Manager (2020-2024)\n" +
+      "Led brand strategy and managed a team of 5 marketing specialists.\n" +
+      "Developed go-to-market strategies for 3 product launches.\n" +
+      "Tech Corp — Marketing Associate (2018-2020)\n" +
+      "Coordinated social media campaigns and email newsletters.\n" +
+      "Education: MBA, Harvard Business School (2016-2018).";
+    expect(validateCvDomain(nonDevText)).not.toBeNull();
+  });
+
+  it("rejects a business consultant CV (contains 'go' but not as a dev marker)", () => {
+    const consultantText =
+      "John Smith — Senior Business Consultant\n\n" +
+      "Experience:\n" +
+      "McKinsey & Company — Senior Consultant (2020-2024)\n" +
+      "Advised Fortune 500 clients on go-to-market strategy and operational excellence.\n" +
+      "Led due diligence teams for 3 M&A transactions worth over $500M.\n" +
+      "Bain & Company — Associate Consultant (2018-2020)\n" +
+      "Conducted market research and financial modeling for private equity clients.\n" +
+      "Education: MBA, Stanford Graduate School of Business (2016-2018).";
+    // "go" in "go-to-market" should NOT match because "Go" is in the
+    // ambiguous labels exclusion list. No other dev markers present.
+    expect(validateCvDomain(consultantText)).not.toBeNull();
+  });
+
+  it("accepts a developer CV with explicit tech markers", () => {
+    const devText =
+      "John Doe — Software Engineer\n\n" +
+      "Experience:\n" +
+      "Acme Corp — Senior React Developer (2020-2024)\n" +
+      "Built and maintained React applications using TypeScript and Next.js.\n" +
+      "Tech Corp — Frontend Developer (2018-2020)\n" +
+      "Developed Vue.js dashboards and component libraries.\n" +
+      "Skills: React, TypeScript, Next.js, Vue, JavaScript, CSS, HTML.";
+    expect(validateCvDomain(devText)).toBeNull();
+  });
+
+  it("accepts a CV that only mentions a supplemental marker (github)", () => {
+    const githubText =
+      "Jane Doe — Open Source Contributor\n\n" +
+      "Experience:\n" +
+      "Self-employed — Freelance Developer (2020-2024)\n" +
+      "Maintained several open source projects on GitHub with over 10k stars.\n" +
+      "Contributed to various open source initiatives and reviewed pull requests.\n" +
+      "Education: B.Sc. in Computer Science, MIT (2016-2020).";
+    expect(validateCvDomain(githubText)).toBeNull();
+  });
+
+  it("accepts a CV that mentions a programming language by name (Python)", () => {
+    const pythonText =
+      "Jane Smith — Data Analyst\n\n" +
+      "Experience:\n" +
+      "Data Corp — Data Analyst (2020-2024)\n" +
+      "Built data pipelines and dashboards using Python and SQL.\n" +
+      "Automated reporting workflows and improved data quality.\n" +
+      "Education: B.Sc. in Statistics, UC Berkeley (2016-2020).";
+    expect(validateCvDomain(pythonText)).toBeNull();
+  });
+
+  it("does not false-match 'go' inside 'going' (word-boundary regex)", () => {
+    const textWithGoing =
+      "John Smith — Project Manager\n\n" +
+      "Experience:\n" +
+      "Acme Corp — Project Manager (2020-2024)\n" +
+      "Responsible for going through project requirements and delivering on time.\n" +
+      "Managed cross-functional teams and ensured stakeholder alignment.\n" +
+      "Education: B.A. in Business Administration, State University (2016-2020).";
+    // "going" should not match the "Go" marker (which is excluded anyway),
+    // but this test also verifies the word-boundary regex works correctly.
+    expect(validateCvDomain(textWithGoing)).not.toBeNull();
+  });
+
+  it("accepts a CV mentioning C# (label with non-word char suffix)", () => {
+    const csharpText =
+      "Jane Doe — Backend Developer\n\n" +
+      "Experience:\n" +
+      "Acme Corp — Senior Backend Developer (2020-2024)\n" +
+      "Built REST APIs using C# and ASP.NET. Managed SQL Server databases.\n" +
+      "Tech Corp — Software Developer (2018-2020)\n" +
+      "Developed internal tools using C# and the .NET framework.\n" +
+      "Education: B.Sc. in Computer Science, University of Washington (2014-2018).";
+    expect(validateCvDomain(csharpText)).toBeNull();
+  });
+
+  it("accepts a CV mentioning C++ (label with non-word char suffix)", () => {
+    const cppText =
+      "Jane Doe — Systems Engineer\n\n" +
+      "Experience:\n" +
+      "Acme Corp — Systems Engineer (2020-2024)\n" +
+      "Built high-performance trading systems using C++ and Boost.\n" +
+      "Optimized latency-critical code paths and reduced memory fragmentation.\n" +
+      "Education: B.Sc. in Computer Engineering, Georgia Tech (2016-2020).";
+    expect(validateCvDomain(cppText)).toBeNull();
+  });
+
+  it("accepts a CV mentioning Next.js (label with dot in middle)", () => {
+    const nextjsText =
+      "Jane Doe — Frontend Developer\n\n" +
+      "Experience:\n" +
+      "Acme Corp — Frontend Developer (2020-2024)\n" +
+      "Built server-rendered web applications using Next.js and React.\n" +
+      "Implemented responsive designs and optimized Core Web Vitals.\n" +
+      "Education: B.Sc. in Web Development, Full Sail University (2016-2020).";
+    expect(validateCvDomain(nextjsText)).toBeNull();
   });
 });
