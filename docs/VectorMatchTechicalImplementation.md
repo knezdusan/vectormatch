@@ -316,7 +316,7 @@ Do not use `pdf-parse` on the server.
     
     The solution is to run `pdfjs-dist` on the **main thread** in "fake worker" mode. This is achieved by importing the `pdf.worker.min.mjs` module and setting it on `globalThis.pdfjsWorker`. When `pdfjs-dist` detects `globalThis.pdfjsWorker.WorkerMessageHandler`, it runs its parsing logic in the same thread instead of spawning an internal Worker. For typical CV PDFs (1-5 pages), extraction takes <500ms on the main thread, which is acceptable for the onboarding MVP.
     
-    The original Web Worker file (`src/workers/pdf-extract.worker.ts`) is retained for reference but is not the active code path. The active implementation is in `src/lib/onboarding/pdf-worker-client.ts`.
+    The original Web Worker file (`src/workers/pdf-extract.worker.ts`) was removed during codebase cleanup (June 2026) since the nested-Worker constraint makes it unusable. The active implementation is in `src/lib/onboarding/pdf-worker-client.ts` (main-thread fake-worker mode).
     
     **Future optimization:** If main-thread blocking becomes problematic for very large PDFs, the fallback is server-side extraction (a dedicated API route with `pdf-parse` or a serverless function), or an OffscreenCanvas-based worker with a different PDF library that doesn't internally spawn Workers.
 

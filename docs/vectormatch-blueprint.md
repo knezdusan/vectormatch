@@ -75,7 +75,7 @@ Bottom-up order for solo implementation. Update the status tag as each step comp
   - *Gate 1 Optimization*: `must_have_tags` and `blocklist_tags` are indexed using a **Postgres GIN index** to support instant `&&` (overlap) query operations.
   - *Gate 2 Optimization*: Indexed using **HNSW** (`USING hnsw (persona_embedding vector_cosine_ops)`) to achieve sub-millisecond vector similarity calculation during routing.
   - *Business Rule*: To prevent abuse, users are strictly limited to a maximum of 3 personas, enforced at the API/Zod validation layer.
-- **`cv_upload` table** `[Status: Implemented]`: Persists every CV upload attempt — raw extracted text (from `pdfjs-dist` Web Worker), the full LLM extraction payload (Schema 1 JSONB), and a lifecycle status (`processing`, `valid`, `invalid`, `abandoned`) that drives the onboarding state machine.
+- **`cv_upload` table** `[Status: Implemented]`: Persists every CV upload attempt — raw extracted text (from `pdfjs-dist` in main-thread "fake worker" mode via `src/lib/onboarding/pdf-worker-client.ts`), the full LLM extraction payload (Schema 1 JSONB), and a lifecycle status (`processing`, `valid`, `invalid`, `abandoned`) that drives the onboarding state machine.
   - *Drizzle Path*: `src/db/schemas/jobs/cvUpload.ts`
 - **`working_history` table** `[Status: Implemented]`: Single source of truth for the user's work history. Each row represents one employment entry extracted from a CV (by the LLM) or added manually post-onboarding. Linked to `cv_upload` via `cv_upload_id` (CASCADE delete). This table is the input to `recomputeTagsExperience()`.
   - *Drizzle Path*: `src/db/schemas/jobs/workingHistory.ts`

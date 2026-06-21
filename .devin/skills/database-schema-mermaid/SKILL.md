@@ -117,9 +117,8 @@ job {
 ### 1. Read Schema Files
 
 Read all schema files from your Drizzle setup:
-- `src/db/schemas/index.ts` - Main exports and relations
-- `src/db/schemas/all-schemas.ts` - Table definitions
-- Individual schema files if separated (e.g., `auth/user.ts`, `jobs/job.ts`)
+- `src/db/schemas/index.ts` - Main barrel export and relations
+- Individual schema files (e.g., `auth/user.ts`, `jobs/job.ts`, `jobs/applicant.ts`)
 
 ### 2. Extract Table Information
 
