@@ -149,6 +149,44 @@ erDiagram
         timestamp createdAt
     }
 
+    cv_upload {
+        uuid id PK
+        text applicantId FK
+        text label
+        text originalFileName
+        text rawText
+        jsonb extractedJson
+        cv_upload_status status
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    working_history {
+        uuid id PK
+        text applicantId FK
+        uuid cvUploadId FK
+        text company
+        text role
+        date startDate
+        date endDate
+        boolean isCurrent
+        text summary
+        text[] canonicalSkillsDetected
+        text[] rawSkillsDetected
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    tags_experience {
+        uuid id PK
+        text applicantId FK
+        text canonicalTag
+        numeric yearsOfExperience
+        boolean active
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
     %% RELATIONSHIPS - AUTH
     user ||--o{ account : "has"
     user ||--o{ session : "has"
@@ -166,8 +204,12 @@ erDiagram
     %% RELATIONSHIPS - JOBS
     applicant ||--o{ persona : "defines"
     applicant ||--o{ match_queue : "matched in"
+    applicant ||--o{ cv_upload : "uploads"
+    applicant ||--o{ working_history : "has"
+    applicant ||--o{ tags_experience : "accumulates"
     job ||--o{ match_queue : "matched in"
     persona ||--|| applicant : "belongs to"
+    cv_upload ||--o{ working_history : "extracts"
 ```
 
 ## Schema Overview
@@ -192,6 +234,9 @@ These tables are retained for migration history only. The blog now uses static M
 - **job**: ATS-ingested job postings with extracted tags and vector embeddings
 - **persona**: User-defined job personas with must-have/blocklist tags and vector embeddings
 - **match_queue**: Job-applicant matching results with overlap scores and status tracking
+- **cv_upload**: CV upload lifecycle management with extraction status and raw text retention
+- **working_history**: User's work history entries extracted from CVs or added manually
+- **tags_experience**: Computed skills and years of experience per canonical tag (derived from working_history)
 
 ## Key Indexes
 
@@ -211,6 +256,14 @@ These tables are retained for migration history only. The blog now uses static M
 - `verification_identifier_idx`: Token lookups
 - `persona_applicant_id_idx`: Persona lookups by applicant
 - `match_queue_unique`: Unique constraint on (jobId, applicantId)
+- `cv_upload_applicant_id_idx`: CV upload lookups by applicant
+- `cv_upload_applicant_status_idx`: Composite index for finding user's valid/active CVs
+- `working_history_role_idx`: Work history lookups by role
+- `working_history_applicant_id_idx`: Work history lookups by applicant
+- `working_history_cv_upload_id_idx`: Work history lookups by CV upload
+- `tags_experience_tag_idx`: Tags experience lookups by canonical tag
+- `tags_experience_applicant_id_idx`: Tags experience lookups by applicant
+- `tags_experience_unique`: Unique constraint on (applicantId, canonicalTag) for upsert operations
 
 ## 3-Gate Matching Architecture
 
@@ -242,7 +295,13 @@ These tables are retained for migration history only. The blog now uses static M
 - `w8ben` - Foreign Solo Contractor for US Client
 - `ic_global` - International Solo Contractor for non-US Client
 
-### status
+### status (Blog - Deprecated)
 - `draft`
 - `published`
 - `archived`
+
+### cv_upload_status
+- `processing` - PDF worker is extracting text / LLM parse in flight
+- `valid` - LLM extraction succeeded, CV passed validity checks, ready for onboarding review
+- `invalid` - LLM extraction failed or CV failed validity checks (rejected, ask user for better CV)
+- `abandoned` - User uploaded a CV but never completed onboarding (orphan, eligible for cleanup)
