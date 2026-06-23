@@ -19,8 +19,8 @@
 // See: docs/vectormatch-blueprint.md → "Module B Testing Strategy" → Layer 1
 
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
-import { fetchJobsFromAts } from "@/lib/jobs/poller/ats-adapters";
 import { passesGateZero } from "@/lib/jobs/gate-zero";
+import { fetchJobsFromAts } from "@/lib/jobs/poller/ats-adapters";
 
 // ── Test slugs ────────────────────────────────────────────────────────────────
 //
@@ -62,7 +62,9 @@ async function main(): Promise<void> {
   const sources: AtsSource[] = ["greenhouse", "lever", "ashby"];
 
   for (const source of sources) {
-    console.log(`─ ${source.toUpperCase()} ${"─".repeat(Math.max(0, 60 - source.length))}`);
+    console.log(
+      `─ ${source.toUpperCase()} ${"─".repeat(Math.max(0, 60 - source.length))}`,
+    );
     for (const slug of TEST_SLUGS[source]) {
       process.stdout.write(`  ${slug.padEnd(20)} ... `);
       const result = await testSlug(source, slug);
@@ -98,7 +100,9 @@ async function main(): Promise<void> {
   const passed = results.filter((r) => r.success).length;
   const httpErrors = results.filter((r) => r.kind === "http").length;
   const networkErrors = results.filter((r) => r.kind === "network").length;
-  const validationErrors = results.filter((r) => r.kind === "validation").length;
+  const validationErrors = results.filter(
+    (r) => r.kind === "validation",
+  ).length;
   const totalJobs = results.reduce((sum, r) => sum + r.jobCount, 0);
   const totalGate0Pass = results.reduce((sum, r) => sum + r.gate0PassCount, 0);
 

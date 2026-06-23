@@ -29,9 +29,9 @@ import { eq } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { applicant, cvUpload, persona, workingHistory } from "@/db/schemas";
+import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { getAuthSession } from "@/lib/auth";
 import { CANONICAL_TAGS, PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
-import { generateEmbeddings } from "@/lib/onboarding/embeddings";
 import { recomputeTagsExperience } from "@/lib/onboarding/recompute-tags";
 import {
   type OnboardingPayload,

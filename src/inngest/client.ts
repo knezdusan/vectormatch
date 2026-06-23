@@ -86,6 +86,36 @@ export interface VectorMatchEvents {
       isNew: boolean;
     };
   };
+
+  // ── Module C — 3-Gate funnel events ─────────────────────────────────────────
+  // Emitted by jobIngestedHandler after Gate 1+2 inserts candidate rows into
+  // matchQueue. One event per candidate row → one gate3Evaluator function
+  // instance per candidate (maximum parallelism, maximum failure isolation).
+  // (MODULE_C_DECISIONS.md §3.1)
+  "match/gate-3-evaluate": {
+    data: {
+      /** The matchQueue row to update with the verdict. */
+      matchQueueId: string;
+      /** For fetching job context. */
+      jobId: string;
+      /** For fetching persona + applicant context. */
+      personaId: string;
+      /** For fetching applicant preferences. */
+      applicantId: string;
+    };
+  };
+  // Emitted by gate3Evaluator when the LLM verdict is 'approved'.
+  // MVP: nothing listens — the dashboard polls matchQueue directly. Defined
+  // now so Module D (cold email generation) has a stable contract post-MVP.
+  // (MODULE_C_DECISIONS.md §3.2)
+  "match/approved": {
+    data: {
+      matchQueueId: string;
+      jobId: string;
+      applicantId: string;
+      personaId: string;
+    };
+  };
 }
 
 // ── Client ──────────────────────────────────────────────────────────────────

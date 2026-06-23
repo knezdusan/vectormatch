@@ -158,17 +158,47 @@ export const job = pgTable(
       .default(sql`'{}'::text[]`),
     jobEmbedding: vector("job_embedding", { dimensions: 1536 }),
     detectedAt: timestamp("detected_at").defaultNow(),
+
+    // ── Module B additions (TDD §4.0c) — Deduplication & Stale Tracking ──────
+    externalJobId: text("external_job_id").notNull(),
+    lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+    // active | stale | gone | rejected | normalization_failed
+    // - active|stale|gone: set by Module B (stale cleanup + re-poll)
+    // - rejected: set by Module C Normalizer — garbage job (tombstone)
+    // - normalization_failed: set by Module C Normalizer — system failure
+    //   (retry sweep can re-process; distinguishable from 'rejected')
+    status: text("status").notNull().default("active"),
+    // ── Module C addition — idempotency guard + retry sweep filter ────────────
+    // Set ONLY on terminal outcomes (success or rejection). Never set on
+    // 'normalization_failed'. Null = never processed by Module C.
+    normalizedAt: timestamp("normalized_at"),
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
       "gin",
       table.extractedTags,
     ),
+    // Module C — HNSW index for job embedding (Gate 2 candidate-side)
+    embeddingIdx: index("job_embedding_hnsw_idx").using(
+      "hnsw",
+      table.jobEmbedding.op("vector_cosine_ops"),
+    ),
+    // Deduplication anchor — (ats_source, ats_slug, external_job_id)
+    uniqueAtsJob: uniqueIndex("job_unique_ats_job").on(
+      table.atsSource,
+      table.atsSlug,
+      table.externalJobId,
+    ),
+    // For the daily stale cleanup query (status + lastSeenAt)
+    statusIdx: index("job_status_idx").on(table.status, table.lastSeenAt),
   }),
 );
 
-// 4. MATCH QUEUE TABLE
+// 4. MATCH QUEUE TABLE (Module C — 3-Gate funnel output)
 // src/db/schemas/jobs/matchQueue.ts
+// A row is inserted by Gate 1+2 when a job + persona pair passes the GIN
+// overlap + HNSW cosine distance filters. Gate 3 then fills in the LLM
+// verdict columns. Schema decisions: docs/MODULE_C_DECISIONS.md §2.
 export const matchQueue = pgTable(
   "match_queue",
   {
@@ -179,12 +209,51 @@ export const matchQueue = pgTable(
     applicantId: text("applicant_id")
       .notNull()
       .references(() => applicant.userId, { onDelete: "cascade" }),
+    // Which persona matched. Required for multi-persona users (up to 3).
+    // The unique index is on (jobId, personaId), NOT (jobId, applicantId) —
+    // an applicant can match the same job via different personas.
+    personaId: uuid("persona_id")
+      .notNull()
+      .references(() => persona.id, { onDelete: "cascade" }),
     overlapScore: integer("overlap_score").notNull(),
+    // Gate 2 HNSW cosine distance (0.0–2.0, lower is better). Named "distance"
+    // not "similarityScore" to prevent future ORDER BY ... DESC sorting bugs.
+    cosineDistance: real("cosine_distance"),
     status: text("status").notNull().default("pending"),
+    // ── Gate 3 LLM verdict columns (filled by gate3Evaluator) ───────────────
+    // approved | rejected | error. Null until Gate 3 completes.
+    llmVerdict: text("llm_verdict"),
+    // 1–3 sentence LLM explanation. Audit trail for false positive/negative debugging.
+    llmReasoning: text("llm_reasoning"),
+    // Which model evaluated: gpt-4o-mini (MVP) | gpt-4o (escalation, post-MVP).
+    llmModel: text("llm_model"),
+    // When Gate 3 ran. Null until Gate 3 completes.
+    evaluatedAt: timestamp("evaluated_at"),
+    // In-app notification badge. Defaults to false; set true when user views the match.
+    isRead: boolean("is_read").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
-    uniqueMatch: index("match_queue_unique").on(table.jobId, table.applicantId),
+    // Correct uniqueness constraint: a persona matches a job at most once,
+    // but an applicant (via different personas) can match the same job multiple
+    // times. Replaces the buggy (jobId, applicantId) index.
+    uniqueMatchPersona: uniqueIndex("match_queue_unique_persona").on(
+      table.jobId,
+      table.personaId,
+    ),
+    // Dashboard list query: WHERE applicant_id = ? AND status = 'approved'
+    // ORDER BY created_at DESC. The createdAt DESC in the index lets Postgres
+    // return rows in sorted order without an in-memory sort.
+    applicantStatusIdx: index("match_queue_applicant_status_idx").on(
+      table.applicantId,
+      table.status,
+      sql`${table.createdAt} DESC`,
+    ),
+    // Sidebar unread badge count: WHERE applicant_id = ? AND is_read = false
+    // AND status = 'approved'. Partial index — only indexes unread rows.
+    unreadBadgeIdx: index("match_queue_unread_badge_idx")
+      .on(table.applicantId)
+      .where(sql`${table.isRead} = false AND ${table.status} = 'approved'`),
   }),
 );
 
@@ -1238,42 +1307,99 @@ Module B (Poller)                          Module C (Router)
 
 ---
 
-## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL)
+## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Synthetic-Data Calibrated]`
 
 **Goal:** Solve the O(N*M) compute cost problem using Inngest and Postgres.
 
-### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`)
-*   When a job is inserted into `raw_jobs`, Inngest triggers.
-*   A basic TypeScript dictionary regex extracts `canonical_tags` (e.g., matching "ReactJS" to "react"). If tags < 3, a fallback `gpt-4o-mini` call extracts them.
-*   The job description is embedded using `text-embedding-3-small`.
+**Implementation reference:** `docs/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/calibration-report.md`.
 
-### 5.2 Step 2: Gate 1 & 2 (The SQL Router)
-Run a single, massive SQL query to narrow 1,000 users down to ~8 candidates in under 20ms.
+**Feature breakdown (7 features, all implemented):**
+- **C0** — Schema & contracts hardening: `matchQueue` columns, `job.status` values, `normalizedAt`, Module C event types, `matching-config.ts`, `db.ts` pooler guard.
+- **C1** — Job normalization: `job-normalizer.ts` + `job-embedder.ts`, wired into `jobIngestedHandler`.
+- **C5** — Seed script: `scripts/seed-routing-engine.ts` (synthetic data for calibration).
+- **C2** — Gate 1+2 SQL router: `gate-1-2.ts`, wired into `jobIngestedHandler`.
+- **C3** — Gate 3 LLM evaluator: `gate-3.ts` + `gate3Evaluator` Inngest function.
+- **C4** — Dashboard query layer: `dashboard-queries.ts` + `matches.ts` Server Actions.
+- **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/calibration-report.md`.
+
+### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
+*   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
+*   **Idempotency guard:** If `job.normalizedAt IS NOT NULL`, the handler skips — event re-delivery is safe.
+*   **Tag extraction** (`src/lib/jobs/job-normalizer.ts`):
+    *   `extractJobContent` extracts the description from the raw ATS JSON (Ashby prefers `descriptionPlain` over `descriptionHtml`).
+    *   `scanTagsRegex` — a TypeScript dictionary regex extracts canonical tags (e.g., matching "ReactJS" to "react"). Fast, $0 cost.
+    *   `extractTagsLLM` — if regex yields <3 tags, a fallback `gpt-4o-mini` call extracts them via `generateObject` with a Zod schema.
+    *   `decideNormalizationAction` — handles rejection (garbage job → `status = 'rejected'`, tombstone) vs. system failure (`status = 'normalization_failed'`, retryable).
+*   **Embedding** (`src/lib/jobs/job-embedder.ts`): The job description is embedded using `text-embedding-3-small` (1536 dimensions).
+*   `normalizedAt` is set ONLY on terminal outcomes (successful normalization OR rejection). Never set on `normalization_failed` — that would turn it into a permanent tombstone, defeating the two-status split.
+
+### 5.2 Step 2: Gate 1 & 2 (The SQL Router) `[Status: Implemented]`
+Run a single SQL query (`src/lib/jobs/gate-1-2.ts`, `runGateSQLRouter`) to narrow all personas down to ~8 candidates in under 20ms.
+
+**Bug fix from original TDD (review round 1):** The original TDD used `cardinality(p.must_have_tags & ${jobTags}::text[])` for the overlap count. The `&` (array intersection) operator exists ONLY in the `intarray` extension and ONLY for `integer[]` — it does NOT exist for `text[]`. The fix uses `unnest` + `= ANY` inside a `LATERAL` subquery so the count is evaluated once per persona.
 
 ```typescript
-// Drizzle ORM implementation concept of the core SQL logic
+// src/lib/jobs/gate-1-2.ts — actual implementation (simplified)
 await db.execute(sql`
-  INSERT INTO match_queue (job_id, applicant_id, overlap_score, status)
-  SELECT 
+  INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
+  SELECT
     ${jobId}::uuid,
+    p.id,
     p.applicant_id,
-    cardinality(p.must_have_tags & ${jobTags}::text[]) AS overlap_score,
+    ov.overlap_score,
+    (p.persona_embedding <=> ${embeddingStr}::vector) AS cosine_distance,
     'pending'
   FROM persona p
+  CROSS JOIN LATERAL (
+    SELECT count(*) AS overlap_score
+    FROM unnest(p.must_have_tags) AS t(tag)
+    WHERE t.tag = ANY(${tagsArraySql})
+  ) ov
   WHERE
-    -- GATE 1: GIN Index Array Overlap (Must hit at least one major skill, zero blocklist hits)
-    (p.must_have_tags && ${jobTags}::text[]) 
-    AND NOT (p.blocklist_tags && ${jobTags}::text[])
-    -- GATE 2: HNSW Vector Similarity
-    AND (p.persona_embedding <=> ${jobEmbedding}::vector) < 0.35 -- Distance metric (1 - 0.65 similarity)
-  ORDER BY overlap_score DESC
-  LIMIT 8
-  ON CONFLICT DO NOTHING
+    -- GATE 1: GIN Index Array Overlap (≥1 must-have tag hit, zero blocklist hits)
+    p.must_have_tags && ${tagsArraySql}
+    AND NOT (p.blocklist_tags && ${tagsArraySql})
+    -- GATE 2: HNSW Vector Similarity (cosine distance threshold)
+    AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
+    AND p.persona_embedding IS NOT NULL
+  ORDER BY
+    -- Composite ordering: blends Gate 1 (overlap) and Gate 2 (similarity) signals
+    (ov.overlap_score * ${GATE1_WEIGHT}::real
+     + (1 - (p.persona_embedding <=> ${embeddingStr}::vector)) * ${GATE2_WEIGHT}::real) DESC
+  LIMIT ${GATE_ROUTER_LIMIT}
+  ON CONFLICT (job_id, persona_id) DO NOTHING
+  RETURNING id, persona_id, applicant_id, overlap_score, cosine_distance
 `);
 ```
 
-### 5.3 Step 3: Gate 3 (The LLM Arbiter)
-*   Inngest queries the `match_queue` and fans out 8 parallel events (`job/evaluate/candidate`).
+**Composite ordering rationale:** A candidate with `overlapScore = 5, cosineDistance = 0.34` (barely passed Gate 2) should not outrank a candidate with `overlapScore = 3, cosineDistance = 0.05` (very strong semantic match). Pure overlap ordering ignores the Gate 2 signal after the threshold filter. The composite blend accounts for both.
+
+**Config values** (`src/lib/jobs/matching-config.ts`):
+| Constant | Value | Calibration Status |
+|---|---|---|
+| `GATE2_MAX_COSINE_DISTANCE` | `0.35` | Uncalibrated guess — no-op on synthetic data (embeddings cluster at 0.18–0.21). Must be benchmarked against real job/persona pairs. |
+| `GATE_ROUTER_LIMIT` | `8` | Uncalibrated guess — doing all filtering on synthetic data. |
+| `GATE1_WEIGHT` | `0.6` | Uncalibrated guess. |
+| `GATE2_WEIGHT` | `0.4` | Uncalibrated guess. `GATE1_WEIGHT + GATE2_WEIGHT = 1.0`. |
+
+**Edge cases handled:**
+- Empty `jobTags`: Skip Gate 1, rely on Gate 2 alone. Log warning.
+- No personas pass: Return empty array. No Gate 3 fan-out.
+- All candidates blocklisted: Filtered by `NOT (p.blocklist_tags && ...)`.
+- Null `jobEmbedding`: Defensive fallback to Gate 1 only with `LIMIT 8`.
+
+**Performance:** `EXPLAIN ANALYZE` (verified by `scripts/verify-gate-explain.mts`) confirms both GIN and HNSW indexes are used. At MVP scale (~1,000 personas), the composite ORDER BY may cause an in-memory sort (HNSW index is optimized for pure KNN, not composite expressions) — this is <5ms at 1k rows. At 100k+ scale, a two-phase query (KNN + re-rank) may be needed (post-MVP).
+
+### 5.3 Step 3: Gate 3 (The LLM Arbiter) `[Status: Implemented]`
+*   `jobIngestedHandler` fans out one `match/gate-3-evaluate` Inngest event per candidate row inserted by Gate 1+2. The `gate3Evaluator` function in `src/inngest/functions.ts` receives these events.
+*   **One event per candidate** (not a batch) — maximum parallelism, maximum failure isolation. If one candidate's LLM call fails, the others are unaffected.
+*   `src/lib/jobs/gate-3.ts`:
+    *   `buildGate3Prompt` constructs a structured prompt with: job title + description + extracted tags, persona label + embedding summary + must-have/blocklist tags, and applicant constraints (country, work hours, compliance, modalities, assignment types).
+    *   `evaluateGate3` calls `gpt-4o-mini` via Vercel AI SDK `generateObject` with a strict Zod schema (`gate3VerdictSchema`): verdict (`approved`/`rejected`), confidence (0.0–1.0), reasoning (1–3 sentences), and blockers (array of strings).
+    *   `mapVerdict` maps the LLM verdict to `match_queue` status.
+*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_model`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted.
+*   **`match/approved` event:** MVP — nothing listens (dashboard polls `match_queue` directly). Defined now so Module D (cold email generation) has a stable contract post-MVP.
+*   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by a future sweep that re-emits `match/gate-3-evaluate` for `pending` rows older than N hours (not built in MVP — error rows are rare with `generateObject` + Zod enforcement).
 *   Inngest concurrency is still capped to max 50, but the binding constraint changed. The
 original limit existed to prevent Vercel's 340-second idle-connection limit
 from severing fanned-out function instances. Under Module E, there is no
@@ -1292,8 +1418,28 @@ concurrency but governs the same general class of "long-running request"
 risk — synchronous API routes (e.g. `/api/onboarding/parse`, the `gpt-4o`
 extraction call) must complete well under 100 seconds, and anything that
 can't is a candidate for Inngest, not a synchronous route.
-*   `gpt-4o-mini` evaluates the job against the specific user's nuanced preferences (e.g., "Must be B2B, no web3").
-*   If pass, status is set to `approved` and user is notified.
+
+### 5.4 Step 4: Dashboard Query Layer (In-App Notification) `[Status: Implemented]`
+*   `src/lib/jobs/dashboard-queries.ts`:
+    *   `getApprovedMatches(applicantId, page, pageSize)` — paginated, applicant-scoped list of approved matches with job title, persona label, cosine distance, and LLM reasoning.
+    *   `getUnreadBadgeCount(applicantId)` — count of approved + unread matches for the sidebar badge.
+    *   `getMatchDetail(matchQueueId, applicantId)` — full match detail for a single match.
+*   `src/actions/matches.ts`:
+    *   `markMatchRead(matchQueueId)` — Server Action, sets `is_read = true`.
+    *   `markAllMatchesRead(applicantId)` — Server Action, sets `is_read = true` for all approved unread matches.
+
+### 5.5 Calibration (Feature C6) `[Status: Implemented — Synthetic Data Only]`
+
+**⚠️ LAUNCH-BLOCKING:** The current thresholds are uncalibrated guesses validated only against synthetic seed data. They are **not** acceptable the moment a real persona could be matched. No real user sees Module C output until C6-real completes and the thresholds are benchmarked against 20–30 real job/persona pairs.
+
+**Calibration script:** `scripts/calibrate-routing-engine.ts` — runs Gate 1+2 against seed data, collects cosine distance + overlap score distributions, measures true candidate counts at different thresholds (no LIMIT), and optionally evaluates Gate 3 verdicts on a sample.
+
+**Key findings (synthetic data, 100 personas + 500 jobs):**
+- `GATE2_MAX_COSINE_DISTANCE = 0.35` is a no-op — seed embeddings cluster tightly (mean 0.19, max 0.21). 222 candidates pass per job; the LIMIT 8 does all filtering.
+- Gate 3 correctly approved archetype-matched candidates (4/5) and rejected a skill-emphasis mismatch (SolidJS primary vs React persona) despite perfect tag overlap and low cosine distance — validating the 3-Gate architecture.
+- Confidence scores are high (0.90–0.95) on synthetic data. Real data will produce a wider distribution with borderline cases (0.4–0.6).
+
+**Full report:** `docs/calibration-report.md`
 
 ---
 

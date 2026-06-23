@@ -10,6 +10,7 @@
 //
 // See docs/inngest-agent-resources.md for patterns and debugging.
 
+import type { Gate3Context } from "@/lib/jobs/gate-3";
 import { inngest } from "./client";
 
 // ── Seeder Functions ──────────────────────────────────────────────────────────
@@ -497,33 +498,414 @@ export const staleCleanup = inngest.createFunction(
  *
  * This is the boundary between Module B (ingestion) and Module C (routing).
  * When a new job is ingested, this function:
- *   1. Generates job embedding (text-embedding-3-small)
- *   2. Runs Gate 1 (GIN overlap) + Gate 2 (HNSW similarity)
- *   3. Enqueues Gate 3 candidates in matchQueue
+ *   1. Fetches the job + idempotency decision tree (§4.6)
+ *   2. Normalizes: ATS-source-aware extraction → regex tag scan → LLM fallback
+ *      → rejection/normalization_failed decision (§4)
+ *   3. Embeds: generates text-embedding-3-small from cleaned fullText (§4.4)
+ *   4. Writes normalization results to the job row
+ *   [C2] 5. Gate 1+2 SQL router → insert candidates into matchQueue
+ *   [C3] 6. Fan out match/gate-3-evaluate events for each candidate
  *
- * TDD reference: §5.2
+ * Concurrency limit 15 (§4.5): prevents OpenAI rate limit exhaustion when
+ * Module B ingests many jobs at once. Each handler instance is mostly waiting
+ * for I/O (LLM call ~2-3s, embedding ~200ms), not holding DB connections.
+ *
+ * TDD reference: §5.2 (superseded by MODULE_C_DECISIONS.md §4)
  */
 export const jobIngestedHandler = inngest.createFunction(
   {
     id: "job-ingested-handler",
     name: "Job Ingested — Trigger 3-Gate Funnel",
     triggers: [{ event: "job/ingested" }],
+    // §4.5 — concurrency 15 prevents OpenAI rate limit exhaustion under
+    // Module B's concurrency-50 poller fan-out.
+    concurrency: { limit: 15 },
   },
   async ({ event, step }) => {
-    // TODO(Module C): Implement 3-Gate routing logic.
-    //   1. Generate embedding for the job
-    //   2. Gate 1: GIN index overlap on mustHaveTags / blocklistTags
-    //   3. Gate 2: HNSW cosine similarity on persona embeddings
-    //   4. Gate 3: LLM arbitration for high-confidence matches
-    //   5. Insert into matchQueue
-    await step.run("placeholder", async () => {
+    const { jobId } = event.data;
+
+    // ── Step 1: Fetch job + idempotency decision tree (§4.6) ───────────────
+    // The decision tree determines whether to normalize, skip (already
+    // processed), or retry (normalization_failed). DB connection is acquired
+    // and released within this step (stateless pattern, §6.4).
+    const decision = await step.run("fetch-job", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { eq } = await import("drizzle-orm");
+      const { decideNormalizationAction } = await import(
+        "@/lib/jobs/job-normalizer"
+      );
+
+      const rows = await db
+        .select({
+          id: job.id,
+          atsSource: job.atsSource,
+          title: job.title,
+          rawJson: job.rawJson,
+          status: job.status,
+          normalizedAt: job.normalizedAt,
+        })
+        .from(job)
+        .where(eq(job.id, jobId))
+        .limit(1);
+
+      if (rows.length === 0) {
+        return { action: "skip" as const, reason: "Job not found in DB" };
+      }
+
+      const jobRow = rows[0];
+      const idempotencyDecision = decideNormalizationAction({
+        status: jobRow.status,
+        normalizedAt: jobRow.normalizedAt,
+      });
+
+      if (idempotencyDecision.action === "skip") {
+        return {
+          action: "skip" as const,
+          reason: idempotencyDecision.reason,
+        };
+      }
+
+      return { action: "normalize" as const, job: jobRow };
+    });
+
+    if (decision.action === "skip") {
+      return { skipped: true, reason: decision.reason, jobId };
+    }
+
+    // ── Step 2: Normalize (§4 — extraction + regex + LLM fallback) ────────
+    // normalizeJob is pure computation + optional LLM call. No DB connection
+    // held. The LLM call (if triggered) is inside this step.run() boundary,
+    // satisfying §11.5 (all AI SDK calls wrapped in step.run or step.ai.wrap).
+    const normalization = await step.run("normalize", async () => {
+      const { normalizeJob } = await import("@/lib/jobs/job-normalizer");
+      return normalizeJob(
+        decision.job.atsSource,
+        decision.job.rawJson,
+        decision.job.title,
+      );
+    });
+
+    // ── Step 3: Embed (§4.4 — only if normalized) ──────────────────────────
+    // Generate the job embedding from the cleaned fullText. Only runs for
+    // 'normalized' jobs — rejected/failed jobs don't need an embedding.
+    let embedding: number[] | null = null;
+    if (normalization.status === "normalized") {
+      embedding = await step.run("embed", async () => {
+        const { embedJob } = await import("@/lib/jobs/job-embedder");
+        return embedJob(normalization.fullText);
+      });
+    }
+
+    // ── Step 4: Write normalization results to DB ─────────────────────────
+    // DB connection acquired and released within this step.
+    // normalizedAt is set ONLY on terminal outcomes (normalized or rejected),
+    // NEVER on normalization_failed (§4.3, §4.6).
+    await step.run("write-normalization", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { eq } = await import("drizzle-orm");
+
+      if (normalization.status === "normalized") {
+        await db
+          .update(job)
+          .set({
+            extractedTags: normalization.tags,
+            jobEmbedding: embedding,
+            normalizedAt: new Date(),
+            // status stays 'active' — normalizedAt indicates normalization done
+          })
+          .where(eq(job.id, jobId));
+      } else if (normalization.status === "rejected") {
+        await db
+          .update(job)
+          .set({
+            status: "rejected",
+            extractedTags: normalization.tags,
+            // No embedding — rejected jobs are tombstones
+            normalizedAt: new Date(),
+          })
+          .where(eq(job.id, jobId));
+      } else {
+        // normalization_failed — NO normalizedAt (must remain retryable)
+        await db
+          .update(job)
+          .set({
+            status: "normalization_failed",
+            extractedTags: normalization.tags,
+          })
+          .where(eq(job.id, jobId));
+      }
+    });
+
+    // If normalization didn't succeed, stop here — no Gate 1+2 or Gate 3.
+    if (normalization.status !== "normalized") {
       return {
-        status: "not-implemented",
-        note: "Awaiting Module C 3-Gate implementation",
-        jobId: event.data.jobId,
+        jobId,
+        normalizationStatus: normalization.status,
+        error: normalization.error,
+        queued: 0,
+      };
+    }
+
+    // ── Step 5: Gate 1+2 SQL router → matchQueue (§5) ──────────────────────
+    // Runs the combined GIN overlap + HNSW cosine distance query, inserts
+    // candidate rows into matchQueue, and returns them for Gate 3 fan-out.
+    // DB connection acquired and released within this step (stateless pattern).
+    const candidates = await step.run("gate-1-2-router", async () => {
+      const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
+      return runGateSQLRouter(jobId, normalization.tags, embedding ?? []);
+    });
+
+    // If no candidates passed Gates 1+2, the funnel ends here — no Gate 3.
+    if (candidates.length === 0) {
+      return {
+        jobId,
+        normalizationStatus: "normalized",
+        tagsFound: normalization.tags.length,
+        candidates: 0,
+        queued: 0,
+      };
+    }
+
+    // ── Step 6: Fan out match/gate-3-evaluate events (§3.1) ───────────────
+    // One event per candidate → one gate3Evaluator function instance per
+    // candidate (maximum parallelism, maximum failure isolation).
+    // Inngest's per-function concurrency cap (15) naturally limits
+    // simultaneous LLM calls.
+    if (candidates.length > 0) {
+      await step.sendEvent(
+        "fan-out-gate-3",
+        candidates.map((c) => ({
+          id: `gate-3-${c.matchQueueId}`,
+          name: "match/gate-3-evaluate",
+          data: {
+            matchQueueId: c.matchQueueId,
+            jobId,
+            personaId: c.personaId,
+            applicantId: c.applicantId,
+          },
+        })),
+      );
+    }
+
+    return {
+      jobId,
+      normalizationStatus: "normalized",
+      tagsFound: normalization.tags.length,
+      candidates: candidates.length,
+      queued: candidates.length,
+    };
+  },
+);
+
+// ── Module C Gate 3 — LLM Candidate Evaluation ──────────────────────────────
+
+/**
+ * Gate 3 Evaluator — the LLM arbiter for the 3-Gate funnel.
+ *
+ * Triggered by: `match/gate-3-evaluate` event (emitted by jobIngestedHandler
+ * after Gate 1+2 inserts candidate rows into matchQueue).
+ *
+ * One event per candidate row → one function instance per candidate (maximum
+ * parallelism, maximum failure isolation). Concurrency limit 15 (§6.1).
+ *
+ * Step structure (§6.4 — stateless DB pattern):
+ *   1. fetch-context  → read job + persona + applicant from DB, release conn
+ *   2. evaluate       → step.ai.wrap LLM call (gpt-4o-mini), NO DB conn held
+ *   3. write-verdict  → update matchQueue row (verdict, reasoning, model,
+ *                        evaluatedAt, status), release conn
+ *   4. emit-approved  → if approved, emit match/approved (fire-and-forget)
+ *
+ * Idempotency: if matchQueue.status !== 'pending', skip (already evaluated).
+ * This handles Inngest retries safely — a retried event for an already-
+ * evaluated candidate is a no-op.
+ *
+ * TDD reference: §5.3 (superseded by MODULE_C_DECISIONS.md §6)
+ */
+export const gate3Evaluator = inngest.createFunction(
+  {
+    id: "match-gate-3-evaluator",
+    name: "Gate 3 — LLM Candidate Evaluation",
+    triggers: [{ event: "match/gate-3-evaluate" }],
+    // §6.1 — concurrency 15 prevents Neon pooler exhaustion under fan-out.
+    // At 15 concurrent evaluations, each holding a DB connection for ~100ms
+    // (read) + ~100ms (write) around a ~3-5s LLM call, the pooler sees ~30
+    // short-lived acquisitions per second — well within PgBouncer's budget.
+    concurrency: { limit: 15 },
+  },
+  async ({ event, step }) => {
+    const { matchQueueId, jobId, personaId, applicantId } = event.data;
+
+    // ── Step 1: Fetch context + idempotency check (§6.4) ───────────────────
+    // DB connection acquired and released within this step.
+    const context = await step.run("fetch-context", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { persona } = await import("@/db/schemas/jobs/persona");
+      const { applicant } = await import("@/db/schemas/jobs/applicant");
+      const { matchQueue } = await import("@/db/schemas/jobs/matchQueue");
+      const { eq } = await import("drizzle-orm");
+      const { extractJobContent } = await import("@/lib/jobs/job-normalizer");
+
+      // Idempotency: check if this matchQueue row is still pending.
+      // If it's already evaluated (approved/rejected/error), skip — this is
+      // a retried event for an already-processed candidate.
+      const mqRows = await db
+        .select({ status: matchQueue.status })
+        .from(matchQueue)
+        .where(eq(matchQueue.id, matchQueueId))
+        .limit(1);
+
+      if (mqRows.length === 0) {
+        return { skip: true as const, reason: "matchQueue row not found" };
+      }
+      if (mqRows[0].status !== "pending") {
+        return {
+          skip: true as const,
+          reason: `Already evaluated (status=${mqRows[0].status})`,
+        };
+      }
+
+      // Fetch job, persona, and applicant in parallel.
+      const [jobRows, personaRows, applicantRows] = await Promise.all([
+        db
+          .select({
+            title: job.title,
+            rawJson: job.rawJson,
+            atsSource: job.atsSource,
+            extractedTags: job.extractedTags,
+          })
+          .from(job)
+          .where(eq(job.id, jobId))
+          .limit(1),
+        db
+          .select({
+            personaLabel: persona.personaLabel,
+            embeddingSummary: persona.embeddingSummary,
+            mustHaveTags: persona.mustHaveTags,
+            blocklistTags: persona.blocklistTags,
+          })
+          .from(persona)
+          .where(eq(persona.id, personaId))
+          .limit(1),
+        db
+          .select({
+            allTags: applicant.allTags,
+            country: applicant.country,
+            canWorkUsHours: applicant.canWorkUsHours,
+            preferredCompliance: applicant.preferredCompliance,
+            modalities: applicant.modalities,
+            assignmentTypes: applicant.assignmentTypes,
+          })
+          .from(applicant)
+          .where(eq(applicant.userId, applicantId))
+          .limit(1),
+      ]);
+
+      if (
+        jobRows.length === 0 ||
+        personaRows.length === 0 ||
+        applicantRows.length === 0
+      ) {
+        return {
+          skip: true as const,
+          reason: "Missing job/persona/applicant context",
+        };
+      }
+
+      // Extract cleaned description from rawJson (ATS-source-aware).
+      const extracted = extractJobContent(
+        jobRows[0].atsSource,
+        jobRows[0].rawJson,
+        jobRows[0].title,
+      );
+
+      return {
+        skip: false as const,
+        context: {
+          job: {
+            title: jobRows[0].title,
+            description: extracted.description,
+            extractedTags: jobRows[0].extractedTags ?? [],
+          },
+          persona: {
+            personaLabel: personaRows[0].personaLabel,
+            embeddingSummary: personaRows[0].embeddingSummary,
+            mustHaveTags: personaRows[0].mustHaveTags,
+            blocklistTags: personaRows[0].blocklistTags,
+          },
+          applicant: {
+            allTags: applicantRows[0].allTags,
+            country: applicantRows[0].country,
+            canWorkUsHours: applicantRows[0].canWorkUsHours,
+            preferredCompliance: applicantRows[0].preferredCompliance ?? [],
+            modalities: applicantRows[0].modalities ?? [],
+            assignmentTypes: applicantRows[0].assignmentTypes ?? [],
+          },
+        },
       };
     });
 
-    return { queued: 0 };
+    if (context.skip) {
+      return { matchQueueId, skipped: true, reason: context.reason };
+    }
+
+    // ── Step 2: LLM evaluation via step.ai.wrap (§6.2) ─────────────────────
+    // NO DB connection held during the LLM call (~3-5s).
+    // step.ai.wrap adds observability (prompts, tokens, latency in Inngest
+    // dashboard) without routing traffic through Inngest's proxy.
+    const verdict = await step.ai.wrap(
+      "gate-3-evaluate",
+      async (ctx: Gate3Context) => {
+        const { evaluateGate3 } = await import("@/lib/jobs/gate-3");
+        return evaluateGate3(ctx);
+      },
+      context.context,
+    );
+
+    // ── Step 3: Write verdict to DB (§6.4) ─────────────────────────────────
+    // DB connection acquired and released within this step.
+    await step.run("write-verdict", async () => {
+      const { db } = await import("@/db/db");
+      const { matchQueue } = await import("@/db/schemas/jobs/matchQueue");
+      const { eq } = await import("drizzle-orm");
+      const { mapVerdict } = await import("@/lib/jobs/gate-3");
+
+      const verdictString = mapVerdict(verdict);
+
+      await db
+        .update(matchQueue)
+        .set({
+          status: verdictString,
+          llmVerdict: verdictString,
+          llmReasoning: verdict.matchReasoning,
+          llmModel: "gpt-4o-mini",
+          evaluatedAt: new Date(),
+        })
+        .where(eq(matchQueue.id, matchQueueId));
+    });
+
+    // ── Step 4: Emit match/approved if approved (§3.2) ─────────────────────
+    // Fire-and-forget — no listener for MVP. Module D (cold email) will
+    // consume this event post-MVP.
+    if (verdict.approved) {
+      await step.sendEvent(`match-approved-${matchQueueId}`, {
+        name: "match/approved",
+        data: {
+          matchQueueId,
+          jobId,
+          applicantId,
+          personaId,
+        },
+      });
+    }
+
+    return {
+      matchQueueId,
+      verdict: verdict.approved ? "approved" : "rejected",
+      confidence: verdict.matchConfidence,
+      reasoning: verdict.matchReasoning,
+    };
   },
 );

@@ -1,11 +1,20 @@
 // Embedding Generation Utility
-// src/lib/onboarding/embeddings.ts
+// src/lib/ai/embeddings.ts
+//
+// Shared AI SDK utilities (embeddings now; prompt builders, model configs
+// later). Promoted from src/lib/onboarding/embeddings.ts per
+// MODULE_C_DECISIONS.md §9 — Module C is not "onboarding," and importing
+// embedding utilities from the onboarding module is a boundary smell that
+// worsens as Module D also needs embeddings.
 //
 // Wraps the Vercel AI SDK `embedMany` call for OpenAI's text-embedding-3-small
 // model (1536 dimensions). Used by:
 //   - finalizeOnboardingAction — to embed each persona's embeddingSummary
 //   - recomputeTagsExperience   — to regenerate persona embeddings when
 //     mustHaveTags change (MODULE_A_DECISIONS.md §12)
+//   - Module C job-embedder     — to embed job title + cleaned description
+//     (must use the same model so persona + job vectors share an embedding
+//     space for Gate 2 HNSW cosine similarity)
 //
 // Server-only: this module touches the OpenAI API and must never run in the
 // browser. It is imported exclusively by Server Actions / server utilities.

@@ -34,9 +34,29 @@ export const job = pgTable(
     // When the job was last seen in a poll. Updated on every re-poll. Drives
     // stale detection (7 days → stale, 30 days → gone).
     lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
-    // active | stale | gone. Module C's Gate 1+2 query must filter
-    // WHERE status = 'active'. Resurrected to 'active' on re-poll.
+    // active | stale | gone | rejected | normalization_failed.
+    // - active | stale | gone: set by Module B (stale cleanup + re-poll).
+    // - rejected: set by Module C Normalizer — garbage job (Gate 0 false
+    //   positive, garbled listing, non-dev content). Tombstone.
+    // - normalization_failed: set by Module C Normalizer — system failure
+    //   (LLM fallback rate limit / timeout / OpenAI outage). Distinguishable
+    //   from 'rejected' so a future retry sweep can re-process these without
+    //   re-running garbage jobs. (MODULE_C_DECISIONS.md §1.1)
+    // Module C's Gate 1+2 query must filter WHERE status = 'active'.
+    // Resurrected to 'active' on re-poll.
     status: text("status").notNull().default("active"),
+    // Module C — set when normalization completes (tags + embedding written).
+    // Serves two purposes (MODULE_C_DECISIONS.md §1.2):
+    //   1. Idempotency guard: jobIngestedHandler checks
+    //      IF normalizedAt IS NOT NULL → skip (event re-delivery is safe).
+    //   2. Retry sweep filter: WHERE status = 'normalization_failed'
+    //      AND normalizedAt IS NULL identifies jobs that failed before
+    //      completing normalization.
+    // Set ONLY on terminal outcomes (successful normalization OR rejection).
+    // NEVER set on 'normalization_failed' — that would turn it into a
+    // permanent tombstone identical to 'rejected', defeating the two-status
+    // split. Null = never processed by Module C.
+    normalizedAt: timestamp("normalized_at"),
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(

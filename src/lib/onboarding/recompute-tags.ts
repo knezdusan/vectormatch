@@ -28,7 +28,7 @@ import {
   tagsExperience,
   workingHistory,
 } from "@/db/schemas";
-import { generateEmbedding } from "@/lib/onboarding/embeddings";
+import { generateEmbedding } from "@/lib/ai/embeddings";
 
 /** A date range with inclusive start and exclusive end semantics for merging. */
 export type DateRange = { start: Date; end: Date };

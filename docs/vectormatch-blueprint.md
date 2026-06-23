@@ -45,12 +45,20 @@ Bottom-up order for solo implementation. Update the status tag as each step comp
 2. **Module A Contracts** `[Status: Implemented]` — `CANONICAL_TAGS` (144 entries, `src/lib/jobs/tech-tags.ts`), `CANONICAL_ROLES` (~90 entries, `src/lib/jobs/roles.ts`), `resumeExtractionSchema` + `onboardingPayloadSchema` Zod schemas (`src/lib/onboarding/schemas.ts`). (Completed in Module A contract phase, June 2026.)
 3. **Client-Side PDF Extraction & AI Parsing** `[Status: Implemented]` — `pdfjs-dist` in main-thread "fake worker" mode (`src/lib/onboarding/pdf-worker-client.ts`) + `generateObject` call against `resumeExtractionSchema` (Schema 1) with dynamic canonical tag list in system prompt. (Completed in Module A implementation, June 2026. Revised from Web Worker to main-thread due to browser nested-Worker limitation — see TDD §3.3.)
 4. **Onboarding UI** `[Status: Implemented]` — `/dashboard/profile-management` page with 3-presentation state machine (CV upload → onboarding review → profile management), React Hook Form + Server Actions via `useActionState` + `startTransition`, 5-Major-Skills drag-and-drop constraint, inline validation errors, sonner toast notifications, persona save + embedding generation. (Completed in Module A implementation, June 2026.)
-5. **Inngest Orchestration Base** `[Status: Implemented]` — `app/api/inngest/route.ts` serve handler (Next.js App Router, `maxDuration: 300`), typed Inngest v4 client (`src/inngest/client.ts` with `VectorMatchEvents` catalog), function registry (`src/inngest/functions.ts` with 10 functions — 7 fully implemented, 3 placeholders for Module C), barrel exports (`src/inngest/index.ts`), dev server scripts (`npm run inngest:dev`), MCP integration in `.devin/config.json`, and coding agent resources (`docs/inngest-agent-resources.md`). (Completed June 2026.)
+5. **Inngest Orchestration Base** `[Status: Implemented]` — `app/api/inngest/route.ts` serve handler (Next.js App Router, `maxDuration: 300`), typed Inngest v4 client (`src/inngest/client.ts` with `VectorMatchEvents` catalog including Module C events `match/gate-3-evaluate` and `match/approved`), function registry (`src/inngest/functions.ts` with 11 functions — `jobIngestedHandler` for Module C normalization + Gate 1+2, `gate3Evaluator` for Module C LLM arbitration, plus 9 Module B functions), barrel exports (`src/inngest/index.ts`), dev server scripts (`npm run inngest:dev`), MCP integration in `.devin/config.json`, and coding agent resources (`docs/inngest-agent-resources.md`). (Completed June 2026.)
 6. **Module B Schema Layer** `[Status: Implemented]` — `company` table (ATS slug registry with tier/health/polling state, unique index on `(atsSource, atsSlug)`), `ingestionLog` table (observability), `job` table updates (`externalJobId`, `lastSeenAt`, `status`, unique constraint for dedup). Migration `0008_module_b_ingestion_tables.sql` applied. (Completed June 2026.)
 7. **Module B Contracts** `[Status: Implemented]` — ATS endpoint registry (`src/lib/jobs/ats-endpoints.ts`), defensive Zod schemas for Greenhouse/Lever/Ashby (`src/lib/jobs/ats-schemas.ts`), Gate 0 regex title filter (`src/lib/jobs/gate-zero.ts`), seeder schemas (`src/lib/jobs/seeders/schemas.ts`), URL parser (`src/lib/jobs/seeders/url-parser.ts`), company repository (`src/lib/jobs/seeders/company-repository.ts`), HN Algolia schemas (`src/lib/jobs/seeders/hn-schemas.ts`). All with comprehensive Vitest test coverage. (Completed June 2026.)
 8. **Seeders** `[Status: Implemented]` — HN Algolia delta seeder domain logic fully implemented (`src/lib/jobs/seeders/hn-algolia.ts`, `resolve-custom-url.ts`) with Zod validation, CNAME resolution, slug probe, and company insertion. Inngest function wrappers registered (`hnAlgoliaSeeder`, `customUrlResolver` in `src/inngest/functions.ts`) with weekly cron trigger and event-driven custom-URL resolution. BigQuery volume seeder domain logic implemented (`src/lib/jobs/seeders/bigquery-seeder.ts`) with injectable BQ client, SQL builder, two-phase slug extraction (direct REGEXP_EXTRACT + slug probe fallback), and manual script wrapper (`scripts/seed-bigquery.ts`). Inngest function `bigQuerySeeder` wired up with monthly cron trigger. crt.sh deferred to Phase 2. All with comprehensive Vitest test coverage (103 seeder tests). (Completed June 2026.)
 9. **Ingestion Poller** `[Status: Implemented]` — Phalanx Poller core ingestion loop fully implemented: ATS adapters (`src/lib/jobs/poller/ats-adapters.ts`) with fetch + Zod validate + normalize per platform, job repository (`src/lib/jobs/poller/job-repository.ts`) with upsert + new job detection + stale cleanup, company state updater (`src/lib/jobs/poller/company-state.ts`) with health tracking + auto-disable after 3 failures, tier queries (`src/lib/jobs/poller/tier-queries.ts`) for fan-out polling, and orchestrator (`src/lib/jobs/poller/phalanx-poller.ts`) with injectable fetch. Inngest functions wired up: `pollCompanyFn` (per-company fan-out target, concurrency 50), `tierActiveFanOut` (every 12h), `tierDormantFanOut` (weekly), `phalanxPoller` (manual single-company), `tierRecalc` (daily), `staleCleanup` (daily). Per-ATS bottleneck rate limiter (`src/lib/jobs/poller/rate-limiter.ts`, 2 req/s per platform). All with comprehensive Vitest test coverage (32 poller tests). (Completed June 2026.)
-10. **3-Gate Routing Logic** `[Status: Planned / TO DO]` — Combined GIN + HNSW Drizzle query (Module C, section 5.2).
+10. **3-Gate Routing Logic** `[Status: Implemented]` — Module C (Event-Driven Routing — The 3-Gate Funnel) fully implemented across 7 features (C0–C6):
+    - **C0 (Schema & Contracts)**: `matchQueue` columns hardened (`personaId`, `cosineDistance`, `llmVerdict`, `llmReasoning`, `llmModel`, `evaluatedAt`, `isRead`), unique index corrected to `(jobId, personaId)`, `job.status` extended (`active|stale|gone|rejected|normalization_failed`), `job.normalizedAt` added, `job_embedding_hnsw_idx` added, `matching-config.ts` config module, `db.ts` pooler guard + `max: 20`, Module C event types (`match/gate-3-evaluate`, `match/approved`) added to `VectorMatchEvents` catalog.
+    - **C1 (Job Normalization)**: `src/lib/jobs/job-normalizer.ts` (`extractJobContent`, `scanTagsRegex`, `extractTagsLLM`, `normalizeJob`, `decideNormalizationAction`) + `src/lib/jobs/job-embedder.ts`. Wired into `jobIngestedHandler` steps 1–4 with idempotency guard. 39 Vitest tests.
+    - **C5 (Seed Script)**: `scripts/seed-routing-engine.ts` generates synthetic data (5 archetypes, N personas, M jobs) with Gaussian noise + embeddings. Verified at `--scale 100` (100 personas, 500 jobs).
+    - **C2 (Gate 1+2 SQL Router)**: `src/lib/jobs/gate-1-2.ts` with `runGateSQLRouter` — single-pass GIN overlap + HNSW cosine distance query with composite ordering (`overlap * w1 + (1 - distance) * w2 DESC`), `unnest`/`= ANY` overlap count (fixes `&` operator bug on `text[]`), `LIMIT 8` + `ON CONFLICT DO NOTHING`. Wired into `jobIngestedHandler` step 5. 17 Vitest tests.
+    - **C3 (Gate 3 LLM Arbitration)**: `src/lib/jobs/gate-3.ts` (`gate3VerdictSchema`, `buildGate3Prompt`, `evaluateGate3`, `mapVerdict`) + `gate3Evaluator` Inngest function for LLM evaluation, verdict writing, and `match/approved` event emission. Registered in `src/app/api/inngest/route.ts`. 29 Vitest tests.
+    - **C4 (Dashboard Query Layer)**: `src/lib/jobs/dashboard-queries.ts` (`getApprovedMatches`, `getUnreadBadgeCount`, `getMatchDetail`) + `src/actions/matches.ts` (`markMatchRead`, `markAllMatchesRead` Server Actions). 15 Vitest tests.
+    - **C6 (Calibration)**: `scripts/calibrate-routing-engine.ts` runs Gate 1+2 against seed data, collects cosine distance + overlap score distributions, measures true candidate counts at different thresholds, optionally evaluates Gate 3 verdicts. `docs/calibration-report.md` documents findings: threshold 0.35 is a no-op on synthetic data (embeddings cluster at 0.18–0.21), LIMIT 8 does all filtering. Gate 3 correctly approved archetype matches and rejected skill-emphasis mismatches (4 approved, 1 rejected, 0 errors). **Launch-blocking:** thresholds must be re-calibrated against 20–30 real job/persona pairs before any real user sees Module C output.
+    - All 570 Vitest tests pass, typecheck clean, biome clean. (Completed June 2026.)
 
 
 ## Technical Architecture
@@ -85,8 +93,8 @@ Bottom-up order for solo implementation. Update the status tag as each step comp
   - *Drizzle Path*: `src/db/schemas/jobs/workingHistory.ts`
 - **`tags_experience` table** `[Status: Implemented]`: Single source of truth for the user's skills and years of experience per skill. NOT populated by the LLM directly — computed by `recomputeTagsExperience(applicantId)` which reads `working_history`, merges overlapping date ranges per canonical tag, and upserts results here. The `active` flag lets users deactivate non-critical skills. Unique constraint on `(applicant_id, canonical_tag)` enables upsert.
   - *Drizzle Path*: `src/db/schemas/jobs/tagsExperience.ts`
-- **`jobs` table** `[Status: Implemented]`: Stores job listings with `ats_slug`, `title`, `raw_json`, and `extracted_tags` (text array).
-- **`match_queue` table** `[Status: Implemented]`: Maps `job_id` to `user_id` with a `status` state (pending, approved, rejected) to buffer and queue high-fidelity LLM evaluations.
+- **`jobs` table** `[Status: Implemented]`: Stores job listings with `ats_slug`, `title`, `raw_json`, `extracted_tags` (text array), `job_embedding` (vector 1536), `external_job_id` (dedup), `last_seen_at` (stale tracking), `status` (`active|stale|gone|rejected|normalization_failed`), and `normalized_at` (Module C idempotency guard). Indexed with GIN on `extracted_tags`, HNSW on `job_embedding`, and B-tree on `(status, last_seen_at)`.
+- **`match_queue` table** `[Status: Implemented]`: Maps `job_id` to `persona_id` (not `applicant_id` — corrected for multi-persona users) with Gate 1+2 scores (`overlap_score`, `cosine_distance`), a `status` state (pending, approved, rejected), Gate 3 LLM verdict columns (`llm_verdict`, `llm_reasoning`, `llm_model`, `evaluated_at`), and `is_read` for in-app notification badge. Unique index on `(job_id, persona_id)` — an applicant can match the same job via multiple personas. Partial index on `(applicant_id) WHERE is_read = false AND status = 'approved'` for the unread badge query.
 - **`blog_categories`, `blog_tags`, `blog_posts`, `blog_post_tags`, and `blog_comments` tables** `[Status: Deprecated — Retained Historically]`: A full relational blog and nested commenting schema that predates the architectural decision to move the blog to file-based MDX.
   - *Drizzle Path*: `src/db/schemas/blog/` (defines `posts.ts`, `categories.ts`, `tags.ts`, `comments.ts`)
   - *Decision*: The blog is now implemented as static **MDX** (see *Blog & Content Architecture*). These tables, their relations, and migrations are **retained as historical artifacts** and **must not be referenced by any new application code**. They are not deleted to preserve migration history. The `blog_comments` table is fully superseded by Giscus.
@@ -229,7 +237,7 @@ See TDD §3.9 for full technical detail on each item.
 - Bulk actions for managing multiple listings
 - Application tracking and status updates
 
-### Ingestion, Seeding & Routing Pipeline `[Status: Partially Implemented]` — Module B (ingestion) is Implemented & Live-Tested; Module C (3-Gate routing) is Planned / TO DO
+### Ingestion, Seeding & Routing Pipeline `[Status: Implemented]` — Module B (ingestion) is Implemented & Live-Tested; Module C (3-Gate routing) is Implemented (synthetic-data calibrated, real-data calibration launch-blocking)
 
 #### 1. The Seeding & Ingestion Engine (Module B) `[Status: Implemented & Live-Tested ✅]`
 
@@ -371,33 +379,51 @@ Module B is feature-complete with 464 unit/integration tests passing (103 seeder
 
 All fixes include regression tests. Total test count: 48 seeder URL-parser tests + 10 HN Algolia tests + 11 ATS schema tests + 20 poller tests = 89 Module B tests (all passing).
 
-#### 2. The 3-Gate Event-Driven Matching Engine (Module C) `[Status: Planned / TO DO]`
-When a new job listing is successfully ingested, an asynchronous workflow is triggered by Inngest:
-- **Trigger**: Inngest emits a `job/ingested` event.
-- **Step 1 (Job Normalization & Vectorization)**:
-  - System extracts canonical tech tags from the job posting.
-  - Generates a single high-dimensional embedding utilizing `text-embedding-3-small`.
-- **Step 2 (Fast Routing via Gate 1 & Gate 2)**:
-  - Inngest runs a highly optimized single-pass database query comparing the job against all user personas:
-    - **Gate 1 (Exact Filtering)**: Performs overlapping array operations using GIN indexes:
+#### 2. The 3-Gate Event-Driven Matching Engine (Module C) `[Status: Implemented — Synthetic-Data Calibrated]`
+
+When a new job listing is successfully ingested, an asynchronous workflow is triggered by Inngest. Full technical specification in TDD §5 and `docs/MODULE_C_DECISIONS.md`.
+
+- **Trigger**: Inngest emits a `job/ingested` event (only for genuinely new jobs, not upserts).
+- **Step 1 (Job Normalization & Vectorization)** `[Status: Implemented]`:
+  - `jobIngestedHandler` in `src/inngest/functions.ts` receives the event.
+  - Idempotency guard: if `job.normalizedAt IS NOT NULL`, skip (event re-delivery is safe).
+  - `src/lib/jobs/job-normalizer.ts` extracts canonical tech tags: regex dictionary scan first (`scanTagsRegex`), LLM fallback (`extractTagsLLM` via `gpt-4o-mini`) if regex yields <3 tags. Ashby description prefers `descriptionPlain` over `descriptionHtml`.
+  - `decideNormalizationAction` handles rejection (garbage job → `status = 'rejected'`) vs. system failure (`status = 'normalization_failed'`).
+  - `src/lib/jobs/job-embedder.ts` generates a 1536-d embedding via `text-embedding-3-small`.
+  - Sets `normalizedAt` on terminal success or rejection (never on `normalization_failed`).
+- **Step 2 (Fast Routing via Gate 1 & Gate 2)** `[Status: Implemented]`:
+  - `src/lib/jobs/gate-1-2.ts` runs a single-pass SQL query (`runGateSQLRouter`) comparing the job against all personas:
+    - **Gate 1 (Exact Filtering)**: GIN index array overlap via `&&` operator:
       ```sql
-      (job.extracted_tags && users.must_have_tags) AND NOT (job.extracted_tags && users.blocklist_tags)
+      (p.must_have_tags && jobTags) AND NOT (p.blocklist_tags && jobTags)
       ```
-    - **Gate 2 (Semantic Similarity)**: Calculates cosine distance over HNSW indexes to find matching personas:
+    - **Gate 2 (Semantic Similarity)**: HNSW cosine distance filter:
       ```sql
-      MAX(job.vector <=> user_personas.persona_embedding)
+      (p.persona_embedding <=> jobEmbedding::vector) < 0.35
       ```
-    - The top ~8 matching User IDs with acceptable similarity scores are written directly to the `match_queue`.
-- **Step 3 (Gate 3 - High-Fidelity AI Arbitration)**:
-  - Inngest fans out 8 parallel `job/evaluate/candidate` events.
-  - Each durable step runs `gpt-4o-mini` with strict `zod` schemas to run a nuanced evaluation matching specialized requirements (years of experience, context, specific stack interactions).
-  - High-confidence matches automatically trigger a real-time notification push to the user's dashboard.
+    - **Composite ordering**: `overlap_score * 0.6 + (1 - cosine_distance) * 0.4 DESC` — blends both signals so a strong semantic match isn't outranked by a barely-passing tag-overlap match.
+    - **Overlap count**: Uses `unnest` + `= ANY` in a LATERAL subquery (NOT the `&` operator, which only exists for `intarray`/`integer[]`, not `text[]`).
+    - Top 8 candidates (`GATE_ROUTER_LIMIT`) inserted into `match_queue` with `ON CONFLICT (job_id, persona_id) DO NOTHING`.
+  - `jobIngestedHandler` fans out one `match/gate-3-evaluate` Inngest event per candidate row.
+- **Step 3 (Gate 3 - High-Fidelity AI Arbitration)** `[Status: Implemented]`:
+  - `gate3Evaluator` Inngest function in `src/inngest/functions.ts` receives `match/gate-3-evaluate` events.
+  - `src/lib/jobs/gate-3.ts` builds a structured prompt (`buildGate3Prompt`) with job description, persona context, and applicant constraints (country, work hours, compliance, modalities, assignment types).
+  - `evaluateGate3` calls `gpt-4o-mini` via Vercel AI SDK `generateObject` with a strict Zod schema (`gate3VerdictSchema`) — verdict (`approved`/`rejected`), confidence (0.0–1.0), reasoning, and blockers.
+  - Verdict written to `match_queue` (`llm_verdict`, `llm_reasoning`, `llm_model`, `evaluated_at`). If approved, `match/approved` event emitted (MVP: nothing listens — dashboard polls directly; Module D will consume this post-MVP).
+  - Error recovery: unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'` (recoverable by a future sweep).
+- **Step 4 (Dashboard Notification Layer)** `[Status: Implemented]`:
+  - `src/lib/jobs/dashboard-queries.ts`: `getApprovedMatches` (paginated, applicant-scoped), `getUnreadBadgeCount`, `getMatchDetail`.
+  - `src/actions/matches.ts`: `markMatchRead`, `markAllMatchesRead` Server Actions.
+- **Calibration (Feature C6)** `[Status: Implemented — Synthetic Data Only]`:
+  - `scripts/calibrate-routing-engine.ts` measures Gate 1+2 output distributions and Gate 3 verdict quality against seed data.
+  - `docs/calibration-report.md` documents findings: `GATE2_MAX_COSINE_DISTANCE = 0.35` is a no-op on synthetic data (embeddings cluster at 0.18–0.21), `GATE_ROUTER_LIMIT = 8` does all filtering. Gate 3 correctly approved archetype matches and rejected skill-emphasis mismatches.
+  - **⚠️ LAUNCH-BLOCKING**: Thresholds must be re-calibrated against 20–30 real job/persona pairs before any real user sees Module C output. Current values are uncalibrated guesses validated only against synthetic seed data.
 
 ### User Journey Summary
 1. **Discovery**: User lands on homepage, understands value proposition `[Status: Implemented]`
 2. **Conversion**: User registers/logs in via standard Auth page `[Status: Implemented]`
 3. **Onboarding**: Redirected dynamically based on profile status: to `/dashboard/profile-management` for initial CV upload (if `is_onboarded=false`), or `/dashboard/jobs` if already onboarded `[Status: Implemented]` — onboarding flow (CV upload → review → profile management) and smart redirect logic on sign-in/sign-up are both implemented
-4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Partially Implemented]` — profile management (read-only MVP) is `[Status: Implemented]`; job matching and review is `[Status: Planned / TO DO]` (Module C)
+4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Partially Implemented]` — profile management (read-only MVP) is `[Status: Implemented]`; job matching backend (Module C 3-Gate funnel) is `[Status: Implemented]` (synthetic-data calibrated, real-data calibration launch-blocking); dashboard UI for reviewing matched jobs is `[Status: Planned / TO DO]`
 5. **Application**: User applies to jobs through ATS integration `[Status: Planned / TO DO]`
 6. **Retention**: User returns to track applications and discover new opportunities `[Status: Planned / TO DO]`
 

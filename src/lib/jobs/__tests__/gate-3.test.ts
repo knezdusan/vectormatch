@@ -1,0 +1,407 @@
+/**
+ * Unit tests for Module C — Gate 3 LLM Arbiter (Step 6 of the 3-Gate Funnel).
+ *
+ * Test coverage (MODULE_C_DECISIONS.md §13, Feature C3):
+ *   - buildGate3Prompt: context assembly (job + persona + applicant sections)
+ *   - gate3VerdictSchema: Zod validation (approved, confidence, reasoning, blockers)
+ *   - evaluateGate3: LLM call with mocked generateObject
+ *   - mapVerdict: approved → 'approved', !approved → 'rejected'
+ *
+ * The AI SDK (generateObject) is mocked — no real OpenAI calls.
+ */
+
+import { vi } from "vitest";
+
+// Mock the AI SDK — no real OpenAI calls in tests
+vi.mock("ai", () => ({
+  generateObject: vi.fn(),
+}));
+
+// Mock server-only
+vi.mock("server-only", () => ({}));
+
+import { generateObject } from "ai";
+import {
+  buildGate3Prompt,
+  evaluateGate3,
+  type Gate3Context,
+  type Gate3Verdict,
+  gate3VerdictSchema,
+  mapVerdict,
+} from "@/lib/jobs/gate-3";
+
+// =============================================================================
+// TEST FIXTURES
+// =============================================================================
+
+const mockContext: Gate3Context = {
+  job: {
+    title: "Senior React Engineer",
+    description:
+      "We are looking for a senior frontend engineer with React, TypeScript, and Next.js experience.",
+    extractedTags: ["react", "typescript", "nextjs", "css"],
+  },
+  persona: {
+    personaLabel: "Senior React Developer",
+    embeddingSummary:
+      "Senior frontend engineer with 6 years building React applications. Deep expertise in Next.js App Router, TypeScript, and modern CSS.",
+    mustHaveTags: ["react", "nextjs", "typescript", "javascript", "css"],
+    blocklistTags: [],
+  },
+  applicant: {
+    allTags: [
+      "react",
+      "nextjs",
+      "typescript",
+      "javascript",
+      "css",
+      "git",
+      "vitest",
+    ],
+    country: "RS",
+    canWorkUsHours: true,
+    preferredCompliance: ["b2b", "w8ben"],
+    modalities: ["full-time", "contract"],
+    assignmentTypes: ["remote"],
+  },
+};
+
+const mockApprovedVerdict: Gate3Verdict = {
+  approved: true,
+  matchConfidence: 0.85,
+  matchReasoning:
+    "The job requires React, TypeScript, and Next.js which align perfectly with the persona's must-have tags. The remote assignment type matches the applicant's preference.",
+  blockers: [],
+};
+
+const mockRejectedVerdict: Gate3Verdict = {
+  approved: false,
+  matchConfidence: 0.9,
+  matchReasoning:
+    "The job requires on-site work in San Francisco, but the applicant only accepts remote assignments.",
+  blockers: ["requires on-site in SF"],
+};
+
+// =============================================================================
+// buildGate3Prompt — context assembly
+// =============================================================================
+
+describe("buildGate3Prompt", () => {
+  it("includes job title and description", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Senior React Engineer");
+    expect(prompt).toContain("React, TypeScript, and Next.js");
+  });
+
+  it("includes job extracted tags", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("react, typescript, nextjs, css");
+  });
+
+  it("includes persona label and embedding summary", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Senior React Developer");
+    expect(prompt).toContain("Senior frontend engineer with 6 years");
+  });
+
+  it("includes persona must-have and blocklist tags", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("react, nextjs, typescript, javascript, css");
+    expect(prompt).toContain("Blocklist Tags");
+  });
+
+  it("includes applicant hard constraints", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Country: RS");
+    expect(prompt).toContain("Can Work US Hours: true");
+    expect(prompt).toContain("b2b, w8ben");
+    expect(prompt).toContain("full-time, contract");
+    expect(prompt).toContain("remote");
+  });
+
+  it("includes applicant full skill knowledge base", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Full Skill Knowledge Base");
+    expect(prompt).toContain(
+      "react, nextjs, typescript, javascript, css, git, vitest",
+    );
+  });
+
+  it("handles empty arrays gracefully", () => {
+    const ctx: Gate3Context = {
+      job: { title: "Job", description: "desc", extractedTags: [] },
+      persona: {
+        personaLabel: "Persona",
+        embeddingSummary: "summary",
+        mustHaveTags: [],
+        blocklistTags: [],
+      },
+      applicant: {
+        allTags: [],
+        country: null,
+        canWorkUsHours: null,
+        preferredCompliance: [],
+        modalities: [],
+        assignmentTypes: [],
+      },
+    };
+
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("none specified");
+    expect(prompt).toContain("none");
+    expect(prompt).toContain("not specified");
+    expect(prompt).toContain("any");
+  });
+
+  it("includes blocklist tags when present", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      persona: {
+        ...mockContext.persona,
+        blocklistTags: ["java", "php"],
+      },
+    };
+
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("java, php");
+  });
+
+  it("includes evaluation instruction at the end", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("## EVALUATION");
+    expect(prompt).toContain("strong match");
+  });
+});
+
+// =============================================================================
+// gate3VerdictSchema — Zod validation
+// =============================================================================
+
+describe("gate3VerdictSchema", () => {
+  it("validates a correct approved verdict", () => {
+    const result = gate3VerdictSchema.safeParse(mockApprovedVerdict);
+
+    expect(result.success).toBe(true);
+  });
+
+  it("validates a correct rejected verdict", () => {
+    const result = gate3VerdictSchema.safeParse(mockRejectedVerdict);
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing approved field", () => {
+    const result = gate3VerdictSchema.safeParse({
+      matchConfidence: 0.8,
+      matchReasoning: "Good match",
+      blockers: [],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects matchConfidence outside 0-1 range", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 1.5,
+      matchReasoning: "Good match",
+      blockers: [],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects matchConfidence negative", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: -0.1,
+      matchReasoning: "Good match",
+      blockers: [],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects empty matchReasoning", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.8,
+      matchReasoning: "",
+      blockers: [],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects matchReasoning over 500 chars", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.8,
+      matchReasoning: "a".repeat(501),
+      blockers: [],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing blockers array", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.8,
+      matchReasoning: "Good match",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts empty blockers array (for approved verdicts)", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.8,
+      matchReasoning: "Good match",
+      blockers: [],
+    });
+
+    expect(result.success).toBe(true);
+  });
+});
+
+// =============================================================================
+// evaluateGate3 — LLM call with mocked generateObject
+// =============================================================================
+
+describe("evaluateGate3", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("calls generateObject with gpt-4o-mini model", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: mockApprovedVerdict,
+    });
+
+    await evaluateGate3(mockContext);
+
+    expect(generateObject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({ modelId: "gpt-4o-mini" }),
+      }),
+    );
+  });
+
+  it("passes the gate3VerdictSchema to generateObject", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: mockApprovedVerdict,
+    });
+
+    await evaluateGate3(mockContext);
+
+    expect(generateObject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schema: gate3VerdictSchema,
+      }),
+    );
+  });
+
+  it("passes system and user messages", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: mockApprovedVerdict,
+    });
+
+    await evaluateGate3(mockContext);
+
+    const call = (generateObject as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    expect(call.messages).toHaveLength(2);
+    expect(call.messages[0].role).toBe("system");
+    expect(call.messages[1].role).toBe("user");
+    expect(call.messages[1].content).toContain("Senior React Engineer");
+  });
+
+  it("returns the LLM verdict object", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: mockApprovedVerdict,
+    });
+
+    const result = await evaluateGate3(mockContext);
+
+    expect(result).toEqual(mockApprovedVerdict);
+    expect(result.approved).toBe(true);
+    expect(result.matchConfidence).toBe(0.85);
+    expect(result.matchReasoning).toContain("React, TypeScript, and Next.js");
+    expect(result.blockers).toEqual([]);
+  });
+
+  it("returns a rejected verdict correctly", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockResolvedValue({
+      object: mockRejectedVerdict,
+    });
+
+    const result = await evaluateGate3(mockContext);
+
+    expect(result.approved).toBe(false);
+    expect(result.blockers).toContain("requires on-site in SF");
+  });
+
+  it("propagates errors from generateObject (rate limit, timeout)", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("OpenAI rate limit exceeded"),
+    );
+
+    await expect(evaluateGate3(mockContext)).rejects.toThrow(
+      "OpenAI rate limit exceeded",
+    );
+  });
+
+  it("propagates AI_ZodError when LLM returns unparseable output", async () => {
+    (generateObject as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("AI_ZodError: Invalid response"),
+    );
+
+    await expect(evaluateGate3(mockContext)).rejects.toThrow("AI_ZodError");
+  });
+});
+
+// =============================================================================
+// mapVerdict — verdict mapping (§6.5)
+// =============================================================================
+
+describe("mapVerdict", () => {
+  it("maps approved=true to 'approved'", () => {
+    expect(mapVerdict(mockApprovedVerdict)).toBe("approved");
+  });
+
+  it("maps approved=false to 'rejected'", () => {
+    expect(mapVerdict(mockRejectedVerdict)).toBe("rejected");
+  });
+
+  it("maps a low-confidence approved verdict to 'approved'", () => {
+    const lowConfidenceApproved: Gate3Verdict = {
+      approved: true,
+      matchConfidence: 0.1,
+      matchReasoning: "Weak match but passes minimum criteria.",
+      blockers: [],
+    };
+
+    expect(mapVerdict(lowConfidenceApproved)).toBe("approved");
+  });
+
+  it("maps a high-confidence rejected verdict to 'rejected'", () => {
+    const highConfidenceRejected: Gate3Verdict = {
+      approved: false,
+      matchConfidence: 0.95,
+      matchReasoning: "Clear mismatch in tech stack.",
+      blockers: ["wrong tech stack"],
+    };
+
+    expect(mapVerdict(highConfidenceRejected)).toBe("rejected");
+  });
+});

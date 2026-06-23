@@ -18,6 +18,7 @@ import { inngest } from "@/inngest/client";
 import {
   bigQuerySeeder,
   customUrlResolver,
+  gate3Evaluator,
   hnAlgoliaSeeder,
   jobIngestedHandler,
   phalanxPoller,
@@ -50,5 +51,6 @@ export const { GET, POST, PUT } = serve({
     tierRecalc,
     staleCleanup,
     jobIngestedHandler,
+    gate3Evaluator,
   ],
 });
