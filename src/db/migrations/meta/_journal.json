@@ -57,6 +57,13 @@
       "when": 1781861632965,
       "tag": "0007_module_a_onboarding_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782199769567,
+      "tag": "0008_module_b_ingestion_tables",
+      "breakpoints": true
     }
   ]
 }

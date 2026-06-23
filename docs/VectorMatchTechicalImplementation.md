@@ -10,7 +10,7 @@
 *   **Database:** PostgreSQL (Neon) — connected via `@neondatabase/serverless` Pool (not HTTP driver) to support Drizzle transactions required by `recomputeTagsExperience()`
 *   **ORM:** Drizzle ORM
 *   **Authentication:** Better Auth (database-integrated)
-*   **Background Jobs / Orchestration:** Inngest (v3, Durable Execution)
+*   **Background Jobs / Orchestration:** Inngest (v4, Durable Execution)
 *   **AI/ML:** Vercel AI SDK (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings)
 *   **Frontend UI:** Tailwind CSS v4, React Hook Form, Zod, `@dnd-kit` (for drag-and-drop)
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
@@ -482,26 +482,759 @@ See §3.8 above. Inngest cron job to delete abandoned uploads. Not blocking for 
 
 ---
 
+## 3.9 INNGEST ORCHESTRATION INFRASTRUCTURE `[Status: Implemented]`
+
+The Inngest v4 SDK provides the durable execution layer for all background jobs, scheduled tasks, and event-driven workflows. It is configured as the base infrastructure that Module B (seeding/ingestion) and Module C (routing) build upon.
+
+### 3.9.1 Project Files
+
+| File | Purpose |
+|------|---------|
+| `src/inngest/client.ts` | Typed Inngest client (`id: "vectormatch"`) with `VectorMatchEvents` catalog. Re-exports as `inngest`. |
+| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`. |
+| `src/inngest/index.ts` | Barrel exports for clean imports (`@/inngest`). |
+| `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) with `maxDuration: 300`. |
+| `docs/inngest-agent-resources.md` | Coding agent reference: LLM docs, MCP, CLI debugging, AI patterns (`step.ai.wrap`, `step.ai.infer`). |
+
+### 3.9.2 Local Development
+
+```bash
+# Terminal 1 — Next.js dev server
+npm run dev
+
+# Terminal 2 — Inngest Dev Server UI at http://localhost:8288
+npm run inngest:dev
+```
+
+The Dev Server auto-discovers apps on common ports. Environment variable `INNGEST_DEV=1` (set in `.env.local`) forces the SDK to connect to the local dev server instead of Inngest Cloud.
+
+### 3.9.3 MCP Integration
+
+The Dev Server exposes a Model Context Protocol (MCP) endpoint at `http://127.0.0.1:8288/mcp`, registered in `.devin/config.json`. Coding agents can list functions, send test events, invoke functions, and inspect run status.
+
+### 3.9.4 Self-Hosted Deployment (Coolify/Hetzner)
+
+Unlike Vercel, there is no automatic Inngest integration for self-hosted setups. After each deploy, sync manually:
+
+```bash
+curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
+```
+
+Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in production environment variables.
+
+### 3.9.5 Coding Rules for Inngest Functions
+
+1. **Always wrap domain logic in `step.run()`** — never call the DB, external APIs, or AI SDKs directly in the handler body.
+2. **Import domain logic lazily** inside the handler to avoid loading heavy modules at discovery time.
+3. **Send events with `step.sendEvent()`** so emission is part of the durable trace.
+4. **Use `step.ai.wrap()` or `step.ai.infer()`** for all LLM calls inside Inngest functions — full observability, retry logic, and cost offloading.
+5. **Register new functions** in `src/app/api/inngest/route.ts`.
+
+---
+
 ## 4. MODULE B: SEEDING & INGESTION PIPELINE
 
-**Goal:** Discover non-tech and startup ATS slugs for $0, then poll them natively without getting blocked.
+**Goal:** Discover non-tech and startup ATS slugs for $0, then poll them natively without getting blocked. The system is fully autonomous — no human-in-the-loop for routine operations. Unresolvable discoveries are discarded, not queued for manual review.
 
-### 4.1 The Discovery/Seeding Engines (Run Monthly/Weekly)
-Do not scrape career pages dynamically. Seed the database with known ATS slugs.
-1.  **HTTPArchive BigQuery (The Volume Seeder):**
-    *   Query the Google BigQuery public dataset `httparchive.technologies` and `httparchive.summary_pages`.
-    *   Logic: Extract domains where `technology = 'Next.js'` AND HTML body contains `boards-api.greenhouse.io` or `api.lever.co`.
-2.  **HN Algolia Sniper (The Delta Seeder):**
-    *   Endpoint: `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN+Who+is+hiring`
-    *   Extract URLs matching `jobs.ashbyhq.com/slug`, `boards.greenhouse.io/slug`.
-3.  **crt.sh (The Stealth Seeder):**
-    *   Endpoint: `https://crt.sh/?q=%.careers.*&output=json`. Extract domain, perform a CNAME lookup in Node.js to verify if it points to Greenhouse/Lever.
+### 4.0 The `company` Table — The ATS Slug Registry `[Status: Implemented]`
 
-### 4.2 The "Phalanx" Poller (Run Daily via Inngest or Cron)
+The seeders discover `(company_domain, ats_source, ats_slug)` tuples. These must persist in a dedicated registry table — the `job` table stores jobs, not companies. Without this table, the Phalanx Poller has nowhere to read from and seeders have nowhere to write to.
+
+**Drizzle Path:** `src/db/schemas/jobs/company.ts`
+
+```typescript
+// src/db/schemas/jobs/company.ts
+
+// ── Enums ──────────────────────────────────────────────────────────────────
+
+export const atsSourceEnum = pgEnum("ats_source", [
+  "greenhouse",
+  "lever",
+  "ashby",
+  // Future: "smartrecruiters", "recruitee", "workable"
+]);
+
+export const companyTierEnum = pgEnum("company_tier", [
+  "active",   // Tier A: posted a job in last 14 days → poll every 12h
+  "dormant",  // Tier B: no jobs in >14 days → poll weekly
+  "dead",     // Tier C: endpoint returns 404 or 3+ consecutive failures → stop
+]);
+
+export const companyHealthEnum = pgEnum("company_health", [
+  "healthy",      // Last poll succeeded
+  "degraded",     // Last poll had partial failures (some jobs failed Zod validation)
+  "rate_limited", // Got 429 — backed off, will retry next cycle
+  "blocked",      // Got 403 — needs proxy or investigation
+  "error",        // Unexpected error (500, timeout, malformed JSON)
+  "dead",         // Endpoint returns 404 — company left the ATS
+]);
+
+export const discoverySourceEnum = pgEnum("discovery_source", [
+  "httparchive",   // BigQuery volume seeder
+  "hn_algolia",    // Hacker News delta seeder
+  "crt_sh",        // Certificate Transparency stealth seeder (Phase 2)
+  "hn_custom_url", // HN comment with non-ATS URL → CNAME/probe resolved
+  "manual",        // Admin-added via dashboard
+]);
+
+// ── Table ──────────────────────────────────────────────────────────────────
+
+export const company = pgTable(
+  "company",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+
+    // ── Identity ────────────────────────────────────────────────────────────
+    atsSlug: text("ats_slug").notNull(),
+    atsSource: atsSourceEnum("ats_source").notNull(),
+    companyName: text("company_name"),  // Filled in by poller from ATS metadata
+    rootDomain: text("root_domain"),    // For cross-seeder dedup
+
+    // ── Discovery Provenance ────────────────────────────────────────────────
+    discoverySource: discoverySourceEnum("discovery_source").notNull(),
+    discoveredAt: timestamp("discovered_at").defaultNow().notNull(),
+    discoveryContext: text("discovery_context"),  // HN comment URL, BQ query date, etc.
+
+    // ── Tier & Polling State ────────────────────────────────────────────────
+    tier: companyTierEnum("tier").notNull().default("dormant"),
+    lastPolledAt: timestamp("last_polled_at"),
+    lastJobPostedAt: timestamp("last_job_posted_at"),  // Drives tier transitions
+    activeJobCount: integer("active_job_count").notNull().default(0),
+
+    // ── Health & Error Tracking ─────────────────────────────────────────────
+    health: companyHealthEnum("health").notNull().default("healthy"),
+    lastErrorMessage: text("last_error_message"),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+
+    // ── Operational Flags ───────────────────────────────────────────────────
+    pollingEnabled: boolean("polling_enabled").notNull().default(true),
+
+    // ── Timestamps ──────────────────────────────────────────────────────────
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    // A company can have multiple ATS sources — uniqueness is (ats_source, ats_slug)
+    uniqueAtsSlug: uniqueIndex("company_unique_ats_slug")
+      .on(table.atsSource, table.atsSlug),
+    // Index for the poller's daily query: tier + pollingEnabled + lastPolledAt
+    tierPollingIdx: index("company_tier_polling_idx")
+      .on(table.tier, table.pollingEnabled, table.lastPolledAt),
+    // Index for domain-based dedup across seeders
+    domainIdx: index("company_root_domain_idx").on(table.rootDomain),
+    // Index for health dashboard queries
+    healthIdx: index("company_health_idx").on(table.health),
+  }),
+);
+```
+
+**Key design decisions:**
+- **`uniqueIndex(atsSource, atsSlug)`** — A company might use Greenhouse for eng and Lever for sales. Slug alone isn't globally unique.
+- **`companyTierEnum` is separate from `companyHealthEnum`** — Tier (active/dormant/dead) is about polling cadence. Health (healthy/degraded/rate_limited/blocked/error/dead) is about last poll result. These are orthogonal.
+- **`lastJobPostedAt` drives tier transitions** — The decay algorithm doesn't need a separate tracking table. The poller updates this field; tier recalculation runs as a daily scheduled query.
+- **`consecutiveFailures` with threshold of 3** — Automatic `→ dead` transition. Three consecutive poll failures mark the company as dead and stop polling.
+- **No FK to `job` table** — The relationship is logical (jobs matched by `atsSource + atsSlug`), not enforced. This prevents poller failures when a job arrives for a slug not yet in the registry.
+
+### 4.0b The `ingestionLog` Table — Observability `[Status: Implemented]`
+
+Without observability, the pipeline is a black box. Every seeder and poller run is logged here.
+
+**Drizzle Path:** `src/db/schemas/jobs/ingestionLog.ts`
+
+```typescript
+export const ingestionLogTypeEnum = pgEnum("ingestion_log_type", [
+  "seed",         // Seeder ran (HN, BigQuery, crt.sh)
+  "poll",         // Poller polled a company
+  "tier_recalc",  // Tier recalculation ran
+  "stale_cleanup",// Stale job cleanup ran
+]);
+
+export const ingestionLogStatusEnum = pgEnum("ingestion_log_status", [
+  "success",
+  "partial",   // Some items failed but the run completed
+  "failed",    // The entire run failed
+]);
+
+export const ingestionLog = pgTable(
+  "ingestion_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: ingestionLogTypeEnum("type").notNull(),
+    status: ingestionLogStatusEnum("status").notNull(),
+    companyId: uuid("company_id"),  // FK to company.id (nullable for seed/cleanup)
+    source: text("source"),          // e.g. "hn_algolia", "httparchive", "greenhouse"
+    // Metrics
+    itemsProcessed: integer("items_processed").notNull().default(0),
+    itemsInserted: integer("items_inserted").notNull().default(0),
+    itemsUpdated: integer("items_updated").notNull().default(0),
+    itemsRejected: integer("items_rejected").notNull().default(0),  // Failed Gate 0 or Zod
+    itemsSkipped: integer("items_skipped").notNull().default(0),    // Duplicates
+    // Error details
+    errorMessage: text("error_message"),
+    errorDetails: jsonb("error_details"),  // Zod error issues, HTTP status codes, etc.
+    // Duration
+    startedAt: timestamp("started_at").notNull(),
+    finishedAt: timestamp("finished_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    typeIdx: index("ingestion_log_type_idx").on(table.type, table.createdAt),
+    companyIdx: index("ingestion_log_company_idx").on(table.companyId, table.createdAt),
+    statusIdx: index("ingestion_log_status_idx").on(table.status, table.createdAt),
+  }),
+);
+```
+
+### 4.0c The `job` Table Updates — Deduplication & Stale Tracking `[Status: Implemented]`
+
+The existing `job` table (§2.1) needs three additions for Module B:
+
+1. **`externalJobId` (text, notNull)** — The ATS's internal job ID (e.g. Greenhouse's numeric `id`, Lever's UUID string). Used for deduplication via upsert.
+2. **`lastSeenAt` (timestamp, notNull, default now)** — When the job was last seen in a poll. Updated on every re-poll. Drives stale detection.
+3. **`status` (text, notNull, default 'active')** — `active` | `stale` | `gone`. Jobs not seen in 7 days → `stale`. Not seen in 30 days → `gone`. Module C's Gate 1+2 query must filter `WHERE status = 'active'`.
+
+**New indexes:**
+- `uniqueIndex("job_unique_ats_job").on(atsSource, atsSlug, externalJobId)` — The deduplication anchor. A job is uniquely identified by `(ats_source, ats_slug, external_job_id)`.
+- `index("job_status_idx").on(status, lastSeenAt)` — For the daily stale cleanup query.
+
+**Upsert pattern in the poller:**
+```typescript
+await db.insert(job).values({
+  atsSource: "greenhouse",
+  atsSlug: slug,
+  externalJobId: String(ghJob.id),
+  title: ghJob.title,
+  rawJson: JSON.stringify(ghJob),
+  extractedTags: [],       // Empty — Module C fills these in
+  jobEmbedding: null,      // Null — Module C generates this
+  lastSeenAt: new Date(),
+  status: "active",
+}).onConflictDoUpdate({
+  target: [job.atsSource, job.atsSlug, job.externalJobId],
+  set: {
+    title: ghJob.title,
+    rawJson: JSON.stringify(ghJob),
+    lastSeenAt: new Date(),
+    status: "active",  // Resurrect if it was stale/gone
+  },
+});
+```
+
+### 4.1 The Discovery/Seeding Engines
+
+Do not scrape career pages dynamically. Seed the database with known ATS slugs. The system is fully autonomous — unresolvable discoveries are discarded, not queued for manual review.
+
+**Timescale separation — three different operational patterns:**
+
+| Component | Schedule | Implementation | Failure Mode |
+|-----------|----------|----------------|--------------|
+| BigQuery Volume Seeder | Monthly (manual script) | `scripts/seed-bigquery.ts` via `npm run seed:bigquery` | Query fails → no new companies → retry next month |
+| HN Algolia Delta Seeder | Weekly (Inngest scheduled) | Inngest function `seeder/hn-algolia` with `cron: "0 0 * * 1"` | API fails → Inngest automatic retry (3 attempts) |
+| crt.sh Stealth Seeder | Phase 2 (deferred) | — | — |
+
+#### 4.1.1 HTTPArchive BigQuery (The Volume Seeder) `[Status: Implemented]`
+
+**⚠️ CRITICAL: The `httparchive.technologies` table no longer exists.** As of April 2025, the HTTP Archive reorganized their BigQuery dataset. The data now lives in `httparchive.crawl.pages` (~30 TB/month) as a nested `technologies.technology` array field within each page record. The old query strategy (`WHERE technology = 'Next.js'` against a standalone table) will not run.
+
+**Cost optimization strategy:**
+- BigQuery Sandbox Mode: 1 TB free query processing per month, no billing required.
+- BigQuery charges per column scanned, not per filter complexity. Adding technologies to `IN UNNEST()` costs the same as querying for one.
+- **Always pin `date` to a specific monthly crawl** (partition filter is mandatory — table is 30 TB/month).
+- Filter on `client = 'desktop'` (halves scan volume) and `is_root_page = true` (only homepages).
+- Use `TABLESAMPLE SYSTEM (0.01 PERCENT)` for exploratory queries (scans ~3 GB instead of ~30 GB).
+- Two-phase approach: (1) cheap query on `technologies` column to find candidate domains, (2) targeted query on `payload` column for ATS script URL verification.
+
+**Technology subset for the query (4 tiers):**
+
+| Tier | Technologies | Rationale |
+|------|-------------|-----------|
+| **Tier 1 — Core web frameworks** | `Next.js`, `React`, `Vue.js`, `Nuxt.js`, `Svelte`, `SvelteKit`, `Angular`, `Astro`, `Remix`, `Gatsby`, `Solid.js` | Persona-defining for target users |
+| **Tier 2 — Backend/runtime** | `Node.js`, `Express`, `NestJS`, `Fastify`, `Deno`, `Bun` | Catches backend-heavy shops without a JS frontend framework |
+| **Tier 3 — Build tools & CSS** | `Tailwind CSS`, `Vite`, `esbuild`, `TypeScript`, `Playwright`, `Vitest` | High correlation with modern dev teams |
+| **Tier 4 — Legacy (detectable)** | `PHP`, `WordPress`, `Laravel`, `Drupal`, `Symfony`, `Ruby on Rails` | These heavily influence frontend HTML structure, headers, and cookies — detectable via HTTPArchive unlike pure Go/Rust backends |
+
+**Note on Tier 4:** Unlike pure Go or Rust backends (which leave no frontend fingerprint), PHP/Rails/WordPress stacks are detectable because they generate distinctive HTML structures, HTTP headers (`X-Powered-By: PHP/X.Y`), session cookies (`PHPSESSID`, `_rails_session`), and meta generator tags. These companies still hire frontend developers and full-stack engineers — excluding them would miss a significant portion of the market.
+
+**Exploratory query (validate logic before full scan):**
+```sql
+SELECT
+  page,
+  root_page,
+  technologies.technology AS tech_list
+FROM `httparchive.crawl.pages`
+TABLESAMPLE SYSTEM (0.01 PERCENT)
+WHERE
+  date = '2024-06-01'
+  AND client = 'desktop'
+  AND is_root_page
+  AND (
+    'Next.js' IN UNNEST(technologies.technology)
+    OR 'React' IN UNNEST(technologies.technology)
+    OR 'Vue.js' IN UNNEST(technologies.technology)
+    OR 'Nuxt.js' IN UNNEST(technologies.technology)
+    OR 'Svelte' IN UNNEST(technologies.technology)
+    OR 'SvelteKit' IN UNNEST(technologies.technology)
+    OR 'Angular' IN UNNEST(technologies.technology)
+    OR 'Astro' IN UNNEST(technologies.technology)
+    OR 'Remix' IN UNNEST(technologies.technology)
+    OR 'Gatsby' IN UNNEST(technologies.technology)
+    OR 'Solid.js' IN UNNEST(technologies.technology)
+    OR 'Node.js' IN UNNEST(technologies.technology)
+    OR 'Express' IN UNNEST(technologies.technology)
+    OR 'NestJS' IN UNNEST(technologies.technology)
+    OR 'Fastify' IN UNNEST(technologies.technology)
+    OR 'Deno' IN UNNEST(technologies.technology)
+    OR 'Bun' IN UNNEST(technologies.technology)
+    OR 'Tailwind CSS' IN UNNEST(technologies.technology)
+    OR 'Vite' IN UNNEST(technologies.technology)
+    OR 'esbuild' IN UNNEST(technologies.technology)
+    OR 'TypeScript' IN UNNEST(technologies.technology)
+    OR 'Playwright' IN UNNEST(technologies.technology)
+    OR 'Vitest' IN UNNEST(technologies.technology)
+    OR 'PHP' IN UNNEST(technologies.technology)
+    OR 'WordPress' IN UNNEST(technologies.technology)
+    OR 'Laravel' IN UNNEST(technologies.technology)
+    OR 'Drupal' IN UNNEST(technologies.technology)
+    OR 'Symfony' IN UNNEST(technologies.technology)
+    OR 'Ruby on Rails' IN UNNEST(technologies.technology)
+  )
+  AND (
+    REGEXP_CONTAINS(LOWER(payload), 'boards-api\\.greenhouse\\.io')
+    OR REGEXP_CONTAINS(LOWER(payload), 'boards\\.greenhouse\\.io')
+    OR REGEXP_CONTAINS(LOWER(payload), 'api\\.lever\\.co/v0/postings')
+    OR REGEXP_CONTAINS(LOWER(payload), 'jobs\\.lever\\.co')
+    OR REGEXP_CONTAINS(LOWER(payload), 'api\\.ashbyhq\\.com/posting-api')
+  )
+LIMIT 1000;
+```
+
+**Delta query (monthly — find domains in the new crawl that weren't in the previous):**
+```sql
+WITH new_crawl AS (
+  SELECT DISTINCT root_page
+  FROM `httparchive.crawl.pages`
+  WHERE date = '2024-07-01' AND client = 'desktop' AND is_root_page
+    AND ('Next.js' IN UNNEST(technologies.technology)
+         OR 'React' IN UNNEST(technologies.technology)
+         /* ... full tier list ... */)
+),
+prev_crawl AS (
+  SELECT DISTINCT root_page
+  FROM `httparchive.crawl.pages`
+  WHERE date = '2024-06-01' AND client = 'desktop' AND is_root_page
+    AND ('Next.js' IN UNNEST(technologies.technology)
+         OR 'React' IN UNNEST(technologies.technology)
+         /* ... full tier list ... */)
+)
+SELECT n.root_page FROM new_crawl n
+LEFT JOIN prev_crawl p ON n.root_page = p.root_page
+WHERE p.root_page IS NULL;
+```
+
+**HTTPArchive homepage-only limitation — the workaround:**
+
+HTTPArchive only crawls homepages (`/`). If a company embeds their Greenhouse widget only on `company.com/careers`, the ATS script URL won't appear in the homepage's HAR data. The workaround is a two-phase approach:
+
+1. **Phase 1 (BigQuery):** Query for domains running our target tech stack. This gives candidate root domains — companies that are likely tech companies hiring developers. The ATS widget doesn't need to be on the homepage.
+2. **Phase 2 (Phalanx Poller probe):** For each candidate domain, the poller attempts to resolve the ATS slug by trying known URL patterns against the inferred slug (e.g. `acme.com` → try slug `acme` against all three ATS APIs). If any returns valid JSON with jobs, the ATS slug is found. If none return valid data, the domain is discarded — no manual review.
+
+**Implementation notes `[Status: Implemented]`:**
+
+| File | Role |
+|------|------|
+| `src/lib/jobs/seeders/bq-schemas.ts` | Zod schemas for BigQuery HTTPArchive query result rows (with `REGEXP_EXTRACT` slug fields: `greenhouse_slug`, `lever_slug`, `ashby_slug`). |
+| `src/lib/jobs/seeders/bigquery-seeder.ts` | Domain logic with injectable `BigQueryFn`. SQL builder (`buildBigQuerySql`), two-phase slug extraction (direct `REGEXP_EXTRACT` + slug probe fallback via `resolveCustomUrl`), `processBigQueryRows` pure function. |
+| `scripts/seed-bigquery.ts` | Manual script wrapper (`npx tsx scripts/seed-bigquery.ts --date 2024-06-01 --limit 1000`). Uses `createDefaultBigQueryFn()` which wraps `@google-cloud/bigquery`. |
+
+**Key implementation decisions:**
+- The SQL query uses `REGEXP_EXTRACT` to pull ATS slugs directly from the homepage payload when possible (Phase 1). Domains where the slug couldn't be extracted go through the slug probe resolver (Phase 2).
+- Slug priority: Greenhouse > Lever > Ashby (when a domain has multiple ATS integrations, the first non-null slug wins).
+- The BigQuery client is injectable (`BigQueryFn = (sql: string) => Promise<BigQueryRow[]>`) for testing without real GCP credentials.
+- Dual execution: manual script (`scripts/seed-bigquery.ts`) + Inngest scheduled function (`bigQuerySeeder`, monthly cron `0 0 1 * *`). Both call `runBigQuerySeeder()`.
+- Test coverage: 31 unit tests (11 schema tests + 20 seeder tests) with mocked BQ client.
+
+#### 4.1.2 HN Algolia Sniper (The Delta Seeder) `[Status: Implemented]`
+
+**Endpoint:** Two-phase fetch against `https://hn.algolia.com/api/v1/`:
+1. **Phase 1 (find story):** `search_by_date?tags=story,author_whoishiring&hitsPerPage=10` — finds the most recent "Ask HN: Who is hiring?" story by the `whoishiring` account (which posts both "Who is hiring?" and "Who wants to be hired?" threads monthly; we filter to only the hiring one by title).
+2. **Phase 2 (fetch comments):** `search_by_date?tags=comment,story_{storyId}&hitsPerPage=50` — paginates through all comments on that story. The actual job postings are the oldest comments (from the 1st of the month); `search_by_date` returns newest first (job seeker replies), so all pages must be fetched.
+
+> **Why not full-text search?** Discovered via live testing (June 2026): the broad query `?query=Ask+HN+Who+is+hiring` matches "Who wants to be hired" threads (job seekers, no ATS URLs) and unrelated comments. The two-phase approach is precise — it only fetches comments on the actual hiring thread.
+
+This is the primary "hidden jobs" discovery engine. HN "Who is Hiring" surfaces 200–500 companies per month, many of which are first-time posters or small startups that won't be in HTTPArchive's top-sites crawl. The companies self-select by posting — they're actively hiring and want to be found.
+
+**HTML entity decoding (critical):** The HN Algolia API returns HTML-encoded comment text where `/` is `&#x2F;`, `'` is `&#x27;`, `&` is `&amp;`, etc. Without decoding, URLs appear as `https:&#x2F;&#x2F;job-boards.greenhouse.io&#x2F;planetscale` and are invisible to the URL regex. The `extractUrls()` function in `url-parser.ts` decodes HTML entities before applying the URL regex. Discovered via live testing — 0 ATS URLs were found across 501 comments before this fix.
+
+**URL extraction strategy — two categories:**
+
+1. **Direct ATS URLs** (immediately usable): Extract URLs matching these hostnames:
+   - `boards.greenhouse.io/{slug}` — Greenhouse hosted board
+   - `job-boards.greenhouse.io/{slug}` — Greenhouse hosted board (alternate hostname, e.g. PlanetScale)
+   - `boards-api.greenhouse.io/v1/boards/{slug}/jobs` — Greenhouse API
+   - `jobs.lever.co/{slug}` — Lever hosted board
+   - `api.lever.co/v0/postings/{slug}` — Lever API
+   - `api.ashbyhq.com/posting-api/job-board/{slug}` — Ashby API
+   - `careers.ashbyhq.com/{slug}` — Ashby hosted board (primary pattern)
+   - `jobs.ashbyhq.com/{slug}` — Ashby hosted board (legacy/alternate)
+
+   These map directly to `company` table rows.
+
+2. **Non-ATS URLs** (e.g. `mystartup.com/careers`): The system attempts autonomous resolution via a two-stage process:
+   - **Stage 1 — DNS CNAME check:** For `careers.mystartup.com`, do a DNS CNAME lookup. If it resolves to `boards.greenhouse.io` or `lever.co`, the ATS is found.
+   - **Stage 2 — Slug probe:** If CNAME fails, extract the company name from the URL and try `boards-api.greenhouse.io/v1/boards/{slug}/jobs`, `api.lever.co/v0/postings/{slug}?mode=json`, `api.ashbyhq.com/posting-api/job-board/{slug}`. If any returns valid JSON, the ATS slug is found.
+   - **If both fail: discard the URL.** The system is fully autonomous — no manual review queue. Unresolvable URLs are logged in `ingestionLog` for observability but not acted upon. If practice shows the majority of HN job listings fall into this unresolvable category, alternative resolution strategies will be considered.
+
+**Implementation:** The HN seeder runs as an Inngest scheduled function (`seeder/hn-algolia`, weekly on Monday). The custom-URL resolver runs as a separate Inngest function (`seeder/resolve-custom-url`), triggered by events from the HN seeder. This separation keeps the HN seeder fast (text parsing only) and isolates network-dependent logic.
+
+#### 4.1.3 crt.sh (The Stealth Seeder) `[Status: Planned / TO DO — Phase 2, Post-MVP]`
+
+**Decision: Deferred to Phase 2.** HN Algolia is the superior "hidden jobs" discovery engine because:
+- Companies self-select by posting on HN — they're actively hiring.
+- Posts include job descriptions, enabling seeder-level filtering for developer roles.
+- Many posters are first-time companies not in HTTPArchive.
+- Signal-to-noise ratio is far higher than crt.sh's wildcard query (200–500 curated posts vs. millions of certificate records).
+
+crt.sh's wildcard query (`%.careers.*`) returns every domain with "careers" in the name — most are not hiring developers. A truly "stealth" startup often doesn't have an ATS yet (they use "email us" pages), so crt.sh finds the subdomain but there's no JSON API to poll.
+
+**When implemented (Phase 2), the approach will be:**
+- Use the **direct PostgreSQL connection** (`postgres://guest@crt.sh:5432/certwatch`) instead of the HTTP API — far more reliable, bypasses web server rate limiting.
+- Query the `certificate_identity` table directly with date constraints (`ci.NOT_BEFORE > NOW() - INTERVAL '30 days'`) to only get new certificates.
+- **Expanded pattern matching:** `%.careers.*`, `%.jobs.*`, `%.join.*`, `%.work.*`, `%.hiring.*`, `%.talent.*`, `%.opportunities.*`, `%.roles.*`, `%.apply.*`, `%.team.*`.
+- **Two-stage verification:** (1) CNAME lookup, (2) slug probe against all three ATS APIs. If both fail, discard — no manual review.
+
+### 4.2 ATS Endpoint Registry & Defensive Zod Schemas `[Status: Implemented]`
+
+#### 4.2.1 Centralized ATS Endpoint Registry
+
+**Drizzle Path:** `src/lib/jobs/ats-endpoints.ts`
+
+A single source of truth for ATS API endpoints. When an endpoint changes, this is the only file to update.
+
+```typescript
+export const ATS_ENDPOINTS = {
+  greenhouse: {
+    // Public Job Board API — no auth required.
+    // Docs: https://developers.greenhouse.io/job-board.html
+    jobsList: (slug: string) =>
+      `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`,
+    jobDetail: (slug: string, jobId: string) =>
+      `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs/${jobId}`,
+    hostedBoard: (slug: string) => `https://boards.greenhouse.io/${slug}`,
+  },
+  lever: {
+    // Public Postings API v0 — no auth required.
+    // Docs: https://github.com/lever/postings-api
+    // Note: v1 requires auth. v0 is the public endpoint.
+    // EU instance available at api.eu.lever.co
+    jobsList: (slug: string) =>
+      `https://api.lever.co/v0/postings/${slug}?mode=json`,
+    jobDetail: (slug: string, postingId: string) =>
+      `https://api.lever.co/v0/postings/${slug}/${postingId}`,
+    hostedBoard: (slug: string) => `https://jobs.lever.co/${slug}`,
+  },
+  ashby: {
+    // Public Job Posting API — no auth required.
+    // Docs: https://developers.ashbyhq.com/docs/public-job-posting-api
+    jobsList: (slug: string) =>
+      `https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true`,
+    hostedBoard: (slug: string) => `https://careers.ashbyhq.com/${slug}`,
+  },
+} as const;
+```
+
+**Lever filtering features:** The v0 API supports query parameters: `mode=json` (always set), `limit` (set to 1000), `skip` (pagination), `commitment` (filter by employment type — use `?commitment=Fulltime&commitment=Contract` to skip internships at the API level), `team`, `location`, `department`. The `team` and `department` values are case-sensitive and company-specific — do not use them for server-side filtering. Rely on Gate 0 (§4.4) for role filtering.
+
+#### 4.2.2 Automated Endpoint Health Monitoring & LLM Recovery `[Status: Planned / TO DO]`
+
+The endpoint registry is augmented with an automated health monitoring and recovery system to prevent prolonged service misconfiguration when ATS providers change their APIs:
+
+1. **Health Monitoring:** An Inngest scheduled function (`[Status: Planned / TO DO]` — Inngest base to be set up in a subsequent iteration) periodically tests each ATS endpoint by making a lightweight probe request (e.g. fetching 1 job from a known-active slug). If the endpoint returns unexpected HTTP status codes or fails Zod validation across multiple slugs, it is flagged as `endpoint_degraded`.
+
+2. **LLM-Based Endpoint Recovery:** When an endpoint is flagged as `endpoint_degraded`, an automated recovery function is triggered `[Status: Planned / TO DO]`. This function:
+   - Uses `gpt-4o-mini` to research the ATS provider's current developer documentation (via web search + page fetch).
+   - Extracts the new API URL pattern from the documentation.
+   - Proposes an updated endpoint configuration.
+   - Tests the proposed endpoint against a known slug.
+   - If the test succeeds, updates `src/lib/jobs/ats-endpoints.ts` programmatically and emits an alert (logged in `ingestionLog`).
+   - If the test fails, logs the failure and leaves the endpoint unchanged — the system degrades gracefully (Zod `safeParse` catches the mismatch) until manual intervention.
+
+3. **Zod Schema Drift Detection:** Every ATS response is passed through `schema.safeParse()`. If validation fails across multiple slugs for the same ATS, this triggers the endpoint recovery function — the JSON payload structure may have changed even if the URL hasn't.
+
+**Note:** The Inngest base infrastructure is now set up (see §3.9). The function definitions, scheduling configuration, and step-level implementation for this monitoring/recovery system can now be added to `src/inngest/functions.ts` and registered in `src/app/api/inngest/route.ts`.
+
+#### 4.2.3 Defensive Zod Schemas
+
+**Drizzle Path:** `src/lib/jobs/ats-schemas.ts`
+
+Because we don't control the Greenhouse/Lever/Ashby APIs, we MUST use Zod to validate their incoming JSON. If a job is missing a description, our pipeline gracefully skips it rather than crashing the Inngest worker.
+
+**Greenhouse Job Board API response schema:**
+```typescript
+export const greenhouseJobSchema = z.object({
+  id: z.number(),
+  internal_job_id: z.number().optional(),
+  title: z.string(),
+  updated_at: z.string().optional(),
+  requisition_id: z.string().nullable().optional(),
+  location: z.object({ name: z.string() }).optional(),
+  absolute_url: z.string().url(),
+  content: z.string().optional(),
+  metadata: z.array(z.object({
+    name: z.string(),
+    value: z.string(),
+  })).nullable().optional(),
+  language: z.string().optional(),
+});
+
+export const greenhouseJobsResponseSchema = z.object({
+  jobs: z.array(greenhouseJobSchema),
+  meta: z.object({ total: z.number() }).optional(),
+});
+```
+
+**Lever Postings API v0 response schema:**
+```typescript
+export const leverJobSchema = z.object({
+  id: z.string(),
+  text: z.string(),  // Job title (Lever calls it "text")
+  categories: z.object({
+    location: z.string().nullable().optional(),
+    commitment: z.string().nullable().optional(),
+    team: z.string().nullable().optional(),
+    department: z.string().nullable().optional(),
+    allLocations: z.array(z.string()).optional(),
+  }).optional(),
+  country: z.string().nullable().optional(),
+  descriptionPlain: z.string().optional(),
+  description: z.string().optional(),
+  hostedUrl: z.string().url(),
+  applyUrl: z.string().url().optional(),
+  workplaceType: z.enum(["unspecified", "on-site", "remote", "hybrid"]).optional(),
+  salaryRange: z.object({
+    currency: z.string().optional(),
+    interval: z.string().optional(),
+    min: z.number().optional(),
+    max: z.number().optional(),
+  }).nullable().optional(),
+});
+
+export const leverJobsResponseSchema = z.array(leverJobSchema);
+```
+
+**Ashby Job Posting API response schema:**
+```typescript
+export const ashbyJobSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  location: z.object({ locationName: z.string().optional() }).optional(),
+  descriptionHtml: z.string().optional(),
+  descriptionPlain: z.string().optional(),
+  externalLink: z.string().url().optional(),
+  workplace: z.enum(["remote", "hybrid", "on-site"]).optional(),
+}).passthrough();  // Allow extra fields — Ashby adds fields frequently
+
+export const ashbyJobsResponseSchema = z.object({
+  jobs: z.array(ashbyJobSchema),
+}).passthrough();
+```
+
+**Error handling pattern:** Always use `safeParse()`, never `parse()`. On validation failure, log the Zod error, skip the slug, mark the company as `health = "degraded"`, and continue. The pipeline never crashes on a single bad response.
+
+**Complete Zod schema inventory for Module B:**
+
+| Schema | Location | Purpose |
+|--------|----------|---------|
+| `greenhouseJobSchema` / `greenhouseJobsResponseSchema` | `src/lib/jobs/ats-schemas.ts` | Greenhouse job board API |
+| `leverJobSchema` / `leverJobsResponseSchema` | same | Lever v0 postings API |
+| `ashbyJobSchema` / `ashbyJobsResponseSchema` | same | Ashby posting API |
+| `hnAlgoliaHitSchema` / `hnAlgoliaResponseSchema` | `src/lib/jobs/seeders/hn-schemas.ts` | HN Algolia API response |
+| `crtShRecordSchema` | `src/lib/jobs/seeders/crt-schemas.ts` | crt.sh PostgreSQL query result (Phase 2) |
+| `bigQueryRowSchema` | `src/lib/jobs/seeders/bq-schemas.ts` | BigQuery HTTPArchive query result row |
+| `pollerEventSchema` | `src/lib/jobs/poller/schemas.ts` | Inngest `poller/poll-company` event payload |
+| `seedCompanyInputSchema` | `src/lib/jobs/seeders/schemas.ts` | Input to company insert function (all seeders) |
+
+### 4.3 Gate 0 — Pre-Database-Insertion Title Filter `[Status: Implemented]`
+
+**Drizzle Path:** `src/lib/jobs/gate-zero.ts`
+
+Before the Poller saves a job to the database, a fast synchronous regex test on the job title filters out non-engineering roles. If the title doesn't match, the job is thrown away immediately — it never touches the database. This prevents thousands of "Account Executive", "HR Manager", and "Janitor" roles from slowing down the Postgres HNSW index and eating disk space.
+
+**Design principle: optimize for recall, not precision, at Gate 0.** The 3-Gate funnel (Module C) handles precision. The cost of a false positive (one extra row filtered out by Gate 1/2/3) is low. The cost of a false negative (a missed job opportunity) is high.
+
+**Relevant title terms (word-boundary matched, case-insensitive):**
+- Core engineering: `engineer`, `engineering`, `developer`, `programmer`, `software`, `frontend`, `front-end`, `backend`, `back-end`, `fullstack`, `full-stack`
+- Specialized: `devops`, `sre`, `site reliability`, `platform engineer`, `architect`, `data engineer`, `data scientist`, `ml engineer`, `machine learning engineer`, `security engineer`, `infrastructure`, `reliability`
+- Mobile: `ios developer`, `android developer`, `mobile developer`, `react native`
+- Leadership: `tech lead`, `engineering manager`, `engineering director`, `cto`, `vp of engineering`, `head of engineering`
+- QA: `qa engineer`, `test engineer`, `automation engineer`, `quality engineer`
+- Design-adjacent: `ui engineer`, `ux engineer`
+
+**Implementation:** A single compiled regex with `\b` word boundaries and alternation. Phrase matching (`data engineer`, `ml engineer`) catches specialized roles without catching unrelated "data" or "ml" mentions. Word boundaries prevent "Data Entry Clerk" from matching `data`.
+
+### 4.4 The "Phalanx" Poller `[Status: Implemented]`
+
 Do not use AWS API Gateway for Native ATS endpoints. They do not run TLS fingerprinting.
-*   **The Logic:** A central worker fetches the Native JSON APIs (`boards-api.greenhouse.io/v1/boards/{slug}/jobs`).
-*   **Anti-Ban Mechanism:** Use the `bottleneck` npm package. Strict limits: Max 2 concurrent requests per second per ATS platform.
-*   **The Fallback:** If a 429/403 is encountered, route the request through a rotating residential proxy (e.g., Webshare.io or Smartproxy).
+
+#### 4.4.1 Three Optimizations for Production Scalability
+
+Polling 100,000 HTTP requests daily from a single Hetzner CAX21 (4 vCPU / 8GB RAM) will exhaust resources, max out the Neon database connection pool, and likely get the server's IP blacklisted. Three optimizations prevent this:
+
+**Optimization 1 — Strict Concurrency Limits:**
+- Inngest is capped at 50 maximum concurrent steps. This protects the Hetzner CPU/RAM and prevents the Neon Serverless Postgres pool from being overwhelmed.
+- The `bottleneck` npm package enforces a hard limit of 2 concurrent requests per second per ATS platform. Implementation: `maxConcurrent: 1, minTime: 500` per ATS source — guarantees strictly 2 req/s with no concurrent requests.
+
+**Optimization 2 — Separation of Heavy Compute:**
+- The Poller only fetches JSON and inserts it into Postgres. It does NOT run AI embeddings (gpt-4o-mini / text-embedding-3-small).
+- The heavy vector math is deferred to Inngest Event `job/ingested` (Module C). This ensures the Poller never blocks on LLM latency.
+
+**Optimization 3 — The Decay Polling Algorithm:**
+
+The TDD's original "Run Daily" is not scalable. A priority queuing strategy based on company activity reduces the poll load:
+
+| Tier | Condition | Polling Cadence |
+|------|-----------|-----------------|
+| **Tier A (Active)** | Posted a job in the last 14 days | Every 12 hours |
+| **Tier B (Dormant)** | No jobs posted in >14 days | Weekly |
+| **Tier C (Dead)** | Endpoint returns 404 or 3+ consecutive failures | Stop polling entirely |
+
+**Tier transitions are computed daily, not in real-time:**
+A separate Inngest scheduled function (`poller/recompute-tiers`, `cron: "0 4 * * *"`) runs a single SQL statement to recalculate all tiers:
+```sql
+UPDATE company SET
+  tier = CASE
+    WHEN health = 'dead' OR consecutive_failures >= 3 THEN 'dead'
+    WHEN last_job_posted_at > NOW() - INTERVAL '14 days' THEN 'active'
+    ELSE 'dormant'
+  END
+WHERE polling_enabled = true;
+```
+
+**Polling cadence is implemented via two Inngest scheduled functions (fan-out pattern):**
+- `poller-tier-active` (`cron: "0 */12 * * *"`) — emits `poller/poll-company` events for all Tier A companies.
+- `poller-tier-dormant` (`cron: "0 0 * * 0"`) — emits `poller/poll-company` events for all Tier B companies.
+- Each `poller/poll-company` event triggers a separate Inngest function instance that polls a single company. Inngest's concurrency cap (50) naturally limits simultaneous polls.
+
+**Do NOT create per-company Inngest scheduled functions** — 100,000 scheduled functions would overwhelm Inngest. The fan-out pattern (2 scheduled functions → N events → N function instances) is the correct architecture.
+
+#### 4.4.2 Rate Limiting Implementation
+
+`bottleneck` is used **within each per-company function instance**, not across all companies. One limiter per ATS source ensures the aggregate rate stays at 2 req/s:
+
+```typescript
+const limiters: Record<string, Bottleneck> = {
+  greenhouse: new Bottleneck({ maxConcurrent: 1, minTime: 500 }),
+  lever: new Bottleneck({ maxConcurrent: 1, minTime: 500 }),
+  ashby: new Bottleneck({ maxConcurrent: 1, minTime: 500 }),
+};
+```
+
+**What happens when the queue is full?** Each per-company function instance makes only 1–2 HTTP requests. The bottleneck limiter ensures that across all concurrent Inngest instances polling the same ATS, the aggregate rate stays at 2 req/s. Individual instances wait for their turn via bottleneck's queue. If the wait exceeds 30 seconds (bottleneck `expiration: 30000`), the step throws, and Inngest retries the whole function (up to 3 times). On retry, the queue may have drained. If all 3 retries fail, `consecutiveFailures` is incremented.
+
+#### 4.4.3 Proxy Strategy — Deferred to Post-MVP
+
+Proxies are prematurely optimized for MVP. The rate limiter (`bottleneck` at 2 req/s) is sufficient — Greenhouse and Lever don't aggressively block JSON API access at this rate. Proxies add failure modes that are hard to debug (proxy timeout vs. ATS timeout vs. code bug) and cost ~$50–$150/mo.
+
+**Trigger to add proxies:** When we see the first persistent 403 from an ATS that isn't a 404 (endpoint gone). At that point, add a proxy fallback layer *behind* the bottleneck rate limiter: `bottleneck (2 req/s) → direct request → on 403: retry through proxy`.
+
+#### 4.4.4 The Stale Job Problem — Detection and Cleanup
+
+Jobs that have been filled or deleted by the company must be detected and excluded from matching. Two-phase stale detection:
+
+**Phase 1 — Mark as stale (after each poll):**
+After polling a company, jobs in the database for that `(atsSource, atsSlug)` that were *not* in the current fetch have their `lastSeenAt` left unchanged. Jobs that *were* in the fetch get `lastSeenAt = now()` and `status = "active"` (resurrected if previously stale).
+
+**Phase 2 — Mark as gone (daily Inngest function `poller/mark-stale-jobs`, `cron: "0 3 * * *"`):**
+```sql
+-- Jobs not seen in 7 days → "stale" (might come back, don't delete)
+UPDATE job SET status = 'stale'
+WHERE status = 'active' AND last_seen_at < NOW() - INTERVAL '7 days';
+
+-- Jobs not seen in 30 days → "gone" (safe to exclude from matching)
+UPDATE job SET status = 'gone'
+WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
+```
+
+**Module C integration:** The 3-Gate query (§5.2) must filter `WHERE j.status = 'active'`. This ensures stale and gone jobs are never matched.
+
+**Why not delete gone jobs?** (1) The `matchQueue` table has a FK to `job` (`onDelete: cascade`) — deleting would lose match history. (2) If a company re-posts the same job (same `externalJobId`), the upsert resurrects it from `gone` to `active`.
+
+#### 4.4.5 Implementation Notes `[Status: Implemented]`
+
+**File map (all domain logic in `src/lib/jobs/poller/`):**
+
+| File | Role |
+|------|------|
+| `ats-adapters.ts` | Fetch + Zod validate + normalize per ATS platform. Returns unified `NormalizedJob[]`. Uses original JSON for `rawJson` to preserve all fields. Injectable `FetchFn`. |
+| `job-repository.ts` | Job table upserts (`onConflictDoUpdate`), new job detection (for B→C handoff), stale cleanup (Phase 2: 7d→stale, 30d→gone), active job count. |
+| `company-state.ts` | Company polling state updates (lastPolledAt, health, consecutiveFailures). Auto-disables polling after 3 consecutive failures. HTTP status → health mapping (429→rate_limited, 403→blocked, 404→dead, 500+→error). |
+| `tier-queries.ts` | Tier-based company queries for fan-out (active every 12h, dormant weekly). Daily tier recalculation SQL (uses `::company_tier` enum cast for PostgreSQL compatibility). Single-company lookup by ID. |
+| `phalanx-poller.ts` | Core orchestrator: fetch → Gate 0 filter → upsert → emit `job/ingested` → update company state. Never throws — all errors caught and returned in `PollResult`. |
+| `rate-limiter.ts` | Per-ATS Bottleneck limiters (2 req/s, 1 concurrent per platform). |
+| `schemas.ts` | Zod schemas for Inngest event payloads (`pollCompanyEventSchema`, `pollerRunEventSchema`, `jobIngestedEventSchema`). |
+
+**Inngest function map (in `src/inngest/functions.ts`):**
+
+| Function | Trigger | Role |
+|----------|---------|------|
+| `pollCompanyFn` | `poller/poll-company` event | Per-company fan-out target. Concurrency cap 50. Fetches → Gate 0 → upsert → emits `job/ingested`. |
+| `tierActiveFanOut` | cron `0 0/12 * * *` (every 12h) | Queries Tier A companies, emits `poller/poll-company` events. |
+| `tierDormantFanOut` | cron `0 0 * * 0` (weekly Sunday) | Queries Tier B companies, emits `poller/poll-company` events. |
+| `phalanxPoller` | `poller/run` event (manual) | Single-company poll by companyId (admin/testing). |
+| `tierRecalc` | cron `0 4 * * *` (daily 04:00 UTC) | Recalculates all company tiers based on activity. |
+| `staleCleanup` | cron `0 3 * * *` (daily 03:00 UTC) | Marks stale (7d) and gone (30d) jobs. |
+
+**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 470 project tests pass. Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
+
+### 4.5 The B→C Handoff Contract `[Status: Implemented]`
+
+**Module B owns:** fetching, validating (Zod), filtering (Gate 0), and persisting raw job data.
+**Module C owns:** normalization (tag extraction), embedding generation, and matching.
+
+**The handoff:** The poller emits one `job/ingested` Inngest event per **newly inserted** job (not upserted jobs — only genuinely new jobs). This prevents Module C from re-normalizing jobs it's already processed.
+
+```
+Module B (Poller)                          Module C (Router)
+─────────────────                          ─────────────────
+1. Fetch JSON from ATS API
+2. Validate with Zod schema (safeParse)
+3. Gate 0: regex title filter
+4. Upsert into job table:
+   - extractedTags = []  (empty)
+   - jobEmbedding = null
+   - status = "active"
+5. If NEW job (not upsert):
+   emit "job/ingested" { jobId }  ──────►  1. Receive "job/ingested" event
+                                             2. Fetch job from DB
+                                             3. Extract canonical tags
+                                             4. Generate embedding
+                                             5. UPDATE job SET tags + embedding
+                                             6. Run Gate 1 + Gate 2 SQL query
+                                             7. Insert into match_queue
+                                             8. Fan out Gate 3 LLM evaluation
+```
+
+**Why this boundary:**
+- **Testability:** Module B is tested by asserting `job` rows with `extractedTags = []` and `jobEmbedding = null`. Module C is tested by feeding it a job row and asserting tags/embedding are populated.
+- **Failure isolation:** If the embedding service is down, Module B still inserts raw jobs. Module C catches up when it recovers.
+- **Cost control:** Embedding every job costs money. By separating insertion from embedding, only jobs that passed Gate 0 (relevant titles) get embedded.
+
+### 4.6 ATS Platform Coverage
+
+| ATS | Market Share | Public JSON API? | VectorMatch Priority |
+|-----|-------------|-------------------|---------------------|
+| Workday | ~32% | No (enterprise auth only) | Skip |
+| Greenhouse | ~18% | Yes (`boards-api.greenhouse.io`) | **MVP** |
+| Lever | ~12% | Yes (`api.lever.co/v0`) | **MVP** |
+| iCIMS | ~10% | No | Skip |
+| Ashby | ~5% (fastest-growing) | Yes (`api.ashbyhq.com`) | **MVP** |
+| SmartRecruiters | ~3% | Yes | Phase 2 |
+| Recruitee | ~2% | Yes | Phase 2 |
+| Workable | ~2% | Yes (v3 API) | Phase 2 |
+
+**Greenhouse + Lever + Ashby = ~35% of total market but ~60–70% of the startup/mid-size tech company market** — which is the target segment. Workday dominates enterprise (Fortune 500), which is not the target user's sweet spot.
 
 ---
 

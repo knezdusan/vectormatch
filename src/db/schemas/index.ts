@@ -27,8 +27,10 @@ export * from "./blog/posts";
 export * from "./blog/tags";
 // JOBS
 export * from "./jobs/applicant";
+export * from "./jobs/company";
 export * from "./jobs/cvUpload";
 export * from "./jobs/enums";
+export * from "./jobs/ingestionLog";
 export * from "./jobs/job";
 export * from "./jobs/matchQueue";
 export * from "./jobs/persona";
@@ -43,7 +45,9 @@ import { commentsTable } from "./blog/comments";
 import { postsTable, postTagsTable } from "./blog/posts";
 import { tagsTable } from "./blog/tags";
 import { applicant } from "./jobs/applicant";
+import { company } from "./jobs/company";
 import { cvUpload } from "./jobs/cvUpload";
+import { ingestionLog } from "./jobs/ingestionLog";
 import { job } from "./jobs/job";
 import { matchQueue } from "./jobs/matchQueue";
 import { persona } from "./jobs/persona";
@@ -89,6 +93,20 @@ export const applicantRelations = relations(applicant, ({ one, many }) => ({
 
 export const jobRelations = relations(job, ({ many }) => ({
   matches: many(matchQueue),
+}));
+
+// NOTE: company ↔ job is a LOGICAL relationship (matched by atsSource +
+// atsSlug), not a Drizzle relation — see TDD §4.0. No FK is enforced to avoid
+// poller failures when a job arrives for a slug not yet in the registry.
+export const companyRelations = relations(company, ({ many }) => ({
+  ingestionLogs: many(ingestionLog),
+}));
+
+export const ingestionLogRelations = relations(ingestionLog, ({ one }) => ({
+  company: one(company, {
+    fields: [ingestionLog.companyId],
+    references: [company.id],
+  }),
 }));
 
 export const personaRelations = relations(persona, ({ one }) => ({

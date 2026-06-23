@@ -10,9 +10,8 @@
       "args": ["shadcn@latest", "mcp"]
     },
     "neon": {
-      "transport": "STDIO",
-      "command": "npx",
-      "args": ["-y", "mcp-remote@latest", "https://mcp.neon.tech/mcp"]
+      "url": "https://mcp.neon.tech/mcp",
+      "transport": "http"
     },
     "playwright": {
       "transport": "STDIO",
@@ -23,6 +22,24 @@
       "transport": "STDIO",
       "command": "npx",
       "args": ["-y", "fallow-mcp"]
+    },
+    "bigquery": {
+      "transport": "STDIO",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@toolbox-sdk/server",
+        "--prebuilt",
+        "bigquery",
+        "--stdio"
+      ],
+      "env": {
+        "BIGQUERY_PROJECT": "vactormatch-seeder"
+      }
+    },
+    "inngest": {
+      "transport": "HTTP",
+      "url": "http://127.0.0.1:8288/mcp"
     }
   },
   "exclude": [

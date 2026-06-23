@@ -12,7 +12,7 @@ Prioritize performance, accuracy, and developer-centric UX.
 - **Shadcn/ui 4.8.0**
 - **Drizzle ORM** + PostgreSQL (Neon) with `pgvector`
 - **Better Auth** for authentication
-- **Inngest v3** for durable background jobs and workflows
+- **Inngest v4** for durable background jobs and workflows
 - **Vercel AI SDK** (gpt-4o for complex reasoning, gpt-4o-mini for scale, text-embedding-3-small)
 - **Biome** as linter + formatter (never ESLint/Prettier)
 - **useActionState + Zod** for forms
@@ -43,7 +43,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use **Cache Components** for data caching (see `node_modules/next/dist/docs/` for reference)
 
 ## Coding Standards
-- **Formatting**: Always use Biome (`biome check --apply`)
+- **Formatting**: Always use Biome (`biome check --write`) — note: Biome 2.2.0 removed the old `--apply` flag; use `--write` (or `--fix`) instead
 - **Imports**: Organized automatically by Biome
 - **Naming**: `camelCase` for variables/functions, `PascalCase` for components/types
 - **Error Handling**: Always handle errors gracefully (never silent failures)
@@ -215,12 +215,22 @@ BEGIN:agent-rules-on-hold - DISABLED UNTIL FURTHER NOTICE
 - PDF parsing must happen **client-side** using `pdfjs-dist` in a Web Worker
 - Skill extraction must follow the mandatory Chain-of-Thought algorithm (merge overlapping date ranges, no double-counting)
 - Limit "Major Skills" to maximum 5 for `mustHaveTags`
+END:agent-rules-on-hold - Database & Matching + Onboarding remain on hold; ATS Ingestion Rules re-enabled below
+-->
 
 ## ATS Ingestion Rules
-- Use native Greenhouse/Lever JSON APIs
-- Respect rate limits (max 2 req/s per platform using `bottleneck`)
-- Seed using HTTP Archive BigQuery + HN Algolia + crt.sh
-- Never scrape HTML career pages
+- Use native Greenhouse, Lever, and Ashby JSON APIs (all three are MVP priority). Centralized in `src/lib/jobs/ats-endpoints.ts`.
+- Respect rate limits: max 2 req/s per ATS platform using `bottleneck` (`maxConcurrent: 1, minTime: 500` per ATS source).
+- Seed using HTTP Archive BigQuery (monthly script) + HN Algolia (weekly Inngest function). crt.sh deferred to Phase 2 (post-MVP).
+- Never scrape HTML career pages. Non-ATS URLs from HN are resolved via DNS CNAME check + slug probe against ATS APIs. If both fail, discard — no manual review.
+- Gate 0: Synchronous regex title filter rejects non-engineering jobs before database insertion (`src/lib/jobs/gate-zero.ts`). Optimize for recall — the 3-Gate funnel handles precision.
+- All ATS responses must pass through Zod `safeParse()` before processing. Payload changes degrade gracefully (slug flagged as `degraded`) rather than crashing the worker.
+- Deduplication: upsert on `(ats_source, ats_slug, external_job_id)` unique constraint. Re-polls refresh `lastSeenAt` and `rawJson`.
+- Stale job cleanup: jobs not seen in 7 days → `stale`, not seen in 30 days → `gone`. Module C only matches `status = 'active'` jobs.
+- Decay polling: Tier A (active) → every 12h, Tier B (dormant) → weekly, Tier C (dead) → stopped. Tiers recalculated daily.
+- B→C handoff: Poller emits `job/ingested` Inngest event only for new jobs. Module B inserts raw jobs (empty tags, null embedding). Module C owns normalization.
+- Proxies deferred to post-MVP. Trigger to add: first persistent 403 from an ATS.
+- The system is fully autonomous — no human-in-the-loop for routine operations.
 
 ## Security & Compliance
 - Never expose sensitive ATS credentials
@@ -229,9 +239,65 @@ BEGIN:agent-rules-on-hold - DISABLED UNTIL FURTHER NOTICE
 - Use environment variables for all secrets (never hardcode)
 
 ## Development Workflow
-- Run `biome check --apply .` before every commit
+- Run `biome check --write .` before every commit (Biome 2.2.0+ uses `--write`; the old `--apply` flag was removed)
 - Use Inngest dev server for local testing
 - Always test the full 3-gate funnel after major changes
+
+## Inngest Orchestration
+
+All background jobs, durable workflows, and scheduled tasks **must** use Inngest. Do not use raw `setTimeout`, `node-cron`, or custom worker queues.
+
+### File Map
+
+| File | Role |
+|------|------|
+| `src/inngest/client.ts` | Typed Inngest client (`VectorMatchEvents`) |
+| `src/inngest/functions.ts` | All background functions (seeders, poller, cleanup) |
+| `src/inngest/index.ts` | Barrel exports for clean imports |
+| `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) |
+| `docs/inngest-agent-resources.md` | Full coding agent reference (AI features, MCP, CLI) |
+
+### Local Development
+
+```bash
+# Terminal 1 — Next.js dev server
+npm run dev
+
+# Terminal 2 — Inngest Dev Server (UI at http://localhost:8288)
+npm run inngest:dev
+```
+
+The Dev Server auto-discovers apps on common ports. It exposes an MCP server at `http://127.0.0.1:8288/mcp` for agent-driven debugging.
+
+### Coding Rules for Inngest Functions
+
+1. **Always wrap domain logic in `step.run()`** — never call the DB, external APIs, or AI SDKs directly in the handler body. This ensures retries, checkpointing, and observability.
+2. **Import domain logic lazily** inside the handler to avoid loading heavy modules at discovery time.
+3. **Send events with `step.sendEvent()`** (not `inngest.send()`) so the emission is part of the durable trace.
+4. **Use cron triggers** for scheduled jobs (e.g. `triggers: [{ cron: "0 0 * * 1" }]`).
+5. **Use `throttle`** for rate-sensitive operations (ATS APIs, DNS lookups).
+6. **Use `step.ai.wrap()` or `step.ai.infer()`** for all LLM calls inside Inngest functions — this gives full observability, retry logic, and (with `infer()`) offloads serverless cost to Inngest infrastructure.
+7. **Register new functions** in `src/app/api/inngest/route.ts` — both import and add to the `functions: [...]` array.
+
+### Self-Hosted Deployment (Coolify/Hetzner)
+
+There is no Vercel integration for Inngest on self-hosted setups. After each deploy:
+
+```bash
+curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
+```
+
+Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in production environment variables.
+
+### Environment Variables
+
+| Variable | Local | Production |
+|----------|-------|------------|
+| `INNGEST_DEV` | `1` | omit |
+| `INNGEST_EVENT_KEY` | dummy | Inngest Cloud dashboard |
+| `INNGEST_SIGNING_KEY` | dummy | Inngest Cloud dashboard |
+| `INNGEST_SERVE_ORIGIN` | omit | `https://vectormatch.dev` |
+
 ## Fallow (Codebase Intelligence)
 
 This project has **Fallow** (v2.95.0) installed for structural analysis: dead code, duplication, complexity, circular dependencies, and boundary violations. Use it via the `fallow` skill (`.devin/skills/fallow/SKILL.md`) or the `fallow` MCP server registered in `.devin/config.json`.
@@ -242,5 +308,31 @@ This project has **Fallow** (v2.95.0) installed for structural analysis: dead co
 
 **Agent**: Devin Desktop (not Windsurf). `FALLOW_AGENT_SOURCE` is intentionally unset because Devin is not in the Fallow allowlist; this does not affect functionality.
 
-END:agent-rules-on-hold
--->
+## BigQuery MCP (Public Dataset Analysis)
+
+This project has **Google BigQuery MCP** integration for public dataset analysis, specifically supporting Module B (Seeding & Ingestion Engine). The server is registered in `.devin/config.json` using `@toolbox-sdk/server`.
+
+**Available Tools**:
+- `execute_sql`: Execute SQL statements against BigQuery
+- `ask_data_insights`: Natural language data analysis and complex queries
+- `search_catalog`: Find tables using natural language search
+- `get_table_info`: Retrieve table metadata and schema
+- `get_dataset_info`: Get dataset metadata
+- `list_table_ids`: List all tables in a dataset
+- `list_dataset_ids`: List all datasets in the project
+- `analyze_contribution`: Perform key driver analysis
+- `forecast`: Time series forecasting
+
+**When to Use BigQuery MCP vs Neon**:
+- **BigQuery MCP**: Public dataset analysis (HTTP Archive, Hacker News), market intelligence, job market trend analysis, prototyping data ingestion strategies, exploratory data analysis
+- **Neon (via MCP)**: Transactional database operations, user/persona/job data, match queue operations, production database queries
+
+**Use Cases for VectorMatch**:
+- Module B: Discover job boards and companies from public datasets (HTTP Archive, HN, SSL certificates)
+- Market intelligence: Analyze trending tech skills in job postings
+- Performance monitoring: Query matching funnel metrics
+- Prototyping: Test hypotheses before building custom scrapers
+
+**Configuration**: See `.devin/config.json` and `docs/bigquery-mcp-setup.md` for setup details. Uses BigQuery Sandbox tier (no billing required for public datasets).
+
+**When to invoke**: Use for Module B development, market analysis, and when you need to query public datasets. Always use `mcp_list_tools` first to discover available tools before calling `mcp_call_tool`.
