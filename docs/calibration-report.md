@@ -145,8 +145,8 @@ GATE2_WEIGHT = 0.4                // Uncalibrated
 
 ```bash
 # Gate 1+2 statistics only (no API calls)
-node --env-file=.env.local --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --sample 20
+node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --sample 20
 
 # Include Gate 3 evaluation (calls OpenAI API, ~$0.01)
-node --env-file=.env.local --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --sample 5 --gate3
+node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --sample 5 --gate3
 ```

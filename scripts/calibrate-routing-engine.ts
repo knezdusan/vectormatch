@@ -10,8 +10,8 @@
 //      to verify verdicts make sense on synthetic data
 //
 // Usage:
-//   node --env-file=.env.local --env-file=.env --import tsx scripts/calibrate-routing-engine.ts
-//   node --env-file=.env.local --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --gate3
+//   node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts
+//   node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --gate3
 //
 // Output: console summary + docs/calibration-report.md (if --write flag)
 //

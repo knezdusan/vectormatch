@@ -17,7 +17,7 @@
 
 import "server-only";
 
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
@@ -29,7 +29,7 @@ import { persona } from "@/db/schemas/jobs/persona";
 // =============================================================================
 
 /** A match row joined with job + persona data for the dashboard list. */
-export type ApprovedMatchRow = {
+export type MatchRow = {
   matchQueueId: string;
   jobId: string;
   jobTitle: string;
@@ -39,8 +39,11 @@ export type ApprovedMatchRow = {
   personaLabel: string;
   overlapScore: number;
   cosineDistance: number | null;
+  llmVerdict: string | null;
   llmReasoning: string | null;
   llmConfidence: number | null;
+  llmBlockers: string[] | null;
+  status: string;
   isRead: boolean;
   createdAt: Date | null;
 };
@@ -51,6 +54,8 @@ export type MatchDetail = {
   status: string;
   llmVerdict: string | null;
   llmReasoning: string | null;
+  llmConfidence: number | null;
+  llmBlockers: string[] | null;
   llmModel: string | null;
   evaluatedAt: Date | null;
   isRead: boolean;
@@ -62,6 +67,7 @@ export type MatchDetail = {
     title: string;
     atsSource: string;
     atsSlug: string;
+    rawJson: string;
     extractedTags: string[] | null;
   };
   persona: {
@@ -77,21 +83,30 @@ export type MatchDetail = {
 // =============================================================================
 
 /**
- * Get approved matches for the dashboard list (paginated, applicant-scoped).
+ * Get matches for the dashboard list (paginated, applicant-scoped, status-filtered).
  *
  * Uses match_queue_applicant_status_idx (applicantId, status, createdAt DESC)
  * — the index returns rows in sorted order without an in-memory sort.
  *
  * @param userId   The authenticated user's ID (applicant.userId)
+ * @param status   Filter by status: 'approved', 'rejected', 'pending', or 'all'
  * @param limit    Page size (default 20)
  * @param offset   Pagination offset (default 0)
- * @returns        Array of approved match rows with job + persona data
+ * @returns        Array of match rows with job + persona data
  */
-export async function getApprovedMatches(
+export async function getMatches(
   userId: string,
+  status: "approved" | "rejected" | "pending" | "all" = "approved",
   limit = 20,
   offset = 0,
-): Promise<ApprovedMatchRow[]> {
+): Promise<MatchRow[]> {
+  const statusFilter =
+    status === "all"
+      ? undefined
+      : status === "pending"
+        ? inArray(matchQueue.status, ["pending", "error"])
+        : eq(matchQueue.status, status);
+
   const rows = await db
     .select({
       matchQueueId: matchQueue.id,
@@ -103,11 +118,11 @@ export async function getApprovedMatches(
       personaLabel: persona.personaLabel,
       overlapScore: matchQueue.overlapScore,
       cosineDistance: matchQueue.cosineDistance,
+      llmVerdict: matchQueue.llmVerdict,
       llmReasoning: matchQueue.llmReasoning,
-      // Note: matchConfidence is not stored in matchQueue — it's in the LLM
-      // output but we only persist llmReasoning. If needed post-MVP, add a
-      // column. For now, null.
-      llmConfidence: matchQueue.cosineDistance, // placeholder: use distance as proxy
+      llmConfidence: matchQueue.llmConfidence,
+      llmBlockers: matchQueue.llmBlockers,
+      status: matchQueue.status,
       isRead: matchQueue.isRead,
       createdAt: matchQueue.createdAt,
     })
@@ -115,23 +130,64 @@ export async function getApprovedMatches(
     .innerJoin(job, eq(matchQueue.jobId, job.id))
     .innerJoin(persona, eq(matchQueue.personaId, persona.id))
     .where(
-      and(
-        eq(matchQueue.applicantId, userId),
-        eq(matchQueue.status, "approved"),
-      ),
+      statusFilter
+        ? and(eq(matchQueue.applicantId, userId), statusFilter)
+        : eq(matchQueue.applicantId, userId),
     )
     .orderBy(desc(matchQueue.createdAt))
     .limit(limit)
     .offset(offset);
 
-  return rows.map((row) => ({
-    ...row,
-    // cosineDistance is a "lower is better" metric — invert for display
-    // so higher numbers look better. Post-MVP: store matchConfidence directly.
-    llmConfidence: row.cosineDistance
-      ? Math.max(0, 1 - row.cosineDistance)
-      : null,
-  }));
+  return rows;
+}
+
+/**
+ * Get approved matches for the dashboard list (paginated, applicant-scoped).
+ *
+ * Convenience wrapper around getMatches for the default 'approved' filter.
+ * Kept for backward compatibility with existing callers.
+ *
+ * @param userId   The authenticated user's ID (applicant.userId)
+ * @param limit    Page size (default 20)
+ * @param offset   Pagination offset (default 0)
+ * @returns        Array of approved match rows with job + persona data
+ */
+export async function getApprovedMatches(
+  userId: string,
+  limit = 20,
+  offset = 0,
+): Promise<MatchRow[]> {
+  return getMatches(userId, "approved", limit, offset);
+}
+
+/**
+ * Get the total count of matches for pagination (applicant-scoped, status-filtered).
+ *
+ * @param userId  The authenticated user's ID
+ * @param status  Filter by status: 'approved', 'rejected', 'pending', or 'all'
+ * @returns        Total count of matching rows
+ */
+export async function getMatchesCount(
+  userId: string,
+  status: "approved" | "rejected" | "pending" | "all" = "approved",
+): Promise<number> {
+  const statusFilter =
+    status === "all"
+      ? undefined
+      : status === "pending"
+        ? inArray(matchQueue.status, ["pending", "error"])
+        : eq(matchQueue.status, status);
+
+  const rows = await db
+    .select({ cnt: count() })
+    .from(matchQueue)
+    .where(
+      statusFilter
+        ? and(eq(matchQueue.applicantId, userId), statusFilter)
+        : eq(matchQueue.applicantId, userId),
+    );
+
+  return rows[0]?.cnt ?? 0;
 }
 
 /**
@@ -141,22 +197,34 @@ export async function getApprovedMatches(
  * rows WHERE is_read = false AND status = 'approved'. This is a tiny fraction
  * of total matches, so the index is very small and fast.
  *
+ * Resilient: if the DB query fails (e.g. transient WebSocket connection issue
+ * with the Neon serverless driver in the Turbopack dev server), returns 0
+ * instead of crashing the dashboard layout. The badge is non-critical UI.
+ *
  * @param userId  The authenticated user's ID
- * @returns       Count of unread approved matches (0 if none)
+ * @returns       Count of unread approved matches (0 if none or on error)
  */
 export async function getUnreadBadgeCount(userId: string): Promise<number> {
-  const rows = await db
-    .select({ cnt: count() })
-    .from(matchQueue)
-    .where(
-      and(
-        eq(matchQueue.applicantId, userId),
-        eq(matchQueue.isRead, false),
-        eq(matchQueue.status, "approved"),
-      ),
-    );
+  try {
+    const rows = await db
+      .select({ cnt: count() })
+      .from(matchQueue)
+      .where(
+        and(
+          eq(matchQueue.applicantId, userId),
+          eq(matchQueue.isRead, false),
+          eq(matchQueue.status, "approved"),
+        ),
+      );
 
-  return rows[0]?.cnt ?? 0;
+    return rows[0]?.cnt ?? 0;
+  } catch (error) {
+    console.warn(
+      "[getUnreadBadgeCount] Query failed — returning 0 for sidebar badge.",
+      error instanceof Error ? error.message : error,
+    );
+    return 0;
+  }
 }
 
 /**
@@ -179,6 +247,8 @@ export async function getMatchDetail(
       status: matchQueue.status,
       llmVerdict: matchQueue.llmVerdict,
       llmReasoning: matchQueue.llmReasoning,
+      llmConfidence: matchQueue.llmConfidence,
+      llmBlockers: matchQueue.llmBlockers,
       llmModel: matchQueue.llmModel,
       evaluatedAt: matchQueue.evaluatedAt,
       isRead: matchQueue.isRead,
@@ -189,6 +259,7 @@ export async function getMatchDetail(
       jobTitle: job.title,
       jobAtsSource: job.atsSource,
       jobAtsSlug: job.atsSlug,
+      jobRawJson: job.rawJson,
       jobExtractedTags: job.extractedTags,
       personaId: persona.id,
       personaLabel: persona.personaLabel,
@@ -211,6 +282,8 @@ export async function getMatchDetail(
     status: r.status,
     llmVerdict: r.llmVerdict,
     llmReasoning: r.llmReasoning,
+    llmConfidence: r.llmConfidence,
+    llmBlockers: r.llmBlockers,
     llmModel: r.llmModel,
     evaluatedAt: r.evaluatedAt,
     isRead: r.isRead,
@@ -222,6 +295,7 @@ export async function getMatchDetail(
       title: r.jobTitle,
       atsSource: r.jobAtsSource,
       atsSlug: r.jobAtsSlug,
+      rawJson: r.jobRawJson,
       extractedTags: r.jobExtractedTags,
     },
     persona: {

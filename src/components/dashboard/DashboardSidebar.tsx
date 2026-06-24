@@ -34,9 +34,13 @@ function getInitials(name: string | null | undefined): string {
 
 interface DashboardSidebarProps {
   session: AuthSession;
+  unreadCount?: number;
 }
 
-export function DashboardSidebar({ session }: DashboardSidebarProps) {
+export function DashboardSidebar({
+  session,
+  unreadCount = 0,
+}: DashboardSidebarProps) {
   if (!session) {
     return null;
   }
@@ -63,7 +67,10 @@ export function DashboardSidebar({ session }: DashboardSidebarProps) {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <DashboardSidebarNav role={session.user.role} />
+        <DashboardSidebarNav
+          role={session.user.role}
+          unreadCount={unreadCount}
+        />
       </SidebarContent>
       <SidebarFooter className="gap-3 pb-3">
         <div className="flex items-center justify-start gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">

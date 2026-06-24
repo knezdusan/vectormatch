@@ -615,6 +615,12 @@ export const CANONICAL_TAGS: CanonicalTag[] = [
     classification: "supporting",
     category: "database",
   },
+  {
+    tag: "redis",
+    label: "Redis",
+    classification: "supporting",
+    category: "database",
+  },
 
   // ===========================================================================
   // DEVOPS, CLOUD & INFRASTRUCTURE
@@ -692,6 +698,12 @@ export const CANONICAL_TAGS: CanonicalTag[] = [
   {
     tag: "nginx",
     label: "Nginx",
+    classification: "supporting",
+    category: "devops",
+  },
+  {
+    tag: "apache",
+    label: "Apache",
     classification: "supporting",
     category: "devops",
   },

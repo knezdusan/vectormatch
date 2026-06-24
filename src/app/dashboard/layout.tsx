@@ -6,6 +6,7 @@ import { DashboardMain } from "@/components/dashboard/DashboardMain";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthSession } from "@/lib/auth";
+import { getUnreadBadgeCount } from "@/lib/jobs/dashboard-queries";
 
 export const metadata: Metadata = {
   title: "Dashboard | VectorMatch",
@@ -26,9 +27,14 @@ async function DashboardLayoutInner({
     redirect(`/auth?callbackUrl=${callbackUrl}`);
   }
 
+  // Fetch unread match count for the sidebar badge. Runs on every navigation
+  // (Server Component re-renders). router.refresh() after mark-as-read actions
+  // also triggers a re-fetch.
+  const unreadCount = await getUnreadBadgeCount(session.user.id);
+
   return (
     <DashboardLayoutComponent session={session}>
-      <DashboardSidebar session={session} />
+      <DashboardSidebar session={session} unreadCount={unreadCount} />
       <DashboardMain>{children}</DashboardMain>
     </DashboardLayoutComponent>
   );

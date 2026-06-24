@@ -73,6 +73,8 @@ import { getAuthSession } from "@/lib/auth";
 import {
   getApprovedMatches,
   getMatchDetail,
+  getMatches,
+  getMatchesCount,
   getUnreadBadgeCount,
 } from "@/lib/jobs/dashboard-queries";
 
@@ -109,6 +111,101 @@ describe("getApprovedMatches", () => {
     const result = await getApprovedMatches("user-123");
 
     expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+// =============================================================================
+// getMatches (status-filtered)
+// =============================================================================
+
+describe("getMatches", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("queries with default 'approved' status filter", async () => {
+    await getMatches("user-123");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'rejected' status filter", async () => {
+    await getMatches("user-123", "rejected");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'all' status filter (no status filter)", async () => {
+    await getMatches("user-123", "all");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'pending' status filter", async () => {
+    await getMatches("user-123", "pending");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts custom pagination params", async () => {
+    await getMatches("user-123", "all", 50, 100);
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("returns an array (even if empty)", async () => {
+    const result = await getMatches("user-123", "all");
+
+    expect(Array.isArray(result)).toBe(true);
+  });
+});
+
+// =============================================================================
+// getMatchesCount
+// =============================================================================
+
+describe("getMatchesCount", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns count for approved matches", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => [{ cnt: 42 }]),
+      })),
+    });
+
+    const result = await getMatchesCount("user-123", "approved");
+
+    expect(result).toBe(42);
+  });
+
+  it("returns count for all matches", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => [{ cnt: 100 }]),
+      })),
+    });
+
+    const result = await getMatchesCount("user-123", "all");
+
+    expect(result).toBe(100);
+  });
+
+  it("returns 0 when no matches", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => [{ cnt: 0 }]),
+      })),
+    });
+
+    const result = await getMatchesCount("user-123", "rejected");
+
+    expect(result).toBe(0);
   });
 });
 
@@ -197,6 +294,8 @@ describe("getMatchDetail", () => {
       status: "approved",
       llmVerdict: "approved",
       llmReasoning: "Great match for React role.",
+      llmConfidence: 0.92,
+      llmBlockers: [],
       llmModel: "gpt-4o-mini",
       evaluatedAt: new Date("2026-06-23"),
       isRead: false,
@@ -207,6 +306,7 @@ describe("getMatchDetail", () => {
       jobTitle: "Senior React Engineer",
       jobAtsSource: "greenhouse",
       jobAtsSlug: "acme",
+      jobRawJson: '{"title":"Senior React Engineer","description":"..."}',
       jobExtractedTags: ["react", "typescript"],
       personaId: "persona-1",
       personaLabel: "Senior React Developer",

@@ -58,6 +58,14 @@ export const matchQueue = pgTable(
     // 1–3 sentence LLM explanation. Audit trail for false positive/negative
     // debugging.
     llmReasoning: text("llm_reasoning"),
+    // LLM confidence score (0.0–1.0). Critical for calibration — distinguishes
+    // high-confidence verdicts from borderline ones. Persisted from
+    // verdict.matchConfidence in the Gate 3 evaluator.
+    llmConfidence: real("llm_confidence"),
+    // LLM blockers array (reasons for rejection). Persisted from
+    // verdict.blockers. Empty for approved matches. Useful for calibration —
+    // shows WHY the LLM rejected a candidate.
+    llmBlockers: text("llm_blockers").array(),
     // Which model evaluated: gpt-4o-mini (MVP) | gpt-4o (escalation, post-MVP).
     llmModel: text("llm_model"),
     // When Gate 3 ran. Null until Gate 3 completes.

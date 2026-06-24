@@ -18,8 +18,8 @@
 // can be tested directly without running the normalizer.
 //
 // Usage:
-//   node --env-file=.env.local --env-file=.env --import tsx scripts/seed-routing-engine.ts
-//   node --env-file=.env.local --env-file=.env --import tsx scripts/seed-routing-engine.ts --scale 100
+//   node --env-file=.env --import tsx scripts/seed-routing-engine.ts
+//   node --env-file=.env --import tsx scripts/seed-routing-engine.ts --scale 100
 //
 // --scale flag:
 //   - Default: 1000 personas, 5000 jobs (full seed)

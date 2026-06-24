@@ -71,6 +71,20 @@
       "when": 1782235228897,
       "tag": "0009_warm_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782246034778,
+      "tag": "0010_real_jetstream",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782246060788,
+      "tag": "0011_breezy_deathstrike",
+      "breakpoints": true
     }
   ]
 }

@@ -225,6 +225,14 @@ export const matchQueue = pgTable(
     llmVerdict: text("llm_verdict"),
     // 1–3 sentence LLM explanation. Audit trail for false positive/negative debugging.
     llmReasoning: text("llm_reasoning"),
+    // LLM confidence score (0.0–1.0). Critical for calibration — distinguishes
+    // high-confidence verdicts from borderline ones. Persisted from
+    // verdict.matchConfidence in the Gate 3 evaluator.
+    llmConfidence: real("llm_confidence"),
+    // LLM blockers array (reasons for rejection). Persisted from
+    // verdict.blockers. Empty for approved matches. Useful for calibration —
+    // shows WHY the LLM rejected a candidate.
+    llmBlockers: text("llm_blockers").array(),
     // Which model evaluated: gpt-4o-mini (MVP) | gpt-4o (escalation, post-MVP).
     llmModel: text("llm_model"),
     // When Gate 3 ran. Null until Gate 3 completes.
@@ -575,7 +583,7 @@ npm run dev
 npm run inngest:dev
 ```
 
-The Dev Server auto-discovers apps on common ports. Environment variable `INNGEST_DEV=1` (set in `.env.local`) forces the SDK to connect to the local dev server instead of Inngest Cloud.
+The Dev Server auto-discovers apps on common ports. Environment variable `INNGEST_DEV=1` (set in `.env`) forces the SDK to connect to the local dev server instead of Inngest Cloud.
 
 ### 3.9.3 MCP Integration
 
@@ -1319,7 +1327,7 @@ Module B (Poller)                          Module C (Router)
 - **C5** — Seed script: `scripts/seed-routing-engine.ts` (synthetic data for calibration).
 - **C2** — Gate 1+2 SQL router: `gate-1-2.ts`, wired into `jobIngestedHandler`.
 - **C3** — Gate 3 LLM evaluator: `gate-3.ts` + `gate3Evaluator` Inngest function.
-- **C4** — Dashboard query layer: `dashboard-queries.ts` + `matches.ts` Server Actions.
+- **C4** — Dashboard query layer + UI: `dashboard-queries.ts` (status-filtered queries, pagination, resilient unread badge) + `matches.ts` Server Actions + `/dashboard/jobs` list page + `/dashboard/jobs/[matchId]` detail page + sidebar unread badge.
 - **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/calibration-report.md`.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
@@ -1397,7 +1405,7 @@ await db.execute(sql`
     *   `buildGate3Prompt` constructs a structured prompt with: job title + description + extracted tags, persona label + embedding summary + must-have/blocklist tags, and applicant constraints (country, work hours, compliance, modalities, assignment types).
     *   `evaluateGate3` calls `gpt-4o-mini` via Vercel AI SDK `generateObject` with a strict Zod schema (`gate3VerdictSchema`): verdict (`approved`/`rejected`), confidence (0.0–1.0), reasoning (1–3 sentences), and blockers (array of strings).
     *   `mapVerdict` maps the LLM verdict to `match_queue` status.
-*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_model`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted.
+*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted. The `llm_confidence` and `llm_blockers` columns (migrations `0010` + `0011`) persist the LLM's actual confidence score and rejection reasons — critical for calibration via the dashboard UI.
 *   **`match/approved` event:** MVP — nothing listens (dashboard polls `match_queue` directly). Defined now so Module D (cold email generation) has a stable contract post-MVP.
 *   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by a future sweep that re-emits `match/gate-3-evaluate` for `pending` rows older than N hours (not built in MVP — error rows are rare with `generateObject` + Zod enforcement).
 *   Inngest concurrency is still capped to max 50, but the binding constraint changed. The
@@ -1419,18 +1427,56 @@ risk — synchronous API routes (e.g. `/api/onboarding/parse`, the `gpt-4o`
 extraction call) must complete well under 100 seconds, and anything that
 can't is a candidate for Inngest, not a synchronous route.
 
-### 5.4 Step 4: Dashboard Query Layer (In-App Notification) `[Status: Implemented]`
-*   `src/lib/jobs/dashboard-queries.ts`:
-    *   `getApprovedMatches(applicantId, page, pageSize)` — paginated, applicant-scoped list of approved matches with job title, persona label, cosine distance, and LLM reasoning.
-    *   `getUnreadBadgeCount(applicantId)` — count of approved + unread matches for the sidebar badge.
-    *   `getMatchDetail(matchQueueId, applicantId)` — full match detail for a single match.
-*   `src/actions/matches.ts`:
-    *   `markMatchRead(matchQueueId)` — Server Action, sets `is_read = true`.
-    *   `markAllMatchesRead(applicantId)` — Server Action, sets `is_read = true` for all approved unread matches.
+### 5.4 Step 4: Dashboard Query Layer & UI (In-App Notification) `[Status: Implemented]`
 
-### 5.5 Calibration (Feature C6) `[Status: Implemented — Synthetic Data Only]`
+The dashboard is the primary calibration interface — all scoring data (cosine distance, overlap score, LLM confidence, LLM reasoning, blockers) is visible on both the list and detail views.
 
-**⚠️ LAUNCH-BLOCKING:** The current thresholds are uncalibrated guesses validated only against synthetic seed data. They are **not** acceptable the moment a real persona could be matched. No real user sees Module C output until C6-real completes and the thresholds are benchmarked against 20–30 real job/persona pairs.
+**Query layer** (`src/lib/jobs/dashboard-queries.ts`):
+*   `getMatches(userId, status, limit, offset)` — status-filtered (approved/rejected/pending/all), paginated, applicant-scoped list of matches with job title, ATS source/slug, persona label, cosine distance, overlap score, LLM verdict, LLM reasoning, LLM confidence, LLM blockers, status, isRead, createdAt.
+*   `getMatchesCount(userId, status)` — total count for pagination controls.
+*   `getApprovedMatches(userId, limit, offset)` — backward-compat wrapper around `getMatches` with `status='approved'`.
+*   `getUnreadBadgeCount(userId)` — count of approved + unread matches for the sidebar badge. Resilient — returns 0 on DB error instead of crashing the dashboard layout.
+*   `getMatchDetail(userId, matchQueueId)` — full match detail with job `rawJson`, extracted tags, persona embedding summary, must-have tags, LLM confidence, LLM blockers, LLM model, evaluatedAt.
+
+**Server Actions** (`src/actions/matches.ts`):
+*   `markMatchRead(matchQueueId)` — sets `is_read = true`, scoped to `applicant_id = session.user.id`.
+*   `markAllMatchesRead()` — sets `is_read = true` for all approved unread matches.
+
+**List view** (`/dashboard/jobs`, Server Component):
+*   Status filter tabs (Approved / Rejected / Pending / All) with per-status counts.
+*   Paginated match cards (10 per page) with: job title, ATS source + slug, persona label, cosine distance (raw number), overlap score (raw number), LLM confidence (color-coded: green >0.7, yellow 0.4–0.7, red <0.4), LLM reasoning (1–3 sentences), blockers (as badges), status badge, unread indicator.
+*   "Mark all read" button + per-card "Mark as read" action (Server Action + `router.refresh()`).
+*   "View on ATS" link to the company's hosted career page (via `ATS_ENDPOINTS[source].hostedBoard(slug)`).
+*   Empty state with link to profile management.
+*   Client component: `src/components/dashboard/MatchList.tsx` (handles tabs, mark-as-read actions, pagination).
+
+**Detail view** (`/dashboard/jobs/[matchId]`, Server Component):
+*   Full job description parsed from `rawJson` via `extractJobContent` (ATS-source-aware: Greenhouse `content`, Lever `descriptionPlain`/`description`, Ashby `descriptionPlain`/`descriptionHtml`).
+*   Gate 1+2 scores panel (cosine distance, overlap score, LLM confidence, timestamps).
+*   Gate 3 LLM verdict panel (verdict, confidence, model, reasoning, blockers).
+*   Persona context panel (label, embedding summary, must-have tags).
+*   Extracted job tags with ✓ markers for tags overlapping persona must-haves.
+*   "View on ATS" link + back to list navigation.
+
+**Sidebar unread badge**:
+*   `getUnreadBadgeCount` fetched in the dashboard layout (`src/app/dashboard/layout.tsx`, Server Component).
+*   Passed as prop to `DashboardSidebar` → `DashboardSidebarNav`.
+*   Badge rendered next to "Jobs" nav item (count in accent-colored circle).
+*   Updates on navigation (Server Component re-renders) and after `router.refresh()` from mark-as-read actions.
+
+### 5.5 Calibration (Feature C6) `[Status: Implemented — Synthetic Data Calibrated; Real-Data Calibration In Progress]`
+
+**⚠️ LAUNCH-BLOCKING (for public access):** The current thresholds are uncalibrated guesses validated only against synthetic seed data. No non-developer user sees Module C output until thresholds are benchmarked against real job/persona pairs.
+
+**Self-use calibration path:** The "20–30 real pairs" requirement is correct for opening the app to the public, but overly cautious for solo developer use. The developer's own usage IS the calibration:
+1. Onboard with a real CV (Module A — done)
+2. Run Module B seeders/poller to ingest real jobs
+3. The 3-Gate funnel processes them and populates `match_queue`
+4. Inspect matches via `/dashboard/jobs` (cosine distance, overlap score, LLM confidence, LLM reasoning all visible)
+5. Tune `GATE2_MAX_COSINE_DISTANCE` and `GATE_ROUTER_LIMIT` based on observed false positives/negatives
+6. Document tuned values in `docs/calibration-report.md`
+
+The dashboard UI was built specifically as the calibration debugging interface. Synthetic seed data has been cleaned from the production database (via `scripts/cleanup-seed-data.ts`); the next step is ingesting real jobs.
 
 **Calibration script:** `scripts/calibrate-routing-engine.ts` — runs Gate 1+2 against seed data, collects cosine distance + overlap score distributions, measures true candidate counts at different thresholds (no LIMIT), and optionally evaluates Gate 3 verdicts on a sample.
 

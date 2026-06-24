@@ -28,7 +28,7 @@
 | `src/inngest/functions.ts` | All background functions (seeders, poller, cleanup) |
 | `src/inngest/index.ts` | Barrel exports |
 | `src/app/api/inngest/route.ts` | Next.js App Router serve handler |
-| `.env.local` | Local dev variables (`INNGEST_DEV=1`) |
+| `.env` | Local dev variables (`INNGEST_DEV=1`) |
 
 ### Running Locally
 

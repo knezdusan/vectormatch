@@ -94,7 +94,7 @@ Bottom-up order for solo implementation. Update the status tag as each step comp
 - **`tags_experience` table** `[Status: Implemented]`: Single source of truth for the user's skills and years of experience per skill. NOT populated by the LLM directly — computed by `recomputeTagsExperience(applicantId)` which reads `working_history`, merges overlapping date ranges per canonical tag, and upserts results here. The `active` flag lets users deactivate non-critical skills. Unique constraint on `(applicant_id, canonical_tag)` enables upsert.
   - *Drizzle Path*: `src/db/schemas/jobs/tagsExperience.ts`
 - **`jobs` table** `[Status: Implemented]`: Stores job listings with `ats_slug`, `title`, `raw_json`, `extracted_tags` (text array), `job_embedding` (vector 1536), `external_job_id` (dedup), `last_seen_at` (stale tracking), `status` (`active|stale|gone|rejected|normalization_failed`), and `normalized_at` (Module C idempotency guard). Indexed with GIN on `extracted_tags`, HNSW on `job_embedding`, and B-tree on `(status, last_seen_at)`.
-- **`match_queue` table** `[Status: Implemented]`: Maps `job_id` to `persona_id` (not `applicant_id` — corrected for multi-persona users) with Gate 1+2 scores (`overlap_score`, `cosine_distance`), a `status` state (pending, approved, rejected), Gate 3 LLM verdict columns (`llm_verdict`, `llm_reasoning`, `llm_model`, `evaluated_at`), and `is_read` for in-app notification badge. Unique index on `(job_id, persona_id)` — an applicant can match the same job via multiple personas. Partial index on `(applicant_id) WHERE is_read = false AND status = 'approved'` for the unread badge query.
+- **`match_queue` table** `[Status: Implemented]`: Maps `job_id` to `persona_id` (not `applicant_id` — corrected for multi-persona users) with Gate 1+2 scores (`overlap_score`, `cosine_distance`), a `status` state (pending, approved, rejected), Gate 3 LLM verdict columns (`llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `evaluated_at`), and `is_read` for in-app notification badge. Unique index on `(job_id, persona_id)` — an applicant can match the same job via multiple personas. Partial index on `(applicant_id) WHERE is_read = false AND status = 'approved'` for the unread badge query. Migrations `0010` (llm_confidence) and `0011` (llm_blockers) applied.
 - **`blog_categories`, `blog_tags`, `blog_posts`, `blog_post_tags`, and `blog_comments` tables** `[Status: Deprecated — Retained Historically]`: A full relational blog and nested commenting schema that predates the architectural decision to move the blog to file-based MDX.
   - *Drizzle Path*: `src/db/schemas/blog/` (defines `posts.ts`, `categories.ts`, `tags.ts`, `comments.ts`)
   - *Decision*: The blog is now implemented as static **MDX** (see *Blog & Content Architecture*). These tables, their relations, and migrations are **retained as historical artifacts** and **must not be referenced by any new application code**. They are not deleted to preserve migration history. The `blog_comments` table is fully superseded by Giscus.
@@ -227,15 +227,29 @@ The Module A MVP is functionally complete — the full onboarding flow works end
 
 See TDD §3.9 for full technical detail on each item.
 
-**Job Discovery & Management** `[Status: Planned / TO DO]` (Navigation link is `[Status: Implemented]`)
-- Paginated job listings (10 per page) with responsive tables and search capabilities.
-- Filtering options: technology stack, experience level, location, salary range
-- Sorting options: relevance, posting date, salary
-- Search functionality across all job attributes
-- Job detail view with ATS source information
-- Archive/delete functionality with 30-day retention period (auto-deleted via cron).
-- Bulk actions for managing multiple listings
-- Application tracking and status updates
+**Job Discovery & Management** `[Status: Implemented]` (Navigation link is `[Status: Implemented]`)
+
+The `/dashboard/jobs` page is the primary calibration interface for the 3-Gate funnel. It displays matches from `match_queue` with all scoring data visible for threshold tuning. Two routes: a paginated list view and a detail view.
+
+- **List view** (`/dashboard/jobs`):
+  - Status filter tabs (Approved / Rejected / Pending / All) with per-status counts
+  - Paginated match cards (10 per page) showing: job title, ATS source + slug, persona label, cosine distance, overlap score, LLM confidence (color-coded: green >0.7, yellow 0.4–0.7, red <0.4), LLM reasoning (1–3 sentences), blockers (as badges), status badge, unread indicator dot
+  - "Mark all read" button (when unread approved matches exist)
+  - "Mark as read" per-card action (Server Action + `router.refresh()`)
+  - "View on ATS" link to the company's hosted career page
+  - Empty state with link to profile management
+  - Pagination controls (prev/next)
+- **Detail view** (`/dashboard/jobs/[matchId]`):
+  - Full job description parsed from `rawJson` via `extractJobContent` (ATS-source-aware extraction)
+  - Gate 1+2 scores panel (cosine distance, overlap score, LLM confidence, timestamps)
+  - Gate 3 LLM verdict panel (verdict, confidence, model, reasoning, blockers)
+  - Persona context panel (label, embedding summary, must-have tags)
+  - Extracted job tags with ✓ markers for tags overlapping persona must-haves
+  - "View on ATS" link
+  - Back to list navigation
+- **Sidebar unread badge**: `getUnreadBadgeCount` fetched in the dashboard layout (Server Component), passed through to the sidebar nav. Updates on navigation and after `router.refresh()` from mark-as-read actions. Resilient — returns 0 on DB error instead of crashing the dashboard.
+- **Calibration metrics exposed**: Cosine distance, overlap score, and LLM confidence are visible on both list and detail views. This is deliberate — the dashboard is the primary debugging interface for tuning `GATE2_MAX_COSINE_DISTANCE` and `GATE_ROUTER_LIMIT` against real data.
+- **Post-MVP features** `[Status: Planned / TO DO]`: Search across job attributes, salary range filtering, archive/delete with 30-day retention, bulk actions, application tracking.
 
 ### Ingestion, Seeding & Routing Pipeline `[Status: Implemented]` — Module B (ingestion) is Implemented & Live-Tested; Module C (3-Gate routing) is Implemented (synthetic-data calibrated, real-data calibration launch-blocking)
 
@@ -409,21 +423,25 @@ When a new job listing is successfully ingested, an asynchronous workflow is tri
   - `gate3Evaluator` Inngest function in `src/inngest/functions.ts` receives `match/gate-3-evaluate` events.
   - `src/lib/jobs/gate-3.ts` builds a structured prompt (`buildGate3Prompt`) with job description, persona context, and applicant constraints (country, work hours, compliance, modalities, assignment types).
   - `evaluateGate3` calls `gpt-4o-mini` via Vercel AI SDK `generateObject` with a strict Zod schema (`gate3VerdictSchema`) — verdict (`approved`/`rejected`), confidence (0.0–1.0), reasoning, and blockers.
-  - Verdict written to `match_queue` (`llm_verdict`, `llm_reasoning`, `llm_model`, `evaluated_at`). If approved, `match/approved` event emitted (MVP: nothing listens — dashboard polls directly; Module D will consume this post-MVP).
+  - Verdict written to `match_queue` (`llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `evaluated_at`). If approved, `match/approved` event emitted (MVP: nothing listens — dashboard polls directly; Module D will consume this post-MVP).
   - Error recovery: unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'` (recoverable by a future sweep).
 - **Step 4 (Dashboard Notification Layer)** `[Status: Implemented]`:
-  - `src/lib/jobs/dashboard-queries.ts`: `getApprovedMatches` (paginated, applicant-scoped), `getUnreadBadgeCount`, `getMatchDetail`.
+  - `src/lib/jobs/dashboard-queries.ts`: `getMatches` (status-filtered, paginated, applicant-scoped), `getMatchesCount` (for pagination), `getApprovedMatches` (backward-compat wrapper), `getUnreadBadgeCount` (resilient — returns 0 on DB error), `getMatchDetail` (includes `rawJson`, `llmConfidence`, `llmBlockers`).
   - `src/actions/matches.ts`: `markMatchRead`, `markAllMatchesRead` Server Actions.
-- **Calibration (Feature C6)** `[Status: Implemented — Synthetic Data Only]`:
+  - `/dashboard/jobs` page: Server Component with status filter tabs, paginated match cards, "Mark all read" button, empty state. All calibration metrics (cosine distance, overlap score, LLM confidence) visible on cards.
+  - `/dashboard/jobs/[matchId]` page: Full detail view with job description (parsed from `rawJson`), LLM reasoning + blockers, Gate 1+2 scores, persona context, "View on ATS" link.
+  - Sidebar unread badge: Wired via dashboard layout → `DashboardSidebar` → `DashboardSidebarNav`.
+- **Calibration (Feature C6)** `[Status: Implemented — Synthetic Data Calibrated; Real-Data Calibration In Progress]`:
   - `scripts/calibrate-routing-engine.ts` measures Gate 1+2 output distributions and Gate 3 verdict quality against seed data.
   - `docs/calibration-report.md` documents findings: `GATE2_MAX_COSINE_DISTANCE = 0.35` is a no-op on synthetic data (embeddings cluster at 0.18–0.21), `GATE_ROUTER_LIMIT = 8` does all filtering. Gate 3 correctly approved archetype matches and rejected skill-emphasis mismatches.
-  - **⚠️ LAUNCH-BLOCKING**: Thresholds must be re-calibrated against 20–30 real job/persona pairs before any real user sees Module C output. Current values are uncalibrated guesses validated only against synthetic seed data.
+  - **C6-real (self-use path)**: The "20–30 real pairs" requirement is correct for opening the app to the public, but overly cautious for solo use. The developer's own usage IS the calibration — onboard with a real CV, run the routing pipeline against real jobs, inspect `match_queue` output via the dashboard (cosine distance, overlap score, LLM confidence, LLM reasoning all visible), and tune thresholds. The dashboard UI was built specifically as the calibration debugging interface. Synthetic seed data has been cleaned from the production database; the next step is ingesting real jobs via Module B seeders/poller and running the 3-Gate funnel against the developer's real persona.
+  - **⚠️ LAUNCH-BLOCKING (for public access)**: Thresholds must be benchmarked against real job/persona pairs before any non-developer user sees Module C output. Current values are uncalibrated guesses validated only against synthetic seed data.
 
 ### User Journey Summary
 1. **Discovery**: User lands on homepage, understands value proposition `[Status: Implemented]`
 2. **Conversion**: User registers/logs in via standard Auth page `[Status: Implemented]`
 3. **Onboarding**: Redirected dynamically based on profile status: to `/dashboard/profile-management` for initial CV upload (if `is_onboarded=false`), or `/dashboard/jobs` if already onboarded `[Status: Implemented]` — onboarding flow (CV upload → review → profile management) and smart redirect logic on sign-in/sign-up are both implemented
-4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Partially Implemented]` — profile management (read-only MVP) is `[Status: Implemented]`; job matching backend (Module C 3-Gate funnel) is `[Status: Implemented]` (synthetic-data calibrated, real-data calibration launch-blocking); dashboard UI for reviewing matched jobs is `[Status: Planned / TO DO]`
+4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Implemented]` — profile management (read-only MVP) is `[Status: Implemented]`; job matching backend (Module C 3-Gate funnel) is `[Status: Implemented]` (synthetic-data calibrated, real-data calibration in progress via self-use); dashboard UI for reviewing matched jobs (`/dashboard/jobs` list + `/dashboard/jobs/[matchId]` detail) is `[Status: Implemented]`
 5. **Application**: User applies to jobs through ATS integration `[Status: Planned / TO DO]`
 6. **Retention**: User returns to track applications and discover new opportunities `[Status: Planned / TO DO]`
 

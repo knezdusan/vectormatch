@@ -880,6 +880,8 @@ export const gate3Evaluator = inngest.createFunction(
           status: verdictString,
           llmVerdict: verdictString,
           llmReasoning: verdict.matchReasoning,
+          llmConfidence: verdict.matchConfidence,
+          llmBlockers: verdict.blockers,
           llmModel: "gpt-4o-mini",
           evaluatedAt: new Date(),
         })

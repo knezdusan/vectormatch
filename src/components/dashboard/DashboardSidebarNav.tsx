@@ -12,7 +12,13 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 
-export function DashboardSidebarNav({ role }: { role?: string | null }) {
+export function DashboardSidebarNav({
+  role,
+  unreadCount = 0,
+}: {
+  role?: string | null;
+  unreadCount?: number;
+}) {
   const pathname = usePathname();
 
   const items = [
@@ -22,7 +28,12 @@ export function DashboardSidebarNav({ role }: { role?: string | null }) {
       label: "Profile Management",
       icon: FileText,
     },
-    { href: "/dashboard/jobs", label: "Jobs", icon: Briefcase },
+    {
+      href: "/dashboard/jobs",
+      label: "Jobs",
+      icon: Briefcase,
+      badge: unreadCount,
+    },
   ];
 
   const isAdminActive = pathname.startsWith("/dashboard/admin");
@@ -46,6 +57,11 @@ export function DashboardSidebarNav({ role }: { role?: string | null }) {
               <Link href={item.href}>
                 <Icon />
                 <span>{item.label}</span>
+                {"badge" in item && item.badge && item.badge > 0 ? (
+                  <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-1 group-data-[collapsible=icon]:top-1">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                ) : null}
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
