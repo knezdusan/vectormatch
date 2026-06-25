@@ -1,0 +1,54 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Next.js build output & caches
+.next
+.next/cache
+out
+build
+dist
+
+# Dependencies (reinstalled in Docker — standalone output traces what's needed)
+node_modules
+
+# Environment files (secrets injected via Coolify dashboard at runtime)
+.env
+.env.*
+!.env.example
+
+# Testing & CI artifacts
+coverage
+e2e/test-results
+e2e/playwright-report
+test-results
+playwright-report
+
+# IDE / editor
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Devin / agent config
+.devin
+
+# Documentation (not needed at runtime)
+docs
+
+# Scripts (build-time only, not needed in runner)
+scripts
+
+# Drizzle migrations (already applied to Neon; not needed at runtime)
+drizzle
+db/migrations
+
+# Misc
+*.log
+npm-debug.log*
+.DS_Store
+README.md
+AGENTS.md
+CLAUDE.md

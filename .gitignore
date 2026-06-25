@@ -28,8 +28,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env files (covers .env*, coolify.env, production.env, etc.)
 .env*
+*.env
 !.env.example
 
 # vercel
