@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   output: "standalone",
   reactCompiler: true,
   cacheComponents: true,
@@ -9,6 +8,8 @@ const nextConfig: NextConfig = {
     browserToTerminal: true,
   },
   serverExternalPackages: ["better-auth"],
+  // Disable font optimization to prevent build-time network failures
+  optimizeFonts: false,
 };
 
 export default nextConfig;
