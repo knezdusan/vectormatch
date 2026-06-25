@@ -1,6 +1,16 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization — the Resend constructor throws "Missing API key" if
+// RESEND_API_KEY is unset, which crashes Next.js static generation because
+// auth.ts imports this module at the top level. The client is only created on
+// first use (a live request), never at module import / build time.
+let _resend: Resend | null = null;
+
+function getResend(): Resend {
+  if (_resend) return _resend;
+  _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 function isTestEmail(email: string): boolean {
   return email.endsWith("@example.com");
@@ -17,7 +27,7 @@ export async function sendVerificationEmail({
     console.log("[test] skip sendVerificationEmail", email, url);
     return { id: "test-id" };
   }
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: "VectorMatch <onboarding@resend.dev>",
     to: email,
     subject: "Verify your email address - VectorMatch",
@@ -70,7 +80,7 @@ export async function sendAlreadyRegisteredEmail({
     console.log("[test] skip sendAlreadyRegisteredEmail", email);
     return { id: "test-id" };
   }
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: "VectorMatch <onboarding@resend.dev>",
     to: email,
     subject: "You already have a VectorMatch account",
@@ -120,7 +130,7 @@ export async function sendResetPasswordEmail({
     console.log("[test] skip sendResetPasswordEmail", email, url);
     return { id: "test-id" };
   }
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: "VectorMatch <onboarding@resend.dev>",
     to: email,
     subject: "Reset your password - VectorMatch",
