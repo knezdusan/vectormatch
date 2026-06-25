@@ -11,10 +11,10 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build Next.js — NODE_ENV must NOT be production here
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Public env vars baked at build time
 ARG NEXT_PUBLIC_SITE_URL=https://vectormatch.dev
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
@@ -29,6 +29,16 @@ ENV NEXT_PUBLIC_GISCUS_CATEGORY=$NEXT_PUBLIC_GISCUS_CATEGORY
 
 ARG NEXT_PUBLIC_GISCUS_CATEGORY_ID=DIC_kwDOSuJml84C_N4t
 ENV NEXT_PUBLIC_GISCUS_CATEGORY_ID=$NEXT_PUBLIC_GISCUS_CATEGORY_ID
+
+# Required at build time for static generation (db.ts module init)
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
+
+ARG BETTER_AUTH_SECRET
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+
+ARG BETTER_AUTH_URL=https://vectormatch.dev
+ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
 
 RUN npm run build
 
