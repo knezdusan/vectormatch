@@ -67,6 +67,12 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Install curl for Coolify's healthcheck probe (node:24-slim ships without it).
+# Coolify runs its own healthcheck via curl/wget, separate from the Dockerfile
+# HEALTHCHECK directive. Run as root before USER node.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy static public assets.
 COPY --from=builder --chown=node:node /app/public ./public
 
