@@ -11,9 +11,24 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build args for public env vars only
-ARG NEXT_PUBLIC_SITE_URL
+# Build Next.js — NODE_ENV must NOT be production here
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+ARG NEXT_PUBLIC_SITE_URL=https://vectormatch.dev
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
+ARG NEXT_PUBLIC_GISCUS_REPO=knezdusan/vectormatch
+ENV NEXT_PUBLIC_GISCUS_REPO=$NEXT_PUBLIC_GISCUS_REPO
+
+ARG NEXT_PUBLIC_GISCUS_REPO_ID=R_kgDOSuJmlw
+ENV NEXT_PUBLIC_GISCUS_REPO_ID=$NEXT_PUBLIC_GISCUS_REPO_ID
+
+ARG NEXT_PUBLIC_GISCUS_CATEGORY=Announcements
+ENV NEXT_PUBLIC_GISCUS_CATEGORY=$NEXT_PUBLIC_GISCUS_CATEGORY
+
+ARG NEXT_PUBLIC_GISCUS_CATEGORY_ID=DIC_kwDOSuJml84C_N4t
+ENV NEXT_PUBLIC_GISCUS_CATEGORY_ID=$NEXT_PUBLIC_GISCUS_CATEGORY_ID
 
 RUN npm run build
 
@@ -27,7 +42,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy standalone output
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
