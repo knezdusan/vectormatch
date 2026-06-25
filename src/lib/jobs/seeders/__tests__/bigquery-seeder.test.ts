@@ -4,6 +4,10 @@
  * Tests the `processBigQueryRows` function (pure domain logic, no BigQuery)
  * and the `runBigQuerySeeder` function (with mocked BigQuery client). The DB
  * insert and slug probe are mocked to avoid requiring live infrastructure.
+ *
+ * Updated June 2026: Tests reflect the optimized query that uses the
+ * `technologies` column (Wappalyzer detection) instead of scanning `payload`.
+ * All rows now go through slug probe resolution with an ats_source hint.
  */
 
 import { vi } from "vitest";
@@ -34,59 +38,36 @@ import { resolveCustomUrl } from "@/lib/jobs/seeders/resolve-custom-url";
 
 // ── Test fixtures ────────────────────────────────────────────────────────────
 
-const rowWithGreenhouseSlug: BigQueryRow = {
+const rowGreenhouse: BigQueryRow = {
   root_page: "acme.com",
   page: "https://acme.com/",
-  greenhouse_slug: "acme",
-  lever_slug: null,
-  ashby_slug: null,
+  ats_source: "greenhouse",
 };
 
-const rowWithLeverSlug: BigQueryRow = {
+const rowLever: BigQueryRow = {
   root_page: "foobar.com",
   page: "https://foobar.com/",
-  greenhouse_slug: null,
-  lever_slug: "foobar",
-  ashby_slug: null,
+  ats_source: "lever",
 };
 
-const rowWithAshbySlug: BigQueryRow = {
-  root_page: "baz.com",
-  page: "https://baz.com/",
-  greenhouse_slug: null,
-  lever_slug: null,
-  ashby_slug: "baz",
-};
-
-const rowWithoutSlug: BigQueryRow = {
-  root_page: "startup.com",
-  page: "https://startup.com/",
-  greenhouse_slug: null,
-  lever_slug: null,
-  ashby_slug: null,
-};
-
-const rowWithMultipleSlugs: BigQueryRow = {
-  root_page: "multi.com",
-  page: "https://multi.com/",
-  greenhouse_slug: "multi-eng",
-  lever_slug: "multi-sales",
-  ashby_slug: null,
+const rowGreenhouseNoPage: BigQueryRow = {
+  root_page: "nopage.com",
+  ats_source: "greenhouse",
 };
 
 // ── buildBigQuerySql ─────────────────────────────────────────────────────────
 
 describe("buildBigQuerySql", () => {
   it("builds a valid SQL query for a given crawl date", () => {
-    const sql = buildBigQuerySql("2024-06-01");
-    expect(sql).toContain("date = '2024-06-01'");
+    const sql = buildBigQuerySql("2026-06-01");
+    expect(sql).toContain("date = '2026-06-01'");
     expect(sql).toContain("httparchive.crawl.pages");
     expect(sql).toContain("client = 'desktop'");
     expect(sql).toContain("is_root_page");
   });
 
   it("includes all 4 tech tiers", () => {
-    const sql = buildBigQuerySql("2024-06-01");
+    const sql = buildBigQuerySql("2026-06-01");
     expect(sql).toContain("Next.js");
     expect(sql).toContain("React");
     expect(sql).toContain("Node.js");
@@ -95,37 +76,39 @@ describe("buildBigQuerySql", () => {
     expect(sql).toContain("Ruby on Rails");
   });
 
-  it("includes ATS URL regex filters", () => {
-    const sql = buildBigQuerySql("2024-06-01");
-    // The SQL uses escaped dots (\\.) in regex patterns, so we check for
-    // the domain name without the TLD separator.
-    expect(sql).toContain("greenhouse");
-    expect(sql).toContain("lever");
-    expect(sql).toContain("ashbyhq");
+  it("uses technologies column for ATS detection (not payload)", () => {
+    const sql = buildBigQuerySql("2026-06-01");
+    expect(sql).toContain("technologies");
+    expect(sql).toContain("Greenhouse");
+    expect(sql).toContain("Lever");
+    // Must NOT reference payload (the expensive JSON column)
+    expect(sql).not.toContain("payload");
+    expect(sql).not.toContain("TO_JSON_STRING");
+    expect(sql).not.toContain("REGEXP_EXTRACT");
+    expect(sql).not.toContain("REGEXP_CONTAINS");
   });
 
-  it("includes REGEXP_EXTRACT for slug extraction", () => {
-    const sql = buildBigQuerySql("2024-06-01");
-    expect(sql).toContain("greenhouse_slug");
-    expect(sql).toContain("lever_slug");
-    expect(sql).toContain("ashby_slug");
-    expect(sql).toContain("REGEXP_EXTRACT");
+  it("returns ats_source column from technologies detection", () => {
+    const sql = buildBigQuerySql("2026-06-01");
+    expect(sql).toContain("ats_source");
+    expect(sql).toContain("'greenhouse'");
+    expect(sql).toContain("'lever'");
   });
 
   it("appends LIMIT when provided", () => {
-    const sql = buildBigQuerySql("2024-06-01", 1000);
+    const sql = buildBigQuerySql("2026-06-01", 1000);
     expect(sql).toContain("LIMIT 1000");
   });
 
   it("does not append LIMIT when not provided", () => {
-    const sql = buildBigQuerySql("2024-06-01");
+    const sql = buildBigQuerySql("2026-06-01");
     expect(sql).not.toContain("LIMIT");
   });
 });
 
-// ── processBigQueryRows — direct slug extraction ─────────────────────────────
+// ── processBigQueryRows — slug probe resolution ──────────────────────────────
 
-describe("processBigQueryRows — direct slug extraction", () => {
+describe("processBigQueryRows — slug probe resolution", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(insertDiscoveredCompanies).mockResolvedValue({
@@ -135,135 +118,120 @@ describe("processBigQueryRows — direct slug extraction", () => {
     });
   });
 
-  it("extracts Greenhouse slugs directly from BigQuery results", async () => {
-    await processBigQueryRows([rowWithGreenhouseSlug]);
-
-    expect(insertDiscoveredCompanies).toHaveBeenCalledTimes(1);
-    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
-    expect(callArg).toHaveLength(1);
-    expect(callArg[0]).toEqual({
-      atsSlug: "acme",
-      atsSource: "greenhouse",
-      rootDomain: "acme.com",
-      discoverySource: "httparchive",
-      discoveryContext: "https://acme.com/",
-    });
-  });
-
-  it("extracts Lever slugs directly from BigQuery results", async () => {
-    await processBigQueryRows([rowWithLeverSlug]);
-
-    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
-    expect(callArg[0].atsSource).toBe("lever");
-    expect(callArg[0].atsSlug).toBe("foobar");
-  });
-
-  it("extracts Ashby slugs directly from BigQuery results", async () => {
-    await processBigQueryRows([rowWithAshbySlug]);
-
-    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
-    expect(callArg[0].atsSource).toBe("ashby");
-    expect(callArg[0].atsSlug).toBe("baz");
-  });
-
-  it("prefers Greenhouse when multiple slugs are present", async () => {
-    await processBigQueryRows([rowWithMultipleSlugs]);
-
-    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
-    expect(callArg).toHaveLength(1);
-    expect(callArg[0].atsSource).toBe("greenhouse");
-    expect(callArg[0].atsSlug).toBe("multi-eng");
-  });
-
-  it("handles multiple rows with direct slugs", async () => {
-    await processBigQueryRows([
-      rowWithGreenhouseSlug,
-      rowWithLeverSlug,
-      rowWithAshbySlug,
-    ]);
-
-    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
-    expect(callArg).toHaveLength(3);
-  });
-});
-
-// ── processBigQueryRows — slug probe fallback ────────────────────────────────
-
-describe("processBigQueryRows — slug probe fallback", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(insertDiscoveredCompanies).mockResolvedValue({
-      inserted: 0,
-      skipped: 0,
-      rejected: [],
-    });
-  });
-
-  it("calls resolveCustomUrl for rows without direct slugs", async () => {
+  it("calls resolveCustomUrl with ats_source hint for each row", async () => {
     const successResult: ResolutionResult = {
       success: true,
       input: {
-        atsSlug: "startup",
+        atsSlug: "acme",
         atsSource: "greenhouse",
         discoverySource: "hn_custom_url",
-        rootDomain: "startup.com",
-        discoveryContext: "https://startup.com",
+        rootDomain: "acme.com",
+        discoveryContext: "https://acme.com",
       },
-      resolvedBy: "slug_probe",
+      resolvedBy: "cname",
     };
     vi.mocked(resolveCustomUrl).mockResolvedValue(successResult);
 
-    const result = await processBigQueryRows([rowWithoutSlug]);
+    await processBigQueryRows([rowGreenhouse]);
 
     expect(resolveCustomUrl).toHaveBeenCalledTimes(1);
     expect(resolveCustomUrl).toHaveBeenCalledWith(
-      "https://startup.com",
+      "https://acme.com",
       undefined,
       undefined,
+      "greenhouse",
     );
-    expect(result.slugProbesAttempted).toBe(1);
-    expect(result.slugProbesResolved).toBe(1);
-    expect(result.unresolved).toBe(0);
   });
 
-  it("counts unresolved domains when slug probe fails", async () => {
-    const failResult: ResolutionResult = {
-      success: false,
-      url: "https://startup.com",
-      reason: "cname_and_slug_probe_failed",
-    };
-    vi.mocked(resolveCustomUrl).mockResolvedValue(failResult);
-
-    const result = await processBigQueryRows([rowWithoutSlug]);
-
-    expect(result.slugProbesAttempted).toBe(1);
-    expect(result.slugProbesResolved).toBe(0);
-    expect(result.unresolved).toBe(1);
-  });
-
-  it("mixes direct slugs and probe results in the same batch", async () => {
+  it("overrides discoverySource to httparchive", async () => {
     const successResult: ResolutionResult = {
       success: true,
       input: {
-        atsSlug: "startup",
+        atsSlug: "acme",
+        atsSource: "greenhouse",
+        discoverySource: "hn_custom_url",
+        rootDomain: "acme.com",
+        discoveryContext: "https://acme.com",
+      },
+      resolvedBy: "cname",
+    };
+    vi.mocked(resolveCustomUrl).mockResolvedValue(successResult);
+
+    await processBigQueryRows([rowGreenhouse]);
+
+    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
+    expect(callArg[0].discoverySource).toBe("httparchive");
+  });
+
+  it("passes lever as ats_source hint for lever rows", async () => {
+    const successResult: ResolutionResult = {
+      success: true,
+      input: {
+        atsSlug: "foobar",
         atsSource: "lever",
         discoverySource: "hn_custom_url",
-        rootDomain: "startup.com",
-        discoveryContext: "https://startup.com",
+        rootDomain: "foobar.com",
+        discoveryContext: "https://foobar.com",
       },
       resolvedBy: "slug_probe",
     };
     vi.mocked(resolveCustomUrl).mockResolvedValue(successResult);
 
-    const result = await processBigQueryRows([
-      rowWithGreenhouseSlug, // direct
-      rowWithoutSlug, // probe
-    ]);
+    await processBigQueryRows([rowLever]);
 
-    expect(result.directSlugsExtracted).toBe(1);
-    expect(result.slugProbesAttempted).toBe(1);
+    expect(resolveCustomUrl).toHaveBeenCalledWith(
+      "https://foobar.com",
+      undefined,
+      undefined,
+      "lever",
+    );
+  });
+
+  it("counts resolved and unresolved domains", async () => {
+    const successResult: ResolutionResult = {
+      success: true,
+      input: {
+        atsSlug: "acme",
+        atsSource: "greenhouse",
+        discoverySource: "hn_custom_url",
+        rootDomain: "acme.com",
+        discoveryContext: "https://acme.com",
+      },
+      resolvedBy: "cname",
+    };
+    const failResult: ResolutionResult = {
+      success: false,
+      url: "https://foobar.com",
+      reason: "cname_and_slug_probe_failed",
+    };
+    vi.mocked(resolveCustomUrl)
+      .mockResolvedValueOnce(successResult)
+      .mockResolvedValueOnce(failResult);
+
+    const result = await processBigQueryRows([rowGreenhouse, rowLever]);
+
+    expect(result.slugProbesAttempted).toBe(2);
     expect(result.slugProbesResolved).toBe(1);
+    expect(result.unresolved).toBe(1);
+  });
 
+  it("handles multiple rows and inserts all resolved companies", async () => {
+    const successResult: ResolutionResult = {
+      success: true,
+      input: {
+        atsSlug: "acme",
+        atsSource: "greenhouse",
+        discoverySource: "hn_custom_url",
+        rootDomain: "acme.com",
+        discoveryContext: "https://acme.com",
+      },
+      resolvedBy: "cname",
+    };
+    vi.mocked(resolveCustomUrl).mockResolvedValue(successResult);
+
+    await processBigQueryRows([rowGreenhouse, rowLever]);
+
+    expect(resolveCustomUrl).toHaveBeenCalledTimes(2);
     const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
     expect(callArg).toHaveLength(2);
   });
@@ -285,23 +253,34 @@ describe("processBigQueryRows — edge cases", () => {
     const result = await processBigQueryRows([]);
 
     expect(result.domainsFound).toBe(0);
-    expect(result.directSlugsExtracted).toBe(0);
     expect(result.slugProbesAttempted).toBe(0);
+    expect(result.slugProbesResolved).toBe(0);
+    expect(result.unresolved).toBe(0);
     expect(insertDiscoveredCompanies).toHaveBeenCalledTimes(1);
   });
 
-  it("handles rows with missing page field (falls back to constructed URL)", async () => {
-    const row: BigQueryRow = {
-      root_page: "acme.com",
-      greenhouse_slug: "acme",
-      lever_slug: null,
-      ashby_slug: null,
+  it("handles rows with missing page field", async () => {
+    const successResult: ResolutionResult = {
+      success: true,
+      input: {
+        atsSlug: "nopage",
+        atsSource: "greenhouse",
+        discoverySource: "hn_custom_url",
+        rootDomain: "nopage.com",
+        discoveryContext: "https://nopage.com",
+      },
+      resolvedBy: "cname",
     };
+    vi.mocked(resolveCustomUrl).mockResolvedValue(successResult);
 
-    await processBigQueryRows([row]);
+    await processBigQueryRows([rowGreenhouseNoPage]);
 
-    const callArg = vi.mocked(insertDiscoveredCompanies).mock.calls[0][0];
-    expect(callArg[0].discoveryContext).toBe("https://acme.com/");
+    expect(resolveCustomUrl).toHaveBeenCalledWith(
+      "https://nopage.com",
+      undefined,
+      undefined,
+      "greenhouse",
+    );
   });
 });
 
@@ -318,19 +297,19 @@ describe("runBigQuerySeeder", () => {
   });
 
   it("calls the BigQuery query function with the built SQL", async () => {
-    const queryFn = vi.fn().mockResolvedValue([rowWithGreenhouseSlug]);
+    const queryFn = vi.fn().mockResolvedValue([rowGreenhouse]);
 
-    await runBigQuerySeeder("2024-06-01", queryFn);
+    await runBigQuerySeeder("2026-06-01", queryFn);
 
     expect(queryFn).toHaveBeenCalledTimes(1);
     const sql = queryFn.mock.calls[0][0];
-    expect(sql).toContain("date = '2024-06-01'");
+    expect(sql).toContain("date = '2026-06-01'");
   });
 
   it("passes the limit to the SQL query", async () => {
     const queryFn = vi.fn().mockResolvedValue([]);
 
-    await runBigQuerySeeder("2024-06-01", queryFn, undefined, undefined, 500);
+    await runBigQuerySeeder("2026-06-01", queryFn, undefined, undefined, 500);
 
     const sql = queryFn.mock.calls[0][0];
     expect(sql).toContain("LIMIT 500");
@@ -341,7 +320,7 @@ describe("runBigQuerySeeder", () => {
       .fn()
       .mockRejectedValue(new Error("BigQuery unavailable"));
 
-    const result = await runBigQuerySeeder("2024-06-01", queryFn);
+    const result = await runBigQuerySeeder("2026-06-01", queryFn);
 
     expect(result.error).toBe("BigQuery unavailable");
     expect(result.domainsFound).toBe(0);
@@ -350,7 +329,7 @@ describe("runBigQuerySeeder", () => {
   it("returns error result when Zod validation fails", async () => {
     const queryFn = vi.fn().mockResolvedValue([{ wrong: "shape" }]);
 
-    const result = await runBigQuerySeeder("2024-06-01", queryFn);
+    const result = await runBigQuerySeeder("2026-06-01", queryFn);
 
     expect(result.error).toBeTruthy();
     expect(result.domainsFound).toBe(0);

@@ -73,11 +73,16 @@ const CNAME_ATS_MAP: Record<string, AtsSource> = {
  * @param url           The custom URL to resolve (e.g. "https://careers.acme.com")
  * @param resolveCname  Injectable DNS CNAME resolver (defaults to node:dns/promises)
  * @param fetchFn       Injectable fetch (defaults to global fetch)
+ * @param atsHint       Optional ATS source hint ("greenhouse", "lever", "ashby").
+ *                      When provided, the slug probe only tries the hinted ATS
+ *                      instead of all three — 3x fewer API calls. Used by the
+ *                      BigQuery seeder where Wappalyzer detects the ATS.
  */
 export async function resolveCustomUrl(
   url: string,
   resolveCname: ResolveCnameFn = defaultResolveCname,
   fetchFn: FetchFn = fetch,
+  atsHint?: AtsSource,
 ): Promise<ResolutionResult> {
   let parsed: URL;
   try {
@@ -106,7 +111,7 @@ export async function resolveCustomUrl(
   }
 
   // ── Stage 2: Slug probe ──────────────────────────────────────────────────
-  const slugResult = await trySlugProbe(hostname, rootDomain, fetchFn);
+  const slugResult = await trySlugProbe(hostname, rootDomain, fetchFn, atsHint);
   if (slugResult) {
     return {
       success: true,
@@ -132,11 +137,14 @@ export async function resolveCustomUrl(
 /**
  * Resolve a batch of custom URLs. Returns successful resolutions and failures
  * separately for ingestionLog metrics.
+ *
+ * @param atsHint  Optional ATS source hint applied to all URLs in the batch.
  */
 export async function resolveCustomUrls(
   urls: string[],
   resolveCname: ResolveCnameFn = defaultResolveCname,
   fetchFn: FetchFn = fetch,
+  atsHint?: AtsSource,
 ): Promise<{
   resolved: SeedCompanyInput[];
   failed: { url: string; reason: string }[];
@@ -147,7 +155,7 @@ export async function resolveCustomUrls(
   // Process sequentially to avoid hammering DNS/ATS APIs. The resolver runs as
   // a background Inngest function — throughput is not critical here.
   for (const url of urls) {
-    const result = await resolveCustomUrl(url, resolveCname, fetchFn);
+    const result = await resolveCustomUrl(url, resolveCname, fetchFn, atsHint);
     if (result.success) {
       resolved.push(result.input);
     } else {
@@ -247,13 +255,19 @@ async function trySlugProbe(
   hostname: string,
   rootDomain: string | null,
   fetchFn: FetchFn,
+  atsHint?: AtsSource,
 ): Promise<SlugProbeResult | null> {
   // Extract candidate slug from the hostname. Try the first label, then the
   // root domain (without TLD).
   const candidates = extractSlugCandidates(hostname, rootDomain);
 
+  // If an ATS hint is provided, only probe that ATS. Otherwise try all three.
+  const sourcesToProbe: AtsSource[] = atsHint
+    ? [atsHint]
+    : (["greenhouse", "lever", "ashby"] as AtsSource[]);
+
   for (const slug of candidates) {
-    for (const source of ["greenhouse", "lever", "ashby"] as AtsSource[]) {
+    for (const source of sourcesToProbe) {
       const endpoint = getAtsEndpoint(source);
       const url = endpoint.jobsList(slug);
 

@@ -1,5 +1,9 @@
 /**
  * Unit tests for the BigQuery HTTPArchive Zod schemas (TDD §4.1.1, §4.2.3).
+ *
+ * Updated June 2026: Tests reflect the optimized query schema that uses
+ * `technologies` column (Wappalyzer) instead of `payload` regex extraction.
+ * Rows now have `ats_source` instead of individual slug columns.
  */
 
 import {
@@ -11,9 +15,7 @@ describe("bigQueryRowSchema", () => {
   const validRow = {
     root_page: "acme.com",
     page: "https://acme.com/",
-    greenhouse_slug: "acme",
-    lever_slug: null,
-    ashby_slug: null,
+    ats_source: "greenhouse",
   };
 
   it("parses a valid row with all fields", () => {
@@ -21,21 +23,11 @@ describe("bigQueryRowSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("parses a row with null slugs", () => {
+  it("parses a row with lever ats_source", () => {
     const result = bigQueryRowSchema.safeParse({
-      root_page: "acme.com",
-      page: "https://acme.com/",
-      greenhouse_slug: null,
-      lever_slug: null,
-      ashby_slug: null,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("parses a row with missing optional slug fields", () => {
-    const result = bigQueryRowSchema.safeParse({
-      root_page: "acme.com",
-      page: "https://acme.com/",
+      root_page: "foobar.com",
+      page: "https://foobar.com/",
+      ats_source: "lever",
     });
     expect(result.success).toBe(true);
   });
@@ -43,7 +35,7 @@ describe("bigQueryRowSchema", () => {
   it("parses a row with missing page field", () => {
     const result = bigQueryRowSchema.safeParse({
       root_page: "acme.com",
-      greenhouse_slug: "acme",
+      ats_source: "greenhouse",
     });
     expect(result.success).toBe(true);
   });
@@ -60,7 +52,7 @@ describe("bigQueryRowSchema", () => {
   it("fails when root_page is missing", () => {
     const result = bigQueryRowSchema.safeParse({
       page: "https://acme.com/",
-      greenhouse_slug: "acme",
+      ats_source: "greenhouse",
     });
     expect(result.success).toBe(false);
   });
@@ -69,6 +61,23 @@ describe("bigQueryRowSchema", () => {
     const result = bigQueryRowSchema.safeParse({
       root_page: "",
       page: "https://acme.com/",
+      ats_source: "greenhouse",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("fails when ats_source is missing", () => {
+    const result = bigQueryRowSchema.safeParse({
+      root_page: "acme.com",
+      page: "https://acme.com/",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("fails when ats_source is not greenhouse or lever", () => {
+    const result = bigQueryRowSchema.safeParse({
+      root_page: "acme.com",
+      ats_source: "ashby",
     });
     expect(result.success).toBe(false);
   });
@@ -83,8 +92,8 @@ describe("bigQueryRowSchema", () => {
 describe("bigQueryRowsSchema", () => {
   it("parses an array of valid rows", () => {
     const result = bigQueryRowsSchema.safeParse([
-      { root_page: "acme.com", greenhouse_slug: "acme" },
-      { root_page: "foobar.com", lever_slug: "foobar" },
+      { root_page: "acme.com", ats_source: "greenhouse" },
+      { root_page: "foobar.com", ats_source: "lever" },
     ]);
     expect(result.success).toBe(true);
   });
@@ -96,7 +105,7 @@ describe("bigQueryRowsSchema", () => {
 
   it("fails when an element is invalid", () => {
     const result = bigQueryRowsSchema.safeParse([
-      { root_page: "acme.com" },
+      { root_page: "acme.com", ats_source: "greenhouse" },
       { wrong: "shape" },
     ]);
     expect(result.success).toBe(false);

@@ -109,42 +109,55 @@ const ALL_TECHS = [
 /**
  * Build the BigQuery SQL query for the HTTPArchive dataset.
  *
+ * Optimized query (June 2026): Uses the `technologies` column (Wappalyzer
+ * detection) instead of scanning the `payload` column. This reduces bytes
+ * scanned from ~4 TB to ~15 GB — a 270x cost reduction that fits within
+ * BigQuery's 1 TB/month free tier.
+ *
+ * Wappalyzer detects Greenhouse and Lever as technologies with category
+ * "Recruitment & staffing". Ashby is NOT detected by Wappalyzer (too niche),
+ * so BigQuery-discovered companies are Greenhouse or Lever only. HN seeder
+ * catches Ashby companies.
+ *
  * The query:
  *   1. Filters on a specific monthly crawl date (partition pruning)
  *   2. Filters on desktop client + root pages only (cost optimization)
- *   3. Filters on target tech stacks (4 tiers)
- *   4. Filters on ATS script URL presence in the payload
- *   5. Extracts ATS slugs via REGEXP_EXTRACT when possible
+ *   3. Filters on target tech stacks (4 tiers) via technologies column
+ *   4. Filters on ATS detection via technologies column (Greenhouse/Lever)
+ *   5. Returns root_page + which ATS was detected (for targeted slug probe)
  *
- * @param crawlDate  The monthly crawl date (e.g. "2024-06-01")
+ * No `payload` column reference — that column is JSON and scanning it costs
+ * ~4 TB per monthly partition. The `technologies` column is a small array of
+ * structs that costs ~15 GB per partition.
+ *
+ * @param crawlDate  The monthly crawl date (e.g. "2026-06-01")
  * @param limit      Optional row limit (for testing)
  */
 // fallow-ignore-next-line unused-export
 export function buildBigQuerySql(crawlDate: string, limit?: number): string {
   const techConditions = ALL_TECHS.map(
-    (tech) => `'${tech}' IN UNNEST(technologies.technology)`,
+    (tech) => `t.technology = '${tech}'`,
   ).join("\n    OR ");
 
-  const sql = `SELECT
+  const sql = `SELECT DISTINCT
   root_page,
   page,
-  REGEXP_EXTRACT(LOWER(payload), r'boards(?:-api)?\\.greenhouse\\.io/(?:v1/boards/)?([a-z0-9_-]+)') AS greenhouse_slug,
-  REGEXP_EXTRACT(LOWER(payload), r'(?:api\\.lever\\.co/v0/postings/|jobs\\.lever\\.co/)([a-z0-9_-]+)') AS lever_slug,
-  REGEXP_EXTRACT(LOWER(payload), r'(?:api\\.ashbyhq\\.com/posting-api/job-board/|(?:jobs|careers)\\.ashbyhq\\.com/)([a-z0-9_-]+)') AS ashby_slug
+  CASE
+    WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Greenhouse') THEN 'greenhouse'
+    WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Lever') THEN 'lever'
+  END AS ats_source
 FROM \`httparchive.crawl.pages\`
 WHERE
   date = '${crawlDate}'
   AND client = 'desktop'
   AND is_root_page
-  AND (
+  AND EXISTS (
+    SELECT 1 FROM UNNEST(technologies) t WHERE
     ${techConditions}
   )
-  AND (
-    REGEXP_CONTAINS(LOWER(payload), 'boards-api\\.greenhouse\\.io')
-    OR REGEXP_CONTAINS(LOWER(payload), 'boards\\.greenhouse\\.io')
-    OR REGEXP_CONTAINS(LOWER(payload), 'api\\.lever\\.co/v0/postings')
-    OR REGEXP_CONTAINS(LOWER(payload), 'jobs\\.lever\\.co')
-    OR REGEXP_CONTAINS(LOWER(payload), 'api\\.ashbyhq\\.com/posting-api')
+  AND EXISTS (
+    SELECT 1 FROM UNNEST(technologies) t
+    WHERE t.technology IN ('Greenhouse', 'Lever')
   )`;
 
   if (limit) {
@@ -202,9 +215,14 @@ export async function runBigQuerySeeder(
 // ── Row processing (pure, testable without BigQuery) ─────────────────────────
 
 /**
- * Process BigQuery rows: extract ATS slugs (directly or via slug probe) and
- * insert discovered companies. This is the core domain logic, separated from
- * the BigQuery client for testability.
+ * Process BigQuery rows: resolve ATS slugs via slug probe and insert discovered
+ * companies. This is the core domain logic, separated from the BigQuery client
+ * for testability.
+ *
+ * The optimized query (June 2026) returns root_page + ats_source (detected by
+ * Wappalyzer). No direct slugs are extracted from the query — all domains go
+ * through the slug probe resolver. The ats_source is passed as a hint to the
+ * resolver so it only probes the detected ATS (3x fewer API calls).
  */
 // fallow-ignore-next-line unused-export
 export async function processBigQueryRows(
@@ -212,69 +230,43 @@ export async function processBigQueryRows(
   resolveCname?: ResolveCnameFn,
   fetchFn?: FetchFn,
 ): Promise<BigQuerySeederResult> {
-  const directInputs: SeedCompanyInput[] = [];
-  const probeCandidates: string[] = [];
-
-  // Phase 1: Extract direct slugs from BigQuery REGEXP_EXTRACT results.
-  for (const row of rows) {
-    const domain = row.root_page;
-    const page = row.page ?? `https://${domain}/`;
-
-    if (row.greenhouse_slug) {
-      directInputs.push({
-        atsSlug: row.greenhouse_slug,
-        atsSource: "greenhouse",
-        rootDomain: domain,
-        discoverySource: "httparchive",
-        discoveryContext: page,
-      });
-    } else if (row.lever_slug) {
-      directInputs.push({
-        atsSlug: row.lever_slug,
-        atsSource: "lever",
-        rootDomain: domain,
-        discoverySource: "httparchive",
-        discoveryContext: page,
-      });
-    } else if (row.ashby_slug) {
-      directInputs.push({
-        atsSlug: row.ashby_slug,
-        atsSource: "ashby",
-        rootDomain: domain,
-        discoverySource: "httparchive",
-        discoveryContext: page,
-      });
-    } else {
-      // No direct slug extracted — needs slug probe resolution.
-      probeCandidates.push(`https://${domain}`);
-    }
-  }
-
-  const directSlugsExtracted = directInputs.length;
-
-  // Phase 2: Slug probe for domains where BigQuery couldn't extract a slug.
   const probeInputs: SeedCompanyInput[] = [];
   let slugProbesResolved = 0;
   let unresolved = 0;
 
-  for (const url of probeCandidates) {
-    const result = await resolveCustomUrl(url, resolveCname, fetchFn);
+  // All rows go through slug probe resolution with the detected ats_source
+  // as a hint. The resolver tries CNAME check first, then targeted slug probe.
+  for (const row of rows) {
+    // root_page from BigQuery may include the protocol (e.g. "https://acme.com/")
+    // or just the domain (e.g. "acme.com"). Normalize to a full URL.
+    const rawDomain = row.root_page;
+    const url = rawDomain.startsWith("http")
+      ? rawDomain
+      : `https://${rawDomain}`;
+    const result = await resolveCustomUrl(
+      url,
+      resolveCname,
+      fetchFn,
+      row.ats_source,
+    );
     if (result.success) {
-      probeInputs.push(result.input);
+      // Override discoverySource to httparchive (resolver sets hn_custom_url)
+      probeInputs.push({
+        ...result.input,
+        discoverySource: "httparchive",
+      });
       slugProbesResolved++;
     } else {
       unresolved++;
     }
   }
 
-  // Insert all discovered companies (direct + probe) in a single batch.
-  const allInputs = [...directInputs, ...probeInputs];
-  const insertResult = await insertDiscoveredCompanies(allInputs);
+  const insertResult = await insertDiscoveredCompanies(probeInputs);
 
   return {
     domainsFound: rows.length,
-    directSlugsExtracted,
-    slugProbesAttempted: probeCandidates.length,
+    directSlugsExtracted: 0,
+    slugProbesAttempted: rows.length,
     slugProbesResolved,
     unresolved,
     insertResult,
@@ -287,11 +279,27 @@ export async function processBigQueryRows(
  * Create a default BigQuery query function using the official @google-cloud/bigquery
  * client. This is used in production (manual script + Inngest function).
  *
- * Requires GOOGLE_APPLICATION_CREDENTIALS or equivalent auth.
+ * Credentials are resolved in this order:
+ *   1. GOOGLE_APPLICATION_CREDENTIALS_JSON — inline JSON string (container-friendly,
+ *      used by Coolify). The JSON is the full service account key file contents.
+ *   2. GOOGLE_APPLICATION_CREDENTIALS — file path to a JSON key file (local dev,
+ *      Google's default ADC flow).
+ *   3. Application Default Credentials (gcloud auth application-default login).
+ *
+ * Optional: GOOGLE_CLOUD_PROJECT — overrides the project ID from the credentials.
  */
 export async function createDefaultBigQueryFn(): Promise<BigQueryFn> {
   const { BigQuery } = await import("@google-cloud/bigquery");
-  const bqClient = new BigQuery();
+
+  const inlineCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+
+  const bqClient = inlineCreds
+    ? new BigQuery({
+        projectId: projectId ?? undefined,
+        credentials: JSON.parse(inlineCreds),
+      })
+    : new BigQuery({ projectId: projectId ?? undefined });
 
   return async (sql: string) => {
     const [rows] = await bqClient.query({ query: sql });

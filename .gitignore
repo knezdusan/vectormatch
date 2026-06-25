@@ -84,3 +84,7 @@ docs/ignored/
 /e2e/playwright/.cache/
 /e2e/playwright/.auth/
 .fallow/
+
+# Google Cloud service account keys
+docs/system/*.json
+*.service-account.json
