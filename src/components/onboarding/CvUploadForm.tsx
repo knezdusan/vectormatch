@@ -24,6 +24,13 @@ import { startTransition, useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { parseCvAction } from "@/actions/onboarding";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
@@ -111,96 +118,98 @@ export function CvUploadForm() {
   const displayError = clientError ?? state?.error ?? null;
 
   return (
-    <div className="flex flex-col gap-6 p-6 max-w-2xl mx-auto w-full">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="text-2xl font-semibold tracking-tight">
           Upload your CV
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        </CardTitle>
+        <CardDescription>
           We&apos;ll extract your work history and skills with AI, then you
           confirm the details before completing your profile.
-        </p>
-      </header>
+        </CardDescription>
+      </CardHeader>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="cv-label">CV name</Label>
-          <Input
-            id="cv-label"
-            name="label"
-            type="text"
-            placeholder="e.g. Senior React CV 2024"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            required
-            disabled={isBusy}
-            autoComplete="off"
-          />
-          <p className="text-xs text-muted-foreground">
-            A mandatory name for this CV — you can upload multiple CVs later.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="cv-file">CV file (PDF)</Label>
-          <label
-            htmlFor="cv-file"
-            className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-8 text-center cursor-pointer hover:bg-muted/40 transition-colors"
-          >
-            <FileText className="h-8 w-8 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {file ? file.name : "Click to select a PDF file"}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              PDF only, max ~10MB
-            </span>
-          </label>
-          <Input
-            id="cv-file"
-            type="file"
-            accept="application/pdf,.pdf"
-            className="hidden"
-            onChange={handleFileChange}
-            disabled={isBusy}
-            required
-          />
-        </div>
-
-        {displayError && (
-          <div
-            className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
-            role="alert"
-          >
-            {displayError}
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cv-label">CV name</Label>
+            <Input
+              id="cv-label"
+              name="label"
+              type="text"
+              placeholder="e.g. Senior React CV 2024"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              required
+              disabled={isBusy}
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              A mandatory name for this CV — you can upload multiple CVs later.
+            </p>
           </div>
-        )}
 
-        {stage === "done" && (
-          <output className="rounded-md bg-primary/10 p-3 text-sm text-primary">
-            CV parsed successfully. Loading your profile review…
-          </output>
-        )}
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="cv-file">CV file (PDF)</Label>
+            <label
+              htmlFor="cv-file"
+              className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-8 text-center cursor-pointer hover:bg-muted/40 transition-colors"
+            >
+              <FileText className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {file ? file.name : "Click to select a PDF file"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                PDF only, max ~10MB
+              </span>
+            </label>
+            <Input
+              id="cv-file"
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={isBusy}
+              required
+            />
+          </div>
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={!canSubmit || isBusy}
-        >
-          {stage === "extracting" ? (
-            <>
-              <Spinner className="mr-2" /> Extracting text…
-            </>
-          ) : stage === "parsing" || isPending ? (
-            <>
-              <Spinner className="mr-2" /> AI parsing CV…
-            </>
-          ) : (
-            <>
-              <Upload className="mr-2 h-4 w-4" /> Upload and parse CV
-            </>
+          {displayError && (
+            <div
+              className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+              role="alert"
+            >
+              {displayError}
+            </div>
           )}
-        </Button>
-      </form>
-    </div>
+
+          {stage === "done" && (
+            <output className="rounded-md bg-primary/10 p-3 text-sm text-primary">
+              CV parsed successfully. Loading your profile review…
+            </output>
+          )}
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!canSubmit || isBusy}
+          >
+            {stage === "extracting" ? (
+              <>
+                <Spinner className="mr-2" /> Extracting text…
+              </>
+            ) : stage === "parsing" || isPending ? (
+              <>
+                <Spinner className="mr-2" /> AI parsing CV…
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" /> Upload and parse CV
+              </>
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

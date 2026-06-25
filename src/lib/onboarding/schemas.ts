@@ -29,7 +29,7 @@ import { CANONICAL_TAGS, PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
 // ranges); the math is done in TypeScript. (MODULE_A_DECISIONS.md §11)
 // =============================================================================
 
-export const schema1Role = z.object({
+const schema1Role = z.object({
   company: z.string().describe("Company name as written in CV"),
   title: z.string().describe("Job title as written in CV"),
   start_date: z
@@ -58,7 +58,7 @@ export const schema1Role = z.object({
     .describe("Skills as written in CV, before normalization"),
 });
 
-export const schema1ProposedStack = z.object({
+const schema1ProposedStack = z.object({
   anchor_tag: z
     .string()
     .describe("The persona_defining tag that anchors this stack"),
@@ -134,8 +134,6 @@ export const resumeExtractionSchema = z
   );
 
 export type ResumeExtractionOutput = z.infer<typeof resumeExtractionSchema>;
-export type Schema1Role = z.infer<typeof schema1Role>;
-export type Schema1ProposedStack = z.infer<typeof schema1ProposedStack>;
 
 // =============================================================================
 // SCHEMA 2: Validated Onboarding Submission
@@ -174,7 +172,7 @@ export const preferredComplianceEnum = z.enum([
   "ic_global",
 ]);
 
-export const schema2WorkHistoryEntry = z.object({
+const schema2WorkHistoryEntry = z.object({
   company: z.string().min(1, "Company is required"),
   role: z.string().min(1, "Role is required"),
   startDate: z
@@ -190,7 +188,7 @@ export const schema2WorkHistoryEntry = z.object({
   rawSkillsDetected: z.array(z.string()),
 });
 
-export const schema2Persona = z.object({
+const schema2Persona = z.object({
   personaId: z.string().min(1, "Persona ID is required"),
   personaLabel: z.string().min(1, "Persona label is required"),
   embeddingSummary: z
@@ -260,7 +258,7 @@ export type PreferredCompliance = z.infer<typeof preferredComplianceEnum>;
 // =============================================================================
 
 /** Minimum raw text length to reject image-only PDFs, corrupt files, blank pages. */
-export const MIN_CV_RAW_TEXT_LENGTH = 200;
+const MIN_CV_RAW_TEXT_LENGTH = 200;
 
 /** Regex to detect at least one year-like pattern (4-digit year). */
 const YEAR_PATTERN = /\b(19|20)\d{2}\b/;

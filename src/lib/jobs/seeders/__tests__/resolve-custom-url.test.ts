@@ -9,14 +9,12 @@
  * Failure — both stages fail → discard (no manual review).
  */
 
-import type {
-  FetchFn,
-  ResolveCnameFn,
-} from "@/lib/jobs/seeders/resolve-custom-url";
+import type { ResolveCnameFn } from "@/lib/jobs/seeders/resolve-custom-url";
 import {
   resolveCustomUrl,
   resolveCustomUrls,
 } from "@/lib/jobs/seeders/resolve-custom-url";
+import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
 

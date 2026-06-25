@@ -21,7 +21,7 @@
 // See TDD §4.4 for the full specification.
 
 import { passesGateZero } from "@/lib/jobs/gate-zero";
-import type { FetchFn } from "./ats-adapters";
+import type { FetchFn } from "@/lib/jobs/types";
 import { fetchJobsFromAts } from "./ats-adapters";
 import type { CompanyHealth } from "./company-state";
 import {

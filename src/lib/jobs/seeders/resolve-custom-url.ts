@@ -28,6 +28,7 @@
 
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
 import { getAtsEndpoint } from "@/lib/jobs/ats-endpoints";
+import type { FetchFn } from "@/lib/jobs/types";
 import type { SeedCompanyInput } from "./schemas";
 import { extractRootDomain } from "./url-parser";
 
@@ -35,9 +36,6 @@ import { extractRootDomain } from "./url-parser";
 
 /** Injectable DNS CNAME resolver (matches node:dns/promises.resolveCname). */
 export type ResolveCnameFn = (hostname: string) => Promise<string[]>;
-
-/** Injectable fetch function (matches global fetch). */
-export type FetchFn = typeof fetch;
 
 /** The result of resolving a custom URL. */
 export type ResolutionResult =

@@ -21,8 +21,8 @@ vi.mock("@/lib/jobs/poller/rate-limiter", () => ({
   }),
 }));
 
-import type { FetchFn } from "@/lib/jobs/poller/ats-adapters";
 import { fetchJobsFromAts } from "@/lib/jobs/poller/ats-adapters";
+import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
 

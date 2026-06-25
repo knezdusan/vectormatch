@@ -28,12 +28,10 @@ import {
   greenhouseJobsResponseSchema,
   leverJobsResponseSchema,
 } from "@/lib/jobs/ats-schemas";
+import type { FetchFn } from "@/lib/jobs/types";
 import { getLimiter } from "./rate-limiter";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-/** Injectable fetch function (matches global fetch). */
-export type FetchFn = typeof fetch;
 
 /** A job normalized from any ATS API response to a common shape. */
 export interface NormalizedJob {

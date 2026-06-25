@@ -29,11 +29,12 @@
 //
 // See TDD §4.1.1 for the full specification.
 
+import type { FetchFn } from "@/lib/jobs/types";
 import type { BigQueryRow } from "./bq-schemas";
 import { bigQueryRowsSchema } from "./bq-schemas";
 import type { InsertResult } from "./company-repository";
 import { insertDiscoveredCompanies } from "./company-repository";
-import type { FetchFn, ResolveCnameFn } from "./resolve-custom-url";
+import type { ResolveCnameFn } from "./resolve-custom-url";
 import { resolveCustomUrl } from "./resolve-custom-url";
 import type { SeedCompanyInput } from "./schemas";
 
@@ -118,6 +119,7 @@ const ALL_TECHS = [
  * @param crawlDate  The monthly crawl date (e.g. "2024-06-01")
  * @param limit      Optional row limit (for testing)
  */
+// fallow-ignore-next-line unused-export
 export function buildBigQuerySql(crawlDate: string, limit?: number): string {
   const techConditions = ALL_TECHS.map(
     (tech) => `'${tech}' IN UNNEST(technologies.technology)`,
@@ -204,6 +206,7 @@ export async function runBigQuerySeeder(
  * insert discovered companies. This is the core domain logic, separated from
  * the BigQuery client for testability.
  */
+// fallow-ignore-next-line unused-export
 export async function processBigQueryRows(
   rows: BigQueryRow[],
   resolveCname?: ResolveCnameFn,

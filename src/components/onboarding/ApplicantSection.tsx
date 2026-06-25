@@ -250,16 +250,6 @@ export function ApplicantSection({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <header className="flex flex-col gap-1">
-            <h2 className="text-lg font-semibold tracking-tight">
-              Work preferences
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              These details are not extracted from your CV — we need them to
-              route the right jobs to you.
-            </p>
-          </header>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <Label htmlFor="country">Country (ISO 3166-1 alpha-2)</Label>

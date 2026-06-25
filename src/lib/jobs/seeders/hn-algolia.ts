@@ -25,6 +25,7 @@
 //
 // See TDD §4.1.2 for the full specification.
 
+import type { FetchFn } from "@/lib/jobs/types";
 import type { InsertResult } from "./company-repository";
 import { insertDiscoveredCompanies } from "./company-repository";
 import type { HnAlgoliaHit, HnAlgoliaResponse } from "./hn-schemas";
@@ -36,7 +37,6 @@ import { classifyUrls } from "./url-parser";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const HN_ALGOLIA_ENDPOINT = "https://hn.algolia.com/api/v1/search_by_date";
-const HN_ALGOLIA_SEARCH_ENDPOINT = "https://hn.algolia.com/api/v1/search";
 const HITS_PER_PAGE = 50; // HN Algolia max is 1000; 50 is a good balance
 
 // The "Ask HN: Who is hiring?" threads are posted monthly by the user
@@ -50,9 +50,6 @@ const HITS_PER_PAGE = 50; // HN Algolia max is 1000; 50 is a good balance
 // across 500 hits because it matched job-seeker comments, not employer posts.
 
 // ── Types ────────────────────────────────────────────────────────────────────
-
-/** Injectable fetch function type (matches the global fetch signature). */
-export type FetchFn = typeof fetch;
 
 /** Result of the HN seeder run — for ingestionLog metrics. */
 export interface HnSeederResult {
@@ -214,6 +211,7 @@ async function findLatestHiringStory(fetchFn: FetchFn): Promise<string | null> {
  * tuples, and insert them into the company table. This is the core domain
  * logic, separated from the fetch for testability.
  */
+// fallow-ignore-next-line unused-export
 export async function processHnHits(
   hits: HnAlgoliaHit[],
 ): Promise<HnSeederResult> {

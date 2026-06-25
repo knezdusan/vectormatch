@@ -8,11 +8,12 @@
     "e2e/**",
     "src/db/migrations/**",
     "src/components/ui/**",
+    "scripts/**",
     "vitest.config.mts",
     "vitest.setup.ts",
     "playwright.config.ts"
   ],
-  "ignoreDependencies": ["class-variance-authority", "radix-ui"],
+  "ignoreDependencies": ["class-variance-authority", "radix-ui", "dotenv"],
   "duplicates": {
     "minOccurrences": 3,
     "ignore": [

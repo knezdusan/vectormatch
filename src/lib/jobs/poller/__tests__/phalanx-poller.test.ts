@@ -32,10 +32,10 @@ vi.mock("@/lib/jobs/poller/ingestion-log", () => ({
   writeIngestionLog: vi.fn().mockResolvedValue(undefined),
 }));
 
-import type { FetchFn } from "@/lib/jobs/poller/ats-adapters";
 import { updateCompanyState } from "@/lib/jobs/poller/company-state";
 import { countActiveJobs, upsertJobs } from "@/lib/jobs/poller/job-repository";
 import { pollCompany } from "@/lib/jobs/poller/phalanx-poller";
+import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
 

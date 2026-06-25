@@ -1538,6 +1538,7 @@ Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coo
 *   **Host server:** Hetzner Cloud CX33 (x86_64 AMD64, 2 vCPU, 8GB RAM, 80GB disk). Region: Helsinki (eu-central). IP: 157.180.68.189. Cost: ~€8.99/month, fixed.
 *   **PaaS orchestrator:** Coolify v4.1.2 (open-source), installed on-server. Manages Docker builds, Traefik reverse proxy, and automated SSL via Let's Encrypt. Coolify admin accessible at `https://admin.vectormatch.dev` (Cloudflare-proxied). MCP endpoint at `https://admin.vectormatch.dev/mcp`.
 *   **Build pipeline:** Next.js `output: 'standalone'`. Coolify builds from the project's root `Dockerfile` (3-stage: deps → builder → runner, Node 24-slim, multi-arch). Build pack: Dockerfile. No build-time secrets required — all env vars are runtime-only (see §7.5).
+*   **CI/CD integration:** GitHub App connection (Coolify Sources → GitHub App). Auto-deploy on push to `main` — Coolify receives a webhook from GitHub via `https://admin.vectormatch.dev` (Cloudflare-proxied, port 443) and triggers a Docker build automatically. **Binding constraint:** the deployment type MUST be "Private Repository (with Github App)", NOT "Public Repository" (HTTPS clone). The public clone method has no webhook integration and breaks the auto-deploy contract — pushes to `main` are not detected by Coolify. The GitHub App must be configured with the Cloudflare-proxied Coolify dashboard URL as the webhook endpoint, not the direct IP:8000, so that the Hetzner firewall can block port 8000 entirely.
 *   **Database proximity:** Neon Postgres, region `aws-eu-central-1` (Frankfurt). Rationale: same-region placement avoids the cross-region network latency (typically 30-50ms round-trip) that would otherwise be added to every GIN/HNSW query in Gate 1 & 2 (Module C). Exact latency is unmeasured pre-deployment and should be benchmarked post-launch rather than assumed.
 *   **Edge protection:** Cloudflare (free tier), proxied (orange-clouded). DNS A record pointing to 157.180.68.189. SSL/TLS set to Full (Strict). WAF rate-limiting rules applied to `/api/inngest` and `/api/onboarding/parse` specifically, since these endpoints trigger LLM calls and job fan-out and are the highest-cost targets for bot/scraper abuse. (See §7.6 for setup instructions.)
 *   **Domain:** `vectormatch.dev` — Cloudflare-proxied, globally propagated. Coolify FQDN: `https://vectormatch.dev`.
@@ -1602,7 +1603,8 @@ Currently applied to:
 |-----------|----------|------|------------|---------|
 | Inbound | TCP | 22 | [your IP] | SSH (restricted) |
 | Inbound | TCP | 80 | Any | HTTP (Cloudflare proxy) |
-| Inbound | TCP | 443 | Any | HTTPS (Cloudflare proxy) |
-| Inbound | TCP | 8000 | [your IP] | Coolify admin fallback (restricted) |
+| Inbound | TCP | 443 | Any | HTTPS (app + Coolify dashboard + GitHub webhooks, all via Cloudflare) |
+
+Port 8000 (Coolify's default admin port) is **not** opened — the Coolify dashboard is accessed via `https://admin.vectormatch.dev` (Cloudflare-proxied on 443), and GitHub App webhooks are delivered to the same Cloudflare-proxied URL. Blocking 8000 entirely is more secure than restricting it to a single IP, and it does not break any functionality.
 
 Apply the firewall to the CX33 server. The implicit deny at the end blocks all other inbound traffic. 
