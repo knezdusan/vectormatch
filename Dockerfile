@@ -14,7 +14,6 @@ COPY . .
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Public env vars baked at build time
 ARG NEXT_PUBLIC_SITE_URL=https://vectormatch.dev
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
@@ -30,7 +29,6 @@ ENV NEXT_PUBLIC_GISCUS_CATEGORY=$NEXT_PUBLIC_GISCUS_CATEGORY
 ARG NEXT_PUBLIC_GISCUS_CATEGORY_ID=DIC_kwDOSuJml84C_N4t
 ENV NEXT_PUBLIC_GISCUS_CATEGORY_ID=$NEXT_PUBLIC_GISCUS_CATEGORY_ID
 
-# Required at build time for static generation (db.ts module init)
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
 
@@ -55,6 +53,10 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy MDX blog posts — required at runtime for fs.readdirSync in posts.ts
+# The standalone output does not include source files, so we copy them explicitly
+COPY --from=builder --chown=nextjs:nodejs /app/src/app/\(public\)/blog/_posts ./src/app/\(public\)/blog/_posts
 
 USER nextjs
 
