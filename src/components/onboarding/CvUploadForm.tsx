@@ -153,7 +153,7 @@ export function CvUploadForm() {
             <Label htmlFor="cv-file">CV file (PDF)</Label>
             <label
               htmlFor="cv-file"
-              className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border p-8 text-center cursor-pointer hover:bg-muted/40 transition-colors"
+              className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-soft p-8 text-center cursor-pointer hover:bg-muted/40 transition-colors"
             >
               <FileText className="h-8 w-8 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">

@@ -5,10 +5,10 @@
 **Scope:** This document is the single source of truth for implementing Module A Step 6. It specifies exact file paths, function signatures, dependency commands, subtask order, and test plan. The next session should execute this document top-to-bottom.
 
 **Governing documents (read these first):**
-- `docs/MODULE_A_DECISIONS.md` — 12 locked decisions
-- `docs/RESEARCH_NOTE_schemas.md` — Schema 1/2/3 definitions, CANONICAL_TAGS/CANONICAL_ROLES rationale
-- `docs/VectorMatchTechicalImplementation.md` §3.1-3.8 — the TDD (updated this session)
-- `docs/vectormatch-blueprint.md` — the blueprint (updated this session)
+- `docs/reports/MODULE_A_DECISIONS.md` — 12 locked decisions
+- `docs/reports/RESEARCH_NOTE_schemas.md` — Schema 1/2/3 definitions, CANONICAL_TAGS/CANONICAL_ROLES rationale
+- `docs/governing/VectorMatchTechicalImplementation.md` §3.1-3.8 — the TDD (updated this session)
+- `docs/governing/vectormatch-blueprint.md` — the blueprint (updated this session)
 
 ---
 

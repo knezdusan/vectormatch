@@ -506,7 +506,7 @@ validates, you serialize, `useActionState` dispatches.
 | <ref_file file="/Users/knez/Documents/WebDev/vectormatch/src/actions/onboarding.ts" /> | Both Server Actions: `parseCvAction`, `finalizeOnboardingAction` |
 | <ref_file file="/Users/knez/Documents/WebDev/vectormatch/src/lib/onboarding/schemas.ts" /> | Schema 1 (LLM) + Schema 2 (form/server), shared by both layers |
 | <ref_file file="/Users/knez/Documents/WebDev/vectormatch/src/components/auth/SignInForm.tsx" /> | Another Pattern A example, for contrast (auth forms) |
-| <ref_file file="/Users/knez/Documents/WebDev/vectormatch/docs/MODULE_A_DECISIONS.md" /> | §7 is the governing decision this guide explains |
+| <ref_file file="/Users/knez/Documents/WebDev/vectormatch/docs/reports/MODULE_A_DECISIONS.md" /> | §7 is the governing decision this guide explains |
 
 ---
 

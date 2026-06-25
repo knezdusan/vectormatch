@@ -16,7 +16,7 @@
 //       that the schema is broken)
 //   1 — at least one slug failed Zod validation (schema mismatch = API changed)
 //
-// See: docs/vectormatch-blueprint.md → "Module B Testing Strategy" → Layer 1
+// See: docs/governing/vectormatch-blueprint.md → "Module B Testing Strategy" → Layer 1
 
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
 import { passesGateZero } from "@/lib/jobs/gate-zero";

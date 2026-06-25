@@ -290,4 +290,4 @@ This MCP integration directly supports Module B objectives:
 - **Rapid prototyping**: Test hypotheses before building custom scrapers
 - **Market intelligence**: Gain insights from billions of web pages
 
-See `docs/vectormatch-blueprint.md` Module B section for architectural integration details.
+See `docs/governing/vectormatch-blueprint.md` Module B section for architectural integration details.

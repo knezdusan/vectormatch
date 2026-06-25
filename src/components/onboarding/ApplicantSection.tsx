@@ -145,7 +145,7 @@ export function ApplicantSection({
           {workHistory.map((entry, index) => (
             <div
               key={`${entry.company}-${entry.role}-${entry.startDate}-${index}`}
-              className="flex flex-col gap-3 rounded-lg border border-border bg-muted/40 p-4"
+              className="flex flex-col gap-3 rounded-lg border border-border-soft bg-muted/40 p-4"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">

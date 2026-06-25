@@ -22,7 +22,7 @@ import { persona } from "./persona";
 // pair passes the GIN overlap + HNSW cosine distance filters. Gate 3
 // (gate3Evaluator Inngest function) then fills in the LLM verdict columns.
 //
-// Schema decisions: docs/MODULE_C_DECISIONS.md §2.
+// Schema decisions: docs/reports/MODULE_C_DECISIONS.md §2.
 //   - `personaId` (NOT NULL, FK → persona) — required for multi-persona users
 //     (up to 3). A user with a "React" persona and a "Node.js" persona can
 //     legitimately match the same full-stack job via both. The prior

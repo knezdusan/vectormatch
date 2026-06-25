@@ -30,6 +30,13 @@ import { ApplicantSection } from "@/components/onboarding/ApplicantSection";
 import { PersonaSection } from "@/components/onboarding/PersonaSection";
 import { SkillsSection } from "@/components/onboarding/SkillsSection";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import type { Applicant } from "@/db/schemas/jobs/applicant";
 import type { CvUpload } from "@/db/schemas/jobs/cvUpload";
@@ -157,126 +164,128 @@ export function OnboardingReview({
   }, [isPending, state, router]);
 
   return (
-    <div className="flex flex-col gap-8 p-6 max-w-4xl mx-auto w-full">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
+    <Card className="w-full max-w-4xl mx-auto">
+      <CardHeader>
+        <CardTitle className="text-2xl font-semibold tracking-tight">
           Review your profile
-        </h1>
-        <p className="text-sm text-muted-foreground">
+        </CardTitle>
+        <CardDescription>
           We extracted your work history and skills from your CV with AI. Please
           review and correct anything, fill in your work preferences, then
           confirm your personas to complete onboarding.
-        </p>
-      </header>
+        </CardDescription>
+      </CardHeader>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-8">
-        <ApplicantSection
-          workHistory={workHistory}
-          onWorkHistoryChange={(next) =>
-            form.setValue("workHistory", next, { shouldDirty: true })
-          }
-          country={country}
-          onCountryChange={(next) =>
-            form.setValue("country", next, { shouldDirty: true })
-          }
-          canWorkUsHours={canWorkUsHours}
-          onCanWorkUsHoursChange={(next) =>
-            form.setValue("canWorkUsHours", next, { shouldDirty: true })
-          }
-          assignmentTypes={assignmentTypes}
-          onAssignmentTypesChange={(next) =>
-            form.setValue("assignmentTypes", next, { shouldDirty: true })
-          }
-          modalities={modalities}
-          onModalitiesChange={(next) =>
-            form.setValue("modalities", next, { shouldDirty: true })
-          }
-          preferredCompliance={preferredCompliance}
-          onPreferredComplianceChange={(next) =>
-            form.setValue("preferredCompliance", next, { shouldDirty: true })
-          }
-          errors={form.formState.errors}
-        />
+      <CardContent>
+        <form onSubmit={onSubmit} className="flex flex-col gap-8">
+          <ApplicantSection
+            workHistory={workHistory}
+            onWorkHistoryChange={(next) =>
+              form.setValue("workHistory", next, { shouldDirty: true })
+            }
+            country={country}
+            onCountryChange={(next) =>
+              form.setValue("country", next, { shouldDirty: true })
+            }
+            canWorkUsHours={canWorkUsHours}
+            onCanWorkUsHoursChange={(next) =>
+              form.setValue("canWorkUsHours", next, { shouldDirty: true })
+            }
+            assignmentTypes={assignmentTypes}
+            onAssignmentTypesChange={(next) =>
+              form.setValue("assignmentTypes", next, { shouldDirty: true })
+            }
+            modalities={modalities}
+            onModalitiesChange={(next) =>
+              form.setValue("modalities", next, { shouldDirty: true })
+            }
+            preferredCompliance={preferredCompliance}
+            onPreferredComplianceChange={(next) =>
+              form.setValue("preferredCompliance", next, { shouldDirty: true })
+            }
+            errors={form.formState.errors}
+          />
 
-        <SkillsSection canonicalSkills={allCanonicalSkills} />
+          <SkillsSection canonicalSkills={allCanonicalSkills} />
 
-        <PersonaSection
-          personas={personas as Schema2Persona[]}
-          availableSkills={allCanonicalSkills}
-          onChange={(next) =>
-            form.setValue("personas", next, { shouldDirty: true })
-          }
-          errors={
-            form.formState.errors.personas as unknown as {
-              personaLabel?: { message?: string };
-              embeddingSummary?: { message?: string };
-              mustHaveTags?: { message?: string } | { message?: string }[];
-            }[]
-          }
-        />
+          <PersonaSection
+            personas={personas as Schema2Persona[]}
+            availableSkills={allCanonicalSkills}
+            onChange={(next) =>
+              form.setValue("personas", next, { shouldDirty: true })
+            }
+            errors={
+              form.formState.errors.personas as unknown as {
+                personaLabel?: { message?: string };
+                embeddingSummary?: { message?: string };
+                mustHaveTags?: { message?: string } | { message?: string }[];
+              }[]
+            }
+          />
 
-        {/* Client-side validation errors from RHF — summary of error fields */}
-        {Object.keys(form.formState.errors).length > 0 && (
-          <div
-            className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
-            role="alert"
-          >
-            <p className="font-medium mb-1">
-              Please fix the following before submitting:
-            </p>
-            <ul className="list-disc list-inside space-y-0.5">
-              {form.formState.errors.country && (
-                <li>Country is required (2-letter code, e.g. RS, US, DE)</li>
-              )}
-              {form.formState.errors.assignmentTypes && (
-                <li>Select at least one assignment type</li>
-              )}
-              {form.formState.errors.modalities && (
-                <li>Select at least one modality</li>
-              )}
-              {form.formState.errors.preferredCompliance && (
-                <li>Select at least one preferred compliance option</li>
-              )}
-              {form.formState.errors.workHistory && (
-                <li>Work history has errors — check dates and fields</li>
-              )}
-              {form.formState.errors.personas && (
-                <li>
-                  Personas have errors — each needs a label, 50-500 char
-                  summary, and exactly 5 must-have tags (at least 1
-                  persona-defining)
-                </li>
-              )}
-            </ul>
-          </div>
-        )}
-
-        {/* Server-side errors from useActionState */}
-        {state?.error && (
-          <div
-            className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
-            role="alert"
-          >
-            {state.error}
-          </div>
-        )}
-
-        {state?.success && (
-          <output className="rounded-md bg-primary/10 p-3 text-sm text-primary">
-            Onboarding complete. Loading your profile…
-          </output>
-        )}
-
-        <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? (
-            <>
-              <Spinner className="mr-2" /> Completing onboarding…
-            </>
-          ) : (
-            "Confirm and complete onboarding"
+          {/* Client-side validation errors from RHF — summary of error fields */}
+          {Object.keys(form.formState.errors).length > 0 && (
+            <div
+              className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+              role="alert"
+            >
+              <p className="font-medium mb-1">
+                Please fix the following before submitting:
+              </p>
+              <ul className="list-disc list-inside space-y-0.5">
+                {form.formState.errors.country && (
+                  <li>Country is required (2-letter code, e.g. RS, US, DE)</li>
+                )}
+                {form.formState.errors.assignmentTypes && (
+                  <li>Select at least one assignment type</li>
+                )}
+                {form.formState.errors.modalities && (
+                  <li>Select at least one modality</li>
+                )}
+                {form.formState.errors.preferredCompliance && (
+                  <li>Select at least one preferred compliance option</li>
+                )}
+                {form.formState.errors.workHistory && (
+                  <li>Work history has errors — check dates and fields</li>
+                )}
+                {form.formState.errors.personas && (
+                  <li>
+                    Personas have errors — each needs a label, 50-500 char
+                    summary, and exactly 5 must-have tags (at least 1
+                    persona-defining)
+                  </li>
+                )}
+              </ul>
+            </div>
           )}
-        </Button>
-      </form>
-    </div>
+
+          {/* Server-side errors from useActionState */}
+          {state?.error && (
+            <div
+              className="rounded-md bg-destructive/15 p-3 text-sm text-destructive"
+              role="alert"
+            >
+              {state.error}
+            </div>
+          )}
+
+          {state?.success && (
+            <output className="rounded-md bg-primary/10 p-3 text-sm text-primary">
+              Onboarding complete. Loading your profile…
+            </output>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? (
+              <>
+                <Spinner className="mr-2" /> Completing onboarding…
+              </>
+            ) : (
+              "Confirm and complete onboarding"
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

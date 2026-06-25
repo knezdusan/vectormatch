@@ -14,13 +14,13 @@ I am a junior developer building VectorMatch.dev, a Multi-Tenant Next.js AI Job 
 
 ### Critical: Read These Files First (In This Order)
 
-1. **`docs/MODULE_C_DECISIONS.md`** — THE governing document. 620 lines, 14 sections. All architectural decisions are locked here. Read it end-to-end before writing any code. It supersedes the TDD §5 where they conflict (and they do conflict — the TDD §5 is ~55 lines and has a SQL bug that the decisions doc fixes).
+1. **`docs/reports/MODULE_C_DECISIONS.md`** — THE governing document. 620 lines, 14 sections. All architectural decisions are locked here. Read it end-to-end before writing any code. It supersedes the TDD §5 where they conflict (and they do conflict — the TDD §5 is ~55 lines and has a SQL bug that the decisions doc fixes).
 
 2. **`AGENTS.md`** — Project rules. Critical sections: Technology Stack (strict), Testing Strategy (Vitest + Playwright separation), Inngest Orchestration (coding rules for Inngest functions), Shadcn/ui integrity rules, Tailwind v4 compliance.
 
-3. **`docs/VectorMatchTechicalImplementation.md`** §5 (lines 1241–1297) — The original TDD Module C spec. Read for context only. The decisions doc fixes two bugs inherited from here: (a) the `&` array intersection operator doesn't exist on `text[]` (only `intarray`/`integer[]`), (b) the `normalizedAt`-on-failure logic would have made `normalization_failed` a permanent tombstone.
+3. **`docs/governing/VectorMatchTechicalImplementation.md`** §5 (lines 1241–1297) — The original TDD Module C spec. Read for context only. The decisions doc fixes two bugs inherited from here: (a) the `&` array intersection operator doesn't exist on `text[]` (only `intarray`/`integer[]`), (b) the `normalizedAt`-on-failure logic would have made `normalization_failed` a permanent tombstone.
 
-4. **`docs/MODULE_A_DECISIONS.md`** — For style reference and to understand the persona data that Module C consumes (the `persona`, `applicant`, `tagsExperience` tables and the CANONICAL_TAGS taxonomy).
+4. **`docs/reports/MODULE_A_DECISIONS.md`** — For style reference and to understand the persona data that Module C consumes (the `persona`, `applicant`, `tagsExperience` tables and the CANONICAL_TAGS taxonomy).
 
 ### Project Context (Verified State)
 
@@ -115,4 +115,4 @@ Begin with **Feature C0 — Schema & contracts hardening**. This is the prerequi
 9. **Generate the Drizzle migration ONLY** (`npm run db:generate`). Do NOT run `npm run db:migrate` yourself. This migration drops the existing `match_queue_unique` index (step 2) — a destructive operation per AGENTS.md. Show the user the generated SQL for review, then let them run `npm run db:migrate` themselves after confirming. The table is empty so there's no data loss, but the index drop still requires explicit user confirmation per the rules.
 10. Verify: event types compile, config module exports constants. (Migration verification happens after the user applies it.)
 
-Before you start, confirm you've read `docs/MODULE_C_DECISIONS.md` end-to-end and ask me any clarifying questions. Then begin C0.
+Before you start, confirm you've read `docs/reports/MODULE_C_DECISIONS.md` end-to-end and ask me any clarifying questions. Then begin C0.

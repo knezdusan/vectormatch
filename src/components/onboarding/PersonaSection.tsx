@@ -92,7 +92,7 @@ export function PersonaSection({
         {personas.map((persona, index) => (
           <div
             key={persona.personaId}
-            className="flex flex-col gap-4 rounded-lg border border-border bg-muted/40 p-5"
+            className="flex flex-col gap-4 rounded-lg border border-border-soft bg-muted/40 p-5"
           >
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-base font-medium">
@@ -211,5 +211,4 @@ export function PersonaSection({
   );
 }
 
-export { MAX_PERSONAS };
 export type { PersonaSectionProps };

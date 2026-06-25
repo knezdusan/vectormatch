@@ -150,3 +150,42 @@ node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --sample 2
 # Include Gate 3 evaluation (calls OpenAI API, ~$0.01)
 node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --sample 5 --gate3
 ```
+
+## 8. Real-Data Calibration (C6-real) — June 25, 2026
+
+### 8.1 Context
+
+First real user onboarded (Dusan Knezevic, 3 personas). HN Algolia seeder discovered 60 companies. Phalanx poller ingested 508 jobs (331 active, 177 rejected by Gate 0). All 331 active jobs normalized and embedded. **Zero candidates produced by Gate 1+2** — the 0.35 threshold rejected 100% of real job-persona pairs.
+
+### 8.2 Real Data Distribution
+
+Cosine distances between persona embeddings and active job embeddings (only pairs with ≥1 tag overlap):
+
+| Statistic | Value |
+|---|---|
+| Min distance | 0.4504 |
+| Max distance | 0.7359 |
+| Avg distance | 0.6100 |
+
+**Finding:** Real embeddings have 2.4x wider variance than synthetic data (0.45–0.74 vs 0.18–0.21). The 0.35 threshold was below the minimum real distance — it could not let any candidate through.
+
+### 8.3 Threshold Adjustment
+
+| Parameter | Old Value | New Value | Rationale |
+|---|---|---|---|
+| `GATE2_MAX_COSINE_DISTANCE` | 0.35 | **0.55** | Lets top ~15-20% of matches through to Gate 3; filters clearly irrelevant pairs (distance > 0.55) |
+
+The 0.55 threshold was chosen to:
+- Let the best-matching pairs through (min distance 0.45)
+- Filter out the long tail of weak matches (avg 0.61, max 0.74)
+- Rely on Gate 3 LLM arbitration for the final approve/reject decision on borderline cases
+
+### 8.4 Re-run Strategy
+
+The `jobIngestedHandler` idempotency guard skips jobs where `normalizedAt IS NOT NULL`, so re-emitting `job/ingested` events won't re-run Gate 1+2 for the 331 already-processed jobs. Instead, `scripts/rerun-gates.ts` runs a bulk Gate 1+2 SQL query using stored embeddings directly, then emits `match/gate-3-evaluate` events for each candidate.
+
+### 8.5 Remaining Calibration Work
+
+- **GATE_ROUTER_LIMIT (8):** May need adjustment based on how many candidates per job pass at 0.55 threshold. If most jobs produce 8 candidates (hitting the cap), consider raising to 12-15.
+- **GATE1_WEIGHT / GATE2_WEIGHT (0.6 / 0.4):** Evaluate after Gate 3 runs — if tag-overlap-heavy matches are ranked above semantically-closer matches, adjust weights.
+- **Gate 3 precision/recall:** After Gate 3 evaluates the first batch of real candidates, measure what percentage of approved matches are actually relevant. Tune the Gate 3 prompt if false positives are common.

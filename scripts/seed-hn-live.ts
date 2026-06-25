@@ -17,7 +17,7 @@
 //   - Some custom URLs collected (non-ATS URLs for the resolver)
 //   - No errors (unless HN Algolia API is down)
 //
-// See: docs/vectormatch-blueprint.md → "Module B Testing Strategy" → Layer 2
+// See: docs/governing/vectormatch-blueprint.md → "Module B Testing Strategy" → Layer 2
 
 import { db } from "@/db/db";
 import { company } from "@/db/schemas/jobs/company";

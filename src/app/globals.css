@@ -306,6 +306,15 @@
     padding-right: 1.25rem;
     font-size: 0.875rem;
   }
+
+  /* Form controls use --border-soft so their edges are visible against card/bg
+     surfaces. The default border-input token is too close to the background. */
+  [data-slot="input"],
+  [data-slot="textarea"],
+  [data-slot="select-trigger"],
+  [data-slot="checkbox"] {
+    border-color: var(--border-soft);
+  }
 }
 
 @layer base {

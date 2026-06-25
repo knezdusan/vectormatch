@@ -20,7 +20,7 @@ Use this skill when you need to:
 
 Invoke this skill and provide:
 1. **Schema file location**: Path to your Drizzle schema files (typically `src/db/schemas/`)
-2. **Output location**: Where to save the generated diagram (e.g., `docs/database-schema.md`)
+2. **Output location**: Where to save the generated diagram (e.g., `docs/reports/database-schema.md`)
 3. **Optional**: Specific tables to include if you want a partial diagram
 
 ## Mermaid ERD Syntax Requirements
@@ -280,6 +280,6 @@ This skill works best with:
 ## File Location Recommendations
 
 Place generated diagrams in:
-- `docs/database-schema.md` - Main schema documentation
+- `docs/reports/database-schema.md` - Main schema documentation
 - `docs/database/` - Separate diagrams for different domains
 - Root directory - `DATABASE_SCHEMA.md` for simple projects

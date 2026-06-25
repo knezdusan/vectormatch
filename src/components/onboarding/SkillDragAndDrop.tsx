@@ -66,7 +66,7 @@ function SortableTag({ tag, onRemove }: SortableTagProps) {
     <li
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2"
+      className="flex items-center gap-2 rounded-md border border-border-soft bg-card px-3 py-2"
     >
       <button
         type="button"
@@ -220,7 +220,7 @@ export function SkillDragAndDrop({
           <h4 className="text-sm font-medium text-muted-foreground">
             Available skills ({remaining.length})
           </h4>
-          <div className="flex flex-wrap gap-2 min-h-[3rem] rounded-md border border-border bg-muted/20 p-3">
+          <div className="flex flex-wrap gap-2 min-h-[3rem] rounded-md border border-border-soft bg-muted/20 p-3">
             {remaining.length === 0 ? (
               <span className="text-xs text-muted-foreground">
                 All skills selected.
@@ -273,7 +273,7 @@ function MustHaveColumn({ mustHaveTags, onRemove }: MustHaveColumnProps) {
           className={`flex flex-col gap-2 min-h-[3rem] rounded-md border p-3 transition-colors ${
             isOver
               ? "border-primary bg-primary/5"
-              : "border-border border-dashed"
+              : "border-border-soft border-dashed"
           }`}
         >
           {mustHaveTags.length === 0 ? (

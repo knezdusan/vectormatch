@@ -255,7 +255,7 @@ All background jobs, durable workflows, and scheduled tasks **must** use Inngest
 | `src/inngest/functions.ts` | All background functions (seeders, poller, cleanup) |
 | `src/inngest/index.ts` | Barrel exports for clean imports |
 | `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) |
-| `docs/inngest-agent-resources.md` | Full coding agent reference (AI features, MCP, CLI) |
+| `docs/reports/inngest-agent-resources.md` | Full coding agent reference (AI features, MCP, CLI) |
 
 ### Local Development
 
@@ -333,6 +333,6 @@ This project has **Google BigQuery MCP** integration for public dataset analysis
 - Performance monitoring: Query matching funnel metrics
 - Prototyping: Test hypotheses before building custom scrapers
 
-**Configuration**: See `.devin/config.json` and `docs/bigquery-mcp-setup.md` for setup details. Uses BigQuery Sandbox tier (no billing required for public datasets).
+**Configuration**: See `.devin/config.json` and `docs/reports/bigquery-mcp-setup.md` for setup details. Uses BigQuery Sandbox tier (no billing required for public datasets).
 
 **When to invoke**: Use for Module B development, market analysis, and when you need to query public datasets. Always use `mcp_list_tools` first to discover available tools before calling `mcp_call_tool`.

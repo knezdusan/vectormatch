@@ -198,7 +198,7 @@ export const job = pgTable(
 // src/db/schemas/jobs/matchQueue.ts
 // A row is inserted by Gate 1+2 when a job + persona pair passes the GIN
 // overlap + HNSW cosine distance filters. Gate 3 then fills in the LLM
-// verdict columns. Schema decisions: docs/MODULE_C_DECISIONS.md §2.
+// verdict columns. Schema decisions: docs/reports/MODULE_C_DECISIONS.md §2.
 export const matchQueue = pgTable(
   "match_queue",
   {
@@ -341,7 +341,7 @@ export const tagsExperience = pgTable("tags_experience", {
 
 **Goal:** Convert messy PDF resumes into structured, validated, vectorizable data using a 3-schema pipeline (LLM extraction → user-validated submission → DB persistence), preventing LLM math hallucinations on overlapping job dates, and giving the developer ultimate control over their "Active Persona."
 
-**Governing Documents:** This section is governed by `docs/MODULE_A_DECISIONS.md` (locked decisions) and `docs/RESEARCH_NOTE_schemas.md` (research rationale). If this TDD and those documents conflict, the decisions document wins.
+**Governing Documents:** This section is governed by `docs/reports/MODULE_A_DECISIONS.md` (locked decisions) and `docs/reports/RESEARCH_NOTE_schemas.md` (research rationale). If this TDD and those documents conflict, the decisions document wins.
 
 ### 3.1 The 3-Schema Pipeline
 
@@ -571,7 +571,7 @@ The Inngest v4 SDK provides the durable execution layer for all background jobs,
 | `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`. |
 | `src/inngest/index.ts` | Barrel exports for clean imports (`@/inngest`). |
 | `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) with `maxDuration: 300`. |
-| `docs/inngest-agent-resources.md` | Coding agent reference: LLM docs, MCP, CLI debugging, AI patterns (`step.ai.wrap`, `step.ai.infer`). |
+| `docs/reports/inngest-agent-resources.md` | Coding agent reference: LLM docs, MCP, CLI debugging, AI patterns (`step.ai.wrap`, `step.ai.infer`). |
 
 ### 3.9.2 Local Development
 
@@ -1321,7 +1321,7 @@ Module B (Poller)                          Module C (Router)
 
 **Goal:** Solve the O(N*M) compute cost problem using Inngest and Postgres.
 
-**Implementation reference:** `docs/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/calibration-report.md`.
+**Implementation reference:** `docs/reports/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/reports/calibration-report.md`.
 
 **Feature breakdown (7 features, all implemented):**
 - **C0** — Schema & contracts hardening: `matchQueue` columns, `job.status` values, `normalizedAt`, Module C event types, `matching-config.ts`, `db.ts` pooler guard.
@@ -1330,7 +1330,7 @@ Module B (Poller)                          Module C (Router)
 - **C2** — Gate 1+2 SQL router: `gate-1-2.ts`, wired into `jobIngestedHandler`.
 - **C3** — Gate 3 LLM evaluator: `gate-3.ts` + `gate3Evaluator` Inngest function.
 - **C4** — Dashboard query layer + UI: `dashboard-queries.ts` (status-filtered queries, pagination, resilient unread badge) + `matches.ts` Server Actions + `/dashboard/jobs` list page + `/dashboard/jobs/[matchId]` detail page + sidebar unread badge.
-- **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/calibration-report.md`.
+- **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/reports/calibration-report.md`.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -1477,7 +1477,7 @@ The dashboard is the primary calibration interface — all scoring data (cosine 
 3. The 3-Gate funnel processes them and populates `match_queue`
 4. Inspect matches via `/dashboard/jobs` (cosine distance, overlap score, LLM confidence, LLM reasoning all visible)
 5. Tune `GATE2_MAX_COSINE_DISTANCE` and `GATE_ROUTER_LIMIT` based on observed false positives/negatives
-6. Document tuned values in `docs/calibration-report.md`
+6. Document tuned values in `docs/reports/calibration-report.md`
 
 The dashboard UI was built specifically as the calibration debugging interface. Synthetic seed data has been cleaned from the production database (via `scripts/cleanup-seed-data.ts`); the next step is ingesting real jobs.
 
@@ -1488,7 +1488,7 @@ The dashboard UI was built specifically as the calibration debugging interface. 
 - Gate 3 correctly approved archetype-matched candidates (4/5) and rejected a skill-emphasis mismatch (SolidJS primary vs React persona) despite perfect tag overlap and low cosine distance — validating the 3-Gate architecture.
 - Confidence scores are high (0.90–0.95) on synthetic data. Real data will produce a wider distribution with borderline cases (0.4–0.6).
 
-**Full report:** `docs/calibration-report.md`
+**Full report:** `docs/reports/calibration-report.md`
 
 ---
 

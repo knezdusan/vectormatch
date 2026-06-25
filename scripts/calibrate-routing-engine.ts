@@ -13,7 +13,7 @@
 //   node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts
 //   node --env-file=.env --import tsx scripts/calibrate-routing-engine.ts --gate3
 //
-// Output: console summary + docs/calibration-report.md (if --write flag)
+// Output: console summary + docs/reports/calibration-report.md (if --write flag)
 //
 // (MODULE_C_DECISIONS.md §5.3, §5.5, §13 Feature C6)
 

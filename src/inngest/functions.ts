@@ -8,7 +8,7 @@
 // app/api/inngest/route.ts.  Keep domain logic in src/lib/jobs/ and wrap it
 // in step.run() for durability and observability.
 //
-// See docs/inngest-agent-resources.md for patterns and debugging.
+// See docs/reports/inngest-agent-resources.md for patterns and debugging.
 
 import type { Gate3Context } from "@/lib/jobs/gate-3";
 import { inngest } from "./client";

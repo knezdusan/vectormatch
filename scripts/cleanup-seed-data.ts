@@ -80,7 +80,7 @@ async function main() {
   // ── Delete in FK-safe order within a transaction ─────────────────────────
   console.log("\nDeleting...");
 
-  const result = await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     // 1. Delete seed matches
     const r1 = await tx.execute(sql`
       DELETE FROM match_queue WHERE applicant_id LIKE 'seed-user-%'

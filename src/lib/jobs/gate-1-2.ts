@@ -242,6 +242,7 @@ async function runGate1Only(
  * @param jobEmbedding The job's embedding
  * @returns            EXPLAIN ANALYZE plan lines
  */
+// fallow-ignore-next-line unused-export
 export async function explainGateRouter(
   jobTags: string[],
   jobEmbedding: number[],
