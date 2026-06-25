@@ -67,13 +67,11 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Run as non-root user (node:node ships with the official image).
-USER node
-
 # Copy static public assets.
 COPY --from=builder --chown=node:node /app/public ./public
 
 # Create .next with correct ownership for the prerender cache.
+# Must run as root (USER node is set below, after all root-requiring steps).
 RUN mkdir -p .next && chown node:node .next
 
 # Standalone server + traced node_modules (minimal, no full node_modules).
@@ -84,6 +82,9 @@ COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 # Blog MDX posts — required at runtime by fs.readdirSync in posts.ts.
 # Destination path with parentheses is literal in Docker COPY.
 COPY --from=builder --chown=node:node /tmp/blog-posts ./src/app/(public)/blog/_posts
+
+# Switch to non-root user only after all root-requiring filesystem steps.
+USER node
 
 EXPOSE 3000
 
