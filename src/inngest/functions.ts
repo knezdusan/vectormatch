@@ -195,21 +195,27 @@ export const bigQuerySeeder = inngest.createFunction(
  * Domain logic: src/lib/jobs/poller/phalanx-poller.ts
  *
  * This is the fan-out target. Each event triggers a separate function instance
- * that polls one company. Inngest's concurrency cap (50) naturally limits
+ * that polls one company. Inngest's concurrency cap naturally limits
  * simultaneous polls.
  *
  * Flow: fetch → Zod validate → Gate 0 filter → upsert → emit job/ingested
  *
  * TDD reference: §4.4
+ *
+ * Concurrency note: Originally 50 (TDD §4.4), lowered to 5 to match the
+ * Inngest free plan concurrency cap. The protective intent (limiting
+ * simultaneous polls to protect Hetzner CPU/RAM and the Neon pooler) is
+ * preserved — 5 is even more conservative. Upgrade the Inngest plan and
+ * raise this limit if higher throughput is needed post-MVP.
  */
 export const pollCompanyFn = inngest.createFunction(
   {
     id: "poller-poll-company",
     name: "Per-Company Poller",
     triggers: [{ event: "poller/poll-company" }],
-    // Concurrency cap — max 50 simultaneous polls (Inngest default)
+    // Concurrency cap — max 5 simultaneous polls (Inngest free plan limit)
     concurrency: {
-      limit: 50,
+      limit: 5,
     },
   },
   async ({ event, step }) => {
@@ -517,9 +523,10 @@ export const jobIngestedHandler = inngest.createFunction(
     id: "job-ingested-handler",
     name: "Job Ingested — Trigger 3-Gate Funnel",
     triggers: [{ event: "job/ingested" }],
-    // §4.5 — concurrency 15 prevents OpenAI rate limit exhaustion under
-    // Module B's concurrency-50 poller fan-out.
-    concurrency: { limit: 15 },
+    // §4.5 — concurrency 5 prevents OpenAI rate limit exhaustion under
+    // Module B's poller fan-out. Originally 15, lowered to 5 to match the
+    // Inngest free plan concurrency cap.
+    concurrency: { limit: 5 },
   },
   async ({ event, step }) => {
     const { jobId } = event.data;
@@ -728,11 +735,13 @@ export const gate3Evaluator = inngest.createFunction(
     id: "match-gate-3-evaluator",
     name: "Gate 3 — LLM Candidate Evaluation",
     triggers: [{ event: "match/gate-3-evaluate" }],
-    // §6.1 — concurrency 15 prevents Neon pooler exhaustion under fan-out.
-    // At 15 concurrent evaluations, each holding a DB connection for ~100ms
-    // (read) + ~100ms (write) around a ~3-5s LLM call, the pooler sees ~30
-    // short-lived acquisitions per second — well within PgBouncer's budget.
-    concurrency: { limit: 15 },
+    // §6.1 — concurrency 5 prevents Neon pooler exhaustion under fan-out.
+    // Originally 15, lowered to 5 to match the Inngest free plan concurrency
+    // cap. At 5 concurrent evaluations, each holding a DB connection for
+    // ~100ms (read) + ~100ms (write) around a ~3-5s LLM call, the pooler
+    // sees ~10 short-lived acquisitions per second — well within PgBouncer's
+    // budget.
+    concurrency: { limit: 5 },
   },
   async ({ event, step }) => {
     const { matchQueueId, jobId, personaId, applicantId } = event.data;

@@ -16,6 +16,7 @@ import {
 export type AuthSession = Awaited<ReturnType<typeof getAuthSession>>;
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, {
     provider: "pg",
   }),

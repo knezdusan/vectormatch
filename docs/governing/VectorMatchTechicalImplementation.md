@@ -591,13 +591,15 @@ The Dev Server exposes a Model Context Protocol (MCP) endpoint at `http://127.0.
 
 ### 3.9.4 Self-Hosted Deployment (Coolify/Hetzner)
 
-Unlike Vercel, there is no automatic Inngest integration for self-hosted setups. After each deploy, sync manually:
+Unlike Vercel, there is no automatic Inngest integration for self-hosted setups. After each deploy, sync function definitions manually:
 
 ```bash
 curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
 ```
 
-Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in production environment variables.
+Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in Coolify production environment variables.
+
+**Inngest free plan concurrency cap (June 2026):** The Inngest free plan limits function concurrency to 5 per function. All three concurrent functions (`pollCompanyFn`, `jobIngestedHandler`, `gate3Evaluator`) were lowered from their original values (50/15/15) to 5 to match this cap. The protective intent (limiting simultaneous operations to protect Hetzner CPU/RAM and the Neon pooler) is preserved — 5 is more conservative than the original limits. Upgrade the Inngest plan and raise the limits if higher throughput is needed post-MVP. The sync will fail with HTTP 400 (`"has higher concurrency limits than your plan limit"`) if the code declares a higher limit than the plan allows.
 
 ### 3.9.5 Coding Rules for Inngest Functions
 
@@ -1157,10 +1159,10 @@ Do not use AWS API Gateway for Native ATS endpoints. They do not run TLS fingerp
 
 #### 4.4.1 Three Optimizations for Production Scalability
 
-Polling 100,000 HTTP requests daily from a single Hetzner CAX21 (4 vCPU / 8GB RAM) will exhaust resources, max out the Neon database connection pool, and likely get the server's IP blacklisted. Three optimizations prevent this:
+Polling 100,000 HTTP requests daily from a single Hetzner CX33 (2 vCPU / 8GB RAM) will exhaust resources, max out the Neon database connection pool, and likely get the server's IP blacklisted. Three optimizations prevent this:
 
 **Optimization 1 — Strict Concurrency Limits:**
-- Inngest is capped at 50 maximum concurrent steps. This protects the Hetzner CPU/RAM and prevents the Neon Serverless Postgres pool from being overwhelmed.
+- Inngest is capped at 5 maximum concurrent steps (Inngest free plan limit, June 2026; originally 50). This protects the Hetzner CPU/RAM and prevents the Neon Serverless Postgres pool from being overwhelmed.
 - The `bottleneck` npm package enforces a hard limit of 2 concurrent requests per second per ATS platform. Implementation: `maxConcurrent: 1, minTime: 500` per ATS source — guarantees strictly 2 req/s with no concurrent requests.
 
 **Optimization 2 — Separation of Heavy Compute:**
@@ -1192,7 +1194,7 @@ WHERE polling_enabled = true;
 **Polling cadence is implemented via two Inngest scheduled functions (fan-out pattern):**
 - `poller-tier-active` (`cron: "0 */12 * * *"`) — emits `poller/poll-company` events for all Tier A companies.
 - `poller-tier-dormant` (`cron: "0 0 * * 0"`) — emits `poller/poll-company` events for all Tier B companies.
-- Each `poller/poll-company` event triggers a separate Inngest function instance that polls a single company. Inngest's concurrency cap (50) naturally limits simultaneous polls.
+- Each `poller/poll-company` event triggers a separate Inngest function instance that polls a single company. Inngest's concurrency cap (5, free plan limit) naturally limits simultaneous polls.
 
 **Do NOT create per-company Inngest scheduled functions** — 100,000 scheduled functions would overwhelm Inngest. The fan-out pattern (2 scheduled functions → N events → N function instances) is the correct architecture.
 
@@ -1408,16 +1410,17 @@ await db.execute(sql`
 *   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted. The `llm_confidence` and `llm_blockers` columns (migrations `0010` + `0011`) persist the LLM's actual confidence score and rejection reasons — critical for calibration via the dashboard UI.
 *   **`match/approved` event:** MVP — nothing listens (dashboard polls `match_queue` directly). Defined now so Module D (cold email generation) has a stable contract post-MVP.
 *   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by a future sweep that re-emits `match/gate-3-evaluate` for `pending` rows older than N hours (not built in MVP — error rows are rare with `generateObject` + Zod enforcement).
-*   Inngest concurrency is still capped to max 50, but the binding constraint changed. The
-original limit existed to prevent Vercel's 340-second idle-connection limit
-from severing fanned-out function instances. Under Module E, there is no
+*   Inngest concurrency is capped to max 5 (Inngest free plan limit, June 2026).
+The original limit of 50 existed to prevent Vercel's 340-second idle-connection
+limit from severing fanned-out function instances. Under Module E, there is no
 Vercel idle-connection limit — the constraint now is protecting the single
-Hetzner CAX21 instance's own CPU/RAM headroom (4 vCPU / 8GB, shared with the
+Hetzner CX33 instance's own CPU/RAM headroom (2 vCPU / 8GB, shared with the
 live Next.js server process) and, more importantly, protecting the Neon
-Postgres connection pool from exhaustion under a sudden fan-out spike. A cap
-of 50 concurrent steps is kept as a starting point; this should be tuned
-empirically post-launch against actual Neon pool size and observed CAX21
-load, not treated as a fixed number carried over from the old justification.
+Postgres connection pool from exhaustion under a sudden fan-out spike. The
+free plan's cap of 5 concurrent steps is more conservative than the original
+50 and is adequate for MVP/solo use. Upgrade the Inngest plan and raise the
+limit if higher throughput is needed post-MVP — tune empirically against
+actual Neon pool size and observed CX33 load.
 
 Separately: any request path sitting behind Cloudflare's proxy (which is all
 of them under Module E) is also bound by Cloudflare's 100-second connection
@@ -1528,21 +1531,24 @@ This is generated by the system when a match occurs, intended for the startup's 
 
 ## 7. MODULE E: INFRASTRUCTURE & DEPLOYMENT ARCHITECTURE
 
-Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coolify).
+Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coolify). Deployed and running (healthy) as of June 25, 2026.
 
 ### 7.1 Infrastructure stack
 
-*   **Host server:** Hetzner Cloud CAX21 (ARM64 Ampere Altra, 4 vCPU, 8GB RAM). Region: Frankfurt (fsn1). Cost: ~€6.41/month, fixed.
-*   **PaaS orchestrator:** Coolify (open-source), installed on-server. Manages Docker builds, Traefik reverse proxy, and automated SSL via Let's Encrypt.
-*   **Build pipeline:** Next.js output: 'standalone'. Coolify connects via GitHub webhook to trigger Docker builds from the project's root Dockerfile on push.
-*   **Database proximity:** Neon Postgres, region pinned to Frankfurt (eu-central-1). Rationale: same-region placement avoids the cross-region network latency (typically 30-50ms round-trip) that would otherwise be added to every GIN/HNSW query in Gate 1 & 2 (Module C). Exact latency is unmeasured pre-deployment and should be benchmarked post-launch rather than assumed.
-*   **Edge protection:** Cloudflare (free tier), proxied (orange-clouded). WAF rate-limiting and challenge rules applied to /api/inngest and /api/onboarding/parse specifically, since these endpoints trigger LLM calls and job fan-out and are the highest-cost targets for bot/scraper abuse.
+*   **Host server:** Hetzner Cloud CX33 (x86_64 AMD64, 2 vCPU, 8GB RAM, 80GB disk). Region: Helsinki (eu-central). IP: 157.180.68.189. Cost: ~€8.99/month, fixed.
+*   **PaaS orchestrator:** Coolify v4.1.2 (open-source), installed on-server. Manages Docker builds, Traefik reverse proxy, and automated SSL via Let's Encrypt. Coolify admin accessible at `https://admin.vectormatch.dev` (Cloudflare-proxied). MCP endpoint at `https://admin.vectormatch.dev/mcp`.
+*   **Build pipeline:** Next.js `output: 'standalone'`. Coolify builds from the project's root `Dockerfile` (3-stage: deps → builder → runner, Node 24-slim, multi-arch). Build pack: Dockerfile. No build-time secrets required — all env vars are runtime-only (see §7.5).
+*   **Database proximity:** Neon Postgres, region `aws-eu-central-1` (Frankfurt). Rationale: same-region placement avoids the cross-region network latency (typically 30-50ms round-trip) that would otherwise be added to every GIN/HNSW query in Gate 1 & 2 (Module C). Exact latency is unmeasured pre-deployment and should be benchmarked post-launch rather than assumed.
+*   **Edge protection:** Cloudflare (free tier), proxied (orange-clouded). DNS A record pointing to 157.180.68.189. SSL/TLS set to Full (Strict). WAF rate-limiting rules applied to `/api/inngest` and `/api/onboarding/parse` specifically, since these endpoints trigger LLM calls and job fan-out and are the highest-cost targets for bot/scraper abuse. (See §7.6 for setup instructions.)
+*   **Domain:** `vectormatch.dev` — Cloudflare-proxied, globally propagated. Coolify FQDN: `https://vectormatch.dev`.
 
+### 7.2 **Corrected technical trade-off (binding implementation constraint)**
 
-### 7.2 **Accepted technical trade-off (binding implementation constraint)**
-This deployment model does not support Next.js Partial Prerendering (PPR) as designed for Vercel's edge network. Per OpenNext's own documentation, standalone Node output requires every request to reach the live NextServer process to resolve the cache; PPR pages cannot be served directly from a CDN under this model, and in some configurations this can be slower than standard SSR.
+> **Correction (June 25, 2026):** The original TDD stated that standalone Node output "does not support Next.js Partial Prerendering (PPR)." This was incorrect. The production build confirms PPR is active — all routes render as `◐ (Partial Prerender)` with `cacheComponents: true` + `output: "standalone"`. PPR itself works; what does **not** work is edge-cached PPR.
 
-**Instruction to any developer or agent implementing this:** do not design pages assuming a zero-roundtrip, edge-cached static shell. Treat all routes as standard server-rendered, with use cache available for function/component-level caching only — not page-level edge caching. This is an accepted, deliberate trade-off, not an oversight to fix later.
+The actual trade-off: under standalone Docker output, every request must reach the live NextServer process to resolve the cache. PPR pages cannot be served directly from a CDN edge — the static shell is generated by the server process, not a CDN node. This means PPR pages work correctly but do not benefit from zero-roundtrip edge delivery. In practice, the static shell is served from the Hetzner server (Frankfurt/Helsinki region) with ~10-30ms TTFB for European users, which is acceptable for MVP.
+
+**Instruction to any developer or agent implementing this:** PPR and `cacheComponents: true` are fully supported — do not disable them. However, do not design pages assuming a zero-roundtrip, edge-cached static shell served from a CDN. Treat all routes as server-rendered with PPR optimization (static shell + streamed dynamic content), with `use cache` available for function/component-level caching. Page-level edge caching is not available under this deployment model.
 
 ### 7.3 **Known operational constraint**
 The Next.js Data Cache writes to the container's local filesystem under standalone output. If horizontal scaling (a second Hetzner instance) is ever needed, a shared cache handler (e.g., Redis-backed) must be implemented first, or the two instances will serve inconsistent cached content. Not a concern at current single-instance scale.
@@ -1550,6 +1556,53 @@ The Next.js Data Cache writes to the container's local filesystem under standalo
 ### 7.4 **Operational ownership**
 Unlike a managed PaaS, this requires manual setup and ongoing light maintenance via the Coolify dashboard or SSH:
 
-*  Health checks configured in Coolify to auto-restart the container on crash.
+*  Health checks: Coolify probes `GET /api/health` (port 3000) with curl. The Dockerfile also includes a `HEALTHCHECK` directive using `node fetch`. The `/api/health` endpoint is deliberately DB-free so the container is marked healthy as long as the Next.js process is responsive.
 *  Monthly OS security updates and Docker image pruning (the latter automatable via Coolify settings) to prevent disk bloat.
-*  Local volume backups for any non-ephemeral data stored outside Neon. 
+*  Local volume backups for any non-ephemeral data stored outside Neon.
+*  **Inngest sync:** After each deploy, sync function definitions manually (see §3.9.4).
+*  **Hetzner firewall:** Port 8000 (Coolify admin fallback) should be restricted to the developer's IP via Hetzner Cloud Firewall. Ports 80/443 open to all. (See §7.6.)
+
+### 7.5 **Lazy initialization pattern (binding code constraint)**
+
+During Next.js static generation (build time), every module in the import graph is loaded — including `auth.ts` → `db.ts` and `auth.ts` → `email.ts`. Since runtime secrets (`DATABASE_URL`, `RESEND_API_KEY`) are not available at Docker build time, any module that instantiates a client at the top level will crash static generation with an opaque "digest" error.
+
+**Binding rule:** No module in the import graph of `auth.ts` (or any route that Next.js statically generates) may instantiate a network client at module import time. All clients must be lazily initialized — created on first method call, not at module load.
+
+Currently applied to:
+*   `src/db/db.ts` — Neon `Pool` via a lazy Proxy. The `db` export is a `Proxy` that defers `new Pool()` to the first `db.select()` / `db.transaction()` / etc. call. No importer changes required — the Drizzle API surface is identical.
+*   `src/lib/email.ts` — Resend client via `getResend()`. The `new Resend(process.env.RESEND_API_KEY)` call is deferred to the first `sendVerificationEmail()` / `sendResetPasswordEmail()` / `sendAlreadyRegisteredEmail()` call.
+
+**Future modules:** Any new module that creates a network client (OpenAI, Google Cloud, etc.) and is transitively imported by a statically-generated route must follow this pattern. The test is simple: if `npm run build` succeeds with zero environment variables, the pattern is correctly applied.
+
+### 7.6 **Post-deployment security checklist**
+
+**Cloudflare WAF rate-limiting rules** (dashboard → Security → WAF → Rate limiting rules):
+
+1.  **Rule: Rate limit /api/inngest**
+    *   Field: URI Path → equals → `/api/inngest`
+    *   Characteristics: IP
+    *   Requests: 50 per 1 minute
+    *   Action: Block
+    *   Duration: 1 minute
+    *   Rationale: Inngest polls this endpoint; legitimate traffic is the Inngest Cloud scheduler. 50/min/IP is generous for the scheduler but blocks scrapers.
+
+2.  **Rule: Rate limit /api/onboarding/parse**
+    *   Field: URI Path → equals → `/api/onboarding/parse`
+    *   Characteristics: IP
+    *   Requests: 5 per 1 minute
+    *   Action: Block
+    *   Duration: 10 minutes
+    *   Rationale: This endpoint triggers a `gpt-4o` extraction call (~$0.01-0.03 per request). 5/min is generous for real users but prevents cost-abuse attacks.
+
+> **Free plan limitation:** On the Cloudflare Free plan, rate-limiting fields are limited to Path and Verified Bot, and counting is IP-based only. This is sufficient for the above rules.
+
+**Hetzner Cloud Firewall** (Cloud Console → Firewall):
+
+| Direction | Protocol | Port | Source IPs | Purpose |
+|-----------|----------|------|------------|---------|
+| Inbound | TCP | 22 | [your IP] | SSH (restricted) |
+| Inbound | TCP | 80 | Any | HTTP (Cloudflare proxy) |
+| Inbound | TCP | 443 | Any | HTTPS (Cloudflare proxy) |
+| Inbound | TCP | 8000 | [your IP] | Coolify admin fallback (restricted) |
+
+Apply the firewall to the CX33 server. The implicit deny at the end blocks all other inbound traffic. 

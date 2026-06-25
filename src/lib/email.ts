@@ -12,6 +12,13 @@ function getResend(): Resend {
   return _resend;
 }
 
+// Sender address — configurable via RESEND_FROM_EMAIL env var.
+// Default: Resend's shared testing domain (only delivers to the account
+// owner's email). For production, set RESEND_FROM_EMAIL to an address on a
+// domain verified in Resend (e.g. "VectorMatch <noreply@vectormatch.dev>").
+const FROM_EMAIL =
+  process.env.RESEND_FROM_EMAIL ?? "VectorMatch <onboarding@resend.dev>";
+
 function isTestEmail(email: string): boolean {
   return email.endsWith("@example.com");
 }
@@ -28,7 +35,7 @@ export async function sendVerificationEmail({
     return { id: "test-id" };
   }
   const { data, error } = await getResend().emails.send({
-    from: "VectorMatch <onboarding@resend.dev>",
+    from: FROM_EMAIL,
     to: email,
     subject: "Verify your email address - VectorMatch",
     html: `
@@ -81,7 +88,7 @@ export async function sendAlreadyRegisteredEmail({
     return { id: "test-id" };
   }
   const { data, error } = await getResend().emails.send({
-    from: "VectorMatch <onboarding@resend.dev>",
+    from: FROM_EMAIL,
     to: email,
     subject: "You already have a VectorMatch account",
     html: `
@@ -131,7 +138,7 @@ export async function sendResetPasswordEmail({
     return { id: "test-id" };
   }
   const { data, error } = await getResend().emails.send({
-    from: "VectorMatch <onboarding@resend.dev>",
+    from: FROM_EMAIL,
     to: email,
     subject: "Reset your password - VectorMatch",
     html: `
