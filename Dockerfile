@@ -11,32 +11,15 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=development
 
-ARG NEXT_PUBLIC_SITE_URL=https://vectormatch.dev
-ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-
-ARG NEXT_PUBLIC_GISCUS_REPO=knezdusan/vectormatch
-ENV NEXT_PUBLIC_GISCUS_REPO=$NEXT_PUBLIC_GISCUS_REPO
-
-ARG NEXT_PUBLIC_GISCUS_REPO_ID=R_kgDOSuJmlw
-ENV NEXT_PUBLIC_GISCUS_REPO_ID=$NEXT_PUBLIC_GISCUS_REPO_ID
-
-ARG NEXT_PUBLIC_GISCUS_CATEGORY=Announcements
-ENV NEXT_PUBLIC_GISCUS_CATEGORY=$NEXT_PUBLIC_GISCUS_CATEGORY
-
-ARG NEXT_PUBLIC_GISCUS_CATEGORY_ID=DIC_kwDOSuJml84C_N4t
-ENV NEXT_PUBLIC_GISCUS_CATEGORY_ID=$NEXT_PUBLIC_GISCUS_CATEGORY_ID
-
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
-
-ARG BETTER_AUTH_SECRET
-ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-
-ARG BETTER_AUTH_URL=https://vectormatch.dev
-ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+# Public vars baked at build time
+ENV NEXT_PUBLIC_SITE_URL=https://vectormatch.dev
+ENV NEXT_PUBLIC_GISCUS_REPO=knezdusan/vectormatch
+ENV NEXT_PUBLIC_GISCUS_REPO_ID=R_kgDOSuJmlw
+ENV NEXT_PUBLIC_GISCUS_CATEGORY=Announcements
+ENV NEXT_PUBLIC_GISCUS_CATEGORY_ID=DIC_kwDOSuJml84C_N4t
 
 RUN npm run build
 
@@ -53,10 +36,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-# Copy MDX blog posts — required at runtime for fs.readdirSync in posts.ts
-# The standalone output does not include source files, so we copy them explicitly
-COPY --from=builder --chown=nextjs:nodejs /app/src/app/\(public\)/blog/_posts ./src/app/\(public\)/blog/_posts
+COPY --from=builder --chown=nextjs:nodejs "/app/src/app/(public)/blog/_posts" "./src/app/(public)/blog/_posts"
 
 USER nextjs
 
