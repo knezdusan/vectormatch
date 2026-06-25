@@ -81,38 +81,51 @@ async function main(): Promise<void> {
   // It uses the stored job_embedding column directly (no JS round-trip), and
   // inserts candidates into match_queue with ON CONFLICT DO NOTHING for
   // idempotency (safe to re-run).
+  //
+  // Cross-posting dedup: Uses a window function to rank jobs by (ats_slug, title)
+  // and only inserts candidates for the best-scoring job per distinct title per
+  // persona. This prevents the same job posted multiple times (different
+  // external_job_id) from creating duplicate matches.
   console.log("Running bulk Gate 1+2 for all active+embedded jobs...");
   const startedAt = Date.now();
 
   const result = await db.execute(sql`
+    WITH ranked_jobs AS (
+      SELECT
+        j.id,
+        j.ats_slug,
+        j.title,
+        j.extracted_tags,
+        j.job_embedding,
+        p.id AS persona_id,
+        p.applicant_id,
+        ov.overlap_score,
+        (p.persona_embedding <=> j.job_embedding) AS cosine_distance,
+        ROW_NUMBER() OVER (
+          PARTITION BY j.ats_slug, j.title, p.id
+          ORDER BY
+            ov.overlap_score * ${GATE1_WEIGHT}::real
+            + (1 - (p.persona_embedding <=> j.job_embedding)) * ${GATE2_WEIGHT}::real DESC
+        ) AS rn
+      FROM job j
+      CROSS JOIN persona p
+      CROSS JOIN LATERAL (
+        SELECT count(*) AS overlap_score
+        FROM unnest(p.must_have_tags) AS t(tag)
+        WHERE t.tag = ANY(j.extracted_tags)
+      ) ov
+      WHERE
+        j.status = 'active'
+        AND j.job_embedding IS NOT NULL
+        AND p.persona_embedding IS NOT NULL
+        AND p.must_have_tags && j.extracted_tags
+        AND NOT (p.blocklist_tags && j.extracted_tags)
+        AND (p.persona_embedding <=> j.job_embedding) < ${GATE2_MAX_COSINE_DISTANCE}::real
+    )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
-    SELECT
-      j.id,
-      p.id,
-      p.applicant_id,
-      ov.overlap_score,
-      (p.persona_embedding <=> j.job_embedding) AS cosine_distance,
-      'pending'
-    FROM job j
-    CROSS JOIN persona p
-    CROSS JOIN LATERAL (
-      SELECT count(*) AS overlap_score
-      FROM unnest(p.must_have_tags) AS t(tag)
-      WHERE t.tag = ANY(j.extracted_tags)
-    ) ov
-    WHERE
-      j.status = 'active'
-      AND j.job_embedding IS NOT NULL
-      AND p.persona_embedding IS NOT NULL
-      AND p.must_have_tags && j.extracted_tags
-      AND NOT (p.blocklist_tags && j.extracted_tags)
-      AND (p.persona_embedding <=> j.job_embedding) < ${GATE2_MAX_COSINE_DISTANCE}::real
-    ORDER BY
-      j.id,
-      (
-        ov.overlap_score * ${GATE1_WEIGHT}::real
-        + (1 - (p.persona_embedding <=> j.job_embedding)) * ${GATE2_WEIGHT}::real
-      ) DESC
+    SELECT id, persona_id, applicant_id, overlap_score, cosine_distance, 'pending'
+    FROM ranked_jobs
+    WHERE rn = 1
     ON CONFLICT (job_id, persona_id) DO NOTHING
     RETURNING id, job_id, persona_id, applicant_id, overlap_score, cosine_distance
   `);

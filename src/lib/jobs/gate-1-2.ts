@@ -140,6 +140,13 @@ export async function runGateSQLRouter(
   // The SQL query. Parameters are safely interpolated by Drizzle's sql tag.
   // Note: ${...} in the sql template are Drizzle parameter placeholders, NOT
   // JS template literals — they produce $1, $2, etc. in the prepared statement.
+  //
+  // Cross-posting dedup: ATS APIs often list the same job multiple times with
+  // different external_job_id values (e.g., for different locations/teams).
+  // The NOT EXISTS clause skips inserting a candidate if a match already
+  // exists for the same (ats_slug, title, persona_id) from a different job_id.
+  // This prevents Gate 3 from evaluating duplicates (saves LLM costs) and
+  // keeps the dashboard clean — one match per distinct job per persona.
   const query = sql`
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
     SELECT
@@ -159,6 +166,13 @@ export async function runGateSQLRouter(
       ${gate1Clause}
       AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM match_queue mq
+        JOIN job j2 ON mq.job_id = j2.id
+        WHERE j2.ats_slug = (SELECT ats_slug FROM job WHERE id = ${jobId}::uuid)
+          AND j2.title = (SELECT title FROM job WHERE id = ${jobId}::uuid)
+          AND mq.persona_id = p.id
+      )
     ORDER BY
       (
         ov.overlap_score * ${GATE1_WEIGHT}::real
