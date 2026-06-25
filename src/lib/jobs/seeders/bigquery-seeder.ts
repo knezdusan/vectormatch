@@ -280,24 +280,35 @@ export async function processBigQueryRows(
  * client. This is used in production (manual script + Inngest function).
  *
  * Credentials are resolved in this order:
- *   1. GOOGLE_APPLICATION_CREDENTIALS_JSON — inline JSON string (container-friendly,
- *      used by Coolify). The JSON is the full service account key file contents.
- *   2. GOOGLE_APPLICATION_CREDENTIALS — file path to a JSON key file (local dev,
+ *   1. GOOGLE_APPLICATION_CREDENTIALS_B64 — base64-encoded JSON string (container-
+ *      friendly, used by Coolify). Base64 avoids Docker ARG parsing issues with
+ *      newlines and quotes in the raw JSON. Encode with:
+ *        base64 -i docs/system/vactormatch-seeder-*.json | tr -d '\n'
+ *   2. GOOGLE_APPLICATION_CREDENTIALS_JSON — inline JSON string (local dev).
+ *   3. GOOGLE_APPLICATION_CREDENTIALS — file path to a JSON key file (local dev,
  *      Google's default ADC flow).
- *   3. Application Default Credentials (gcloud auth application-default login).
+ *   4. Application Default Credentials (gcloud auth application-default login).
  *
  * Optional: GOOGLE_CLOUD_PROJECT — overrides the project ID from the credentials.
  */
 export async function createDefaultBigQueryFn(): Promise<BigQueryFn> {
   const { BigQuery } = await import("@google-cloud/bigquery");
 
+  const b64Creds = process.env.GOOGLE_APPLICATION_CREDENTIALS_B64;
   const inlineCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   const projectId = process.env.GOOGLE_CLOUD_PROJECT;
 
-  const bqClient = inlineCreds
+  // Decode base64 credentials (Coolify/Docker-safe — no special chars)
+  const credentials = b64Creds
+    ? JSON.parse(Buffer.from(b64Creds, "base64").toString("utf-8"))
+    : inlineCreds
+      ? JSON.parse(inlineCreds)
+      : undefined;
+
+  const bqClient = credentials
     ? new BigQuery({
         projectId: projectId ?? undefined,
-        credentials: JSON.parse(inlineCreds),
+        credentials,
       })
     : new BigQuery({ projectId: projectId ?? undefined });
 
