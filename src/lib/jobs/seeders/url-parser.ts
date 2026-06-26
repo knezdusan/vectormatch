@@ -11,8 +11,7 @@
 //    - boards.greenhouse.io/{slug}     → greenhouse
 //    - jobs.lever.co/{slug}            → lever
 //    - api.ashbyhq.com/posting-api/job-board/{slug} → ashby (API URL)
-//    - jobs.ashbyhq.com/{slug}         → ashby (hosted board)
-//    - careers.ashbyhq.com/{slug}      → ashby (hosted board, primary pattern)
+//    - jobs.ashbyhq.com/{slug}         → ashby (hosted board, primary pattern)
 //
 // 2. Custom URLs — anything else (e.g. mystartup.com/careers). These go to the
 //    resolve-custom-url module for CNAME + slug probe resolution.
@@ -152,12 +151,8 @@ const ATS_HOST_PATTERNS: Record<
     source: "ashby",
     slugExtractor: (path) => extractPathSegmentAfter(path, "job-board"),
   },
-  // Ashby hosted board: careers.ashbyhq.com/{slug} (primary pattern)
-  "careers.ashbyhq.com": {
-    source: "ashby",
-    slugExtractor: (path) => extractFirstPathSegment(path),
-  },
-  // Ashby hosted board: jobs.ashbyhq.com/{slug} (legacy/alternate pattern)
+  // Ashby hosted board: jobs.ashbyhq.com/{slug} (primary pattern — the only
+  // real Ashby-hosted board domain; careers.ashbyhq.com does not resolve)
   "jobs.ashbyhq.com": {
     source: "ashby",
     slugExtractor: (path) => extractFirstPathSegment(path),

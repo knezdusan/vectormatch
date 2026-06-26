@@ -266,7 +266,7 @@ export function Pitch() {
         </div>
 
         {/* Visual collage */}
-        <div className="animate-pitch-right relative mx-auto flex w-full max-w-[560px] flex-col gap-[18px] lg:max-w-[620px] xl:block xl:h-[824px] xl:max-w-none">
+        <div className="animate-pitch-right relative mx-auto mb-6 flex w-full max-w-[560px] flex-col gap-[18px] lg:max-w-[620px] mb-0 xl:block xl:h-[824px] xl:max-w-none">
           <ProfileCard />
           <RecommendedCard />
           <PartnershipCard />

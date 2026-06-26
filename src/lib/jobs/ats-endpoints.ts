@@ -51,7 +51,7 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     name: "Greenhouse",
     apiHost: "boards-api.greenhouse.io",
     jobsList: (slug) =>
-      `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs`,
+      `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs?content=true`,
     jobDetail: (slug, jobId) =>
       `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs/${jobId}`,
     hostedBoard: (slug) => `https://boards.greenhouse.io/${slug}`,
@@ -82,7 +82,7 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     // Ashby's job-board endpoint returns full job details inline — there is no
     // separate single-job endpoint. The health probe uses jobsList with a
     // known-active slug and inspects the first element.
-    hostedBoard: (slug) => `https://careers.ashbyhq.com/${slug}`,
+    hostedBoard: (slug) => `https://jobs.ashbyhq.com/${slug}`,
   },
 } as const;
 

@@ -13,6 +13,19 @@ export const modalityEnum = pgEnum("modality", [
   "freelance",
   "internship",
 ]);
+
+// Workplace type for job postings — extracted from ATS rawJson and normalized
+// to a common enum. Separate from assignmentTypeEnum (which is an applicant
+// availability concept) because:
+//   - "remote_local" doesn't apply to job postings
+//   - Jobs may have NULL workplace_type when the ATS doesn't provide it
+//     (notably Greenhouse, which has no structured workplace field)
+// Values match the subset of assignmentTypeEnum that applies to jobs.
+export const workplaceTypeEnum = pgEnum("workplace_type", [
+  "remote",
+  "hybrid",
+  "on-site",
+]);
 export const complianceEnum = pgEnum("compliance", [
   // --- Employee / Payroll Options ---
   "w2", // US Corporate Employment

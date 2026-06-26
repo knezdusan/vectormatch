@@ -46,7 +46,13 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={<Spinner className="size-8 block mx-auto" />}>
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Spinner className="size-8" />
+        </div>
+      }
+    >
       <DashboardLayoutInner>{children}</DashboardLayoutInner>
     </Suspense>
   );

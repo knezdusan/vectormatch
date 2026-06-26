@@ -358,7 +358,8 @@
   );
 }
 
-.how-surface {
+.how-surface,
+.dashboard-surface {
   background:
     radial-gradient(
       760px 480px at 14% 8%,

@@ -16,6 +16,8 @@
 import {
   decideNormalizationAction,
   extractJobContent,
+  extractJobMetadata,
+  extractJobUrl,
   type LlmTagExtractor,
   normalizeJob,
   scanTagsRegex,
@@ -173,6 +175,415 @@ describe("extractJobContent — edge cases", () => {
     const result = extractJobContent("greenhouse", rawJson, "DB Title");
 
     expect(result.title).toBe("DB Title");
+  });
+});
+
+// =============================================================================
+// extractJobUrl — ATS-source-aware job posting URL extraction
+// =============================================================================
+
+describe("extractJobUrl — Greenhouse", () => {
+  it("extracts the absolute_url field", () => {
+    const rawJson = JSON.stringify({
+      title: "Senior Engineer",
+      absolute_url: "https://boards.greenhouse.io/acme/jobs/12345",
+    });
+    expect(extractJobUrl("greenhouse", rawJson)).toBe(
+      "https://boards.greenhouse.io/acme/jobs/12345",
+    );
+  });
+
+  it("returns null when absolute_url is missing", () => {
+    const rawJson = JSON.stringify({ title: "Senior Engineer" });
+    expect(extractJobUrl("greenhouse", rawJson)).toBeNull();
+  });
+});
+
+describe("extractJobUrl — Lever", () => {
+  it("extracts the hostedUrl field", () => {
+    const rawJson = JSON.stringify({
+      text: "Senior Engineer",
+      hostedUrl: "https://jobs.lever.co/acme/abc-123",
+    });
+    expect(extractJobUrl("lever", rawJson)).toBe(
+      "https://jobs.lever.co/acme/abc-123",
+    );
+  });
+
+  it("returns null when hostedUrl is missing", () => {
+    const rawJson = JSON.stringify({ text: "Senior Engineer" });
+    expect(extractJobUrl("lever", rawJson)).toBeNull();
+  });
+});
+
+describe("extractJobUrl — Ashby", () => {
+  it("extracts the jobUrl field", () => {
+    const rawJson = JSON.stringify({
+      title: "Platform Engineer",
+      jobUrl:
+        "https://jobs.ashbyhq.com/Mapbox/a5a21e26-1901-48f6-8dc8-8d0f8224c6bc",
+    });
+    expect(extractJobUrl("ashby", rawJson)).toBe(
+      "https://jobs.ashbyhq.com/Mapbox/a5a21e26-1901-48f6-8dc8-8d0f8224c6bc",
+    );
+  });
+
+  it("returns null when jobUrl is missing (some boards omit it)", () => {
+    const rawJson = JSON.stringify({ title: "Platform Engineer" });
+    expect(extractJobUrl("ashby", rawJson)).toBeNull();
+  });
+});
+
+describe("extractJobUrl — edge cases", () => {
+  it("returns null for unknown ATS source", () => {
+    const rawJson = JSON.stringify({ url: "https://example.com/job" });
+    expect(extractJobUrl("workday", rawJson)).toBeNull();
+  });
+
+  it("returns null when rawJson is invalid JSON", () => {
+    expect(extractJobUrl("greenhouse", "not valid json")).toBeNull();
+  });
+
+  it("returns null when rawJson is not an object", () => {
+    expect(extractJobUrl("greenhouse", '"just a string"')).toBeNull();
+  });
+
+  it("returns null when the URL field is not a string", () => {
+    const rawJson = JSON.stringify({ absolute_url: 12345 });
+    expect(extractJobUrl("greenhouse", rawJson)).toBeNull();
+  });
+
+  it("returns null when the URL field is an empty string", () => {
+    const rawJson = JSON.stringify({ absolute_url: "" });
+    expect(extractJobUrl("greenhouse", rawJson)).toBeNull();
+  });
+});
+
+// =============================================================================
+// extractJobMetadata — ATS-source-aware metadata extraction
+// =============================================================================
+
+describe("extractJobMetadata — Greenhouse", () => {
+  it("extracts company_name from the undocumented field", () => {
+    const rawJson = JSON.stringify({
+      title: "Senior Engineer",
+      company_name: "Chime Financial, Inc",
+      location: { name: "New York, NY" },
+      first_published: "2026-06-25T18:20:09-04:00",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.companyName).toBe("Chime Financial, Inc");
+  });
+
+  it("extracts location from nested location.name", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "San Francisco, CA, USA" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.locationName).toBe("San Francisco, CA, USA");
+  });
+
+  it("detects remote from location string heuristic", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "United States (remote)" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote case-insensitively", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Remote - United States" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("returns null workplaceType when location has no 'remote' keyword", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "New York, NY" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBeNull();
+  });
+
+  it("extracts department from departments array (with ?content=true)", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      departments: [{ id: 1, name: "Engineering" }],
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.department).toBe("Engineering");
+  });
+
+  it("parses first_published as a Date", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      first_published: "2026-06-25T18:20:09-04:00",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.publishedAt).toBeInstanceOf(Date);
+    expect(meta.publishedAt?.getFullYear()).toBe(2026);
+  });
+
+  it("returns null employmentType (not available for Greenhouse)", () => {
+    const rawJson = JSON.stringify({ title: "Engineer" });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.employmentType).toBeNull();
+  });
+});
+
+describe("extractJobMetadata — Lever", () => {
+  it("extracts workplaceType from lowercase Lever values", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      workplaceType: "remote",
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("normalizes 'onsite' (no hyphen) to 'on-site'", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      workplaceType: "onsite",
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+
+  it("normalizes 'hybrid' to 'hybrid'", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      workplaceType: "hybrid",
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("returns null workplaceType for 'unspecified'", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      workplaceType: "unspecified",
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.workplaceType).toBeNull();
+  });
+
+  it("extracts employmentType from categories.commitment", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      categories: { commitment: "Full-time" },
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.employmentType).toBe("full-time");
+  });
+
+  it("maps 'Intern' commitment to 'internship'", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      categories: { commitment: "Intern" },
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.employmentType).toBe("internship");
+  });
+
+  it("extracts location, department, and team from categories", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      categories: {
+        location: "Bengaluru, IN",
+        department: "Quality Engineering",
+        team: "11250 - QA",
+      },
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.locationName).toBe("Bengaluru, IN");
+    expect(meta.department).toBe("Quality Engineering");
+    expect(meta.team).toBe("11250 - QA");
+  });
+
+  it("extracts applyUrl", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      applyUrl: "https://jobs.lever.co/acme/abc-123/apply",
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.applyUrl).toBe("https://jobs.lever.co/acme/abc-123/apply");
+  });
+
+  it("parses createdAt as epoch milliseconds", () => {
+    const rawJson = JSON.stringify({
+      text: "Engineer",
+      createdAt: 1780301748120,
+    });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.publishedAt).toBeInstanceOf(Date);
+  });
+
+  it("returns null companyName (Lever v0 doesn't include it)", () => {
+    const rawJson = JSON.stringify({ text: "Engineer" });
+    const meta = extractJobMetadata("lever", rawJson);
+    expect(meta.companyName).toBeNull();
+  });
+});
+
+describe("extractJobMetadata — Ashby", () => {
+  it("extracts workplaceType from PascalCase Ashby values", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: "Remote",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("normalizes 'OnSite' to 'on-site'", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: "OnSite",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+
+  it("normalizes 'Hybrid' to 'hybrid'", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: "Hybrid",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("returns null workplaceType when field is null (53.5% of real data)", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: null,
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBeNull();
+  });
+
+  it("falls back to isRemote string 'true' when workplaceType is null", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: null,
+      isRemote: "true",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("falls back to isRemote boolean true when workplaceType is null", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: null,
+      isRemote: true,
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("does not set remote when isRemote is 'false'", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplaceType: null,
+      isRemote: "false",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.workplaceType).toBeNull();
+  });
+
+  it("extracts employmentType from PascalCase Ashby values", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      employmentType: "FullTime",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.employmentType).toBe("full-time");
+  });
+
+  it("maps 'Intern' to 'internship'", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      employmentType: "Intern",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.employmentType).toBe("internship");
+  });
+
+  it("maps 'Temporary' to 'contract'", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      employmentType: "Temporary",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.employmentType).toBe("contract");
+  });
+
+  it("extracts location as string (always string in Public API)", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: "New York, NY (HQ)",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.locationName).toBe("New York, NY (HQ)");
+  });
+
+  it("extracts department, team, and applyUrl", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      department: "Engineering",
+      team: "Software Engineering - Industry",
+      applyUrl: "https://jobs.ashbyhq.com/ramp/abc/application",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.department).toBe("Engineering");
+    expect(meta.team).toBe("Software Engineering - Industry");
+    expect(meta.applyUrl).toBe("https://jobs.ashbyhq.com/ramp/abc/application");
+  });
+
+  it("parses publishedAt as ISO 8601", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      publishedAt: "2026-06-26T01:57:53.065+00:00",
+    });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.publishedAt).toBeInstanceOf(Date);
+    expect(meta.publishedAt?.getFullYear()).toBe(2026);
+  });
+
+  it("returns null companyName (Ashby Public API doesn't include it)", () => {
+    const rawJson = JSON.stringify({ title: "Engineer" });
+    const meta = extractJobMetadata("ashby", rawJson);
+    expect(meta.companyName).toBeNull();
+  });
+});
+
+describe("extractJobMetadata — edge cases", () => {
+  it("returns all-null metadata for unknown ATS source", () => {
+    const rawJson = JSON.stringify({ title: "Engineer" });
+    const meta = extractJobMetadata("workday", rawJson);
+    expect(meta.workplaceType).toBeNull();
+    expect(meta.employmentType).toBeNull();
+    expect(meta.locationName).toBeNull();
+    expect(meta.companyName).toBeNull();
+  });
+
+  it("returns all-null metadata when rawJson is invalid JSON", () => {
+    const meta = extractJobMetadata("greenhouse", "not valid json");
+    expect(meta.workplaceType).toBeNull();
+    expect(meta.companyName).toBeNull();
+  });
+
+  it("returns all-null metadata when rawJson is not an object", () => {
+    const meta = extractJobMetadata("greenhouse", '"just a string"');
+    expect(meta.workplaceType).toBeNull();
   });
 });
 

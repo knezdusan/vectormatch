@@ -137,17 +137,28 @@ export async function runGateSQLRouter(
         )
       : sql`true`;
 
-  // The SQL query. Parameters are safely interpolated by Drizzle's sql tag.
-  // Note: ${...} in the sql template are Drizzle parameter placeholders, NOT
-  // JS template literals — they produce $1, $2, etc. in the prepared statement.
+  // ── Workplace type pre-filter (Phase 5) ─────────────────────────────────
+  // If the job has a known workplace_type, filter out applicants whose
+  // assignment_types don't include it. If the job's workplace_type is NULL
+  // (e.g. Greenhouse with no "remote" in location), let all applicants through
+  // — Gate 3 LLM makes the final determination.
   //
-  // Cross-posting dedup: ATS APIs often list the same job multiple times with
-  // different external_job_id values (e.g., for different locations/teams).
-  // The NOT EXISTS clause skips inserting a candidate if a match already
-  // exists for the same (ats_slug, title, persona_id) from a different job_id.
-  // This prevents Gate 3 from evaluating duplicates (saves LLM costs) and
-  // keeps the dashboard clean — one match per distinct job per persona.
+  // Logic:
+  //   job.workplace_type = 'remote'    → applicant needs 'remote' or 'remote_local'
+  //   job.workplace_type = 'hybrid'    → applicant needs 'hybrid', 'remote', or 'remote_local'
+  //   job.workplace_type = 'on-site'   → applicant needs 'on-site' or 'hybrid'
+  //   job.workplace_type = NULL        → no filter (let through to Gate 3)
+  //
+  // Note: 'remote_local' in assignment_types counts as 'remote' for matching.
+  //
+  // Implementation: A CTE fetches the job's workplace_type once (avoids 4
+  // correlated subqueries in the WHERE clause). The cross-posting dedup also
+  // uses a CTE to fetch ats_slug + title once instead of 2 subqueries per row.
   const query = sql`
+    WITH job_meta AS (
+      SELECT workplace_type, ats_slug, title
+      FROM job WHERE id = ${jobId}::uuid
+    )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
     SELECT
       ${jobId}::uuid,
@@ -157,6 +168,7 @@ export async function runGateSQLRouter(
       (p.persona_embedding <=> ${embeddingStr}::vector) AS cosine_distance,
       'pending'
     FROM persona p
+    CROSS JOIN job_meta jm
     CROSS JOIN LATERAL (
       SELECT count(*) AS overlap_score
       FROM unnest(p.must_have_tags) AS t(tag)
@@ -169,9 +181,24 @@ export async function runGateSQLRouter(
       AND NOT EXISTS (
         SELECT 1 FROM match_queue mq
         JOIN job j2 ON mq.job_id = j2.id
-        WHERE j2.ats_slug = (SELECT ats_slug FROM job WHERE id = ${jobId}::uuid)
-          AND j2.title = (SELECT title FROM job WHERE id = ${jobId}::uuid)
+        WHERE j2.ats_slug = jm.ats_slug
+          AND j2.title = jm.title
           AND mq.persona_id = p.id
+      )
+      AND (
+        jm.workplace_type IS NULL
+        OR EXISTS (
+          SELECT 1 FROM applicant a
+          WHERE a.user_id = p.applicant_id
+          AND (
+            (jm.workplace_type = 'remote'
+              AND ('remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
+            OR (jm.workplace_type = 'hybrid'
+              AND ('hybrid' = ANY(a.assignment_types) OR 'remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
+            OR (jm.workplace_type = 'on-site'
+              AND ('on-site' = ANY(a.assignment_types) OR 'hybrid' = ANY(a.assignment_types)))
+          )
+        )
       )
     ORDER BY
       (
@@ -209,6 +236,9 @@ async function runGate1Only(
   const tagsArray = `ARRAY[${jobTags.map((t) => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`;
 
   const query = sql`
+    WITH job_meta AS (
+      SELECT workplace_type FROM job WHERE id = ${jobId}::uuid
+    )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, status)
     SELECT
       ${jobId}::uuid,
@@ -217,6 +247,7 @@ async function runGate1Only(
       ov.overlap_score,
       'pending'
     FROM persona p
+    CROSS JOIN job_meta jm
     CROSS JOIN LATERAL (
       SELECT count(*) AS overlap_score
       FROM unnest(p.must_have_tags) AS t(tag)
@@ -225,6 +256,21 @@ async function runGate1Only(
     WHERE
       p.must_have_tags && ${sql.raw(tagsArray)}
       AND NOT (p.blocklist_tags && ${sql.raw(tagsArray)})
+      AND (
+        jm.workplace_type IS NULL
+        OR EXISTS (
+          SELECT 1 FROM applicant a
+          WHERE a.user_id = p.applicant_id
+          AND (
+            (jm.workplace_type = 'remote'
+              AND ('remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
+            OR (jm.workplace_type = 'hybrid'
+              AND ('hybrid' = ANY(a.assignment_types) OR 'remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
+            OR (jm.workplace_type = 'on-site'
+              AND ('on-site' = ANY(a.assignment_types) OR 'hybrid' = ANY(a.assignment_types)))
+          )
+        )
+      )
     ORDER BY ov.overlap_score DESC
     LIMIT ${GATE_ROUTER_LIMIT}
     ON CONFLICT (job_id, persona_id) DO NOTHING

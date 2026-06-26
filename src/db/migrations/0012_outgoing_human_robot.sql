@@ -1,0 +1,10 @@
+CREATE TYPE "public"."workplace_type" AS ENUM('remote', 'hybrid', 'on-site');--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "workplace_type" "workplace_type";--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "employment_type" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "location_name" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "department" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "team" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "apply_url" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "published_at" timestamp;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "company_name" text;--> statement-breakpoint
+CREATE INDEX "job_workplace_type_idx" ON "job" USING btree ("workplace_type");

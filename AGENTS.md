@@ -308,6 +308,18 @@ This project has **Fallow** (v2.95.0) installed for structural analysis: dead co
 
 **Agent**: Devin Desktop (not Windsurf). `FALLOW_AGENT_SOURCE` is intentionally unset because Devin is not in the Fallow allowlist; this does not affect functionality.
 
+### Suppressed False-Positive Warnings (`ignoreExports`)
+
+The `.fallowrc.json` `ignoreExports` section suppresses recurring "unused export" and "duplicate export" warnings that are **false positives**. These fall into three categories — do NOT remove these suppressions without understanding why they were added:
+
+1. **Tested-and-ready modules awaiting Inngest wiring** — Module B/C job-matching infrastructure (poller, seeders, normalizer, gate functions, tech-tags, onboarding recompute). These are fully unit-tested in `__tests__/` directories (which Fallow ignores from usage analysis) and documented in the TDD/blueprint as key functions. Their production caller (the Inngest `jobIngestedHandler` and related functions) is still being wired up. When Inngest wiring is complete, these suppressions can be removed.
+
+2. **Intentional API surface** — Per-job Zod schemas (`greenhouseJobSchema`, `leverJobSchema`, `ashbyJobSchema`) and their type exports (`GreenhouseJob`, etc.) are exported for testability and downstream consumer use, even though only the response-level schemas are imported by the poller adapters. `ATS_SOURCES` is a helper for iterating ATS sources. `getApprovedMatches` is a backward-compatibility wrapper.
+
+3. **Intentional duplicate `AtsSource` type** — `src/lib/jobs/ats-endpoints.ts` exports a hand-written `AtsSource = "greenhouse" | "lever" | "ashby"` union, while `src/lib/jobs/seeders/schemas.ts` exports `AtsSource = z.infer<typeof atsSourceSchema>` (derived from the Zod enum). Both resolve to the same type, but the duplication is deliberate: the Zod schema is the source of truth for runtime validation, and the hand-written union is the canonical type for non-validation contexts. Consolidating would create a circular dependency or lose type safety.
+
+**When a new Fallow "unused export" warning appears**: check whether the export is (a) tested in `__tests__/`, (b) used only within the same file, or (c) documented in the TDD as a pending-wiring module. If yes, add it to `ignoreExports` in `.fallowrc.json` rather than deleting the export. If no, the export is genuinely dead code and should be removed.
+
 ## BigQuery MCP (Public Dataset Analysis)
 
 This project has **Google BigQuery MCP** integration for public dataset analysis, specifically supporting Module B (Seeding & Ingestion Engine). The server is registered in `.devin/config.json` using `@toolbox-sdk/server`.

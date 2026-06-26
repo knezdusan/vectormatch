@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/card";
 import { getAuthSession } from "@/lib/auth";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import { getMatchDetail } from "@/lib/jobs/dashboard-queries";
-import { extractJobContent } from "@/lib/jobs/job-normalizer";
+import { extractJobContent, extractJobUrl } from "@/lib/jobs/job-normalizer";
 
 export const metadata = {
   title: "Match Detail | VectorMatch",
@@ -77,9 +77,15 @@ export default async function MatchDetailPage({
     match.job.title,
   );
 
-  const careerUrl = ATS_ENDPOINTS[
-    match.job.atsSource as keyof typeof ATS_ENDPOINTS
-  ]?.hostedBoard(match.job.atsSlug);
+  // Prefer the job-specific posting URL (lands the user directly on the
+  // matched job). Fall back to the company-wide hosted board URL when the
+  // per-job URL is absent from rawJson (e.g. some Ashby boards omit
+  // jobUrl).
+  const jobUrl =
+    extractJobUrl(match.job.atsSource, match.job.rawJson) ??
+    ATS_ENDPOINTS[
+      match.job.atsSource as keyof typeof ATS_ENDPOINTS
+    ]?.hostedBoard(match.job.atsSlug);
 
   return (
     <div className="flex flex-col gap-6">
@@ -110,9 +116,18 @@ export default async function MatchDetailPage({
           </Badge>
         </div>
 
-        {careerUrl && (
-          <a href={careerUrl} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm" className="gap-1.5">
+        {jobUrl && (
+          <a
+            href={jobUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-fit"
+          >
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 cursor-pointer"
+            >
               <ExternalLink className="size-4" />
               View on {match.job.atsSource}
             </Button>

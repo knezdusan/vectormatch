@@ -12,8 +12,8 @@ interface DashboardMainProps {
  */
 export function DashboardMain({ children }: DashboardMainProps) {
   return (
-    <SidebarInset className="how-surface min-h-svh [&_main>[data-slot=card]]:bg-background/30">
-      {children}
+    <SidebarInset className="dashboard-surface min-h-svh">
+      <div className="w-full max-w-4xl px-5 sm:px-8 lg:px-10">{children}</div>
     </SidebarInset>
   );
 }

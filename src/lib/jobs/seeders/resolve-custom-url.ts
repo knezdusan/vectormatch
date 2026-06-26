@@ -60,7 +60,6 @@ const CNAME_ATS_MAP: Record<string, AtsSource> = {
   "jobs.lever.co": "lever",
   "api.lever.co": "lever",
   "api.ashbyhq.com": "ashby",
-  "careers.ashbyhq.com": "ashby",
   "jobs.ashbyhq.com": "ashby",
 };
 

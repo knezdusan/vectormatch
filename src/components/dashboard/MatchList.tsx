@@ -112,16 +112,17 @@ function MatchCard({ match }: { match: MatchRow }) {
               <span className="text-foreground">{match.personaLabel}</span>
             </span>
             {careerUrl && (
-              <a
-                href={careerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(careerUrl, "_blank", "noopener,noreferrer");
+                }}
                 className="inline-flex items-center gap-1 text-primary hover:underline"
               >
                 <ExternalLink className="size-3" />
                 View on ATS
-              </a>
+              </button>
             )}
           </div>
 

@@ -28,23 +28,41 @@ import { z } from "zod";
 
 export const greenhouseJobSchema = z.object({
   id: z.number(),
-  internal_job_id: z.number().optional(),
+  internal_job_id: z.number().nullable().optional(),
   title: z.string(),
   updated_at: z.string().optional(),
   requisition_id: z.string().nullable().optional(),
   location: z.object({ name: z.string() }).optional(),
   absolute_url: z.url(),
   content: z.string().optional(),
-  // Greenhouse metadata values can be strings, booleans, numbers, or null
-  // depending on the custom field configuration. We don't use metadata in our
-  // normalization (only id, title, absolute_url), so we accept all types to
-  // avoid breaking on API changes. Discovered via live smoke test 2026-06-23:
-  // Airbnb's board returns boolean metadata values (e.g. "Remote eligible").
+  // Fields only present with ?content=true query parameter:
+  departments: z
+    .array(z.object({ id: z.number(), name: z.string() }))
+    .nullable()
+    .optional(),
+  offices: z
+    .array(
+      z.object({
+        id: z.number(),
+        name: z.string(),
+        location: z.string().nullable().optional(),
+      }),
+    )
+    .nullable()
+    .optional(),
+  first_published: z.string().nullable().optional(),
+  company_name: z.string().nullable().optional(),
+  // Greenhouse metadata values can be strings, booleans, numbers, null, or
+  // even objects depending on the custom field configuration. We don't use
+  // metadata in our normalization (only id, title, absolute_url), so we accept
+  // any value type to avoid breaking on API changes. Discovered via live tests:
+  //   - 2026-06-23: Airbnb returns boolean values (e.g. "Remote eligible")
+  //   - 2026-06-26: qventus returns object values (e.g. {"id": 123, "name": "..."})
   metadata: z
     .array(
       z.object({
         name: z.string(),
-        value: z.union([z.string(), z.boolean(), z.number(), z.null()]),
+        value: z.unknown(),
       }),
     )
     .nullable()
@@ -109,21 +127,32 @@ export const leverJobsResponseSchema = z.array(leverJobSchema);
 // Ashby adds fields frequently and without notice. `.passthrough()` allows
 // extra fields so a payload shape change doesn't break validation — only the
 // fields we depend on (id, title) are strictly required.
+//
+// Field names verified against the Public Job Posting API docs and 200
+// production records (2026-06-26):
+// - `jobUrl` (NOT `externalLink` — that's the RPC API field name)
+// - `workplaceType` (NOT `workplace` — PascalCase values: "OnSite", "Remote",
+//   "Hybrid", or null in 53.5% of records)
+// - `isRemote` is documented as boolean but real data returns string
+//   "true"/"false" or null — accept both types defensively
+// - `location` is always a string in the Public API (the object form
+//   { locationName } only exists in the RPC API)
 export const ashbyJobSchema = z
   .object({
     id: z.string(),
     title: z.string(),
-    // Ashby's location can be either an object { locationName } or a plain
-    // string depending on the board configuration. We don't use this field in
-    // normalization, so accept both. Discovered via live smoke test 2026-06-23:
-    // linear and exa boards return location as a string.
-    location: z
-      .union([z.string(), z.object({ locationName: z.string().optional() })])
-      .optional(),
+    location: z.string().optional(),
     descriptionHtml: z.string().optional(),
     descriptionPlain: z.string().optional(),
-    externalLink: z.url().optional(),
-    workplace: z.enum(["remote", "hybrid", "on-site"]).optional(),
+    jobUrl: z.url().optional(),
+    applyUrl: z.url().optional(),
+    workplaceType: z.string().nullable().optional(),
+    employmentType: z.string().nullable().optional(),
+    isRemote: z.union([z.boolean(), z.string()]).nullable().optional(),
+    department: z.string().nullable().optional(),
+    team: z.string().nullable().optional(),
+    publishedAt: z.string().nullable().optional(),
+    shouldDisplayCompensationOnJobPostings: z.boolean().optional(),
   })
   .passthrough();
 

@@ -11,6 +11,8 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import type z from "zod";
 
+import { workplaceTypeEnum } from "./enums";
+
 export const job = pgTable(
   "job",
   {
@@ -57,6 +59,21 @@ export const job = pgTable(
     // permanent tombstone identical to 'rejected', defeating the two-status
     // split. Null = never processed by Module C.
     normalizedAt: timestamp("normalized_at"),
+
+    // ── Extracted metadata (Phase 2 schema extension) ─────────────────────
+    // Standardized fields extracted from rawJson during ingestion. These enable
+    // SQL-level filtering (e.g. workplace type for remote-only matching) without
+    // parsing rawJson at query time. Populated by extractJobMetadata() in
+    // job-normalizer.ts. NULL when the ATS doesn't provide the field or it
+    // can't be determined (notably Greenhouse workplace_type).
+    workplaceType: workplaceTypeEnum("workplace_type"),
+    employmentType: text("employment_type"),
+    locationName: text("location_name"),
+    department: text("department"),
+    team: text("team"),
+    applyUrl: text("apply_url"),
+    publishedAt: timestamp("published_at"),
+    companyName: text("company_name"),
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
@@ -76,6 +93,8 @@ export const job = pgTable(
     ),
     // For the daily stale cleanup query (status + lastSeenAt).
     statusIdx: index("job_status_idx").on(table.status, table.lastSeenAt),
+    // For the workplace type pre-filter in Gate 1 (remote-only matching).
+    workplaceTypeIdx: index("job_workplace_type_idx").on(table.workplaceType),
   }),
 );
 

@@ -818,13 +818,14 @@ Do not scrape career pages dynamically. Seed the database with known ATS slugs. 
 
 **⚠️ CRITICAL: The `httparchive.technologies` table no longer exists.** As of April 2025, the HTTP Archive reorganized their BigQuery dataset. The data now lives in `httparchive.crawl.pages` (~30 TB/month) as a nested `technologies.technology` array field within each page record. The old query strategy (`WHERE technology = 'Next.js'` against a standalone table) will not run.
 
-**Cost optimization strategy:**
-- BigQuery Sandbox Mode: 1 TB free query processing per month, no billing required.
+**Cost optimization strategy (updated June 25 2026):**
+- BigQuery free tier: 1 TB free query processing per month (requires billing-enabled project, but costs $0 at MVP scale — $300 free credit covers overage).
 - BigQuery charges per column scanned, not per filter complexity. Adding technologies to `IN UNNEST()` costs the same as querying for one.
 - **Always pin `date` to a specific monthly crawl** (partition filter is mandatory — table is 30 TB/month).
 - Filter on `client = 'desktop'` (halves scan volume) and `is_root_page = true` (only homepages).
-- Use `TABLESAMPLE SYSTEM (0.01 PERCENT)` for exploratory queries (scans ~3 GB instead of ~30 GB).
-- Two-phase approach: (1) cheap query on `technologies` column to find candidate domains, (2) targeted query on `payload` column for ATS script URL verification.
+- **CRITICAL: Never scan the `payload` column.** It contains full webpage contents as JSON and costs ~4 TB per monthly partition. The optimized query uses only the `technologies` column (Wappalyzer detection) which costs ~15 GB per partition — a **270x cost reduction**.
+- Wappalyzer detects Greenhouse and Lever as technologies with category "Recruitment & staffing". Ashby is NOT detected by Wappalyzer (too niche) — HN seeder catches Ashby companies.
+- All domains go through slug probe resolution (CNAME check + ATS API probe). The `ats_source` from Wappalyzer is passed as a hint to the resolver so it only probes one ATS instead of three (3x fewer API calls).
 
 **Technology subset for the query (4 tiers):**
 
@@ -837,103 +838,62 @@ Do not scrape career pages dynamically. Seed the database with known ATS slugs. 
 
 **Note on Tier 4:** Unlike pure Go or Rust backends (which leave no frontend fingerprint), PHP/Rails/WordPress stacks are detectable because they generate distinctive HTML structures, HTTP headers (`X-Powered-By: PHP/X.Y`), session cookies (`PHPSESSID`, `_rails_session`), and meta generator tags. These companies still hire frontend developers and full-stack engineers — excluding them would miss a significant portion of the market.
 
-**Exploratory query (validate logic before full scan):**
+**Optimized query (June 25 2026 — uses technologies column, NOT payload):**
 ```sql
-SELECT
-  page,
+SELECT DISTINCT
   root_page,
-  technologies.technology AS tech_list
+  page,
+  CASE
+    WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Greenhouse') THEN 'greenhouse'
+    WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Lever') THEN 'lever'
+  END AS ats_source
 FROM `httparchive.crawl.pages`
-TABLESAMPLE SYSTEM (0.01 PERCENT)
 WHERE
-  date = '2024-06-01'
+  date = '2026-06-01'
   AND client = 'desktop'
   AND is_root_page
-  AND (
-    'Next.js' IN UNNEST(technologies.technology)
-    OR 'React' IN UNNEST(technologies.technology)
-    OR 'Vue.js' IN UNNEST(technologies.technology)
-    OR 'Nuxt.js' IN UNNEST(technologies.technology)
-    OR 'Svelte' IN UNNEST(technologies.technology)
-    OR 'SvelteKit' IN UNNEST(technologies.technology)
-    OR 'Angular' IN UNNEST(technologies.technology)
-    OR 'Astro' IN UNNEST(technologies.technology)
-    OR 'Remix' IN UNNEST(technologies.technology)
-    OR 'Gatsby' IN UNNEST(technologies.technology)
-    OR 'Solid.js' IN UNNEST(technologies.technology)
-    OR 'Node.js' IN UNNEST(technologies.technology)
-    OR 'Express' IN UNNEST(technologies.technology)
-    OR 'NestJS' IN UNNEST(technologies.technology)
-    OR 'Fastify' IN UNNEST(technologies.technology)
-    OR 'Deno' IN UNNEST(technologies.technology)
-    OR 'Bun' IN UNNEST(technologies.technology)
-    OR 'Tailwind CSS' IN UNNEST(technologies.technology)
-    OR 'Vite' IN UNNEST(technologies.technology)
-    OR 'esbuild' IN UNNEST(technologies.technology)
-    OR 'TypeScript' IN UNNEST(technologies.technology)
-    OR 'Playwright' IN UNNEST(technologies.technology)
-    OR 'Vitest' IN UNNEST(technologies.technology)
-    OR 'PHP' IN UNNEST(technologies.technology)
-    OR 'WordPress' IN UNNEST(technologies.technology)
-    OR 'Laravel' IN UNNEST(technologies.technology)
-    OR 'Drupal' IN UNNEST(technologies.technology)
-    OR 'Symfony' IN UNNEST(technologies.technology)
-    OR 'Ruby on Rails' IN UNNEST(technologies.technology)
+  AND EXISTS (
+    SELECT 1 FROM UNNEST(technologies) t WHERE
+    t.technology = 'Next.js' OR t.technology = 'React' /* ... full tier list ... */
   )
-  AND (
-    REGEXP_CONTAINS(LOWER(payload), 'boards-api\\.greenhouse\\.io')
-    OR REGEXP_CONTAINS(LOWER(payload), 'boards\\.greenhouse\\.io')
-    OR REGEXP_CONTAINS(LOWER(payload), 'api\\.lever\\.co/v0/postings')
-    OR REGEXP_CONTAINS(LOWER(payload), 'jobs\\.lever\\.co')
-    OR REGEXP_CONTAINS(LOWER(payload), 'api\\.ashbyhq\\.com/posting-api')
-  )
-LIMIT 1000;
+  AND EXISTS (
+    SELECT 1 FROM UNNEST(technologies) t
+    WHERE t.technology IN ('Greenhouse', 'Lever')
+  );
 ```
 
-**Delta query (monthly — find domains in the new crawl that weren't in the previous):**
-```sql
-WITH new_crawl AS (
-  SELECT DISTINCT root_page
-  FROM `httparchive.crawl.pages`
-  WHERE date = '2024-07-01' AND client = 'desktop' AND is_root_page
-    AND ('Next.js' IN UNNEST(technologies.technology)
-         OR 'React' IN UNNEST(technologies.technology)
-         /* ... full tier list ... */)
-),
-prev_crawl AS (
-  SELECT DISTINCT root_page
-  FROM `httparchive.crawl.pages`
-  WHERE date = '2024-06-01' AND client = 'desktop' AND is_root_page
-    AND ('Next.js' IN UNNEST(technologies.technology)
-         OR 'React' IN UNNEST(technologies.technology)
-         /* ... full tier list ... */)
-)
-SELECT n.root_page FROM new_crawl n
-LEFT JOIN prev_crawl p ON n.root_page = p.root_page
-WHERE p.root_page IS NULL;
-```
+**Cost comparison (measured June 25 2026):**
+
+| Query approach | Bytes scanned | Free tier runs/month |
+|---|---|---|
+| `payload` column scan (REGEXP_EXTRACT) | 4,129 GB | 0 (exceeds 1 TB limit) |
+| `technologies` column only (Wappalyzer) | 15 GB | 60+ |
 
 **HTTPArchive homepage-only limitation — the workaround:**
 
-HTTPArchive only crawls homepages (`/`). If a company embeds their Greenhouse widget only on `company.com/careers`, the ATS script URL won't appear in the homepage's HAR data. The workaround is a two-phase approach:
+HTTPArchive only crawls homepages (`/`). The `technologies` column uses Wappalyzer which detects ATS scripts loaded on the homepage. If a company embeds their ATS widget only on `company.com/careers`, Wappalyzer won't detect it. The workaround:
 
-1. **Phase 1 (BigQuery):** Query for domains running our target tech stack. This gives candidate root domains — companies that are likely tech companies hiring developers. The ATS widget doesn't need to be on the homepage.
-2. **Phase 2 (Phalanx Poller probe):** For each candidate domain, the poller attempts to resolve the ATS slug by trying known URL patterns against the inferred slug (e.g. `acme.com` → try slug `acme` against all three ATS APIs). If any returns valid JSON with jobs, the ATS slug is found. If none return valid data, the domain is discarded — no manual review.
+1. **Phase 1 (BigQuery):** Query for domains running our target tech stack AND with Greenhouse/Lever detected by Wappalyzer. Returns `root_page` + `ats_source` (which ATS was detected).
+2. **Phase 2 (Slug probe):** For each domain, the resolver (`resolveCustomUrl`) tries CNAME check + slug probe against the detected ATS only (using `atsHint` parameter — 3x fewer API calls than probing all three). ~40% hit rate on real data (362 resolved out of 914 domains in June 2026 run).
 
-**Implementation notes `[Status: Implemented]`:**
+**Implementation notes `[Status: Implemented — optimized June 25 2026]`:**
 
 | File | Role |
 |------|------|
-| `src/lib/jobs/seeders/bq-schemas.ts` | Zod schemas for BigQuery HTTPArchive query result rows (with `REGEXP_EXTRACT` slug fields: `greenhouse_slug`, `lever_slug`, `ashby_slug`). |
-| `src/lib/jobs/seeders/bigquery-seeder.ts` | Domain logic with injectable `BigQueryFn`. SQL builder (`buildBigQuerySql`), two-phase slug extraction (direct `REGEXP_EXTRACT` + slug probe fallback via `resolveCustomUrl`), `processBigQueryRows` pure function. |
-| `scripts/seed-bigquery.ts` | Manual script wrapper (`npx tsx scripts/seed-bigquery.ts --date 2024-06-01 --limit 1000`). Uses `createDefaultBigQueryFn()` which wraps `@google-cloud/bigquery`. |
+| `src/lib/jobs/seeders/bq-schemas.ts` | Zod schemas for BigQuery query result rows. Fields: `root_page`, `page` (optional), `ats_source` (enum: "greenhouse" \| "lever"). No slug columns — all slug resolution via probe. |
+| `src/lib/jobs/seeders/bigquery-seeder.ts` | Domain logic with injectable `BigQueryFn`. SQL builder (`buildBigQuerySql`) using `technologies` column, `processBigQueryRows` (all rows go through slug probe with `ats_source` hint), `createDefaultBigQueryFn` (supports `GOOGLE_APPLICATION_CREDENTIALS_B64` for Coolify, `GOOGLE_APPLICATION_CREDENTIALS_JSON` for local dev, `GOOGLE_APPLICATION_CREDENTIALS` file path for ADC). |
+| `src/lib/jobs/seeders/resolve-custom-url.ts` | URL resolver with `atsHint` parameter — when ATS source is known (from BigQuery Wappalyzer detection), only probes that ATS instead of all three. |
+| `scripts/seed-bigquery.ts` | Manual script wrapper (`npx tsx scripts/seed-bigquery.ts --date 2026-06-01 --limit 100`). |
 
 **Key implementation decisions:**
-- The SQL query uses `REGEXP_EXTRACT` to pull ATS slugs directly from the homepage payload when possible (Phase 1). Domains where the slug couldn't be extracted go through the slug probe resolver (Phase 2).
-- Slug priority: Greenhouse > Lever > Ashby (when a domain has multiple ATS integrations, the first non-null slug wins).
+- The SQL query uses the `technologies` column (Wappalyzer detection) — NOT the `payload` column. This reduces scan cost from ~4 TB to ~15 GB (270x cheaper).
+- Wappalyzer detects Greenhouse and Lever. Ashby is NOT detected — HN seeder catches Ashby companies.
+- All domains go through slug probe resolution. The `ats_source` from Wappalyzer is passed as a hint to `resolveCustomUrl` so it only probes one ATS (3x fewer API calls).
+- GCP credentials for Coolify: `GOOGLE_APPLICATION_CREDENTIALS_B64` (base64-encoded JSON — Docker-safe, no special characters that break `ARG` instructions). Encode with `base64 -i key.json \| tr -d '\n'`.
 - The BigQuery client is injectable (`BigQueryFn = (sql: string) => Promise<BigQueryRow[]>`) for testing without real GCP credentials.
 - Dual execution: manual script (`scripts/seed-bigquery.ts`) + Inngest scheduled function (`bigQuerySeeder`, monthly cron `0 0 1 * *`). Both call `runBigQuerySeeder()`.
-- Test coverage: 31 unit tests (11 schema tests + 20 seeder tests) with mocked BQ client.
+- Test coverage: 29 unit tests (12 schema tests + 17 seeder tests) with mocked BQ client.
+- Real-data results (June 25 2026 run): 914 domains found, 362 resolved (40% hit rate), 278 companies inserted.
 
 #### 4.1.2 HN Algolia Sniper (The Delta Seeder) `[Status: Implemented]`
 
@@ -956,8 +916,7 @@ This is the primary "hidden jobs" discovery engine. HN "Who is Hiring" surfaces 
    - `jobs.lever.co/{slug}` — Lever hosted board
    - `api.lever.co/v0/postings/{slug}` — Lever API
    - `api.ashbyhq.com/posting-api/job-board/{slug}` — Ashby API
-   - `careers.ashbyhq.com/{slug}` — Ashby hosted board (primary pattern)
-   - `jobs.ashbyhq.com/{slug}` — Ashby hosted board (legacy/alternate)
+   - `jobs.ashbyhq.com/{slug}` — Ashby hosted board (primary pattern)
 
    These map directly to `company` table rows.
 
@@ -1019,7 +978,7 @@ export const ATS_ENDPOINTS = {
     // Docs: https://developers.ashbyhq.com/docs/public-job-posting-api
     jobsList: (slug: string) =>
       `https://api.ashbyhq.com/posting-api/job-board/${slug}?includeCompensation=true`,
-    hostedBoard: (slug: string) => `https://careers.ashbyhq.com/${slug}`,
+    hostedBoard: (slug: string) => `https://jobs.ashbyhq.com/${slug}`,
   },
 } as const;
 ```
@@ -1108,11 +1067,18 @@ export const leverJobsResponseSchema = z.array(leverJobSchema);
 export const ashbyJobSchema = z.object({
   id: z.string(),
   title: z.string(),
-  location: z.object({ locationName: z.string().optional() }).optional(),
+  location: z.string().optional(),
   descriptionHtml: z.string().optional(),
   descriptionPlain: z.string().optional(),
-  externalLink: z.string().url().optional(),
-  workplace: z.enum(["remote", "hybrid", "on-site"]).optional(),
+  jobUrl: z.url().optional(),
+  applyUrl: z.url().optional(),
+  workplaceType: z.string().nullable().optional(),
+  employmentType: z.string().nullable().optional(),
+  isRemote: z.union([z.boolean(), z.string()]).nullable().optional(),
+  department: z.string().nullable().optional(),
+  team: z.string().nullable().optional(),
+  publishedAt: z.string().nullable().optional(),
+  shouldDisplayCompensationOnJobPostings: z.boolean().optional(),
 }).passthrough();  // Allow extra fields — Ashby adds fields frequently
 
 export const ashbyJobsResponseSchema = z.object({
@@ -1387,8 +1353,8 @@ await db.execute(sql`
 **Config values** (`src/lib/jobs/matching-config.ts`):
 | Constant | Value | Calibration Status |
 |---|---|---|
-| `GATE2_MAX_COSINE_DISTANCE` | `0.35` | Uncalibrated guess — no-op on synthetic data (embeddings cluster at 0.18–0.21). Must be benchmarked against real job/persona pairs. |
-| `GATE_ROUTER_LIMIT` | `8` | Uncalibrated guess — doing all filtering on synthetic data. |
+| `GATE2_MAX_COSINE_DISTANCE` | `0.55` | Calibrated against real data (June 25 2026). Real embeddings cluster at 0.45–0.60 minimum distance (text-embedding-3-small produces wider spread on real job descriptions than synthetic Gaussian noise). At 0.55, the funnel produces relevant candidates without excessive false positives. Previous value 0.35 blocked all real matches. |
+| `GATE_ROUTER_LIMIT` | `8` | Uncalibrated — doing all filtering on synthetic data. |
 | `GATE1_WEIGHT` | `0.6` | Uncalibrated guess. |
 | `GATE2_WEIGHT` | `0.4` | Uncalibrated guess. `GATE1_WEIGHT + GATE2_WEIGHT = 1.0`. |
 
@@ -1397,6 +1363,7 @@ await db.execute(sql`
 - No personas pass: Return empty array. No Gate 3 fan-out.
 - All candidates blocklisted: Filtered by `NOT (p.blocklist_tags && ...)`.
 - Null `jobEmbedding`: Defensive fallback to Gate 1 only with `LIMIT 8`.
+- **Cross-posting duplicates** (added June 25 2026): ATS APIs list the same job multiple times with different `external_job_id` values (e.g. for different locations/teams). The `NOT EXISTS` subquery checks if a match already exists for the same `(ats_slug, title, persona_id)` before inserting — prevents duplicate matches and saves Gate 3 LLM calls. Discovered when 19% of active jobs were duplicates (449 out of 2,348).
 
 **Performance:** `EXPLAIN ANALYZE` (verified by `scripts/verify-gate-explain.mts`) confirms both GIN and HNSW indexes are used. At MVP scale (~1,000 personas), the composite ORDER BY may cause an in-memory sort (HNSW index is optimized for pure KNN, not composite expressions) — this is <5ms at 1k rows. At 100k+ scale, a two-phase query (KNN + re-rank) may be needed (post-MVP).
 
@@ -1484,9 +1451,15 @@ The dashboard UI was built specifically as the calibration debugging interface. 
 **Calibration script:** `scripts/calibrate-routing-engine.ts` — runs Gate 1+2 against seed data, collects cosine distance + overlap score distributions, measures true candidate counts at different thresholds (no LIMIT), and optionally evaluates Gate 3 verdicts on a sample.
 
 **Key findings (synthetic data, 100 personas + 500 jobs):**
-- `GATE2_MAX_COSINE_DISTANCE = 0.35` is a no-op — seed embeddings cluster tightly (mean 0.19, max 0.21). 222 candidates pass per job; the LIMIT 8 does all filtering.
+- `GATE2_MAX_COSINE_DISTANCE = 0.35` was a no-op — seed embeddings cluster tightly (mean 0.19, max 0.21). 222 candidates pass per job; the LIMIT 8 does all filtering.
 - Gate 3 correctly approved archetype-matched candidates (4/5) and rejected a skill-emphasis mismatch (SolidJS primary vs React persona) despite perfect tag overlap and low cosine distance — validating the 3-Gate architecture.
 - Confidence scores are high (0.90–0.95) on synthetic data. Real data will produce a wider distribution with borderline cases (0.4–0.6).
+
+**Key findings (real data, June 25 2026 — 449 companies, 3,061 jobs, 2 personas):**
+- `GATE2_MAX_COSINE_DISTANCE = 0.35` blocked ALL real matches. Real embeddings cluster at 0.45–0.60 minimum distance. `text-embedding-3-small` produces wider spread on real job descriptions than synthetic Gaussian noise.
+- Threshold raised to `0.55` — produces relevant candidates without excessive false positives. See `docs/reports/calibration-report.md` §8 for details.
+- Cross-posting duplication: 19% of active jobs (449/2,348) were ATS duplicates (same title, different `external_job_id`). Fixed via `NOT EXISTS` dedup in Gate 1+2.
+- First real approved matches: 5 distinct jobs (Palantir ×2, Mapbox ×2, Teramind ×1) matched to Full-Stack TypeScript Engineer persona.
 
 **Full report:** `docs/reports/calibration-report.md`
 

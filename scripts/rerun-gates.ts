@@ -97,6 +97,7 @@ async function main(): Promise<void> {
         j.title,
         j.extracted_tags,
         j.job_embedding,
+        j.workplace_type,
         p.id AS persona_id,
         p.applicant_id,
         ov.overlap_score,
@@ -114,6 +115,7 @@ async function main(): Promise<void> {
         FROM unnest(p.must_have_tags) AS t(tag)
         WHERE t.tag = ANY(j.extracted_tags)
       ) ov
+      LEFT JOIN applicant a ON a.user_id = p.applicant_id
       WHERE
         j.status = 'active'
         AND j.job_embedding IS NOT NULL
@@ -121,6 +123,21 @@ async function main(): Promise<void> {
         AND p.must_have_tags && j.extracted_tags
         AND NOT (p.blocklist_tags && j.extracted_tags)
         AND (p.persona_embedding <=> j.job_embedding) < ${GATE2_MAX_COSINE_DISTANCE}::real
+        AND (
+          j.workplace_type IS NULL
+          OR (
+            j.workplace_type = 'remote'
+            AND ('remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types))
+          )
+          OR (
+            j.workplace_type = 'hybrid'
+            AND ('hybrid' = ANY(a.assignment_types) OR 'remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types))
+          )
+          OR (
+            j.workplace_type = 'on-site'
+            AND ('on-site' = ANY(a.assignment_types) OR 'hybrid' = ANY(a.assignment_types))
+          )
+        )
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
     SELECT id, persona_id, applicant_id, overlap_score, cosine_distance, 'pending'

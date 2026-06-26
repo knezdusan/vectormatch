@@ -53,6 +53,28 @@ describe("greenhouseJobSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("parses a job with ?content=true fields (departments, offices, company_name)", () => {
+    const result = greenhouseJobSchema.safeParse({
+      ...validJob,
+      content: "<p>Job description</p>",
+      departments: [{ id: 1, name: "Engineering" }],
+      offices: [{ id: 1, name: "New York", location: "NYC" }],
+      first_published: "2026-06-25T18:20:09-04:00",
+      company_name: "Chime Financial, Inc",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a job with null internal_job_id (real Greenhouse API)", () => {
+    // Regression test: discovered during backfill 2026-06-26 that the weareenvoy
+    // board returns internal_job_id: null (not a number, not absent).
+    const result = greenhouseJobSchema.safeParse({
+      ...validJob,
+      internal_job_id: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("parses a job with null metadata", () => {
     const result = greenhouseJobSchema.safeParse({
       ...validJob,
@@ -71,6 +93,20 @@ describe("greenhouseJobSchema", () => {
         { name: "Department", value: "Engineering" },
         { name: "Openings", value: 3 },
         { name: "Custom field", value: null },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a job with object metadata values (real Greenhouse API)", () => {
+    // Regression test: discovered during backfill 2026-06-26 that qventus's
+    // Greenhouse board returns object metadata values (e.g. custom department
+    // fields with {id, name} structure).
+    const result = greenhouseJobSchema.safeParse({
+      ...validJob,
+      metadata: [
+        { name: "Department", value: { id: 123, name: "Engineering" } },
+        { name: "Location", value: { city: "SF", state: "CA" } },
       ],
     });
     expect(result.success).toBe(true);
@@ -306,11 +342,18 @@ describe("ashbyJobSchema", () => {
   it("parses a full job with all optional fields", () => {
     const result = ashbyJobSchema.safeParse({
       ...validJob,
-      location: { locationName: "Remote (Global)" },
+      location: "Remote (Global)",
       descriptionHtml: "<p>Job description</p>",
       descriptionPlain: "Plain text description",
-      externalLink: "https://acme.com/careers/ashby-job-001",
-      workplace: "remote",
+      jobUrl: "https://jobs.ashbyhq.com/acme/ashby-job-001",
+      applyUrl: "https://jobs.ashbyhq.com/acme/ashby-job-001/application",
+      workplaceType: "Remote",
+      employmentType: "FullTime",
+      isRemote: "true",
+      department: "Engineering",
+      team: "Platform",
+      publishedAt: "2026-06-26T01:57:53.065+00:00",
+      shouldDisplayCompensationOnJobPostings: true,
     });
     expect(result.success).toBe(true);
   });
@@ -327,12 +370,42 @@ describe("ashbyJobSchema", () => {
   });
 
   it("parses a job with location as a string (real Ashby API)", () => {
-    // Regression test: discovered via live smoke test 2026-06-23 that the linear
-    // and exa boards return location as a plain string, not an object. We don't
-    // use this field in normalization, so both shapes are accepted.
+    // The Public Job Posting API always returns location as a string.
     const result = ashbyJobSchema.safeParse({
       ...validJob,
       location: "Remote (Global)",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a job with isRemote as boolean (docs say boolean)", () => {
+    const result = ashbyJobSchema.safeParse({
+      ...validJob,
+      isRemote: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a job with isRemote as string (real data returns string)", () => {
+    const result = ashbyJobSchema.safeParse({
+      ...validJob,
+      isRemote: "false",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a job with isRemote as null", () => {
+    const result = ashbyJobSchema.safeParse({
+      ...validJob,
+      isRemote: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a job with workplaceType as null (53.5% of real data)", () => {
+    const result = ashbyJobSchema.safeParse({
+      ...validJob,
+      workplaceType: null,
     });
     expect(result.success).toBe(true);
   });
@@ -347,18 +420,10 @@ describe("ashbyJobSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("fails when externalLink is not a valid URL", () => {
+  it("fails when jobUrl is not a valid URL", () => {
     const result = ashbyJobSchema.safeParse({
       ...validJob,
-      externalLink: "not-a-url",
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("fails when workplace is an invalid enum value", () => {
-    const result = ashbyJobSchema.safeParse({
-      ...validJob,
-      workplace: "teleport",
+      jobUrl: "not-a-url",
     });
     expect(result.success).toBe(false);
   });

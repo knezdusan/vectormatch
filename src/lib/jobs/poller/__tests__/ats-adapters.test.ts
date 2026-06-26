@@ -163,10 +163,10 @@ describe("fetchJobsFromAts — Ashby", () => {
       {
         id: "ashby-001",
         title: "Platform Engineer",
-        location: { locationName: "Remote (US)" },
+        location: "Remote (US)",
         descriptionHtml: "<p>Job description</p>",
-        externalLink: "https://careers.ashbyhq.com/acme/ashby-001",
-        workplace: "remote",
+        jobUrl: "https://jobs.ashbyhq.com/acme/ashby-001",
+        workplaceType: "Remote",
       },
     ],
   };
@@ -184,7 +184,7 @@ describe("fetchJobsFromAts — Ashby", () => {
       expect(result.jobs[0].externalJobId).toBe("ashby-001");
       expect(result.jobs[0].title).toBe("Platform Engineer");
       expect(result.jobs[0].url).toBe(
-        "https://careers.ashbyhq.com/acme/ashby-001",
+        "https://jobs.ashbyhq.com/acme/ashby-001",
       );
     }
   });

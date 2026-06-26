@@ -14,6 +14,94 @@
     "playwright.config.ts"
   ],
   "ignoreDependencies": ["class-variance-authority", "radix-ui", "dotenv"],
+  "ignoreExports": [
+    {
+      "file": "src/lib/jobs/ats-endpoints.ts",
+      "exports": ["ATS_SOURCES", "AtsSource"]
+    },
+    {
+      "file": "src/lib/jobs/ats-schemas.ts",
+      "exports": [
+        "greenhouseJobSchema",
+        "leverJobSchema",
+        "ashbyJobSchema",
+        "GreenhouseJob",
+        "GreenhouseJobsResponse",
+        "LeverJob",
+        "LeverJobsResponse",
+        "AshbyJob",
+        "AshbyJobsResponse"
+      ]
+    },
+    {
+      "file": "src/lib/jobs/dashboard-queries.ts",
+      "exports": ["getApprovedMatches"]
+    },
+    {
+      "file": "src/lib/jobs/gate-3.ts",
+      "exports": ["gate3VerdictSchema", "buildGate3Prompt"]
+    },
+    {
+      "file": "src/lib/jobs/gate-zero.ts",
+      "exports": ["GATE_ZERO_REGEX"]
+    },
+    {
+      "file": "src/lib/jobs/job-normalizer.ts",
+      "exports": ["scanTagsRegex", "extractTagsLLM"]
+    },
+    {
+      "file": "src/lib/jobs/poller/job-repository.ts",
+      "exports": ["markUnseenJobsStale"]
+    },
+    {
+      "file": "src/lib/jobs/poller/schemas.ts",
+      "exports": [
+        "pollerRunEventSchema",
+        "jobIngestedEventSchema",
+        "PollCompanyEvent",
+        "PollerRunEvent",
+        "JobIngestedEvent"
+      ]
+    },
+    {
+      "file": "src/lib/jobs/seeders/company-repository.ts",
+      "exports": ["companyExists"]
+    },
+    {
+      "file": "src/lib/jobs/seeders/hn-schemas.ts",
+      "exports": ["hnAlgoliaHitSchema"]
+    },
+    {
+      "file": "src/lib/jobs/seeders/schemas.ts",
+      "exports": [
+        "atsSourceSchema",
+        "discoverySourceSchema",
+        "AtsSource",
+        "DiscoverySource"
+      ]
+    },
+    {
+      "file": "src/lib/jobs/seeders/url-parser.ts",
+      "exports": ["extractUrls", "parseAtsUrl", "ClassifiedUrl"]
+    },
+    {
+      "file": "src/lib/jobs/tech-tags.ts",
+      "exports": [
+        "CANONICAL_TAG_SLUGS",
+        "TAGS_BY_CATEGORY",
+        "normalizeToCanonicalTag",
+        "isPersonaDefining"
+      ]
+    },
+    {
+      "file": "src/lib/onboarding/recompute-tags.ts",
+      "exports": ["mergeOverlappingRanges", "sumYearsFromRanges"]
+    },
+    {
+      "file": "src/lib/blog/posts.ts",
+      "exports": ["getAllPostsRaw"]
+    }
+  ],
   "duplicates": {
     "minOccurrences": 3,
     "ignore": [

@@ -173,19 +173,13 @@ describe("parseAtsUrl — Lever", () => {
 // ── parseAtsUrl — Ashby ──────────────────────────────────────────────────────
 
 describe("parseAtsUrl — Ashby", () => {
-  it("parses careers.ashbyhq.com URL", () => {
-    const result = parseAtsUrl("https://careers.ashbyhq.com/acme");
+  it("parses jobs.ashbyhq.com URL", () => {
+    const result = parseAtsUrl("https://jobs.ashbyhq.com/acme");
     expect(result).toEqual({
       atsSource: "ashby",
       atsSlug: "acme",
-      url: "https://careers.ashbyhq.com/acme",
+      url: "https://jobs.ashbyhq.com/acme",
     });
-  });
-
-  it("parses jobs.ashbyhq.com URL (legacy pattern)", () => {
-    const result = parseAtsUrl("https://jobs.ashbyhq.com/acme");
-    expect(result?.atsSource).toBe("ashby");
-    expect(result?.atsSlug).toBe("acme");
   });
 
   it("parses API URL", () => {
@@ -255,7 +249,7 @@ describe("classifyUrls", () => {
 
   it("handles multiple ATS sources in one comment", () => {
     const text =
-      "Greenhouse: boards.greenhouse.io/acme | Lever: jobs.lever.co/foobar | Ashby: careers.ashbyhq.com/baz";
+      "Greenhouse: boards.greenhouse.io/acme | Lever: jobs.lever.co/foobar | Ashby: jobs.ashbyhq.com/baz";
     const result = classifyUrls(text);
     expect(result.atsUrls).toHaveLength(3);
     const sources = result.atsUrls.map((u) => u.atsSource).sort();
@@ -285,7 +279,7 @@ describe("extractRootDomain", () => {
   it("returns null for ATS host URLs", () => {
     expect(extractRootDomain("https://jobs.lever.co/acme")).toBeNull();
     expect(extractRootDomain("https://boards.greenhouse.io/acme")).toBeNull();
-    expect(extractRootDomain("https://careers.ashbyhq.com/acme")).toBeNull();
+    expect(extractRootDomain("https://jobs.ashbyhq.com/acme")).toBeNull();
   });
 
   it("returns null for invalid URLs", () => {

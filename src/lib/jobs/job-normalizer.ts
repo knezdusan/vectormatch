@@ -161,6 +161,347 @@ export function extractJobContent(
 }
 
 // =============================================================================
+// ATS-SOURCE-AWARE JOB URL EXTRACTION
+// =============================================================================
+
+/**
+ * Extract the hosted job-posting URL from rawJson based on the ATS source.
+ *
+ * Each ATS platform stores the per-job URL under a different field name:
+ *   - Greenhouse: `absolute_url` (required by the schema)
+ *   - Lever:      `hostedUrl`    (required by the schema)
+ *   - Ashby:      `jobUrl` (optional — some boards omit it)
+ *
+ * Returns null when the URL is absent or rawJson is unparseable. Callers
+ * should fall back to the company-wide hosted board URL
+ * (`ATS_ENDPOINTS[source].hostedBoard(slug)`) in that case.
+ *
+ * Used by the match detail page to link users directly to the specific job
+ * posting rather than the company's full job board (which may list hundreds
+ * of openings, making the matched job hard to find).
+ */
+export function extractJobUrl(
+  atsSource: string,
+  rawJson: string,
+): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+
+  const obj = parsed as Record<string, unknown>;
+  const field =
+    atsSource === "greenhouse"
+      ? "absolute_url"
+      : atsSource === "lever"
+        ? "hostedUrl"
+        : atsSource === "ashby"
+          ? "jobUrl"
+          : null;
+
+  if (!field) return null;
+  const value = obj[field];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+// =============================================================================
+// ATS-SOURCE-AWARE METADATA EXTRACTION
+// =============================================================================
+
+/** The standardized metadata extracted from rawJson, independent of ATS source. */
+export type JobMetadata = {
+  /** Normalized to "remote" | "hybrid" | "on-site" | null.
+   *  NULL when the ATS doesn't provide it (notably Greenhouse) or it can't be
+   *  determined. The matching pipeline lets NULL through to Gate 3 LLM. */
+  workplaceType: "remote" | "hybrid" | "on-site" | null;
+  /** Normalized to "full-time" | "part-time" | "contract" | "internship" | null.
+   *  NULL when the ATS doesn't provide it. */
+  employmentType: string | null;
+  /** Raw location string as provided by the ATS (no normalization). */
+  locationName: string | null;
+  /** Department string (Greenhouse departments[0].name, Lever categories.department, Ashby department). */
+  department: string | null;
+  /** Team string (Lever categories.team, Ashby team). */
+  team: string | null;
+  /** Direct application URL (Lever applyUrl, Ashby applyUrl). */
+  applyUrl: string | null;
+  /** When the job was published (Greenhouse first_published, Lever createdAt ms, Ashby publishedAt). */
+  publishedAt: Date | null;
+  /** Company name (Greenhouse only — Lever/Ashby don't include it in the job object). */
+  companyName: string | null;
+};
+
+/**
+ * Extract standardized metadata from rawJson based on the ATS source.
+ *
+ * This function normalizes fields that are stored under different names and
+ * formats across the three ATS platforms:
+ *
+ *   workplaceType:
+ *     - Lever:  "onsite" → "on-site", "hybrid" → "hybrid", "remote" → "remote",
+ *               "unspecified" → null
+ *     - Ashby:  "OnSite" → "on-site", "Remote" → "remote", "Hybrid" → "hybrid",
+ *               null → null
+ *     - Greenhouse: No structured field. Heuristic: location.name contains
+ *               "remote" (case-insensitive) → "remote", else null.
+ *
+ *   employmentType:
+ *     - Lever:  categories.commitment ("Full-time" → "full-time", etc.)
+ *     - Ashby:  employmentType ("FullTime" → "full-time", "PartTime" → "part-time",
+ *               "Contract" → "contract", "Intern" → "internship",
+ *               "Temporary" → "contract")
+ *     - Greenhouse: null (not reliably available)
+ *
+ * Defensive: returns all-null metadata if rawJson is unparseable or the ATS
+ * source is unknown.
+ */
+export function extractJobMetadata(
+  atsSource: string,
+  rawJson: string,
+): JobMetadata {
+  const empty: JobMetadata = {
+    workplaceType: null,
+    employmentType: null,
+    locationName: null,
+    department: null,
+    team: null,
+    applyUrl: null,
+    publishedAt: null,
+    companyName: null,
+  };
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawJson);
+  } catch {
+    return empty;
+  }
+  if (typeof parsed !== "object" || parsed === null) return empty;
+
+  const obj = parsed as Record<string, unknown>;
+
+  switch (atsSource) {
+    case "greenhouse":
+      return extractGreenhouseMetadata(obj);
+    case "lever":
+      return extractLeverMetadata(obj);
+    case "ashby":
+      return extractAshbyMetadata(obj);
+    default:
+      return empty;
+  }
+}
+
+function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
+  // Location — nested object { name: string }
+  const locationObj = obj.location;
+  const locationName =
+    typeof locationObj === "object" && locationObj !== null
+      ? (((locationObj as Record<string, unknown>).name as string) ?? null)
+      : null;
+
+  // Workplace type — Greenhouse has no structured field. Use location heuristic.
+  let workplaceType: JobMetadata["workplaceType"] = null;
+  if (locationName && /remote/i.test(locationName)) {
+    workplaceType = "remote";
+  }
+
+  // Company name — undocumented but present in 100% of Greenhouse responses
+  const companyName =
+    typeof obj.company_name === "string" && obj.company_name.length > 0
+      ? obj.company_name
+      : null;
+
+  // Published date — undocumented but present (first_published, ISO 8601)
+  const publishedAt = parseDate(obj.first_published);
+
+  // Department — only available with ?content=true (departments array)
+  const departments = obj.departments;
+  let department: string | null = null;
+  if (Array.isArray(departments) && departments.length > 0) {
+    const first = departments[0] as Record<string, unknown>;
+    if (typeof first?.name === "string") department = first.name;
+  }
+
+  return {
+    workplaceType,
+    employmentType: null, // Not reliably available for Greenhouse
+    locationName,
+    department,
+    team: null, // Greenhouse doesn't have a separate team field
+    applyUrl: null, // Not in the list endpoint
+    publishedAt,
+    companyName,
+  };
+}
+
+function extractLeverMetadata(obj: Record<string, unknown>): JobMetadata {
+  const categories =
+    typeof obj.categories === "object" && obj.categories !== null
+      ? (obj.categories as Record<string, unknown>)
+      : {};
+
+  const locationName =
+    typeof categories.location === "string" ? categories.location : null;
+
+  // Workplace type — Lever uses lowercase: "onsite", "hybrid", "remote", "unspecified"
+  const rawWorkplace = obj.workplaceType;
+  let workplaceType: JobMetadata["workplaceType"] = null;
+  if (typeof rawWorkplace === "string") {
+    switch (rawWorkplace.toLowerCase()) {
+      case "remote":
+        workplaceType = "remote";
+        break;
+      case "hybrid":
+        workplaceType = "hybrid";
+        break;
+      case "on-site":
+      case "onsite":
+        workplaceType = "on-site";
+        break;
+      // "unspecified" or anything else → null
+    }
+  }
+
+  // Employment type — from categories.commitment ("Full-time", "Part-time", etc.)
+  const employmentType = normalizeLeverCommitment(categories.commitment);
+
+  // Department and team
+  const department =
+    typeof categories.department === "string" ? categories.department : null;
+  const team = typeof categories.team === "string" ? categories.team : null;
+
+  // Apply URL
+  const applyUrl =
+    typeof obj.applyUrl === "string" && obj.applyUrl.length > 0
+      ? obj.applyUrl
+      : null;
+
+  // Published date — createdAt is epoch milliseconds (confirmed via GitHub #35)
+  const publishedAt = parseEpochMs(obj.createdAt);
+
+  return {
+    workplaceType,
+    employmentType,
+    locationName,
+    department,
+    team,
+    applyUrl,
+    publishedAt,
+    companyName: null, // Lever v0 doesn't include company name in the job object
+  };
+}
+
+function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
+  const locationName = typeof obj.location === "string" ? obj.location : null;
+
+  // Workplace type — Ashby uses PascalCase: "OnSite", "Remote", "Hybrid", null
+  const rawWorkplace = obj.workplaceType;
+  let workplaceType: JobMetadata["workplaceType"] = null;
+  if (typeof rawWorkplace === "string") {
+    switch (rawWorkplace) {
+      case "Remote":
+        workplaceType = "remote";
+        break;
+      case "Hybrid":
+        workplaceType = "hybrid";
+        break;
+      case "OnSite":
+        workplaceType = "on-site";
+        break;
+    }
+  }
+
+  // Fallback: isRemote field (string "true"/"false" or boolean, or null)
+  if (workplaceType === null) {
+    const isRemote = obj.isRemote;
+    if (isRemote === true || isRemote === "true") {
+      workplaceType = "remote";
+    }
+  }
+
+  // Employment type — Ashby uses PascalCase: "FullTime", "PartTime", etc.
+  const employmentType = normalizeAshbyEmploymentType(obj.employmentType);
+
+  // Department and team
+  const department = typeof obj.department === "string" ? obj.department : null;
+  const team = typeof obj.team === "string" ? obj.team : null;
+
+  // Apply URL
+  const applyUrl =
+    typeof obj.applyUrl === "string" && obj.applyUrl.length > 0
+      ? obj.applyUrl
+      : null;
+
+  // Published date — publishedAt is ISO 8601
+  const publishedAt = parseDate(obj.publishedAt);
+
+  return {
+    workplaceType,
+    employmentType,
+    locationName,
+    department,
+    team,
+    applyUrl,
+    publishedAt,
+    companyName: null, // Ashby Public API doesn't include company name
+  };
+}
+
+/**
+ * Normalize Lever's categories.commitment to a standard employment type string.
+ * Lever values: "Full-time", "Part-time", "Contract", "Intern" (case may vary).
+ */
+function normalizeLeverCommitment(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const lower = value.toLowerCase();
+  if (lower.includes("full")) return "full-time";
+  if (lower.includes("part")) return "part-time";
+  if (lower.includes("contract")) return "contract";
+  if (lower.includes("intern")) return "internship";
+  return null;
+}
+
+/**
+ * Normalize Ashby's employmentType to a standard employment type string.
+ * Ashby values: "FullTime", "PartTime", "Contract", "Intern", "Temporary".
+ */
+function normalizeAshbyEmploymentType(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  switch (value) {
+    case "FullTime":
+      return "full-time";
+    case "PartTime":
+      return "part-time";
+    case "Contract":
+      return "contract";
+    case "Intern":
+      return "internship";
+    case "Temporary":
+      return "contract"; // Map Temporary to contract (closest match)
+    default:
+      return null;
+  }
+}
+
+/** Parse an ISO 8601 date string to a Date, or null if invalid/missing. */
+function parseDate(value: unknown): Date | null {
+  if (typeof value !== "string" || value.length === 0) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Parse epoch milliseconds to a Date, or null if invalid/missing. */
+function parseEpochMs(value: unknown): Date | null {
+  if (typeof value !== "number") return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// =============================================================================
 // HTML STRIPPING (lightweight, no dependency)
 // =============================================================================
 

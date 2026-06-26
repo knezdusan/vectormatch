@@ -27,6 +27,7 @@ import { z } from "zod";
 // A single BigQuery HTTPArchive query result row.
 // The optimized query returns root_page + ats_source (detected by Wappalyzer).
 // No slug columns — all slug resolution happens via the slug probe resolver.
+// fallow-ignore-next-line unused-export
 export const bigQueryRowSchema = z
   .object({
     // Root domain (e.g. "acme.com"). This is the primary identifier.

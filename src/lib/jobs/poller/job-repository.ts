@@ -91,6 +91,15 @@ export async function upsertJobs(
         jobEmbedding: null,
         lastSeenAt: now,
         status: "active",
+        // Extracted metadata (Phase 2 schema extension)
+        workplaceType: j.metadata.workplaceType,
+        employmentType: j.metadata.employmentType,
+        locationName: j.metadata.locationName,
+        department: j.metadata.department,
+        team: j.metadata.team,
+        applyUrl: j.metadata.applyUrl,
+        publishedAt: j.metadata.publishedAt,
+        companyName: j.metadata.companyName,
       })),
     )
     .onConflictDoUpdate({
@@ -100,6 +109,15 @@ export async function upsertJobs(
         rawJson: sql`excluded.raw_json`,
         lastSeenAt: now,
         status: "active", // Resurrect if previously stale/gone
+        // Refresh metadata on re-poll (ATS may have updated these fields)
+        workplaceType: sql`excluded.workplace_type`,
+        employmentType: sql`excluded.employment_type`,
+        locationName: sql`excluded.location_name`,
+        department: sql`excluded.department`,
+        team: sql`excluded.team`,
+        applyUrl: sql`excluded.apply_url`,
+        publishedAt: sql`excluded.published_at`,
+        companyName: sql`excluded.company_name`,
       },
     })
     .returning({ id: job.id, externalJobId: job.externalJobId });

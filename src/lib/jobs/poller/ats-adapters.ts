@@ -9,7 +9,7 @@
 // The three ATS APIs have different field names for the same concept:
 //   - Job title: Greenhouse "title", Lever "text", Ashby "title"
 //   - Job ID:    Greenhouse numeric "id", Lever string "id", Ashby string "id"
-//   - URL:       Greenhouse "absolute_url", Lever "hostedUrl", Ashby "externalLink"
+//   - URL:       Greenhouse "absolute_url", Lever "hostedUrl", Ashby "jobUrl"
 //
 // We normalize these to a common shape before they reach the job table.
 //
@@ -28,6 +28,10 @@ import {
   greenhouseJobsResponseSchema,
   leverJobsResponseSchema,
 } from "@/lib/jobs/ats-schemas";
+import {
+  extractJobMetadata,
+  type JobMetadata,
+} from "@/lib/jobs/job-normalizer";
 import type { FetchFn } from "@/lib/jobs/types";
 import { getLimiter } from "./rate-limiter";
 
@@ -43,6 +47,8 @@ export interface NormalizedJob {
   rawJson: string;
   /** The hosted job URL (for the admin dashboard link-out). */
   url?: string;
+  /** Standardized metadata extracted from rawJson (workplace type, location, etc.). */
+  metadata: JobMetadata;
 }
 
 /** Result of fetching jobs from an ATS API. */
@@ -118,12 +124,16 @@ function normalizeGreenhouse(json: unknown): AtsFetchResult {
   // strips unknown fields from parsed.data). We zip the parsed data (for
   // typed field access) with the original array (for the full raw payload).
   const rawJobs = (json as { jobs: unknown[] }).jobs;
-  const jobs: NormalizedJob[] = parsed.data.jobs.map((job, i) => ({
-    externalJobId: String(job.id),
-    title: job.title,
-    rawJson: JSON.stringify(rawJobs[i]),
-    url: job.absolute_url,
-  }));
+  const jobs: NormalizedJob[] = parsed.data.jobs.map((job, i) => {
+    const rawJsonStr = JSON.stringify(rawJobs[i]);
+    return {
+      externalJobId: String(job.id),
+      title: job.title,
+      rawJson: rawJsonStr,
+      url: job.absolute_url,
+      metadata: extractJobMetadata("greenhouse", rawJsonStr),
+    };
+  });
 
   return { success: true, jobs };
 }
@@ -140,12 +150,16 @@ function normalizeLever(json: unknown): AtsFetchResult {
 
   // Use the original JSON array for rawJson (preserves all fields).
   const rawJobs = json as unknown[];
-  const jobs: NormalizedJob[] = parsed.data.map((job, i) => ({
-    externalJobId: job.id,
-    title: job.text, // Lever calls the title "text"
-    rawJson: JSON.stringify(rawJobs[i]),
-    url: job.hostedUrl,
-  }));
+  const jobs: NormalizedJob[] = parsed.data.map((job, i) => {
+    const rawJsonStr = JSON.stringify(rawJobs[i]);
+    return {
+      externalJobId: job.id,
+      title: job.text, // Lever calls the title "text"
+      rawJson: rawJsonStr,
+      url: job.hostedUrl,
+      metadata: extractJobMetadata("lever", rawJsonStr),
+    };
+  });
 
   return { success: true, jobs };
 }
@@ -163,12 +177,16 @@ function normalizeAshby(json: unknown): AtsFetchResult {
   // Ashby schema uses .passthrough() so parsed.data preserves extra fields,
   // but we use the original JSON for consistency with Greenhouse/Lever.
   const rawJobs = (json as { jobs: unknown[] }).jobs;
-  const jobs: NormalizedJob[] = parsed.data.jobs.map((job, i) => ({
-    externalJobId: job.id,
-    title: job.title,
-    rawJson: JSON.stringify(rawJobs[i]),
-    url: job.externalLink,
-  }));
+  const jobs: NormalizedJob[] = parsed.data.jobs.map((job, i) => {
+    const rawJsonStr = JSON.stringify(rawJobs[i]);
+    return {
+      externalJobId: job.id,
+      title: job.title,
+      rawJson: rawJsonStr,
+      url: job.jobUrl,
+      metadata: extractJobMetadata("ashby", rawJsonStr),
+    };
+  });
 
   return { success: true, jobs };
 }

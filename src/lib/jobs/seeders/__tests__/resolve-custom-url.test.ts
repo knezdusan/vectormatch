@@ -88,7 +88,7 @@ describe("resolveCustomUrl — Stage 1: CNAME resolution", () => {
 
   it("resolves a CNAME to Ashby", async () => {
     const resolveCname = makeMockCnameResolver({
-      "careers.acme.com": ["careers.ashbyhq.com"],
+      "careers.acme.com": ["jobs.ashbyhq.com"],
     });
 
     const result = await resolveCustomUrl(
