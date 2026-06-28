@@ -30,9 +30,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { Schema2Persona } from "@/lib/onboarding/schemas";
 
 const MAX_PERSONAS = 3;
+
+// Persona passed to this section. The optional id is used by the post-
+// onboarding editing flow so the parent can map edited personas back to DB rows.
+// blocklistTags is optional because the profile editing schema lets it default.
+type PersonaSectionPersona = {
+  id?: string;
+  personaId: string;
+  personaLabel: string;
+  embeddingSummary: string;
+  mustHaveTags: string[];
+  blocklistTags?: string[];
+};
 
 // RHF's array field errors have a complex nested type. We use a loose shape
 // that lets us access .personaLabel?.message etc. without fighting the type.
@@ -43,9 +54,9 @@ type PersonaFieldErrors = {
 };
 
 type PersonaSectionProps = {
-  personas: Schema2Persona[];
+  personas: PersonaSectionPersona[];
   availableSkills: string[];
-  onChange: (next: Schema2Persona[]) => void;
+  onChange: (next: PersonaSectionPersona[]) => void;
   errors?: PersonaFieldErrors[];
 };
 
@@ -55,7 +66,10 @@ export function PersonaSection({
   onChange,
   errors,
 }: PersonaSectionProps) {
-  const updatePersona = (index: number, patch: Partial<Schema2Persona>) => {
+  const updatePersona = (
+    index: number,
+    patch: Partial<PersonaSectionPersona>,
+  ) => {
     onChange(personas.map((p, i) => (i === index ? { ...p, ...patch } : p)));
   };
 
@@ -178,7 +192,7 @@ export function PersonaSection({
                 id={`persona-blocklist-${index}`}
                 type="text"
                 placeholder="e.g. legacy, on-call"
-                value={persona.blocklistTags.join(", ")}
+                value={(persona.blocklistTags ?? []).join(", ")}
                 onChange={(e) =>
                   updatePersona(index, {
                     blocklistTags: e.target.value

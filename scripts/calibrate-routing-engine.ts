@@ -471,6 +471,9 @@ async function main(): Promise<void> {
               title: j.title,
               description: extracted.description,
               extractedTags: tags,
+              workplaceType: null,
+              locationName: null,
+              employmentType: null,
             },
             persona: {
               personaLabel: personaRow[0].personaLabel,

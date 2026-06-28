@@ -53,20 +53,17 @@ await db.transaction(async (tx) => {
 
 If any step fails, the entire operation rolls back. Persona data cannot be left in a corrupted half-state.
 
-### AR2: Orphaned cvUpload Cleanup (Follow-up Task)
+### AR2: Orphaned cvUpload Cleanup (Implemented)
 
-An Inngest cron job (to be implemented post-MVP) deletes `cvUpload` rows where:
-- `status` = `processing` or `valid` (not yet consumed by onboarding)
-- `createdAt` is older than 24 hours
-- The associated `applicant.isOnboarded` = `false`
+The `cleanupOrphanedCvUploads` Inngest cron job (registered in `src/app/api/inngest/route.ts`) runs daily at 03:00 UTC and deletes `cvUpload` rows where:
+- **Stuck processing**: `status` = `processing` and `createdAt` is older than 24 hours (LLM call or action failed).
+- **Orphaned**: rows have no `workingHistory` children and `createdAt` is older than 7 days (user abandoned onboarding before finalizing).
 
-This prevents orphaned rows from users who uploaded a CV but abandoned onboarding (State 2 → left the page).
-
-**Not blocking for Module A MVP.** Documented as a follow-up task for the Inngest orchestration phase.
+Implementation: `src/lib/onboarding/cleanup-cv-uploads.ts`. Tests: `src/lib/onboarding/__tests__/cleanup-cv-uploads.test.ts`.
 
 ## 6. API Route vs Server Action
 
-- **PDF parse step:** Server Action (called from main thread after Web Worker returns `rawText`). Application-level rate limiting (3 parses/hour/user).
+- **PDF parse step:** Server Action (called from main thread after Web Worker returns `rawText`). Application-level rate limiting (3 parses/hour/user) is implemented in `parseCvAction` by counting recent `cvUpload` rows.
 - **Persona finalization:** Server Action (mutation — writes to DB).
 - **API route reserved only if** Cloudflare WAF URL-based rate limiting on the parse endpoint becomes a hard requirement. Default is Server Action.
 
@@ -127,7 +124,9 @@ Experience level (junior/mid/senior/staff/lead) is derived purely at query time 
 
 ## 12. Persona Embedding Auto-Regeneration
 
-Persona embeddings are **automatically regenerated** when `mustHaveTags` change. The `recomputeTagsExperience()` flow triggers embedding regeneration for any persona whose `mustHaveTags` were affected.
+Persona embeddings are **automatically regenerated** when `mustHaveTags` change. Two code paths enforce this:
+- **`recomputeTagsExperience()`**: When work history changes, it compares the old and new active tag sets and regenerates embeddings for any persona whose `mustHaveTags` overlap with the changed tags, or whose `mustHaveTags` are no longer covered by active tags.
+- **`updatePersonasAction`**: When the user edits a persona directly, it compares the old `mustHaveTags` and `embeddingSummary` with the new values and regenerates the embedding whenever either changes.
 
 ## 13. CV Domain Gate — Three-Layer Developer Detection
 

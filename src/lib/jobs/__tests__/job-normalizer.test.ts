@@ -99,6 +99,76 @@ describe("extractJobContent — Lever", () => {
     expect(result.title).toBe("Mobile Engineer");
     expect(result.description).toBe("");
   });
+
+  // Regression: Lever sometimes returns descriptionPlain as "" even when
+  // description (HTML) has content. The old code checked `typeof === "string"`
+  // which passed for empty strings, causing the HTML fallback to never trigger.
+  // This resulted in title-only fullText → LLM rejected legitimate software jobs.
+  it("falls back to `description` (HTML) when descriptionPlain is empty string", () => {
+    const rawJson = JSON.stringify({
+      text: "DevOps Engineer",
+      descriptionPlain: "",
+      description: "<p>Docker &amp; Kubernetes required</p>",
+    });
+    const result = extractJobContent("lever", rawJson, "Fallback");
+
+    expect(result.title).toBe("DevOps Engineer");
+    expect(result.description).toBe("Docker & Kubernetes required");
+    expect(result.fullText).toContain("Docker & Kubernetes required");
+  });
+
+  // Regression: Lever jobs often store tech requirements in a `lists` array
+  // (sections like "Requirements", "Tech Stack") rather than in description.
+  // The normalizer must extract this content so the tag scan can find keywords.
+  it("extracts content from Lever `lists` array and appends to fullText", () => {
+    const rawJson = JSON.stringify({
+      text: "Senior Software Engineer",
+      descriptionPlain: "About the role: We are looking for a senior engineer.",
+      description: "<p>About the role</p>",
+      lists: [
+        {
+          text: "Required Experience",
+          content: "<li>10+ years of Java and C++ experience</li>",
+        },
+        {
+          text: "Desired Skills",
+          content: "<li>Experience with Ruby on Rails and JavaScript</li>",
+        },
+      ],
+    });
+    const result = extractJobContent("lever", rawJson, "Fallback");
+
+    expect(result.title).toBe("Senior Software Engineer");
+    expect(result.fullText).toContain("Java");
+    expect(result.fullText).toContain("C++");
+    expect(result.fullText).toContain("Ruby on Rails");
+    expect(result.fullText).toContain("JavaScript");
+    expect(result.fullText).toContain("Required Experience");
+    expect(result.fullText).toContain("Desired Skills");
+  });
+
+  it("handles Lever jobs with empty lists array", () => {
+    const rawJson = JSON.stringify({
+      text: "Backend Engineer",
+      descriptionPlain: "Python developer needed.",
+      lists: [],
+    });
+    const result = extractJobContent("lever", rawJson, "Fallback");
+
+    expect(result.title).toBe("Backend Engineer");
+    expect(result.description).toBe("Python developer needed.");
+  });
+
+  it("handles Lever jobs with no lists field", () => {
+    const rawJson = JSON.stringify({
+      text: "Frontend Engineer",
+      descriptionPlain: "React developer needed.",
+    });
+    const result = extractJobContent("lever", rawJson, "Fallback");
+
+    expect(result.title).toBe("Frontend Engineer");
+    expect(result.description).toBe("React developer needed.");
+  });
 });
 
 describe("extractJobContent — Ashby", () => {
@@ -131,6 +201,21 @@ describe("extractJobContent — Ashby", () => {
 
     expect(result.title).toBe("Data Engineer");
     expect(result.description).toBe("");
+  });
+
+  // Regression: Same empty-string bug as Lever — Ashby may return
+  // descriptionPlain as "" when descriptionHtml has content.
+  it("falls back to `descriptionHtml` (HTML stripped) when descriptionPlain is empty string", () => {
+    const rawJson = JSON.stringify({
+      title: "Platform Engineer",
+      descriptionPlain: "",
+      descriptionHtml: "<p>Kubernetes &amp; Terraform required</p>",
+    });
+    const result = extractJobContent("ashby", rawJson, "Fallback");
+
+    expect(result.title).toBe("Platform Engineer");
+    expect(result.description).toBe("Kubernetes & Terraform required");
+    expect(result.fullText).toContain("Kubernetes & Terraform required");
   });
 });
 

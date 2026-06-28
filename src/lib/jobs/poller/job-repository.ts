@@ -36,7 +36,9 @@ export interface UpsertResult {
  *     `jobEmbedding = null`. The returned `id` is collected for the
  *     `job/ingested` event.
  *   - EXISTING job: `lastSeenAt = now()`, `title` and `rawJson` refreshed,
- *     `status` resurrected to `"active"` if it was stale/gone.
+ *     `status` resurrected to `"active"` ONLY if it was stale/gone.
+ *     Rejected and normalization_failed jobs are NOT resurrected — their
+ *     terminal/failed status is preserved to avoid re-processing garbage.
  *
  * @param atsSource  The ATS platform
  * @param atsSlug    The company's ATS slug
@@ -108,7 +110,14 @@ export async function upsertJobs(
         title: sql`excluded.title`,
         rawJson: sql`excluded.raw_json`,
         lastSeenAt: now,
-        status: "active", // Resurrect if previously stale/gone
+        // Only resurrect stale/gone jobs back to active. Rejected and
+        // normalization_failed jobs keep their status — re-polling should
+        // NOT undo a normalizer rejection or mask a system failure.
+        // The normalizer's idempotency guard (normalizedAt IS NOT NULL)
+        // would skip them anyway, but keeping the correct status is important
+        // for dashboard accuracy and the retry sweep (normalization_failed
+        // jobs need to be re-processable, not silently resurrected).
+        status: sql`CASE WHEN ${job.status} IN ('stale', 'gone') THEN 'active' ELSE ${job.status} END`,
         // Refresh metadata on re-poll (ATS may have updated these fields)
         workplaceType: sql`excluded.workplace_type`,
         employmentType: sql`excluded.employment_type`,

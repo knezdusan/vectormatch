@@ -18,6 +18,8 @@ vi.mock("@/lib/jobs/seeders/company-repository", () => ({
     inserted: 0,
     skipped: 0,
     rejected: [],
+    insertedCompanyIds: [],
+    insertedCompanies: [],
   }),
 }));
 
@@ -28,6 +30,7 @@ vi.mock("@/lib/jobs/seeders/resolve-custom-url", () => ({
 
 import {
   buildBigQuerySql,
+  generateCrawlDates,
   processBigQueryRows,
   runBigQuerySeeder,
 } from "@/lib/jobs/seeders/bigquery-seeder";
@@ -60,10 +63,16 @@ const rowGreenhouseNoPage: BigQueryRow = {
 describe("buildBigQuerySql", () => {
   it("builds a valid SQL query for a given crawl date", () => {
     const sql = buildBigQuerySql("2026-06-01");
-    expect(sql).toContain("date = '2026-06-01'");
+    expect(sql).toContain("date IN ('2026-06-01')");
     expect(sql).toContain("httparchive.crawl.pages");
     expect(sql).toContain("client = 'desktop'");
     expect(sql).toContain("is_root_page");
+  });
+
+  it("builds a valid SQL query for multiple crawl dates (multi-partition)", () => {
+    const sql = buildBigQuerySql(["2026-06-01", "2026-05-01", "2026-04-01"]);
+    expect(sql).toContain("date IN ('2026-06-01', '2026-05-01', '2026-04-01')");
+    expect(sql).toContain("httparchive.crawl.pages");
   });
 
   it("includes all 4 tech tiers", () => {
@@ -106,6 +115,30 @@ describe("buildBigQuerySql", () => {
   });
 });
 
+// ── generateCrawlDates ───────────────────────────────────────────────────────
+
+describe("generateCrawlDates", () => {
+  it("generates the correct number of monthly dates", () => {
+    const dates = generateCrawlDates(3);
+    expect(dates).toHaveLength(3);
+    // All dates should be the 1st of the month
+    for (const date of dates) {
+      expect(date).toMatch(/^\d{4}-\d{2}-01$/);
+    }
+  });
+
+  it("generates dates in descending order (most recent first)", () => {
+    const dates = generateCrawlDates(3);
+    expect(dates[0] > dates[1]).toBe(true);
+    expect(dates[1] > dates[2]).toBe(true);
+  });
+
+  it("defaults to 3 partitions", () => {
+    const dates = generateCrawlDates();
+    expect(dates).toHaveLength(3);
+  });
+});
+
 // ── processBigQueryRows — slug probe resolution ──────────────────────────────
 
 describe("processBigQueryRows — slug probe resolution", () => {
@@ -115,6 +148,8 @@ describe("processBigQueryRows — slug probe resolution", () => {
       inserted: 0,
       skipped: 0,
       rejected: [],
+      insertedCompanyIds: [],
+      insertedCompanies: [],
     });
   });
 
@@ -246,6 +281,8 @@ describe("processBigQueryRows — edge cases", () => {
       inserted: 0,
       skipped: 0,
       rejected: [],
+      insertedCompanyIds: [],
+      insertedCompanies: [],
     });
   });
 
@@ -293,6 +330,8 @@ describe("runBigQuerySeeder", () => {
       inserted: 0,
       skipped: 0,
       rejected: [],
+      insertedCompanyIds: [],
+      insertedCompanies: [],
     });
   });
 
@@ -303,7 +342,7 @@ describe("runBigQuerySeeder", () => {
 
     expect(queryFn).toHaveBeenCalledTimes(1);
     const sql = queryFn.mock.calls[0][0];
-    expect(sql).toContain("date = '2026-06-01'");
+    expect(sql).toContain("date IN ('2026-06-01')");
   });
 
   it("passes the limit to the SQL query", async () => {

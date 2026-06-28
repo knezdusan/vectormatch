@@ -16,14 +16,26 @@ import { inngest } from "./client";
 // ── Seeder Functions ──────────────────────────────────────────────────────────
 
 /**
- * HN Algolia Delta Seeder — weekly discovery of new companies.
+ * HN Algolia Delta Seeder — daily discovery of new companies (first 7 days of month).
  *
- * Triggers: cron "0 0 * * 1" (Monday 00:00 UTC)
+ * Triggers: cron "0 0 * * *" (daily at 00:00 UTC)
  * Domain logic: src/lib/jobs/seeders/hn-algolia.ts
+ *
+ * The "Ask HN: Who is hiring" thread is posted on the 1st of each month.
+ * Most engagement happens in the first 72 hours, but new comments continue
+ * to appear for the first week. After that, very few new comments are posted.
+ *
+ * Strategy: Run daily for the first 7 days of each month to capture new
+ * comments as they appear. Skip for the rest of the month (the thread is
+ * effectively dead after the first week). The company table's unique
+ * constraint handles dedup — re-running on the same thread only inserts
+ * genuinely new companies.
  *
  * Phase 1: Fetch "Ask HN: Who is hiring" comments → extract ATS URLs →
  * insert new companies into the company table.
  * Phase 2 (event-driven): emits `seeder/resolve-custom-url` for non-ATS URLs.
+ * Phase 3 (bootstrap poll): emits `poller/poll-company` for newly inserted
+ * companies so they're polled immediately (Culprit #4 fix).
  *
  * TDD reference: §4.1.2
  */
@@ -31,9 +43,21 @@ export const hnAlgoliaSeeder = inngest.createFunction(
   {
     id: "seeder-hn-algolia",
     name: "HN Algolia Delta Seeder",
-    triggers: [{ cron: "0 0 * * 1" }],
+    triggers: [{ cron: "0 0 * * *" }],
   },
   async ({ step }) => {
+    // Only run during the first 7 days of each month — the HN "Who is hiring"
+    // thread is posted on the 1st and most comments appear within the first
+    // week. After that, the thread is effectively dead and re-fetching would
+    // be a waste of API calls.
+    const now = new Date();
+    const dayOfMonth = now.getUTCDate();
+    if (dayOfMonth > 7) {
+      return {
+        skipped: true,
+        reason: `Day ${dayOfMonth} — outside first-7-days window`,
+      };
+    }
     const { runHnAlgoliaSeeder } = await import(
       "@/lib/jobs/seeders/hn-algolia"
     );
@@ -75,6 +99,24 @@ export const hnAlgoliaSeeder = inngest.createFunction(
       });
     }
 
+    // Bootstrap poll: immediately emit poll-company events for newly inserted
+    // companies so they're polled within minutes, not waiting for the weekly
+    // dormant fan-out (Culprit #4 fix — eliminates 7-day cold-start delay).
+    if (result.insertResult.insertedCompanies.length > 0) {
+      await step.sendEvent(
+        "emit-bootstrap-poll",
+        result.insertResult.insertedCompanies.map((c) => ({
+          id: `poll-company-${c.id}-${Date.now()}`,
+          name: "poller/poll-company",
+          data: {
+            companyId: c.id,
+            atsSource: c.atsSource,
+            atsSlug: c.atsSlug,
+          },
+        })),
+      );
+    }
+
     return result;
   },
 );
@@ -109,13 +151,45 @@ export const customUrlResolver = inngest.createFunction(
       return resolveCustomUrls(event.data.urls);
     });
 
+    let insertResult: {
+      inserted: number;
+      skipped: number;
+      rejected: unknown[];
+      insertedCompanies: { id: string; atsSource: string; atsSlug: string }[];
+    } = {
+      inserted: 0,
+      skipped: 0,
+      rejected: [],
+      insertedCompanies: [],
+    };
+
     if (resolved.length > 0) {
-      await step.run("insert-resolved", async () => {
+      insertResult = await step.run("insert-resolved", async () => {
         return insertDiscoveredCompanies(resolved);
       });
     }
 
-    return { resolvedCount: resolved.length, failedCount: failed.length };
+    // Bootstrap poll for newly resolved companies (Culprit #4 fix)
+    if (insertResult.insertedCompanies.length > 0) {
+      await step.sendEvent(
+        "emit-bootstrap-poll-resolved",
+        insertResult.insertedCompanies.map((c) => ({
+          id: `poll-company-${c.id}-${Date.now()}`,
+          name: "poller/poll-company",
+          data: {
+            companyId: c.id,
+            atsSource: c.atsSource,
+            atsSlug: c.atsSlug,
+          },
+        })),
+      );
+    }
+
+    return {
+      resolvedCount: resolved.length,
+      failedCount: failed.length,
+      inserted: insertResult.inserted,
+    };
   },
 );
 
@@ -141,27 +215,26 @@ export const bigQuerySeeder = inngest.createFunction(
     triggers: [{ cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const { runBigQuerySeeder, createDefaultBigQueryFn } = await import(
-      "@/lib/jobs/seeders/bigquery-seeder"
-    );
+    const { runBigQuerySeeder, createDefaultBigQueryFn, generateCrawlDates } =
+      await import("@/lib/jobs/seeders/bigquery-seeder");
     const { writeIngestionLog } = await import(
       "@/lib/jobs/poller/ingestion-log"
     );
 
     const startedAt = new Date();
 
-    // Determine the crawl date — first of the current month.
-    // HTTPArchive crawls happen monthly, typically on the 1st.
-    const crawlDate = new Date(startedAt.getFullYear(), startedAt.getMonth(), 1)
-      .toISOString()
-      .slice(0, 10);
+    // Multi-partition scan: query the last 3 monthly crawl dates to catch
+    // companies added between crawls. Each partition costs ~15 GB, so 3
+    // partitions = ~45 GB — well within the 1 TB/month free tier.
+    // The DISTINCT clause deduplicates root_page across partitions.
+    const crawlDates = generateCrawlDates(3);
 
     const queryFn = await step.run("create-bq-client", async () => {
       return createDefaultBigQueryFn();
     });
 
     const result = await step.run("query-and-insert", async () => {
-      return runBigQuerySeeder(crawlDate, queryFn, undefined, fetch);
+      return runBigQuerySeeder(crawlDates, queryFn, undefined, fetch);
     });
 
     // Write ingestion log for observability.
@@ -176,11 +249,28 @@ export const bigQuerySeeder = inngest.createFunction(
         itemsRejected: result.insertResult.rejected.length,
         itemsSkipped: result.insertResult.skipped,
         errorMessage: result.error,
-        errorDetails: result.error ? { crawlDate } : undefined,
+        errorDetails: result.error ? { crawlDates } : undefined,
         startedAt,
         finishedAt: new Date(),
       });
     });
+
+    // Bootstrap poll: immediately emit poll-company events for newly inserted
+    // companies (Culprit #4 fix — eliminates 7-day cold-start delay).
+    if (result.insertResult.insertedCompanies.length > 0) {
+      await step.sendEvent(
+        "emit-bootstrap-poll-bq",
+        result.insertResult.insertedCompanies.map((c) => ({
+          id: `poll-company-${c.id}-${Date.now()}`,
+          name: "poller/poll-company",
+          data: {
+            companyId: c.id,
+            atsSource: c.atsSource,
+            atsSlug: c.atsSlug,
+          },
+        })),
+      );
+    }
 
     return result;
   },
@@ -492,6 +582,190 @@ export const staleCleanup = inngest.createFunction(
     });
 
     return result;
+  },
+);
+
+/**
+ * Company Revival Sweep — re-enables polling for transiently-dead companies.
+ *
+ * Triggers: cron "0 5 * * *" (daily at 05:00 UTC)
+ *
+ * After 3 consecutive failures, a company is marked `health = "dead"` and
+ * `pollingEnabled = false`. The tier recalculation only updates companies
+ * where `pollingEnabled = true`, so dead companies are never reconsidered —
+ * they're permanently stuck.
+ *
+ * This function re-enables polling for dead companies after a 7-day cooldown.
+ * The 7-day period is long enough for transient issues (rate limits, server
+ * outages) to resolve, and short enough that companies that migrated to a
+ * new ATS are re-tested within a reasonable timeframe.
+ *
+ * TDD reference: §4.4.1 (Decay Polling) — extends the tier system with
+ * automatic recovery.
+ */
+export const companyRevivalSweep = inngest.createFunction(
+  {
+    id: "poller-company-revival",
+    name: "Company Revival Sweep",
+    triggers: [{ cron: "0 5 * * *" }],
+  },
+  async ({ step }) => {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("@/db/db");
+    const { company } = await import("@/db/schemas/jobs/company");
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const revived = await step.run("revive-dead-companies", async () => {
+      // Re-enable companies that have been dead for 7+ days.
+      // Reset consecutiveFailures and health so the tier recalculation can
+      // promote them back to active/dormant based on their next poll result.
+      const result = await db
+        .update(company)
+        .set({
+          pollingEnabled: true,
+          health: "healthy",
+          consecutiveFailures: 0,
+        })
+        .where(
+          sql`${company.health} = 'dead' AND ${company.pollingEnabled} = false AND ${company.lastPolledAt} < NOW() - INTERVAL '7 days'`,
+        )
+        .returning({
+          id: company.id,
+          atsSource: company.atsSource,
+          atsSlug: company.atsSlug,
+        });
+
+      return result;
+    });
+
+    // Bootstrap poll for revived companies — emit poll events so they're
+    // immediately re-tested.
+    if (revived.length > 0) {
+      await step.sendEvent(
+        "emit-revival-poll",
+        revived.map((c) => ({
+          id: `poll-company-revival-${c.id}-${Date.now()}`,
+          name: "poller/poll-company",
+          data: {
+            companyId: c.id,
+            atsSource: c.atsSource,
+            atsSlug: c.atsSlug,
+          },
+        })),
+      );
+    }
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: "success",
+        source: "revival_sweep",
+        itemsProcessed: revived.length,
+        itemsInserted: 0,
+        itemsUpdated: revived.length,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return { revived: revived.length };
+  },
+);
+
+/**
+ * Normalization Retry Sweep — re-processes jobs with normalization_failed status.
+ *
+ * Triggers: cron "0 6 * * *" (daily at 06:00 UTC)
+ *
+ * Jobs with `status = "normalization_failed"` have no `normalizedAt` (by design
+ * — they're retryable). The `jobIngestedHandler` idempotency guard will re-process
+ * them if a `job/ingested` event fires again. But there's no scheduled function
+ * that re-emits `job/ingested` events for failed jobs — they're stuck forever.
+ *
+ * This function selects up to 50 `normalization_failed` jobs per run and re-emits
+ * `job/ingested` events for them. The `jobIngestedHandler` will re-normalize and
+ * re-embed them. If the failure was transient (OpenAI timeout), the retry will
+ * succeed. If the failure is persistent (malformed job data), the job will fail
+ * again and be retried the next day.
+ *
+ * TDD reference: §4.6 (Idempotency Decision Tree) — leverages the retryable
+ * nature of normalization_failed jobs.
+ */
+export const normalizationRetrySweep = inngest.createFunction(
+  {
+    id: "poller-normalization-retry",
+    name: "Normalization Retry Sweep",
+    triggers: [{ cron: "0 6 * * *" }],
+  },
+  async ({ step }) => {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("@/db/db");
+    const { job } = await import("@/db/schemas/jobs/job");
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const failedJobs = await step.run("get-failed-jobs", async () => {
+      // Select up to 50 normalization_failed jobs, prioritizing the oldest
+      // ones (they've been waiting the longest). The normalizedAt IS NULL
+      // check is technically redundant (normalization_failed implies no
+      // normalizedAt) but is explicit for safety.
+      const result = await db
+        .select({
+          id: job.id,
+          atsSource: job.atsSource,
+          atsSlug: job.atsSlug,
+        })
+        .from(job)
+        .where(
+          sql`${job.status} = 'normalization_failed' AND ${job.normalizedAt} IS NULL`,
+        )
+        .orderBy(job.detectedAt)
+        .limit(50);
+
+      return result;
+    });
+
+    if (failedJobs.length > 0) {
+      await step.sendEvent(
+        "retry-normalization",
+        failedJobs.map((j) => ({
+          id: `job-ingested-retry-${j.id}-${Date.now()}`,
+          name: "job/ingested",
+          data: {
+            jobId: j.id,
+            atsSource: j.atsSource,
+            atsSlug: j.atsSlug,
+            isNew: false,
+          },
+        })),
+      );
+    }
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: "success",
+        source: "normalization_retry",
+        itemsProcessed: failedJobs.length,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return { retried: failedJobs.length };
   },
 );
 
@@ -924,5 +1198,41 @@ export const gate3Evaluator = inngest.createFunction(
       confidence: verdict.matchConfidence,
       reasoning: verdict.matchReasoning,
     };
+  },
+);
+
+// ── Module A: Onboarding Cleanup ─────────────────────────────────────────────
+
+/**
+ * Orphaned CV Upload Cleanup — daily cleanup of abandoned cvUpload rows.
+ *
+ * Triggers: cron "0 3 * * *" (03:00 UTC daily)
+ *
+ * Removes two classes of abandoned rows to keep the cv_upload table bounded:
+ *   1. Stuck "processing" uploads — older than 24h, meaning the LLM call or
+ *      the action that created the row failed and never updated the status.
+ *   2. Orphan uploads — rows with no working_history children and older than
+ *      7 days, meaning the user abandoned the onboarding before finalizing.
+ *
+ * TDD reference: Module A §A4
+ */
+export const cleanupOrphanedCvUploads = inngest.createFunction(
+  {
+    id: "cleanup-orphaned-cv-uploads",
+    name: "Cleanup Orphaned CV Uploads",
+    triggers: [{ cron: "0 3 * * *" }],
+  },
+  async ({ step }) => {
+    const result = await step.run("delete-abandoned-uploads", async () => {
+      const { cleanupOrphanedCvUploads } = await import(
+        "@/lib/onboarding/cleanup-cv-uploads"
+      );
+      return cleanupOrphanedCvUploads(
+        24 * 60 * 60 * 1000,
+        7 * 24 * 60 * 60 * 1000,
+      );
+    });
+
+    return result;
   },
 );

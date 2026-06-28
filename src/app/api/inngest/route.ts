@@ -5,8 +5,9 @@
 // (and Inngest Cloud in production) polls this endpoint to discover and
 // invoke registered functions.
 //
-// For self-hosted Coolify deployments, sync your app after each deploy:
-//   curl -X PUT https://your-app.com/api/inngest --fail-with-body
+// Auto-sync: src/instrumentation.ts automatically sends a PUT request to
+// this endpoint on server startup, syncing function definitions with
+// Inngest Cloud after every deploy. No manual `curl -X PUT` needed.
 //
 // Environment:
 //   INNGEST_DEV=1      → connect to local dev server
@@ -17,10 +18,13 @@ import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import {
   bigQuerySeeder,
+  cleanupOrphanedCvUploads,
+  companyRevivalSweep,
   customUrlResolver,
   gate3Evaluator,
   hnAlgoliaSeeder,
   jobIngestedHandler,
+  normalizationRetrySweep,
   phalanxPoller,
   pollCompanyFn,
   staleCleanup,
@@ -50,7 +54,10 @@ export const { GET, POST, PUT } = serve({
     phalanxPoller,
     tierRecalc,
     staleCleanup,
+    companyRevivalSweep,
+    normalizationRetrySweep,
     jobIngestedHandler,
     gate3Evaluator,
+    cleanupOrphanedCvUploads,
   ],
 });

@@ -437,14 +437,15 @@ State 3: isOnboarded=true
 - Single submit → Server Action persists everything
 
 **State 3 — Profile Management (post-onboarding):**
-- *MVP status: read-only display of onboarding data. Full editing capabilities (add/remove jobs, deactivate skills, edit/delete personas) are a post-MVP follow-up.*
-- Full Applicant section (edit employment history, add jobs, skills update) — *planned*
-- Skills section (view all, deactivate non-critical — users cannot delete skills, only deactivate, because skills are derived from employment history) — *planned*
-- Persona section (edit existing, add up to 3, delete) — *planned*
+- *MVP status: editable preferences, work history, personas, and CV re-parse. Skills remain read-only because they are derived from employment history.*
+- Work preferences section (country, canWorkUsHours, assignmentTypes, modalities, preferredCompliance) — *implemented*
+- Work history section (add/edit/delete job entries) — *implemented*
+- Skills section (view all — read-only; skills are derived from employment history) — *implemented*
+- Persona section (edit existing, add up to 3, delete) — *implemented*
 
 **UI sections (State 2 and 3):**
 1. **Applicant Section**: Form reflecting user data from CV + mandatory fields not in CV (country, canWorkUsHours, assignmentTypes, modalities, preferredCompliance). Editing employment history here is the only way to add/modify skills.
-2. **Skills Section**: Read-only list of all skills from `tagsExperience`, mapped against `CANONICAL_TAGS`. Users can deactivate non-critical skills but cannot add skills directly (they add skills by editing employment history in the Applicant section).
+2. **Skills Section**: Read-only list of all skills from `tagsExperience`, mapped against `CANONICAL_TAGS`. Users cannot add or deactivate skills directly; skills are derived from employment history and are kept in sync by `recomputeTagsExperience()`.
 3. **Persona Section**: One or multiple (max 3) personas based on stacks derived from user data and skills. Each persona has exactly 5 `mustHaveTags` (the "5 Major Skills" constraint). The LLM proposes initial personas; the user edits/confirms.
 
 ### 3.5 Phase 3: Form State & Server Action Mutation
@@ -510,38 +511,36 @@ await db.transaction(async (tx) => {
 
 **Experience level:** Derived purely at query time from `tagsExperience.yearsOfExperience` (junior/mid/senior/staff/lead). No stored enum field on `applicant`.
 
-### 3.8 Orphaned cvUpload Cleanup (Follow-up Task)
+### 3.8 Orphaned cvUpload Cleanup (Implemented)
 
-An Inngest cron job (post-MVP) deletes `cvUpload` rows where:
-- `status` = `processing` or `valid` (not yet consumed by onboarding)
-- `createdAt` is older than 24 hours
-- The associated `applicant.isOnboarded` = `false`
+The `cleanupOrphanedCvUploads` Inngest cron job (registered in `src/app/api/inngest/route.ts`) runs daily at 03:00 UTC and deletes `cvUpload` rows in two categories:
+- **Stuck processing**: `status` = `processing` and `createdAt` is older than 24 hours (LLM call or action failed).
+- **Orphaned**: rows with no `workingHistory` children and `createdAt` older than 7 days (user abandoned onboarding before finalizing).
 
-Not blocking for Module A MVP.
+Implemented as `src/lib/onboarding/cleanup-cv-uploads.ts` and tested in `src/lib/onboarding/__tests__/cleanup-cv-uploads.test.ts`.
 
-### 3.9 Module A Pending Items (Post-MVP Follow-up)
+### 3.9 Module A Post-MVP Items (Status Review)
 
-The Module A MVP is functionally complete — the full onboarding flow (CV upload → LLM extraction → user review → persona persistence → profile display) works end-to-end. The following items are documented as pending with a prioritized timing strategy:
+The Module A onboarding flow is complete. All follow-up items have been addressed: either implemented for the launch-ready surface or explicitly skipped because they are tied to paid-tier features.
 
-**Timing Strategy Rationale:** Module B (ingestion) and Module C (matching) are the core product value — without jobs to match against, onboarding has no purpose. The current MVP sufficiently populates `persona`, `tagsExperience`, and `applicant.allTags` for Module B/C to consume. Therefore, only P3 is done immediately; P1 and P2 are deferred to a pre-launch hardening sprint; P4 and P5 are post-launch.
+| Item | Priority | Status | Rationale |
+|------|----------|--------|-----------|
+| P3 — Smart Redirect | ✅ Done | Implemented | Implemented via two-layer redirect: `signInAction` checks `isOnboarded` post-login; `/dashboard` page checks `isOnboarded` as catch-all for social sign-in and direct URLs |
+| P1 — State 3 Editing | ✅ Done | Implemented | Full editing implemented in ProfileManagement: preferences, work history, personas, and CV re-parse. Skills section is read-only because skills are derived from work history. |
+| P2 — Rate Limiting | ✅ Done | Implemented | 3 cvUpload rows/hour/user enforced in `parseCvAction` by counting recent rows before the LLM call |
+| P4 — Multiple CV Upload | ⏸️ Skipped | Post-launch / paid-tier | Feature expansion, not a launch gap; MVP works with single CV and re-parse only |
+| P5 — Orphaned Cleanup | ✅ Done | Implemented | `cleanupOrphanedCvUploads` Inngest cron job removes stuck processing and orphan cvUpload rows daily |
 
-| Item | Priority | When to Address | Rationale |
-|------|----------|-----------------|-----------|
-| P3 — Smart Redirect | ✅ Done | Before Module B | Implemented via two-layer redirect: `signInAction` checks `isOnboarded` post-login; `/dashboard` page checks `isOnboarded` as catch-all for social sign-in and direct URLs |
-| P1 — State 3 Editing | Critical (pre-launch) | After Module B/C, before public launch | Read-only is sufficient for testing the matching pipeline; full editing is days of UI work that only matters once real users are using the product |
-| P2 — Rate Limiting | Critical (pre-launch) | After Module B/C, before public launch | Cost protection against gpt-4o API abuse; pre-launch with no traffic, LLM cost is a natural limiter |
-| P4 — Multiple CV Upload | Medium (post-launch) | Post-launch, tied to paid-tier feature | Feature expansion, not a gap; MVP works with single CV |
-| P5 — Orphaned Cleanup | Low (post-launch) | Post-launch, when orphan volume matters | Operational hygiene; orphaned rows don't break anything |
+**P1 — State 3 Full Editing (Profile Management):** ✅ Implemented
+The editable ProfileManagement view is in `src/components/onboarding/ProfileManagement.tsx`. The Server Actions live in `src/actions/profile.ts` and the schemas in `src/lib/onboarding/profile-schemas.ts`.
+- **Preferences**: `updateApplicantPreferencesAction` edits country, US-hours availability, assignment types, modalities, and compliance preferences.
+- **Employment history CRUD**: `updateWorkHistoryAction` supports add/edit/delete of job entries. Each edit triggers `recomputeTagsExperience(applicantId)` transactionally to recompute `tagsExperience` and rebuild `applicant.allTags`.
+- **Skills (read-only)**: The skills section displays active `tagsExperience` rows derived from work history. Users cannot toggle skills directly; editing job entries changes the derived skill set.
+- **Persona CRUD**: `updatePersonasAction` edits existing personas (label, embedding summary, must-have tags, blocklist tags), adds new personas (up to max 3), and deletes personas. Changes to `mustHaveTags` or `embeddingSummary` trigger persona embedding auto-regeneration via `text-embedding-3-small`.
+- **CV re-parse**: `reparseCvAction` re-runs LLM extraction on the latest CV, replaces `workingHistory` linked to that CV, and runs `recomputeTagsExperience`. UI exposes this as a "Re-parse CV" button in the work history section.
 
-**P1 — State 3 Full Editing (Profile Management):**
-Currently implemented as read-only display. The following editing capabilities are required:
-- **Employment history CRUD**: Add new jobs, edit existing entries (company, role, dates, skills), delete entries. Each edit triggers `recomputeTagsExperience(applicantId)` transactionally to recompute `tagsExperience` and rebuild `applicant.allTags`.
-- **Skills deactivation**: Users can toggle the `active` flag on `tagsExperience` rows (deactivate non-critical skills, cannot delete — skills are derived from employment history). Deactivating a skill removes it from `applicant.allTags` and affects persona matching.
-- **Persona CRUD**: Edit existing personas (label, embedding summary, must-have tags, blocklist tags), add new personas (up to max 3), delete personas. Editing `mustHaveTags` triggers persona embedding auto-regeneration via `text-embedding-3-small`.
-- **CV re-parse**: Post-onboarding, user can re-upload a CV which triggers full re-aggregation (new `cvUpload` row → LLM extraction → replace `workingHistory` → `recomputeTagsExperience` → rebuild personas if needed).
-
-**P2 — Rate Limiting (3 parses/hour/user):**
-The `parseCvAction` currently has a TODO comment for rate limiting. Implementation: query count of `cvUpload` rows created in the last 3600 seconds for the `applicantId`. If count ≥ 3, reject with error: "You have reached the 3 CV parses per hour limit. Please try again later." Currently relies on LLM cost as a natural rate limiter, which is insufficient for production.
+**P2 — Rate Limiting (3 parses/hour/user):** ✅ Implemented
+`parseCvAction` (`src/actions/onboarding.ts`) counts all `cvUpload` rows created in the last 3600 seconds for the applicant before calling the LLM. If count ≥ 3, it rejects with error: "You have reached the 3 CV parses per hour limit. Please try again later." Unit tests in `src/actions/__tests__/onboarding.test.ts` cover the allow and reject cases.
 
 **P3 — Smart Dashboard Redirection Logic (✅ Implemented):**
 Implemented via a two-layer redirect strategy that covers all auth entry paths:
@@ -549,13 +548,11 @@ Implemented via a two-layer redirect strategy that covers all auth entry paths:
 - **Layer 2 — `/dashboard` page** (`src/app/dashboard/page.tsx`): Server component that calls `getAuthSession()` (the session cookie is available in this new request), queries `applicant.isOnboarded`, and redirects to `/dashboard/jobs` (if onboarded) or `/dashboard/profile-management` (if not). This catches all paths: email sign-in (via Layer 1 redirect), social sign-in callback, direct URL access, bookmarks.
 - **Sign-up / email verification**: `callbackURL` changed from `/dashboard` to `/dashboard/profile-management` in `signUpAction`, `resendVerificationEmailAction`, `auth.ts` config (`onExistingUserSignUp`), and `auth-client.ts` (social sign-in). New users always need onboarding.
 
-**P4 — Multiple CV Upload / CV List View:**
-The DB schema supports multiple `cvUpload` rows per applicant (no unique constraint), but the UI only shows the latest. Required:
-- **State 1**: "Add New CV" prominent action button (multiple CV upload allowed only for paid users — tier gating is a post-MVP feature).
-- **State 3**: CV list view showing all uploaded CVs with label, upload date, status, and edit/delete actions. Selecting a CV shows its extracted data. Re-parsing a CV triggers full re-aggregation.
+**P4 — Multiple CV Upload / CV List View:** ⏸️ Skipped
+The DB schema supports multiple `cvUpload` rows per applicant, but the UI intentionally shows only the latest CV for MVP. A full CV list view with add/edit/delete and paid-tier gating is deferred to post-launch. Re-parsing the latest CV is supported via `reparseCvAction` in the State 3 work history section.
 
-**P5 — Orphaned cvUpload Cleanup:**
-See §3.8 above. Inngest cron job to delete abandoned uploads. Not blocking for MVP.
+**P5 — Orphaned cvUpload Cleanup:** ✅ Implemented
+See §3.8 above. The `cleanupOrphanedCvUploads` Inngest cron job runs daily and removes stuck processing and orphaned `cvUpload` rows.
 
 ---
 
@@ -591,8 +588,15 @@ The Dev Server exposes a Model Context Protocol (MCP) endpoint at `http://127.0.
 
 ### 3.9.4 Self-Hosted Deployment (Coolify/Hetzner)
 
-Unlike Vercel, there is no automatic Inngest integration for self-hosted setups. After each deploy, sync function definitions manually:
+**Auto-sync (June 2026 update):** Function definitions are now automatically synced with Inngest Cloud on every server startup via `src/instrumentation.ts`. The Next.js instrumentation hook sends a `PUT /api/inngest` request 5 seconds after server start, registering all function definitions with Inngest Cloud. No manual `curl -X PUT` is needed after deploys.
 
+The auto-sync:
+- Only runs in production (`INNGEST_DEV` is not set)
+- Only runs on the Node.js server runtime (not during build)
+- Is non-fatal — if the sync fails, Inngest Cloud will also poll the endpoint periodically
+- Uses `INNGEST_SERVE_ORIGIN` if set, otherwise falls back to `http://localhost:3000`
+
+Manual sync is still available as a fallback:
 ```bash
 curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
 ```
@@ -810,8 +814,8 @@ Do not scrape career pages dynamically. Seed the database with known ATS slugs. 
 
 | Component | Schedule | Implementation | Failure Mode |
 |-----------|----------|----------------|--------------|
-| BigQuery Volume Seeder | Monthly (manual script) | `scripts/seed-bigquery.ts` via `npm run seed:bigquery` | Query fails → no new companies → retry next month |
-| HN Algolia Delta Seeder | Weekly (Inngest scheduled) | Inngest function `seeder/hn-algolia` with `cron: "0 0 * * 1"` | API fails → Inngest automatic retry (3 attempts) |
+| BigQuery Volume Seeder | Monthly (Inngest scheduled) | Inngest function `seeder-bigquery` with `cron: "0 0 1 * *"` (multi-partition scan: last 3 monthly crawls, ~45 GB per run) | Query fails → no new companies → retry next month |
+| HN Algolia Delta Seeder | Daily (first 7 days of month) | Inngest function `seeder/hn-algolia` with `cron: "0 0 * * *"` (skips days 8-31) | API fails → Inngest automatic retry (3 attempts) |
 | crt.sh Stealth Seeder | Phase 2 (deferred) | — | — |
 
 #### 4.1.1 HTTPArchive BigQuery (The Volume Seeder) `[Status: Implemented]`
@@ -892,7 +896,8 @@ HTTPArchive only crawls homepages (`/`). The `technologies` column uses Wappalyz
 - GCP credentials for Coolify: `GOOGLE_APPLICATION_CREDENTIALS_B64` (base64-encoded JSON — Docker-safe, no special characters that break `ARG` instructions). Encode with `base64 -i key.json \| tr -d '\n'`.
 - The BigQuery client is injectable (`BigQueryFn = (sql: string) => Promise<BigQueryRow[]>`) for testing without real GCP credentials.
 - Dual execution: manual script (`scripts/seed-bigquery.ts`) + Inngest scheduled function (`bigQuerySeeder`, monthly cron `0 0 1 * *`). Both call `runBigQuerySeeder()`.
-- Test coverage: 29 unit tests (12 schema tests + 17 seeder tests) with mocked BQ client.
+- **Multi-partition scan (June 2026 update):** The Inngest function scans the last 3 monthly crawl dates in a single query (`generateCrawlDates(3)` + `date IN (...)`). This catches companies added between monthly crawls. Cost: ~45 GB per run (3 × 15 GB), well within the 1 TB/month free tier (20+ runs/month). The `DISTINCT` clause deduplicates root_page across partitions. The manual script supports `--partitions N` (default 3) or `--date YYYY-MM-DD` for a single partition.
+- Test coverage: 32 unit tests (12 schema tests + 20 seeder tests) with mocked BQ client.
 - Real-data results (June 25 2026 run): 914 domains found, 362 resolved (40% hit rate), 278 companies inserted.
 
 #### 4.1.2 HN Algolia Sniper (The Delta Seeder) `[Status: Implemented]`
@@ -1162,6 +1167,12 @@ WHERE polling_enabled = true;
 - `poller-tier-dormant` (`cron: "0 0 * * 0"`) — emits `poller/poll-company` events for all Tier B companies.
 - Each `poller/poll-company` event triggers a separate Inngest function instance that polls a single company. Inngest's concurrency cap (5, free plan limit) naturally limits simultaneous polls.
 
+**Bootstrap Poll (June 2026 update):** When seeders insert new companies, they immediately emit `poller/poll-company` events for them — eliminating the 7-day cold-start delay where new companies waited for the weekly dormant fan-out. This is implemented in the `hnAlgoliaSeeder`, `customUrlResolver`, and `bigQuerySeeder` Inngest functions.
+
+**Company Revival Sweep (June 2026 update):** `poller-company-revival` (`cron: "0 5 * * *"`) — daily function that re-enables polling for dead companies after a 7-day cooldown. Without this, dead companies are permanently stuck (the tier recalculation only updates `WHERE polling_enabled = true`). The revival sweep resets `health = "healthy"`, `consecutiveFailures = 0`, and `pollingEnabled = true`, then emits bootstrap poll events to immediately re-test the revived companies.
+
+**Normalization Retry Sweep (June 2026 update):** `poller-normalization-retry` (`cron: "0 6 * * *"`) — daily function that re-emits `job/ingested` events for up to 50 `normalization_failed` jobs. These jobs have no `normalizedAt` (by design — they're retryable), so the `jobIngestedHandler` idempotency guard will re-process them. If the failure was transient (OpenAI timeout), the retry succeeds. If persistent, the job fails again and is retried the next day.
+
 **Do NOT create per-company Inngest scheduled functions** — 100,000 scheduled functions would overwhelm Inngest. The fan-out pattern (2 scheduled functions → N events → N function instances) is the correct architecture.
 
 #### 4.4.2 Rate Limiting Implementation
@@ -1363,7 +1374,7 @@ await db.execute(sql`
 - No personas pass: Return empty array. No Gate 3 fan-out.
 - All candidates blocklisted: Filtered by `NOT (p.blocklist_tags && ...)`.
 - Null `jobEmbedding`: Defensive fallback to Gate 1 only with `LIMIT 8`.
-- **Cross-posting duplicates** (added June 25 2026): ATS APIs list the same job multiple times with different `external_job_id` values (e.g. for different locations/teams). The `NOT EXISTS` subquery checks if a match already exists for the same `(ats_slug, title, persona_id)` before inserting — prevents duplicate matches and saves Gate 3 LLM calls. Discovered when 19% of active jobs were duplicates (449 out of 2,348).
+- **Cross-posting duplicates** (added June 25 2026): ATS APIs list the same job multiple times with different `external_job_id` values (e.g. for different locations/teams). The `NOT EXISTS` subquery checks if a match already exists for the same `(ats_slug, title, persona_id)` before inserting — prevents duplicate matches and saves Gate 3 LLM calls. Discovered when 19% of active jobs were duplicates (449 out of 2,348). **[Status: TO DO — Post-MVP]** The current dedup prevents re-matching when a company re-posts the same job title with a new `external_job_id` (e.g. re-opening a closed position). Post-MVP, consider adding a "re-evaluate after N days" mechanism for rejected matches if the underlying job is re-posted, or keying dedup on a normalized title hash + company rather than exact title string.
 
 **Performance:** `EXPLAIN ANALYZE` (verified by `scripts/verify-gate-explain.mts`) confirms both GIN and HNSW indexes are used. At MVP scale (~1,000 personas), the composite ORDER BY may cause an in-memory sort (HNSW index is optimized for pure KNN, not composite expressions) — this is <5ms at 1k rows. At 100k+ scale, a two-phase query (KNN + re-rank) may be needed (post-MVP).
 
@@ -1533,7 +1544,7 @@ Unlike a managed PaaS, this requires manual setup and ongoing light maintenance 
 *  Health checks: Coolify probes `GET /api/health` (port 3000) with curl. The Dockerfile also includes a `HEALTHCHECK` directive using `node fetch`. The `/api/health` endpoint is deliberately DB-free so the container is marked healthy as long as the Next.js process is responsive.
 *  Monthly OS security updates and Docker image pruning (the latter automatable via Coolify settings) to prevent disk bloat.
 *  Local volume backups for any non-ephemeral data stored outside Neon.
-*  **Inngest sync:** After each deploy, sync function definitions manually (see §3.9.4).
+*  **Inngest sync:** Automatic via `src/instrumentation.ts` — function definitions are synced with Inngest Cloud on every server startup (see §3.9.4). No manual intervention required.
 *  **Hetzner firewall:** Port 8000 (Coolify admin fallback) should be restricted to the developer's IP via Hetzner Cloud Firewall. Ports 80/443 open to all. (See §7.6.)
 
 ### 7.5 **Lazy initialization pattern (binding code constraint)**

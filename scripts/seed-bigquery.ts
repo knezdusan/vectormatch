@@ -3,14 +3,18 @@
 // scripts/seed-bigquery.ts
 //
 // Usage:
-//   npx tsx scripts/seed-bigquery.ts [--date 2024-06-01] [--limit 1000]
+//   npx tsx scripts/seed-bigquery.ts [--date 2024-06-01] [--partitions 3] [--limit 1000]
 //
 // Queries the HTTPArchive BigQuery dataset for domains running target tech
 // stacks that also contain ATS script URLs. Extracts ATS slugs (directly from
 // payload or via slug probe) and inserts new companies into the company table.
 //
+// Multi-partition mode: By default, scans the last 3 monthly partitions to
+// catch companies added between crawls. Use --partitions 1 for a single
+// partition, or --date to specify an exact date.
+//
 // Runs monthly per TDD §4.1.1. The Inngest function `bigQuerySeeder` provides
-// scheduled execution for when we want to automate it.
+// scheduled execution with automatic multi-partition scanning.
 //
 // Requires:
 //   - DATABASE_URL environment variable (Neon connection string)
@@ -20,19 +24,24 @@
 
 import {
   createDefaultBigQueryFn,
+  generateCrawlDates,
   runBigQuerySeeder,
 } from "@/lib/jobs/seeders/bigquery-seeder";
 
 // ── Argument parsing ─────────────────────────────────────────────────────────
 
-function parseArgs(): { date: string; limit?: number } {
+function parseArgs(): { dates: string[]; limit?: number } {
   const args = process.argv.slice(2);
   let date: string | undefined;
+  let partitions = 3;
   let limit: number | undefined;
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--date" && args[i + 1]) {
       date = args[i + 1];
+      i++;
+    } else if (args[i] === "--partitions" && args[i + 1]) {
+      partitions = Number.parseInt(args[i + 1], 10);
       i++;
     } else if (args[i] === "--limit" && args[i + 1]) {
       limit = Number.parseInt(args[i + 1], 10);
@@ -40,27 +49,24 @@ function parseArgs(): { date: string; limit?: number } {
     }
   }
 
-  // Default to the most recent monthly crawl (first of the month).
-  // HTTPArchive crawls happen monthly, typically on the 1st.
-  if (!date) {
-    const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    date = firstOfMonth.toISOString().slice(0, 10);
+  // If a specific date is provided, use only that date.
+  // Otherwise, generate the last N monthly crawl dates.
+  if (date) {
+    return { dates: [date], limit };
   }
-
-  return { date, limit };
+  return { dates: generateCrawlDates(partitions), limit };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  const { date, limit } = parseArgs();
+  const { dates, limit } = parseArgs();
 
   console.log("=".repeat(60));
   console.log("BigQuery HTTPArchive Seeder — VectorMatch");
   console.log("=".repeat(60));
-  console.log(`Crawl date: ${date}`);
-  if (limit) console.log(`Row limit:  ${limit}`);
+  console.log(`Crawl dates: ${dates.join(", ")}`);
+  if (limit) console.log(`Row limit:   ${limit}`);
   console.log();
 
   console.log("Creating BigQuery client...");
@@ -68,7 +74,7 @@ async function main(): Promise<void> {
 
   console.log("Running seeder...");
   const result = await runBigQuerySeeder(
-    date,
+    dates,
     queryFn,
     undefined,
     fetch,

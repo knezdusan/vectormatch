@@ -133,12 +133,20 @@ export async function recomputeTagsExperience(
     tagYears.set(tag, sumYearsFromRanges(ranges));
   }
 
-  // 5. Delete existing tagsExperience rows.
+  // 5. Capture the old active tag set before we overwrite it, so we can detect
+  //    which tags changed and therefore which personas need new embeddings.
+  const [applicantRow] = await tx
+    .select({ allTags: applicant.allTags })
+    .from(applicant)
+    .where(eq(applicant.userId, applicantId));
+  const oldAllTags = new Set(applicantRow?.allTags ?? []);
+
+  // 6. Delete existing tagsExperience rows.
   await tx
     .delete(tagsExperience)
     .where(eq(tagsExperience.applicantId, applicantId));
 
-  // 6. Insert recomputed rows (all marked active on recompute).
+  // 7. Insert recomputed rows (all marked active on recompute).
   if (tagYears.size > 0) {
     await tx.insert(tagsExperience).values(
       Array.from(tagYears.entries()).map(
@@ -152,24 +160,34 @@ export async function recomputeTagsExperience(
     );
   }
 
-  // 7. Rebuild applicant.allTags as the union of active canonical tags.
+  // 8. Rebuild applicant.allTags as the union of active canonical tags.
   const activeTags = Array.from(tagYears.keys());
   await tx
     .update(applicant)
     .set({ allTags: activeTags })
     .where(eq(applicant.userId, applicantId));
 
-  // 8. Regenerate persona embeddings when mustHaveTags are no longer fully
-  //    covered by the active tag set (MODULE_A_DECISIONS.md §12).
+  // 9. Regenerate persona embeddings when the active tag set changed in a way
+  //    that affects a persona's mustHaveTags, or when a mustHaveTag is no
+  //    longer covered by active tags (MODULE_A_DECISIONS.md §12).
+  const activeTagSet = new Set(activeTags);
+  const changedTags = new Set<string>();
+  for (const tag of oldAllTags) {
+    if (!activeTagSet.has(tag)) changedTags.add(tag);
+  }
+  for (const tag of activeTagSet) {
+    if (!oldAllTags.has(tag)) changedTags.add(tag);
+  }
+
   const personas = await tx
     .select()
     .from(persona)
     .where(eq(persona.applicantId, applicantId));
 
-  const activeTagSet = new Set(activeTags);
   for (const p of personas) {
     const allTagsPresent = p.mustHaveTags.every((t) => activeTagSet.has(t));
-    if (!allTagsPresent) {
+    const tagsAffected = p.mustHaveTags.some((t) => changedTags.has(t));
+    if (!allTagsPresent || tagsAffected) {
       const embedding = await generateEmbedding(p.embeddingSummary);
       await tx
         .update(persona)

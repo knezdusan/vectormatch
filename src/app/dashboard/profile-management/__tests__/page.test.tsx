@@ -158,12 +158,13 @@ describe("ProfileManagementPage — State 3 (profile management)", () => {
     vi.clearAllMocks();
     mockGetAuthSession.mockResolvedValue(SESSION);
     // Query 1: applicant → onboarded.
-    // Then Promise.all: persona, workingHistory, tagsExperience.
+    // Then Promise.all: persona, workingHistory, tagsExperience, cvUpload.
     setDbResults(
       [{ userId: "user-1", isOnboarded: true }],
       [{ id: "p1", personaLabel: "React Dev" }],
       [{ id: "wh1", role: "Dev" }],
       [{ id: "te1", canonicalTag: "react" }],
+      [{ id: "cv-1", status: "valid" }],
     );
   });
 

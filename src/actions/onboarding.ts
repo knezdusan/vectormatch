@@ -25,7 +25,7 @@
 
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
-import { eq } from "drizzle-orm";
+import { and, count, eq, gt } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { applicant, cvUpload, persona, workingHistory } from "@/db/schemas";
@@ -57,6 +57,10 @@ export type ParseCvState = {
 // the LLM invents tags that don't pass the Zod schema validation.
 const CANONICAL_TAG_LIST = CANONICAL_TAGS.map((t) => t.tag).join(", ");
 const PERSONA_DEFINING_TAG_LIST = Array.from(PERSONA_DEFINING_TAGS).join(", ");
+
+// Rate limiting: 3 CV parses per user per hour (MODULE_A_DECISIONS.md §6).
+const CV_PARSE_LIMIT = 3;
+const CV_PARSE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
 const PARSE_CV_SYSTEM_PROMPT = `You are a CV parser. Extract work history and skills from the CV text.
 
@@ -117,10 +121,29 @@ export async function parseCvAction(
     return { error: domainError, cvUploadId: null, extraction: null };
   }
 
-  // Rate limiting: 3 parses/hour/user (TODO — see post-implementation follow-up).
-  // For now we rely on the LLM cost as a natural rate limiter and on Better Auth
-  // session enforcement. A real implementation will count cvUpload rows created
-  // in the last hour for this applicantId.
+  // Rate limiting: 3 parses/hour/user (MODULE_A_DECISIONS.md §6).
+  // Count all cvUpload rows created in the last hour for this applicant. The
+  // count includes every row created by this action (valid, invalid, or still
+  // processing) because the cost is the LLM call, not the outcome.
+  const oneHourAgo = new Date(Date.now() - CV_PARSE_WINDOW_MS);
+  const [{ parseCount }] = await db
+    .select({ parseCount: count() })
+    .from(cvUpload)
+    .where(
+      and(
+        eq(cvUpload.applicantId, session.user.id),
+        gt(cvUpload.createdAt, oneHourAgo),
+      ),
+    );
+
+  if (parseCount >= CV_PARSE_LIMIT) {
+    return {
+      error:
+        "You have reached the 3 CV parses per hour limit. Please try again later.",
+      cvUploadId: null,
+      extraction: null,
+    };
+  }
 
   // Ensure an applicant row exists (FK target for cv_upload.applicant_id).
   // The applicant row may not exist yet if this is the user's first onboarding

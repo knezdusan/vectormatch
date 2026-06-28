@@ -1,8 +1,8 @@
 # MODULE A — IMPLEMENTATION HANDOFF (Step 6)
 
-**Status:** Ready for implementation. All prior steps (1-5) are complete.
+**Status:** Implemented. All Module A onboarding features (CV upload + parsing, review, finalization, rate limiting, State 3 editing, persona embedding regeneration, and orphaned CV cleanup) are in production code.
 **Date:** June 2026
-**Scope:** This document is the single source of truth for implementing Module A Step 6. It specifies exact file paths, function signatures, dependency commands, subtask order, and test plan. The next session should execute this document top-to-bottom.
+**Scope:** This document records the implementation of Module A Step 6. It specifies exact file paths, function signatures, dependency commands, subtask order, and test plan. All subtasks are implemented and verified.
 
 **Governing documents (read these first):**
 - `docs/reports/MODULE_A_DECISIONS.md` — 12 locked decisions
@@ -225,8 +225,7 @@ export async function parseCvAction(
     return { error: validityError, cvUploadId: null, extraction: null };
   }
 
-  // Rate limiting: 3 parses/hour/user (check cvUpload count in last hour)
-  // TODO: implement rate limit check
+  // Rate limiting: 3 parses/hour/user (implemented in src/actions/onboarding.ts)
 
   // Create cvUpload row with status=processing
   const [upload] = await db
@@ -600,7 +599,7 @@ const onSubmit = form.handleSubmit((data) => {
 
 This is State 2 but in "edit mode" — same sections, but data comes from DB instead of extraction JSON. Can reuse most State 2 components with different data source.
 
-**Defer for MVP:** Full State 3 editing can be simplified for initial launch. The critical path is State 1 → State 2 → onboarded. State 3 can initially just display the data read-only with a "coming soon" for editing.
+**Implemented:** Full State 3 editing is live. `ProfileManagement` supports editing preferences, work history, personas, and CV re-parse. The skills section is read-only because skills are derived from work history.
 
 ### Subtask 10: Tests
 **Files:**
@@ -770,12 +769,13 @@ npm run build                # Full build (catches worker bundling issues)
 
 ---
 
-## 7. Post-Implementation Follow-up Tasks (Not Blocking MVP)
+## 7. Post-Implementation Follow-up Tasks
 
-These are documented in MODULE_A_DECISIONS.md and should be implemented after the core onboarding flow works:
+These are documented in MODULE_A_DECISIONS.md. Items 1–3 below are now implemented:
 
-1. **Orphaned cvUpload cleanup** — Inngest cron job that deletes `cvUpload` rows older than 24h where `applicant.isOnboarded=false` (AR2 decision)
-2. **Rate limiting** — 3 parses/hour/user for the parse Server Action
-3. **State 3 full editing** — Complete profile management editing (initially can be read-only)
-4. **Playwright E2E** — Full onboarding flow test with a real PDF
-5. **CANONICAL_TAGS expansion** — After real-CV testing, expand from ~130 to ~300 entries
+1. **Orphaned cvUpload cleanup** — Implemented as `cleanupOrphanedCvUploads` Inngest cron job (`src/inngest/functions.ts`).
+2. **Rate limiting** — Implemented in `parseCvAction` (`src/actions/onboarding.ts`): 3 parses/hour/user by counting `cvUpload` rows created in the last hour.
+3. **State 3 full editing** — Implemented in `src/actions/profile.ts` and `src/components/onboarding/ProfileManagement.tsx`. Editable sections: preferences, work history, personas, and CV re-parse. Skills section is read-only because skills are derived from work history.
+4. **Playwright E2E** — Profile-management editing flow is covered by `e2e/profile-management.spec.ts`. A full end-to-end onboarding flow test with a real PDF is still pending and can be added once the project is ready to run real LLM calls in E2E.
+5. **CANONICAL_TAGS expansion** — After real-CV testing, expand from ~130 to ~300 entries (still pending).
+6. **Multiple CV Upload / CV List View** — Skipped for MVP; tied to paid-tier feature (post-launch).

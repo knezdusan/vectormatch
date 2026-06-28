@@ -44,9 +44,19 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
 /**
  * Generate a single embedding. Convenience wrapper around generateEmbeddings
  * for the common one-persona regeneration case in recomputeTagsExperience.
+ *
+ * Truncates input to ~6000 characters (~1500 tokens) to stay within the
+ * text-embedding-3-small 8192 token limit. Job descriptions with Lever `lists`
+ * arrays can exceed the limit — truncating preserves the title + beginning of
+ * the description, which is sufficient for semantic similarity matching.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const [embedding] = await generateEmbeddings([text]);
+  // text-embedding-3-small has an 8192 token input limit.
+  // ~4 chars per token → ~32000 chars max. Use 24000 as a safe ceiling
+  // to avoid edge cases with tokenization differences.
+  const MAX_CHARS = 24000;
+  const truncated = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
+  const [embedding] = await generateEmbeddings([truncated]);
   if (!embedding) {
     throw new Error("Failed to generate embedding: empty result from provider");
   }

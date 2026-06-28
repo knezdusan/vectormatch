@@ -51,9 +51,9 @@ export default async function ProfileManagementPage() {
     .limit(1);
 
   // State 3: already onboarded → full profile management.
-  // Fetch the related personas, work history, and tag experience for display.
+  // Fetch the related personas, work history, tag experience, and latest CV for display.
   if (userApplicant?.isOnboarded) {
-    const [personas, history, tags] = await Promise.all([
+    const [personas, history, tags, latestCv] = await Promise.all([
       db
         .select()
         .from(persona)
@@ -69,6 +69,12 @@ export default async function ProfileManagementPage() {
         .from(tagsExperience)
         .where(eq(tagsExperience.applicantId, userId))
         .orderBy(desc(tagsExperience.yearsOfExperience)),
+      db
+        .select()
+        .from(cvUpload)
+        .where(eq(cvUpload.applicantId, userId))
+        .orderBy(desc(cvUpload.createdAt))
+        .limit(1),
     ]);
 
     return (
@@ -77,6 +83,7 @@ export default async function ProfileManagementPage() {
         personas={personas as Persona[]}
         workHistory={history as WorkingHistory[]}
         tagsExperience={tags as TagsExperience[]}
+        latestCvUpload={(latestCv[0] as CvUpload | undefined) ?? null}
       />
     );
   }

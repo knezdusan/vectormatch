@@ -14,6 +14,8 @@ vi.mock("@/lib/jobs/seeders/company-repository", () => ({
     inserted: 0,
     skipped: 0,
     rejected: [],
+    insertedCompanyIds: [],
+    insertedCompanies: [],
   }),
 }));
 
@@ -88,6 +90,8 @@ describe("processHnHits", () => {
       inserted: 0,
       skipped: 0,
       rejected: [],
+      insertedCompanyIds: [],
+      insertedCompanies: [],
     });
   });
 

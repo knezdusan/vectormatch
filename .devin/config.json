@@ -21,7 +21,11 @@
     "fallow": {
       "transport": "STDIO",
       "command": "npx",
-      "args": ["-y", "fallow-mcp"]
+      "args": [
+        "-y",
+        "node",
+        "/Users/knez/Documents/WebDev/vectormatch/.devin/bin/fallow-mcp-wrapper.mjs"
+      ]
     },
     "bigquery": {
       "transport": "STDIO",
@@ -34,7 +38,8 @@
         "--stdio"
       ],
       "env": {
-        "BIGQUERY_PROJECT": "vactormatch-seeder"
+        "BIGQUERY_PROJECT": "vactormatch-seeder",
+        "GOOGLE_APPLICATION_CREDENTIALS": "/Users/knez/Documents/WebDev/vectormatch/docs/system/vactormatch-seeder-b4bc49aeddb1.json"
       }
     },
     "inngest": {

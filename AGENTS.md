@@ -29,6 +29,35 @@ Prioritize performance, accuracy, and developer-centric UX.
 - **STOP and ask for explicit confirmation** if a command would overwrite existing work
 - **NEVER run any Git commands** (such as `git add`, `git commit`, `git push`, `git checkout`, etc.). All version control operations must be left entirely to the user.
 
+## CRITICAL: Database Mutation in Tests
+
+Tests must **never** mutate the production database (or any shared database) unless there is **absolutely no other way** to verify the behavior and the user has given **explicit approval** for that specific test.
+
+### Rules for database-mutating tests
+
+1. **Prefer non-mutating alternatives first.** Before writing a test that inserts, updates, or deletes real rows, exhaust these options:
+   - Mock the database layer or the Server Action.
+   - Use a test-only API route or fixture that returns seeded data.
+   - Use a dedicated, isolated test database / test tenant.
+   - Use Playwright browser automation against already-seeded demo data without creating new users.
+
+2. **Stop and ask for explicit approval.** If no non-mutating alternative exists, explain to the user:
+   - Exactly which tables will be touched.
+   - Which rows will be inserted, updated, or deleted.
+   - How the test will clean up after itself.
+   - How cleanup will be verified.
+   Do **not** run the test until the user has explicitly approved.
+
+3. **Implement automatic cleanup.** Any approved test that mutates the database must clean up in a `test.afterAll` / `afterAll` hook, or equivalent teardown. Cleanup must run even if the test fails or is interrupted.
+
+4. **Verify cleanup.** After the test runs, query the database to confirm that no test artifacts remain. If artifacts are found, delete them and report the leak to the user.
+
+5. **Use obvious test identifiers.** Test emails, names, and IDs must be clearly identifiable (e.g., `test-{feature}-{timestamp}-{worker}@example.com`) so manual cleanup is possible if automation fails.
+
+### Existing exception
+
+The file `e2e/profile-management.spec.ts` was created before this rule was written and currently seeds/cleans up an onboarded user via raw SQL. If you need to modify or extend it, first review whether the test can be rewritten without database mutation. If not, ask the user for approval before running it against a shared database.
+
 # This is NOT the Next.js or Tailwind you know
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data.
 1. **Next.js 16.2:** Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.

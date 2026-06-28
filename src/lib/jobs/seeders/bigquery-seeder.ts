@@ -114,13 +114,19 @@ const ALL_TECHS = [
  * scanned from ~4 TB to ~15 GB — a 270x cost reduction that fits within
  * BigQuery's 1 TB/month free tier.
  *
+ * Multi-partition scan (June 2026 optimization): Instead of scanning a single
+ * monthly partition, the query can scan multiple partitions in a single query.
+ * This catches companies that were added between crawls. Each partition adds
+ * ~15 GB to the scan cost — 3 partitions = ~45 GB (well within the 1 TB/month
+ * free tier, allowing 20+ multi-partition runs per month).
+ *
  * Wappalyzer detects Greenhouse and Lever as technologies with category
  * "Recruitment & staffing". Ashby is NOT detected by Wappalyzer (too niche),
  * so BigQuery-discovered companies are Greenhouse or Lever only. HN seeder
  * catches Ashby companies.
  *
  * The query:
- *   1. Filters on a specific monthly crawl date (partition pruning)
+ *   1. Filters on one or more monthly crawl dates (partition pruning)
  *   2. Filters on desktop client + root pages only (cost optimization)
  *   3. Filters on target tech stacks (4 tiers) via technologies column
  *   4. Filters on ATS detection via technologies column (Greenhouse/Lever)
@@ -130,11 +136,17 @@ const ALL_TECHS = [
  * ~4 TB per monthly partition. The `technologies` column is a small array of
  * structs that costs ~15 GB per partition.
  *
- * @param crawlDate  The monthly crawl date (e.g. "2026-06-01")
- * @param limit      Optional row limit (for testing)
+ * @param crawlDates  One or more monthly crawl dates (e.g. ["2026-06-01"])
+ * @param limit       Optional row limit (for testing)
  */
 // fallow-ignore-next-line unused-export
-export function buildBigQuerySql(crawlDate: string, limit?: number): string {
+export function buildBigQuerySql(
+  crawlDates: string | string[],
+  limit?: number,
+): string {
+  const dates = Array.isArray(crawlDates) ? crawlDates : [crawlDates];
+  const dateList = dates.map((d) => `'${d}'`).join(", ");
+
   const techConditions = ALL_TECHS.map(
     (tech) => `t.technology = '${tech}'`,
   ).join("\n    OR ");
@@ -148,7 +160,7 @@ export function buildBigQuerySql(crawlDate: string, limit?: number): string {
   END AS ats_source
 FROM \`httparchive.crawl.pages\`
 WHERE
-  date = '${crawlDate}'
+  date IN (${dateList})
   AND client = 'desktop'
   AND is_root_page
   AND EXISTS (
@@ -166,6 +178,37 @@ WHERE
   return `${sql};`;
 }
 
+/**
+ * Generate the last N monthly crawl dates (1st of each month).
+ * HTTPArchive crawls happen monthly on the 1st. This generates dates for the
+ * current month and N-1 previous months.
+ *
+ * Uses UTC consistently to avoid timezone-related off-by-one errors.
+ *
+ * @param count  Number of monthly partitions to generate (default: 3)
+ * @returns      Array of date strings in "YYYY-MM-DD" format
+ */
+export function generateCrawlDates(count = 3): string[] {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth(); // 0-indexed
+
+  const dates: string[] = [];
+
+  for (let i = 0; i < count; i++) {
+    // Calculate year and month, handling underflow when going past January
+    const totalMonths = month - i;
+    const targetYear = year + Math.floor(totalMonths / 12);
+    const targetMonth = ((totalMonths % 12) + 12) % 12; // Ensure positive
+
+    // Format as YYYY-MM-01 using UTC (pad month to 2 digits)
+    const monthStr = String(targetMonth + 1).padStart(2, "0");
+    dates.push(`${targetYear}-${monthStr}-01`);
+  }
+
+  return dates;
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -173,14 +216,19 @@ WHERE
  * ATS slugs (directly from payload or via slug probe), and inserts new
  * companies into the company table.
  *
- * @param crawlDate     The monthly crawl date (e.g. "2024-06-01")
+ * Multi-partition mode: When crawlDates contains multiple dates, the query
+ * scans all specified partitions in a single BigQuery query. The DISTINCT
+ * clause deduplicates root_page across partitions. This catches companies
+ * that were added between monthly crawls at ~15 GB per partition.
+ *
+ * @param crawlDate     The monthly crawl date (e.g. "2026-06-01") or array of dates
  * @param queryFn       Injectable BigQuery query function
  * @param resolveCname  Injectable DNS CNAME resolver (for slug probe)
  * @param fetchFn       Injectable fetch (for slug probe)
  * @param limit         Optional row limit (for testing)
  */
 export async function runBigQuerySeeder(
-  crawlDate: string,
+  crawlDate: string | string[],
   queryFn: BigQueryFn,
   resolveCname?: ResolveCnameFn,
   fetchFn?: FetchFn,
@@ -206,7 +254,13 @@ export async function runBigQuerySeeder(
       slugProbesAttempted: 0,
       slugProbesResolved: 0,
       unresolved: 0,
-      insertResult: { inserted: 0, skipped: 0, rejected: [] },
+      insertResult: {
+        inserted: 0,
+        skipped: 0,
+        rejected: [],
+        insertedCompanyIds: [],
+        insertedCompanies: [],
+      },
       error: error instanceof Error ? error.message : String(error),
     };
   }

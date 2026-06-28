@@ -27,6 +27,10 @@ export interface InsertResult {
   skipped: number;
   /** The inputs that were rejected by Zod validation (should not happen if the seeder is correct). */
   rejected: SeedCompanyInput[];
+  /** The IDs of newly inserted companies (for bootstrap poll events). */
+  insertedCompanyIds: string[];
+  /** The ATS source + slug of newly inserted companies (for bootstrap poll events). */
+  insertedCompanies: { id: string; atsSource: string; atsSlug: string }[];
 }
 
 // ── Insert ───────────────────────────────────────────────────────────────────
@@ -48,7 +52,13 @@ export async function insertDiscoveredCompanies(
   inputs: SeedCompanyInput[],
 ): Promise<InsertResult> {
   if (inputs.length === 0) {
-    return { inserted: 0, skipped: 0, rejected: [] };
+    return {
+      inserted: 0,
+      skipped: 0,
+      rejected: [],
+      insertedCompanyIds: [],
+      insertedCompanies: [],
+    };
   }
 
   // Validate all inputs. Collect valid ones; track rejected ones.
@@ -65,7 +75,13 @@ export async function insertDiscoveredCompanies(
   }
 
   if (valid.length === 0) {
-    return { inserted: 0, skipped: 0, rejected };
+    return {
+      inserted: 0,
+      skipped: 0,
+      rejected,
+      insertedCompanyIds: [],
+      insertedCompanies: [],
+    };
   }
 
   // Dedup within the batch itself (a seeder might extract the same slug twice
@@ -97,12 +113,26 @@ export async function insertDiscoveredCompanies(
     .onConflictDoNothing({
       target: [company.atsSource, company.atsSlug],
     })
-    .returning({ id: company.id });
+    .returning({
+      id: company.id,
+      atsSource: company.atsSource,
+      atsSlug: company.atsSlug,
+    });
 
   const inserted = insertedRows.length;
   const skipped = unique.length - inserted;
 
-  return { inserted, skipped, rejected };
+  return {
+    inserted,
+    skipped,
+    rejected,
+    insertedCompanyIds: insertedRows.map((r) => r.id),
+    insertedCompanies: insertedRows.map((r) => ({
+      id: r.id,
+      atsSource: r.atsSource,
+      atsSlug: r.atsSlug,
+    })),
+  };
 }
 
 /**

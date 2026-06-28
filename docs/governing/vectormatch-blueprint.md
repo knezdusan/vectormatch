@@ -92,7 +92,7 @@ Bottom-up order for solo implementation. Update the status tag as each step comp
   - *Drizzle Path*: `src/db/schemas/jobs/cvUpload.ts`
 - **`working_history` table** `[Status: Implemented]`: Single source of truth for the user's work history. Each row represents one employment entry extracted from a CV (by the LLM) or added manually post-onboarding. Linked to `cv_upload` via `cv_upload_id` (CASCADE delete). This table is the input to `recomputeTagsExperience()`.
   - *Drizzle Path*: `src/db/schemas/jobs/workingHistory.ts`
-- **`tags_experience` table** `[Status: Implemented]`: Single source of truth for the user's skills and years of experience per skill. NOT populated by the LLM directly — computed by `recomputeTagsExperience(applicantId)` which reads `working_history`, merges overlapping date ranges per canonical tag, and upserts results here. The `active` flag lets users deactivate non-critical skills. Unique constraint on `(applicant_id, canonical_tag)` enables upsert.
+- **`tags_experience` table** `[Status: Implemented]`: Single source of truth for the user's skills and years of experience per skill. NOT populated by the LLM directly — computed by `recomputeTagsExperience(applicantId)` which reads `working_history`, merges overlapping date ranges per canonical tag, and upserts results here. The `active` flag is managed by `recomputeTagsExperience()`; for MVP users cannot toggle skills directly. Unique constraint on `(applicant_id, canonical_tag)` enables upsert.
   - *Drizzle Path*: `src/db/schemas/jobs/tagsExperience.ts`
 - **`jobs` table** `[Status: Implemented]`: Stores job listings with `ats_slug`, `title`, `raw_json`, `extracted_tags` (text array), `job_embedding` (vector 1536), `external_job_id` (dedup), `last_seen_at` (stale tracking), `status` (`active|stale|gone|rejected|normalization_failed`), and `normalized_at` (Module C idempotency guard). Indexed with GIN on `extracted_tags`, HNSW on `job_embedding`, and B-tree on `(status, last_seen_at)`.
 - **`match_queue` table** `[Status: Implemented]`: Maps `job_id` to `persona_id` (not `applicant_id` — corrected for multi-persona users) with Gate 1+2 scores (`overlap_score`, `cosine_distance`), a `status` state (pending, approved, rejected), Gate 3 LLM verdict columns (`llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `evaluated_at`), and `is_read` for in-app notification badge. Unique index on `(job_id, persona_id)` — an applicant can match the same job via multiple personas. Cross-posting dedup at insert time: Gate 1+2 checks `NOT EXISTS` on `(ats_slug, title, persona_id)` before inserting — prevents ATS cross-posted duplicates (same job listed multiple times with different `external_job_id`) from creating duplicate matches. Partial index on `(applicant_id) WHERE is_read = false AND status = 'approved'` for the unread badge query. Migrations `0010` (llm_confidence) and `0011` (llm_blockers) applied.
@@ -172,18 +172,19 @@ This is a single route (`/dashboard/profile-management`) with three different pr
   - Single submit → creates `applicant` + `persona(s)` + `workingHistory` + `tagsExperience` + sets `isOnboarded=true`.
   - *Goal: under 3 minutes from upload to "onboarded."*
 
-- **State 3 — Profile Management** (`isOnboarded=true`) `[Status: Partially Implemented]`:
+- **State 3 — Profile Management** (`isOnboarded=true`) `[Status: Implemented]`:
   - Same page, but now in "management mode" (user is already onboarded).
-  - Full Applicant section (edit employment history, add jobs, skills update) `[Status: Planned / TO DO]` — currently read-only display of onboarding data.
-  - Skills section (view all, deactivate non-critical) `[Status: Planned / TO DO]` — currently read-only display.
-  - Persona section (edit existing, add up to 3, delete) `[Status: Planned / TO DO]` — currently read-only display.
-  - *Note*: State 3 is implemented as a read-only MVP for Module A. Full editing capabilities (add/remove jobs, deactivate skills, edit/delete personas) are a post-MVP follow-up.
+  - Work preferences section (country, `can_work_us_hours`, `assignment_types`, `modalities`, `preferred_compliance`) `[Status: Implemented]`.
+  - Work history section (add/edit/delete job entries) `[Status: Implemented]`.
+  - Skills section (view all — read-only) `[Status: Implemented]` — skills are derived from work history and kept in sync by `recomputeTagsExperience()`.
+  - Persona section (edit existing, add up to 3, delete) `[Status: Implemented]`.
+  - CV re-parse action (re-run LLM extraction on the latest CV) `[Status: Implemented]`.
 
 **The 3 UI Sections (States 2 and 3):**
 
 1. **Applicant Section**: Form reflecting user data collected from the CV with possibility to edit existing data and add new data. Also contains mandatory fields not present in the CV (country, `can_work_us_hours`, `assignment_types`, `modalities`, `preferred_compliance`). Editing employment history here is the only way to add/modify skills — skills are derived from work history, maintaining the single-source-of-truth principle.
 
-2. **Skills Section**: Read-only list of all user skills extracted by the LLM, mapped against `CANONICAL_TAGS`. Users cannot delete skills but can only deactivate skills that are not critical for the job position. Users can add skills only by editing the Applicant section form (e.g., adding a new job position with new skills). The content of this form is validated against the `CANONICAL_TAGS` array and is the single source of truth for the skillset selection form used in the Persona section.
+2. **Skills Section**: Read-only list of all user skills extracted by the LLM, mapped against `CANONICAL_TAGS`. Users cannot add, delete, or deactivate skills directly; skills are derived from employment history. The content of this section is validated against the `CANONICAL_TAGS` array and is the single source of truth for the skillset selection form used in the Persona section.
 
 3. **Persona Section**: One or multiple (max 3) personas (editable forms) based on one or multiple stacks derived from the user data and skills. Each stack contains core and optional skills, is based on exactly 5 skills (the "5 Major Skills" constraint), and is validated against `CANONICAL_TAGS`. The LLM proposes 1-2 initial personas based on the parsed CV data; the user then edits, adds, or deletes personas. Users must have at least one persona.
 
@@ -214,17 +215,17 @@ This is a single route (`/dashboard/profile-management`) with three different pr
 - *Derived*: ≥1 persona with exactly 5 `mustHaveTags`, `embedding_summary`, and generated `persona_embedding`
 - *Experience level* is derived purely at query time from `tagsExperience.yearsOf_experience` (no stored enum field).
 
-**Module A Pending Items (Post-MVP Follow-up)** `[Status: Planned / TO DO]`:
+**Module A Post-MVP Items (Status Review)** `[Status: Complete — all items implemented or explicitly skipped]`:
 
-The Module A MVP is functionally complete — the full onboarding flow works end-to-end. The following items are documented as pending with a prioritized timing strategy. The rationale: Module B (ingestion) and Module C (matching) are the core product value — the current MVP sufficiently populates `persona`, `tagsExperience`, and `applicant.allTags` for Module B/C to consume, so only P3 is done immediately before starting Module B.
+The Module A onboarding MVP is complete. All pre-launch and post-launch follow-up items have been addressed: implemented for the critical path, or deliberately skipped because they are tied to paid-tier features. The rationale remains: Module B (ingestion) and Module C (matching) are the core product value, but the onboarding surface now supports the full lifecycle for an MVP launch.
 
-| # | Item | Priority | When | Rationale |
-|---|------|----------|------|-----------|
-| P3 | Smart Dashboard Redirection | ✅ Done | Before Module B | Two-layer redirect: signInAction + /dashboard page check isOnboarded |
-| P1 | State 3 Full Editing | Critical (pre-launch) | After Module B/C | Read-only is sufficient for testing matching pipeline; full editing is days of UI work |
-| P2 | Rate Limiting (3/hour) | Critical (pre-launch) | After Module B/C | Cost protection; pre-launch LLM cost is natural limiter |
-| P4 | Multiple CV Upload | Medium (post-launch) | Post-launch | Feature expansion tied to paid-tier |
-| P5 | Orphaned Cleanup | Low (post-launch) | Post-launch | Operational hygiene |
+| # | Item | Priority | Status | Rationale |
+|---|------|----------|--------|-----------|
+| P3 | Smart Dashboard Redirection | ✅ Done | Implemented | Two-layer redirect: signInAction + /dashboard page check isOnboarded |
+| P1 | State 3 Full Editing | ✅ Done | Implemented | Full editing implemented in ProfileManagement: preferences, work history, personas, CV re-parse |
+| P2 | Rate Limiting (3/hour) | ✅ Done | Implemented | 3 cvUpload rows/hour/user enforced in `parseCvAction` |
+| P4 | Multiple CV Upload | ⏸️ Skipped | Post-launch / paid-tier | Feature expansion, not a launch gap; UI shows latest CV and supports re-parse |
+| P5 | Orphaned Cleanup | ✅ Done | Implemented | `cleanupOrphanedCvUploads` Inngest cron job removes stuck processing + orphan cvUpload rows |
 
 See TDD §3.9 for full technical detail on each item.
 
@@ -442,7 +443,7 @@ When a new job listing is successfully ingested, an asynchronous workflow is tri
 1. **Discovery**: User lands on homepage, understands value proposition `[Status: Implemented]`
 2. **Conversion**: User registers/logs in via standard Auth page `[Status: Implemented]`
 3. **Onboarding**: Redirected dynamically based on profile status: to `/dashboard/profile-management` for initial CV upload (if `is_onboarded=false`), or `/dashboard/jobs` if already onboarded `[Status: Implemented]` — onboarding flow (CV upload → review → profile management) and smart redirect logic on sign-in/sign-up are both implemented
-4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Implemented]` — profile management (read-only MVP) is `[Status: Implemented]`; job matching backend (Module C 3-Gate funnel) is `[Status: Implemented]` (synthetic-data calibrated, real-data calibration in progress via self-use); dashboard UI for reviewing matched jobs (`/dashboard/jobs` list + `/dashboard/jobs/[matchId]` detail) is `[Status: Implemented]`
+4. **Engagement**: User manages CVs and profile via `/dashboard/profile-management`, reviews matched job opportunities `[Status: Implemented]` — profile management (editable: preferences, work history, personas, CV re-parse) is `[Status: Implemented]`; job matching backend (Module C 3-Gate funnel) is `[Status: Implemented]` (synthetic-data calibrated, real-data calibration in progress via self-use); dashboard UI for reviewing matched jobs (`/dashboard/jobs` list + `/dashboard/jobs/[matchId]` detail) is `[Status: Implemented]`
 5. **Application**: User applies to jobs through ATS integration `[Status: Planned / TO DO]`
 6. **Retention**: User returns to track applications and discover new opportunities `[Status: Planned / TO DO]`
 

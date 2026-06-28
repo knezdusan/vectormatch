@@ -120,15 +120,34 @@ export function extractJobContent(
       const title = typeof obj.text === "string" ? obj.text : fallbackTitle;
       // Prefer descriptionPlain (plain text, no stripping needed).
       // Fall back to description (HTML, needs stripping).
-      const rawDesc =
-        typeof obj.descriptionPlain === "string"
+      // NOTE: Lever sometimes returns descriptionPlain as an empty string ("")
+      // even when description (HTML) has content. Must check for non-empty
+      // string, not just string type, to trigger the fallback.
+      const plainDesc =
+        typeof obj.descriptionPlain === "string" &&
+        obj.descriptionPlain.length > 0
           ? obj.descriptionPlain
-          : typeof obj.description === "string"
-            ? obj.description
-            : "";
-      const description =
-        typeof obj.descriptionPlain === "string" ? rawDesc : stripHtml(rawDesc);
-      return { title, description, fullText: `${title} ${description}`.trim() };
+          : null;
+      const rawDesc =
+        plainDesc ??
+        (typeof obj.description === "string" && obj.description.length > 0
+          ? obj.description
+          : "");
+      const description = plainDesc ? plainDesc : stripHtml(rawDesc);
+
+      // Lever jobs often store the actual tech requirements in a `lists`
+      // array (sections like "Requirements", "Tech Stack", etc.) rather than
+      // in the description fields. Extract and append list content so the
+      // regex tag scan and LLM fallback can find tech keywords.
+      const listsText = extractLeverLists(obj);
+
+      return {
+        title,
+        description: listsText
+          ? `${description} ${listsText}`.trim()
+          : description,
+        fullText: `${title} ${description} ${listsText}`.trim(),
+      };
     }
     case "ashby": {
       const title = typeof obj.title === "string" ? obj.title : fallbackTitle;
@@ -139,14 +158,20 @@ export function extractJobContent(
       // ats-schemas.ts) has `descriptionHtml` and `descriptionPlain` — no
       // `description` field exists. Using the real field names per user
       // confirmation.
-      const rawDesc =
-        typeof obj.descriptionPlain === "string"
+      // Same empty-string guard as Lever: some Ashby jobs return
+      // descriptionPlain as "" even when descriptionHtml has content.
+      const plainDesc =
+        typeof obj.descriptionPlain === "string" &&
+        obj.descriptionPlain.length > 0
           ? obj.descriptionPlain
-          : typeof obj.descriptionHtml === "string"
-            ? obj.descriptionHtml
-            : "";
-      const description =
-        typeof obj.descriptionPlain === "string" ? rawDesc : stripHtml(rawDesc);
+          : null;
+      const rawDesc =
+        plainDesc ??
+        (typeof obj.descriptionHtml === "string" &&
+        obj.descriptionHtml.length > 0
+          ? obj.descriptionHtml
+          : "");
+      const description = plainDesc ? plainDesc : stripHtml(rawDesc);
       return { title, description, fullText: `${title} ${description}`.trim() };
     }
     default: {
@@ -530,6 +555,34 @@ function stripHtml(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/\s+/g, " ") // collapse whitespace
     .trim();
+}
+
+/**
+ * Extract text content from a Lever job's `lists` array.
+ *
+ * Lever jobs store structured content (requirements, tech stack, responsibilities)
+ * in a `lists` array where each entry has a `text` (section title) and `content`
+ * (HTML). This content often contains the actual tech keywords (Docker, Kubernetes,
+ * Java, etc.) that are absent from the description fields.
+ *
+ * Returns the concatenated plain text of all list sections, or "" if no lists.
+ */
+function extractLeverLists(obj: Record<string, unknown>): string {
+  if (!Array.isArray(obj.lists)) return "";
+  const parts: string[] = [];
+  for (const item of obj.lists) {
+    if (typeof item !== "object" || item === null) continue;
+    const listObj = item as Record<string, unknown>;
+    // Include the section title (e.g. "Required Experience", "Tech Stack")
+    if (typeof listObj.text === "string" && listObj.text.length > 0) {
+      parts.push(listObj.text);
+    }
+    // Strip HTML from the section content
+    if (typeof listObj.content === "string" && listObj.content.length > 0) {
+      parts.push(stripHtml(listObj.content));
+    }
+  }
+  return parts.join(" ").trim();
 }
 
 // =============================================================================
