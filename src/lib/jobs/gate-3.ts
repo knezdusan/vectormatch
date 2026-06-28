@@ -63,6 +63,11 @@ export type Gate3Context = {
     title: string;
     description: string; // cleaned (HTML stripped)
     extractedTags: string[];
+    // Structured metadata — passed to the LLM so it doesn't have to guess
+    // from the description text. NULL when the ATS doesn't provide it.
+    workplaceType: "remote" | "hybrid" | "on-site" | null;
+    locationName: string | null;
+    employmentType: string | null;
   };
   persona: {
     personaLabel: string;
@@ -89,9 +94,9 @@ const GATE3_SYSTEM_PROMPT = `You are an expert technical recruiter evaluating wh
 Your job is to make a precise yes/no decision. You are the final gate — the candidate has already passed tag overlap and semantic similarity filters, so your role is to catch nuanced mismatches that keyword matching cannot.
 
 EVALUATION CRITERIA:
-1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job (even if both are "frontend").
-2. **Seniority fit**: Does the job's seniority level match the persona? A "Senior React Developer" persona should not match a "Junior Frontend" job.
-3. **Hard constraints (blockers)**: Check the applicant's assignment types, modalities, and compliance preferences against the job. If the job requires on-site but the applicant only wants remote, that's a blocker. If the job is W2-only but the applicant wants B2B, that's a blocker.
+1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job (even if both are "frontend"). NOTE: Extracted tags are produced by an automated normalizer and may be incomplete — always check the job description for skills that may not appear in the extracted tags. Missing tags are a soft signal, not a hard blocker; the description is the source of truth.
+2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" or "7+ years" and the job asks for "8+ years" — the stated number is a minimum in the persona summary, not a maximum. A persona with "7+ years" can qualify for a role asking 8+ years. Only reject on seniority if the gap is extreme (e.g., junior persona vs. principal/staff role requiring 12+ years).
+3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. If the job's Workplace Type is "on-site" and the applicant's assignment types do not include "on-site", that's a hard blocker. If the job's Workplace Type is "hybrid" and the applicant's assignment types do not include "hybrid", that's a hard blocker. If Workplace Type is null, infer from the location and description but do not assume remote — check carefully. Also check modalities and compliance preferences.
 4. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 5. **Domain relevance**: Is the job in a domain the persona would plausibly work in? A React developer persona should match a SaaS frontend job, not a React Native game dev job (unless the persona explicitly mentions mobile).
 
@@ -117,6 +122,9 @@ export function buildGate3Prompt(ctx: Gate3Context): string {
 
   return `## JOB POSTING
 Title: ${job.title}
+Workplace Type: ${job.workplaceType ?? "not specified"}
+Location: ${job.locationName ?? "not specified"}
+Employment Type: ${job.employmentType ?? "not specified"}
 Required Skills: ${job.extractedTags.join(", ") || "none specified"}
 Description:
 ${job.description}
@@ -136,7 +144,7 @@ Assignment Types: ${applicant.assignmentTypes.join(", ") || "any"}
 Full Skill Knowledge Base: ${applicant.allTags.join(", ") || "none"}
 
 ## EVALUATION
-Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints, and blocklist tags.`;
+Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types), and blocklist tags.`;
 }
 
 // =============================================================================

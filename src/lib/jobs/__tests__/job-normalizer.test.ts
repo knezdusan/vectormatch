@@ -302,13 +302,67 @@ describe("extractJobMetadata — Greenhouse", () => {
     expect(meta.workplaceType).toBe("remote");
   });
 
-  it("returns null workplaceType when location has no 'remote' keyword", () => {
+  it("returns null workplaceType when location has no workplace keyword", () => {
     const rawJson = JSON.stringify({
       title: "Engineer",
       location: { name: "New York, NY" },
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
     expect(meta.workplaceType).toBeNull();
+  });
+
+  it("detects hybrid from location string heuristic", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Hybrid - London, Berlin" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("detects hybrid case-insensitively", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "HYBRID - San Francisco" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("classifies 'Hybrid - Remote' as hybrid (not remote)", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Hybrid - Remote" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("detects on-site from 'on-site' keyword in location", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "On-site - New York" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+
+  it("detects on-site from 'onsite' keyword (no hyphen) in location", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Onsite - Berlin" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+
+  it("detects on-site from 'in-office' keyword in location", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "In-office - Tokyo" },
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
   });
 
   it("extracts department from departments array (with ?content=true)", () => {

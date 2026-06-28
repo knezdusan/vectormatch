@@ -145,7 +145,8 @@ export async function runGateSQLRouter(
   //
   // Logic:
   //   job.workplace_type = 'remote'    → applicant needs 'remote' or 'remote_local'
-  //   job.workplace_type = 'hybrid'    → applicant needs 'hybrid', 'remote', or 'remote_local'
+  //   job.workplace_type = 'hybrid'    → applicant needs 'hybrid' (NOT remote — hybrid
+  //                                      requires partial on-site presence)
   //   job.workplace_type = 'on-site'   → applicant needs 'on-site' or 'hybrid'
   //   job.workplace_type = NULL        → no filter (let through to Gate 3)
   //
@@ -194,7 +195,7 @@ export async function runGateSQLRouter(
             (jm.workplace_type = 'remote'
               AND ('remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
             OR (jm.workplace_type = 'hybrid'
-              AND ('hybrid' = ANY(a.assignment_types) OR 'remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
+              AND ('hybrid' = ANY(a.assignment_types)))
             OR (jm.workplace_type = 'on-site'
               AND ('on-site' = ANY(a.assignment_types) OR 'hybrid' = ANY(a.assignment_types)))
           )
@@ -265,7 +266,7 @@ async function runGate1Only(
             (jm.workplace_type = 'remote'
               AND ('remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
             OR (jm.workplace_type = 'hybrid'
-              AND ('hybrid' = ANY(a.assignment_types) OR 'remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types)))
+              AND ('hybrid' = ANY(a.assignment_types)))
             OR (jm.workplace_type = 'on-site'
               AND ('on-site' = ANY(a.assignment_types) OR 'hybrid' = ANY(a.assignment_types)))
           )

@@ -304,9 +304,18 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
       : null;
 
   // Workplace type — Greenhouse has no structured field. Use location heuristic.
+  // Check for "remote", "hybrid", and "on-site"/"in-office" keywords in the
+  // location name. Order matters: check "hybrid" before "remote" because some
+  // locations say "Hybrid - Remote" and should be classified as hybrid.
   let workplaceType: JobMetadata["workplaceType"] = null;
-  if (locationName && /remote/i.test(locationName)) {
-    workplaceType = "remote";
+  if (locationName) {
+    if (/hybrid/i.test(locationName)) {
+      workplaceType = "hybrid";
+    } else if (/remote/i.test(locationName)) {
+      workplaceType = "remote";
+    } else if (/on-?site|in-?office/i.test(locationName)) {
+      workplaceType = "on-site";
+    }
   }
 
   // Company name — undocumented but present in 100% of Greenhouse responses

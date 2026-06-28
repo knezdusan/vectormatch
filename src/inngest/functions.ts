@@ -784,6 +784,9 @@ export const gate3Evaluator = inngest.createFunction(
             rawJson: job.rawJson,
             atsSource: job.atsSource,
             extractedTags: job.extractedTags,
+            workplaceType: job.workplaceType,
+            locationName: job.locationName,
+            employmentType: job.employmentType,
           })
           .from(job)
           .where(eq(job.id, jobId))
@@ -837,6 +840,9 @@ export const gate3Evaluator = inngest.createFunction(
             title: jobRows[0].title,
             description: extracted.description,
             extractedTags: jobRows[0].extractedTags ?? [],
+            workplaceType: jobRows[0].workplaceType,
+            locationName: jobRows[0].locationName,
+            employmentType: jobRows[0].employmentType,
           },
           persona: {
             personaLabel: personaRows[0].personaLabel,

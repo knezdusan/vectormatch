@@ -40,6 +40,9 @@ const mockContext: Gate3Context = {
     description:
       "We are looking for a senior frontend engineer with React, TypeScript, and Next.js experience.",
     extractedTags: ["react", "typescript", "nextjs", "css"],
+    workplaceType: "remote",
+    locationName: "Remote - Global",
+    employmentType: "full-time",
   },
   persona: {
     personaLabel: "Senior React Developer",
@@ -100,6 +103,31 @@ describe("buildGate3Prompt", () => {
     expect(prompt).toContain("react, typescript, nextjs, css");
   });
 
+  it("includes job workplace type, location, and employment type", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Workplace Type: remote");
+    expect(prompt).toContain("Location: Remote - Global");
+    expect(prompt).toContain("Employment Type: full-time");
+  });
+
+  it("shows 'not specified' for null job metadata", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      job: {
+        ...mockContext.job,
+        workplaceType: null,
+        locationName: null,
+        employmentType: null,
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("Workplace Type: not specified");
+    expect(prompt).toContain("Location: not specified");
+    expect(prompt).toContain("Employment Type: not specified");
+  });
+
   it("includes persona label and embedding summary", () => {
     const prompt = buildGate3Prompt(mockContext);
 
@@ -135,7 +163,14 @@ describe("buildGate3Prompt", () => {
 
   it("handles empty arrays gracefully", () => {
     const ctx: Gate3Context = {
-      job: { title: "Job", description: "desc", extractedTags: [] },
+      job: {
+        title: "Job",
+        description: "desc",
+        extractedTags: [],
+        workplaceType: null,
+        locationName: null,
+        employmentType: null,
+      },
       persona: {
         personaLabel: "Persona",
         embeddingSummary: "summary",

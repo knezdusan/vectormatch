@@ -20,6 +20,7 @@
 //
 // Usage:
 //   INNGEST_EVENT_KEY=<your-real-key> npx tsx scripts/rerun-gates.ts
+//   INNGEST_EVENT_KEY=<your-real-key> npx tsx scripts/rerun-gates.ts --clean
 //
 // Expected outcome:
 //   - match_queue populated with candidates for all active jobs
@@ -43,6 +44,10 @@ async function main(): Promise<void> {
   );
   console.log("=".repeat(70));
   console.log();
+
+  // ── Parse CLI args ────────────────────────────────────────────────────────
+  const args = process.argv.slice(2);
+  const shouldClean = args.includes("--clean");
 
   // ── Validate environment ──────────────────────────────────────────────────
   if (process.env.INNGEST_DEV === "1") {
@@ -75,6 +80,16 @@ async function main(): Promise<void> {
   console.log(`Weights:   GATE1=${GATE1_WEIGHT}  GATE2=${GATE2_WEIGHT}`);
   console.log(`Limit:     GATE_ROUTER_LIMIT = ${GATE_ROUTER_LIMIT}`);
   console.log();
+
+  // ── Optional: clean match_queue before rerun ──────────────────────────────
+  // When filter logic or thresholds change, old verdicts may be stale.
+  // --clean truncates match_queue so all candidates get fresh Gate 3 evaluation.
+  if (shouldClean) {
+    console.log("⚠️  --clean flag set: truncating match_queue...");
+    await db.execute(sql`TRUNCATE TABLE match_queue`);
+    console.log("   match_queue truncated.");
+    console.log();
+  }
 
   // ── Bulk Gate 1+2 query ───────────────────────────────────────────────────
   // This query processes ALL active+embedded jobs in a single SQL statement.
@@ -131,7 +146,7 @@ async function main(): Promise<void> {
           )
           OR (
             j.workplace_type = 'hybrid'
-            AND ('hybrid' = ANY(a.assignment_types) OR 'remote' = ANY(a.assignment_types) OR 'remote_local' = ANY(a.assignment_types))
+            AND ('hybrid' = ANY(a.assignment_types))
           )
           OR (
             j.workplace_type = 'on-site'
