@@ -50,6 +50,7 @@ const mockContext: Gate3Context = {
       "Senior frontend engineer with 6 years building React applications. Deep expertise in Next.js App Router, TypeScript, and modern CSS.",
     mustHaveTags: ["react", "nextjs", "typescript", "javascript", "css"],
     blocklistTags: [],
+    seniorityLevels: ["senior"],
   },
   applicant: {
     allTags: [
@@ -152,6 +153,22 @@ describe("buildGate3Prompt", () => {
     expect(prompt).toContain("remote");
   });
 
+  it("includes persona seniority levels in persona section", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Preferred Seniority Levels: senior");
+  });
+
+  it("shows 'any' for empty persona seniority levels", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      persona: { ...mockContext.persona, seniorityLevels: [] },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("Preferred Seniority Levels: any");
+  });
+
   it("includes applicant full skill knowledge base", () => {
     const prompt = buildGate3Prompt(mockContext);
 
@@ -176,6 +193,7 @@ describe("buildGate3Prompt", () => {
         embeddingSummary: "summary",
         mustHaveTags: [],
         blocklistTags: [],
+        seniorityLevels: [],
       },
       applicant: {
         allTags: [],

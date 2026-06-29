@@ -1,0 +1,2 @@
+CREATE TYPE "public"."seniority_level" AS ENUM('junior', 'mid', 'senior', 'lead', 'staff', 'principal');--> statement-breakpoint
+ALTER TABLE "applicant" ADD COLUMN "seniority_levels" "seniority_level"[];

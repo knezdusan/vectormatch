@@ -129,3 +129,93 @@ describe("isPersonaDefining", () => {
     expect(isPersonaDefining("terraform")).toBe(false);
   });
 });
+
+describe("AI/ML tags (2025-2026 expansion)", () => {
+  it("includes key LLM frameworks as supporting tags", () => {
+    expect(CANONICAL_TAG_MAP.has("langgraph")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("llamaindex")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("crewai")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("vercel-ai-sdk")).toBe(true);
+    // All frameworks are supporting — "LangChain Developer" is not a job title
+    expect(isPersonaDefining("langgraph")).toBe(false);
+    expect(isPersonaDefining("llamaindex")).toBe(false);
+  });
+
+  it("includes LLM provider APIs as supporting tags", () => {
+    expect(CANONICAL_TAG_MAP.has("anthropic")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("gemini")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("mistral")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("cohere")).toBe(true);
+    // Providers are supporting — "OpenAI Developer" is not a job title
+    expect(isPersonaDefining("anthropic")).toBe(false);
+  });
+
+  it("includes vector databases as supporting tags", () => {
+    expect(CANONICAL_TAG_MAP.has("pinecone")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("weaviate")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("chromadb")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("pgvector")).toBe(true);
+    // Vector DBs are supporting — follows same pattern as traditional DBs
+    expect(isPersonaDefining("pinecone")).toBe(false);
+  });
+
+  it("marks RAG as persona_defining (RAG Engineer is a job title)", () => {
+    expect(CANONICAL_TAG_MAP.has("rag")).toBe(true);
+    expect(isPersonaDefining("rag")).toBe(true);
+  });
+
+  it("marks prompt-engineering as persona_defining (Prompt Engineer is a job title)", () => {
+    expect(CANONICAL_TAG_MAP.has("prompt-engineering")).toBe(true);
+    expect(isPersonaDefining("prompt-engineering")).toBe(true);
+  });
+
+  it("includes AI infrastructure tools as supporting", () => {
+    expect(CANONICAL_TAG_MAP.has("vllm")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("ollama")).toBe(true);
+    expect(isPersonaDefining("vllm")).toBe(false);
+  });
+
+  it("includes AI evaluation/observability tools", () => {
+    expect(CANONICAL_TAG_MAP.has("langsmith")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("langfuse")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("weights-and-biases")).toBe(true);
+  });
+
+  it("includes AI methodologies", () => {
+    expect(CANONICAL_TAG_MAP.has("ai-agents")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("function-calling")).toBe(true);
+    expect(CANONICAL_TAG_MAP.has("mcp")).toBe(true);
+    // AI agents is a pattern, not a standalone identity
+    expect(isPersonaDefining("ai-agents")).toBe(false);
+  });
+
+  it("all new AI tags have valid categories", () => {
+    const newAiTags = [
+      "langgraph",
+      "llamaindex",
+      "crewai",
+      "vercel-ai-sdk",
+      "anthropic",
+      "gemini",
+      "pinecone",
+      "weaviate",
+      "pgvector",
+      "vllm",
+      "ollama",
+      "rag",
+      "prompt-engineering",
+      "ai-agents",
+      "mcp",
+      "langsmith",
+      "langfuse",
+      "lora",
+      "github-copilot",
+      "cursor",
+    ];
+    for (const slug of newAiTags) {
+      const tag = CANONICAL_TAG_MAP.get(slug);
+      expect(tag).toBeDefined();
+      expect(tag?.label.length).toBeGreaterThan(0);
+    }
+  });
+});

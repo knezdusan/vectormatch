@@ -99,6 +99,14 @@ export const resumeExtractionSchema = z
       .array(schema1ProposedStack)
       .min(1, "At least 1 proposed stack is required")
       .max(2, "At most 2 proposed stacks"),
+
+    // LLM-inferred seniority level — pre-selects the seniority checkbox in
+    // the onboarding form. The user can adjust or add more levels.
+    inferred_seniority: z
+      .enum(["junior", "mid", "senior", "lead", "staff", "principal"])
+      .describe(
+        "The applicant's inferred seniority level based on years of experience and role titles in the CV",
+      ),
   })
   // Q8 decision: .refine() ensures the LLM obeys the "at least one
   // persona_defining tag" rule for each proposed stack.
@@ -171,6 +179,65 @@ export const preferredComplianceEnum = z.enum([
   "w8ben",
   "ic_global",
 ]);
+export const seniorityLevelsEnum = z.enum([
+  "junior",
+  "mid",
+  "senior",
+  "lead",
+  "staff",
+  "principal",
+]);
+
+/**
+ * The canonical ordering of seniority levels (junior → principal).
+ * Used by validateAdjacentSeniority to check that selected levels are
+ * consecutive (no gaps) and at most 3.
+ */
+export const SENIORITY_ORDER: readonly SeniorityLevel[] = [
+  "junior",
+  "mid",
+  "senior",
+  "lead",
+  "staff",
+  "principal",
+] as const;
+
+/**
+ * Validate that a set of seniority levels is:
+ *   1. At most 3 selected
+ *   2. Consecutive (adjacent) in the SENIORITY_ORDER — no gaps
+ *
+ * Returns null if valid, or an error message string.
+ *
+ * Examples:
+ *   ["senior"]                    → null (valid, 1 level)
+ *   ["senior", "lead"]            → null (valid, 2 adjacent)
+ *   ["mid", "senior", "lead"]     → null (valid, 3 adjacent)
+ *   ["junior", "senior"]          → "must be consecutive" (gap: mid missing)
+ *   ["junior", "mid", "senior", "lead"] → "at most 3" (4 selected)
+ *   []                            → null (empty is valid; Gate 3 treats as "any")
+ */
+export function validateAdjacentSeniority(levels: string[]): string | null {
+  if (levels.length === 0) return null;
+  if (levels.length > 3) {
+    return "Select at most 3 seniority levels per persona";
+  }
+  // Map each level to its index in SENIORITY_ORDER
+  const indices = levels
+    .map((l) => SENIORITY_ORDER.indexOf(l as SeniorityLevel))
+    .filter((i) => i >= 0)
+    .sort((a, b) => a - b);
+  if (indices.length !== levels.length) {
+    return "Invalid seniority level";
+  }
+  // Check consecutiveness: each index should be prev + 1
+  for (let i = 1; i < indices.length; i++) {
+    if (indices[i] !== indices[i - 1] + 1) {
+      return "Selected seniority levels must be consecutive (e.g., mid, senior, lead — not junior, senior)";
+    }
+  }
+  return null;
+}
 
 const schema2WorkHistoryEntry = z.object({
   company: z.string().min(1, "Company is required"),
@@ -199,6 +266,10 @@ const schema2Persona = z.object({
     .array(z.string())
     .length(5, "Each persona must have exactly 5 mustHaveTags"),
   blocklistTags: z.array(z.string()).default([]),
+  // Per-persona seniority levels — drives Gate 3 matching. Max 3, must be
+  // consecutive (adjacent) in the seniority enum ordering. Initialized from
+  // the applicant's inferred seniority during onboarding.
+  seniorityLevels: z.array(seniorityLevelsEnum).max(3).default([]),
 });
 
 export const onboardingPayloadSchema = z
@@ -217,6 +288,9 @@ export const onboardingPayloadSchema = z
     preferredCompliance: z
       .array(preferredComplianceEnum)
       .min(1, "At least 1 compliance preference is required"),
+    seniorityLevels: z
+      .array(seniorityLevelsEnum)
+      .min(1, "At least 1 seniority level is required"),
 
     // LLM-extracted, user-confirmed
     cvUploadId: z.string().uuid("cvUploadId must be a valid UUID"),
@@ -240,6 +314,18 @@ export const onboardingPayloadSchema = z
       message:
         "Each persona must contain at least 1 persona_defining tag in mustHaveTags",
     },
+  )
+  // Each persona's seniority levels must be ≤3 and consecutive (adjacent)
+  .refine(
+    (data) =>
+      data.personas.every(
+        (persona) =>
+          validateAdjacentSeniority(persona.seniorityLevels ?? []) === null,
+      ),
+    {
+      message:
+        "Each persona's seniority levels must be at most 3 and consecutive (e.g., mid, senior, lead)",
+    },
   );
 
 export type OnboardingPayload = z.infer<typeof onboardingPayloadSchema>;
@@ -249,6 +335,7 @@ export type Schema2Persona = z.infer<typeof schema2Persona>;
 export type AssignmentType = z.infer<typeof assignmentTypesEnum>;
 export type Modality = z.infer<typeof modalitiesEnum>;
 export type PreferredCompliance = z.infer<typeof preferredComplianceEnum>;
+export type SeniorityLevel = z.infer<typeof seniorityLevelsEnum>;
 
 // =============================================================================
 // CV VALIDITY CHECKS (Pre-LLM)

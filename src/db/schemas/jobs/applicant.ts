@@ -4,7 +4,12 @@ import { createInsertSchema } from "drizzle-zod";
 import type { z } from "zod";
 
 import { user } from "../auth/user";
-import { assignmentTypeEnum, complianceEnum, modalityEnum } from "./enums";
+import {
+  assignmentTypeEnum,
+  complianceEnum,
+  modalityEnum,
+  seniorityLevelEnum,
+} from "./enums";
 
 export const applicant = pgTable("applicant", {
   // 1:1 Relationship constraint & Primary Key
@@ -19,6 +24,13 @@ export const applicant = pgTable("applicant", {
   assignmentTypes: assignmentTypeEnum("assignment_types").array(),
   modalities: modalityEnum("modalities").array(),
   preferredCompliance: complianceEnum("preferred_compliance").array(),
+
+  // Seniority levels the applicant wants to match against. Pre-selected from
+  // the LLM-inferred level during CV parsing; user can adjust in onboarding
+  // and profile management. Multi-select so users can match multiple levels
+  // (e.g., "senior" + "lead"). Gate 3 LLM checks the job's inferred seniority
+  // against this list.
+  seniorityLevels: seniorityLevelEnum("seniority_levels").array(),
 
   // The global knowledge base for Gate 3 LLM evaluation
   allTags: text("all_tags").array().notNull().default(sql`'{}'::text[]`),

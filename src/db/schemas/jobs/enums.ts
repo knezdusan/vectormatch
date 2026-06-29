@@ -41,6 +41,22 @@ export const complianceEnum = pgEnum("compliance", [
   "ic_global", // International Solo Contractor for non-US Client (filing taxes locally)
 ]);
 
+// Seniority levels for applicant job matching preferences.
+// The applicant can select multiple levels — jobs whose inferred seniority
+// matches ANY of the selected levels will pass Gate 3. The LLM infers the
+// applicant's primary seniority from the CV during onboarding (stored in
+// cvUpload.extractedJson.inferred_seniority), and the user can adjust
+// the preselected level(s) or add more during onboarding and in profile
+// management.
+export const seniorityLevelEnum = pgEnum("seniority_level", [
+  "junior",
+  "mid",
+  "senior",
+  "lead",
+  "staff",
+  "principal",
+]);
+
 // CV upload lifecycle status — drives the onboarding state machine
 // (see Module A §2d: State 1 → State 2 transition logic)
 export const cvUploadStatusEnum = pgEnum("cv_upload_status", [

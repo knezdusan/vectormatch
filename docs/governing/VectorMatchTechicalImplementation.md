@@ -70,6 +70,22 @@ export const complianceEnum = pgEnum("compliance", [
   "ic_global", // International Solo Contractor for non-US Client (filing taxes locally)
 ]);
 
+// Seniority levels for applicant job matching preferences (added June 28 2026).
+// The applicant can select multiple levels — jobs whose inferred seniority
+// matches ANY of the selected levels will pass Gate 3. The LLM infers the
+// applicant's primary seniority from the CV during onboarding (stored in
+// cvUpload.extractedJson.inferred_seniority), and the user can adjust
+// the preselected level(s) or add more during onboarding and in profile
+// management.
+export const seniorityLevelEnum = pgEnum("seniority_level", [
+  "junior",
+  "mid",
+  "senior",
+  "lead",
+  "staff",
+  "principal",
+]);
+
 
 // 1. APPLICANT TABLE (1:1 with User)
 // src/db/schemas/jobs/applicant.ts
@@ -87,6 +103,13 @@ export const applicant = pgTable("applicant", {
   assignmentTypes: assignmentTypeEnum("assignment_types").array(),
   modalities: modalityEnum("modalities").array(),
   preferredCompliance: complianceEnum("preferred_compliance").array(),
+
+  // Seniority levels the applicant wants to match against (added June 28 2026).
+  // Pre-selected from the LLM-inferred level during CV parsing; user can adjust
+  // in onboarding and profile management. Multi-select so users can match
+  // multiple levels (e.g., "senior" + "lead"). Gate 3 LLM checks the job's
+  // inferred seniority against this list.
+  seniorityLevels: seniorityLevelEnum("seniority_levels").array(),
 
   // The global knowledge base for Gate 3 LLM evaluation
   allTags: text("all_tags").array().notNull().default(sql`'{}'::text[]`),
@@ -235,6 +258,11 @@ export const matchQueue = pgTable(
     llmBlockers: text("llm_blockers").array(),
     // Which model evaluated: gpt-4o-mini (MVP) | gpt-4o (escalation, post-MVP).
     llmModel: text("llm_model"),
+    // Which Gate 3 prompt variant was used for this evaluation (added June 28 2026).
+    // Used for A/B testing prompt variations to optimize approval rates.
+    // Values: "balanced" | "strict" | "thorough". Null for rows evaluated
+    // before the A/B test feature was deployed.
+    promptVariant: text("prompt_variant"),
     // When Gate 3 ran. Null until Gate 3 completes.
     evaluatedAt: timestamp("evaluated_at"),
     // In-app notification badge. Defaults to false; set true when user views the match.
@@ -357,12 +385,23 @@ Module A defines three distinct schemas that must not be conflated:
 
 **Design principle:** The LLM returns raw `roles[]` data with date ranges. The server computes `yearsOfExperience` from merged date ranges — the LLM does NOT return a top-level `calculated_years_of_experience`. The LLM shows its work; the math is done in TypeScript. This is the anti-hallucination principle.
 
+**Seniority inference (added June 28 2026, updated July 2026):** Schema 1 now includes `inferred_seniority` — a single enum value (`junior | mid | senior | lead | staff | principal`) that the LLM infers from the CV's years of experience, role titles, and career progression. This value pre-selects the seniority checkbox in the onboarding form (Schema 2's `seniorityLevels` array on the applicant level). The user can adjust or add more levels.
+
+**Per-persona seniority (added July 2026):** Seniority levels are now defined per-persona, not just per-applicant. The `applicant.seniorityLevels` field remains as the onboarding default that pre-populates each persona's `seniorityLevels` during signup. Each persona has its own `seniorityLevels` array in the `persona` table, editable independently in profile management. Gate 3 now uses `Gate3Context.persona.seniorityLevels` (not `applicant.seniorityLevels`) to check the job's inferred seniority — this allows the same applicant to have different seniority levels for different personas (e.g., senior for React, mid for PHP). Validation: max 3 consecutive (adjacent) levels per persona, enforced by `validateAdjacentSeniority()`.
+
+**Schema 1 additions (June 28 2026):**
+- `inferred_seniority`: `z.enum(["junior", "mid", "senior", "lead", "staff", "principal"])` — LLM-inferred seniority level.
+
+**Schema 2 additions (June 28 2026, updated July 2026):**
+- `seniorityLevels` (applicant level): `z.array(seniorityLevelsEnum).min(1)` — user-validated seniority levels (onboarding default).
+- `seniorityLevels` (persona level): `z.array(seniorityLevelsEnum).max(3).default([])` — per-persona seniority levels for Gate 3 matching. Must be ≤3 and consecutive (adjacent).
+
 ### 3.2 CANONICAL_TAGS & CANONICAL_ROLES (The Taxonomy Layer)
 
 Two typed constant arrays govern tag and role normalization:
 
 **CANONICAL_TAGS** (`src/lib/jobs/tech-tags.ts`):
-- 144 entries (initial implementation, target ~300 after real-CV testing)
+- 146 entries (initial 144 + `wordpress` and `docker` added June 28 2026 for PHP/Laravel persona support; target ~300 after real-CV testing)
 - Each entry: `{ tag, label, classification, category }`
 - `classification`: `"persona_defining"` (can anchor a persona identity, e.g., `react`) or `"supporting"` (enhances but doesn't define, e.g., `css`)
 - `category`: `"language" | "frontend" | "backend" | "database" | "devops" | "library" | "mobile" | "methodology"`
@@ -565,7 +604,7 @@ The Inngest v4 SDK provides the durable execution layer for all background jobs,
 | File | Purpose |
 |------|---------|
 | `src/inngest/client.ts` | Typed Inngest client (`id: "vectormatch"`) with `VectorMatchEvents` catalog. Re-exports as `inngest`. |
-| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`. |
+| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`, `gate3Evaluator`, `pendingQueueSweep` (cron every 15 min — picks up stuck pending rows), `personaUpdatedHandler` (event-driven — re-evaluates rejected matches when persona tags change), `cleanupOrphanedCvUploads`, `companyRevivalSweep`, `normalizationRetrySweep`, `tierActiveFanOut`, `tierDormantFanOut`, `pollCompanyFn`. 16 functions total. |
 | `src/inngest/index.ts` | Barrel exports for clean imports (`@/inngest`). |
 | `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) with `maxDuration: 300`. |
 | `docs/reports/inngest-agent-resources.md` | Coding agent reference: LLM docs, MCP, CLI debugging, AI patterns (`step.ai.wrap`, `step.ai.infer`). |
@@ -1294,20 +1333,22 @@ Module B (Poller)                          Module C (Router)
 
 ---
 
-## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Synthetic-Data Calibrated]`
+## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
 
 **Goal:** Solve the O(N*M) compute cost problem using Inngest and Postgres.
 
 **Implementation reference:** `docs/reports/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/reports/calibration-report.md`.
 
-**Feature breakdown (7 features, all implemented):**
-- **C0** — Schema & contracts hardening: `matchQueue` columns, `job.status` values, `normalizedAt`, Module C event types, `matching-config.ts`, `db.ts` pooler guard.
+**Feature breakdown (9 features, all implemented):**
+- **C0** — Schema & contracts hardening: `matchQueue` columns (including `promptVariant`), `job.status` values, `normalizedAt`, Module C event types (`match/gate-3-evaluate`, `match/approved`, `persona/updated`), `matching-config.ts`, `db.ts` pooler guard, `seniority_level` enum + `applicant.seniority_levels` column.
 - **C1** — Job normalization: `job-normalizer.ts` + `job-embedder.ts`, wired into `jobIngestedHandler`.
 - **C5** — Seed script: `scripts/seed-routing-engine.ts` (synthetic data for calibration).
-- **C2** — Gate 1+2 SQL router: `gate-1-2.ts`, wired into `jobIngestedHandler`.
-- **C3** — Gate 3 LLM evaluator: `gate-3.ts` + `gate3Evaluator` Inngest function.
+- **C2** — Gate 1+2 SQL router: `gate-1-2.ts` with workplace type pre-filter, wired into `jobIngestedHandler`.
+- **C3** — Gate 3 LLM evaluator: `gate-3.ts` (3 A/B test prompt variants, seniority-aware matching, country-specific remote checks) + `gate3Evaluator` Inngest function.
+- **C3b** — Gate 3 feedback loop: `pendingQueueSweep` (cron every 15 min) + `personaUpdatedHandler` (event-driven re-evaluation). Added June 28 2026.
 - **C4** — Dashboard query layer + UI: `dashboard-queries.ts` (status-filtered queries, pagination, resilient unread badge) + `matches.ts` Server Actions + `/dashboard/jobs` list page + `/dashboard/jobs/[matchId]` detail page + sidebar unread badge.
-- **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/reports/calibration-report.md`.
+- **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/reports/calibration-report.md` + yield analysis (June 28 2026).
+- **C7** — Persona consolidation & diversification: 3 TypeScript personas consolidated to 2 distinct + 1 new PHP/Laravel persona. `CANONICAL_TAGS` expanded to 146 entries (added `wordpress`, `docker`). Added June 28 2026.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -1364,10 +1405,18 @@ await db.execute(sql`
 **Config values** (`src/lib/jobs/matching-config.ts`):
 | Constant | Value | Calibration Status |
 |---|---|---|
-| `GATE2_MAX_COSINE_DISTANCE` | `0.55` | Calibrated against real data (June 25 2026). Real embeddings cluster at 0.45–0.60 minimum distance (text-embedding-3-small produces wider spread on real job descriptions than synthetic Gaussian noise). At 0.55, the funnel produces relevant candidates without excessive false positives. Previous value 0.35 blocked all real matches. |
+| `GATE2_MAX_COSINE_DISTANCE` | `0.48` | Calibrated against real data (June 28 2026 yield analysis). Tightened from 0.55 to 0.48 to cut LLM costs while retaining strong matches. At 0.55, the funnel produced 160 candidates (85% were weak matches that Gate 3 rejected). At 0.48, the funnel produces 24 candidates — an 85% reduction in LLM calls with no loss of true positives. All candidates now have cosine distance < 0.48 (strong semantic matches). Previous values: 0.55 (June 25 2026), 0.35 (blocked all real matches). |
 | `GATE_ROUTER_LIMIT` | `8` | Uncalibrated — doing all filtering on synthetic data. |
 | `GATE1_WEIGHT` | `0.6` | Uncalibrated guess. |
 | `GATE2_WEIGHT` | `0.4` | Uncalibrated guess. `GATE1_WEIGHT + GATE2_WEIGHT = 1.0`. |
+
+**Workplace type pre-filter (added June 28 2026):** The Gate 1+2 SQL now includes a `workplace_type` filter that joins `applicant.assignment_types` against `job.workplace_type`:
+- `workplace_type = 'remote'` → requires `remote` or `remote_local` in applicant's assignment types
+- `workplace_type = 'hybrid'` → requires `hybrid` in applicant's assignment types
+- `workplace_type = 'on-site'` → requires `on-site` or `hybrid` in applicant's assignment types
+- `workplace_type IS NULL` → no filter (job posting didn't specify)
+
+This pre-filter eliminates on-site/hybrid jobs for remote-only applicants BEFORE the LLM call, saving Gate 3 costs on obvious mismatches.
 
 **Edge cases handled:**
 - Empty `jobTags`: Skip Gate 1, rely on Gate 2 alone. Log warning.
@@ -1382,12 +1431,39 @@ await db.execute(sql`
 *   `jobIngestedHandler` fans out one `match/gate-3-evaluate` Inngest event per candidate row inserted by Gate 1+2. The `gate3Evaluator` function in `src/inngest/functions.ts` receives these events.
 *   **One event per candidate** (not a batch) — maximum parallelism, maximum failure isolation. If one candidate's LLM call fails, the others are unaffected.
 *   `src/lib/jobs/gate-3.ts`:
-    *   `buildGate3Prompt` constructs a structured prompt with: job title + description + extracted tags, persona label + embedding summary + must-have/blocklist tags, and applicant constraints (country, work hours, compliance, modalities, assignment types).
+    *   `buildGate3Prompt` constructs a structured prompt with: job title + description + extracted tags, persona label + embedding summary + must-have/blocklist tags, and applicant constraints (country, work hours, compliance, modalities, assignment types, **seniority levels**).
     *   `evaluateGate3` calls `gpt-4o-mini` via Vercel AI SDK `generateObject` with a strict Zod schema (`gate3VerdictSchema`): verdict (`approved`/`rejected`), confidence (0.0–1.0), reasoning (1–3 sentences), and blockers (array of strings).
     *   `mapVerdict` maps the LLM verdict to `match_queue` status.
-*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted. The `llm_confidence` and `llm_blockers` columns (migrations `0010` + `0011`) persist the LLM's actual confidence score and rejection reasons — critical for calibration via the dashboard UI.
+*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `prompt_variant`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted. The `llm_confidence` and `llm_blockers` columns (migrations `0010` + `0011`) persist the LLM's actual confidence score and rejection reasons — critical for calibration via the dashboard UI.
 *   **`match/approved` event:** MVP — nothing listens (dashboard polls `match_queue` directly). Defined now so Module D (cold email generation) has a stable contract post-MVP.
-*   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by a future sweep that re-emits `match/gate-3-evaluate` for `pending` rows older than N hours (not built in MVP — error rows are rare with `generateObject` + Zod enforcement).
+*   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by the `pendingQueueSweep` Inngest function (see below).
+
+**Seniority-aware matching (added June 28 2026, updated July 2026):**
+The `Gate3Context` type now includes `persona.seniorityLevels` — the per-persona seniority levels from `persona.seniority_levels`. The `buildGate3Prompt` function includes these in the persona section (not the applicant section), and all three prompt variants instruct the LLM to check the job's inferred seniority against this list and reject mismatches. If `persona.seniorityLevels` is empty, the LLM treats it as "any" and does not reject on seniority. This addresses the yield analysis finding that seniority mismatch was a top-3 rejection reason, and the per-persona design allows the same applicant to have different seniority levels for different tech stacks (e.g., senior for React/Next.js, mid for PHP/Laravel). The `applicant.seniorityLevels` field remains as the onboarding default that pre-populates persona seniority during signup.
+
+**A/B test prompt variants (added June 28 2026):**
+Gate 3 now supports three prompt variants for A/B testing approval rates:
+- **`balanced`** (control): The default prompt, balanced between precision and recall.
+- **`strict`**: More conservative — requires ≥2 of the persona's must-have tags in the job's core required skills, and only approves if highly confident.
+- **`thorough`**: More detailed reasoning — considers transferable skills, doesn't reject solely on years-of-experience differences, and leans toward approving when the core tech stack aligns with no hard blockers.
+
+The `gate3Evaluator` Inngest function randomly assigns a variant per candidate via `pickPromptVariant()` and stores it in `matchQueue.promptVariant`. After enough data is collected, analyze approval rates per variant:
+```sql
+SELECT prompt_variant, COUNT(*) FILTER (WHERE status='approved') AS approved,
+       COUNT(*) AS total,
+       ROUND(COUNT(*) FILTER (WHERE status='approved')::numeric / COUNT(*) * 100, 1) AS approval_pct
+FROM match_queue WHERE prompt_variant IS NOT NULL GROUP BY prompt_variant;
+```
+
+**Country-specific remote restrictions (added June 28 2026):**
+All three prompt variants now explicitly instruct the LLM to scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's country doesn't match, this is a HARD BLOCKER. This addresses the yield analysis finding that location mismatch was the #1 rejection reason — many remote jobs restrict applications to specific countries/regions.
+
+**Gate 3 feedback loop (added June 28 2026):**
+Two new Inngest functions provide resilience and re-evaluation:
+
+1. **`pendingQueueSweep`** (cron every 15 minutes): Finds `match_queue` rows stuck in `pending` status for >10 minutes and emits `match/gate-3-evaluate` events for them. This handles cases where the original Gate 3 event was lost (e.g. script ran without Inngest event key, or an event was dropped). Without this sweep, pending rows would sit forever.
+
+2. **`personaUpdatedHandler`** (event: `persona/updated`): When a user updates their persona's `must_have_tags`, `blocklist_tags`, or `embedding_summary` via `updatePersonasAction`, the action emits a `persona/updated` Inngest event. This function finds all `rejected` match_queue rows for that persona (where the job is still active), resets them to `pending`, and emits `match/gate-3-evaluate` events for re-evaluation. Limited to 50 re-evaluations per persona update to control LLM costs. This closes the feedback loop — when a user adjusts their persona to be more permissive or changes their tag emphasis, previously rejected jobs get a second chance.
 *   Inngest concurrency is capped to max 5 (Inngest free plan limit, June 2026).
 The original limit of 50 existed to prevent Vercel's 340-second idle-connection
 limit from severing fanned-out function instances. Under Module E, there is no
@@ -1471,6 +1547,21 @@ The dashboard UI was built specifically as the calibration debugging interface. 
 - Threshold raised to `0.55` — produces relevant candidates without excessive false positives. See `docs/reports/calibration-report.md` §8 for details.
 - Cross-posting duplication: 19% of active jobs (449/2,348) were ATS duplicates (same title, different `external_job_id`). Fixed via `NOT EXISTS` dedup in Gate 1+2.
 - First real approved matches: 5 distinct jobs (Palantir ×2, Mapbox ×2, Teramind ×1) matched to Full-Stack TypeScript Engineer persona.
+
+**Key findings (yield analysis, June 28 2026 — 449 companies, 4,086 active jobs, 3 personas):**
+- **Gate 2 threshold tightened from 0.55 to 0.48.** At 0.55, the funnel produced 160 candidates but Gate 3 rejected 85% of them (mostly weak semantic matches). At 0.48, the funnel produces 24 candidates — an 85% reduction in LLM calls with no loss of true positives. All 24 candidates have cosine distance < 0.48 (strong semantic matches, avg 0.4255, min 0.3213).
+- **Top Gate 3 rejection reasons (ranked):**
+  1. **Location mismatch** (38%): Remote jobs restricted to specific countries (e.g., "remote (US only)") that don't match the applicant's country. → Fixed by adding country-specific remote check to all Gate 3 prompt variants.
+  2. **Wrong tech stack** (24%): Jobs that passed Gate 1+2 on tag overlap but whose core required skills don't align with the persona. → Partially addressed by the "strict" A/B test variant which requires ≥2 must-have tags in core skills.
+  3. **Seniority mismatch** (18%): Senior persona matched against mid-level jobs or vice versa. → Fixed by adding `seniorityLevels` to the applicant schema and Gate 3 context.
+  4. **Role type mismatch** (12%): Full-stack persona matched against frontend-only or backend-only roles. → Addressed by persona consolidation (3 → 2 distinct TypeScript personas).
+  5. **Other** (8%): Blocklist tags, domain irrelevance, etc.
+- **Persona consolidation (3 → 2 TypeScript + 1 PHP/Laravel):** The "Senior React Engineer" persona (tags: typescript, react, nodejs, graphql, zustand) had 34 candidates and 0 approvals. Root cause: niche tags (graphql, zustand) created a mismatch impression for standard React jobs. Consolidated into:
+  1. **Full-Stack TypeScript Engineer** (typescript, react, nodejs, postgresql, docker) — broad full-stack coverage
+  2. **Senior Frontend React Engineer** (typescript, react, nextjs, tailwindcss, graphql) — frontend-focused coverage
+  3. **PHP/Laravel Developer** (php, laravel, mysql, wordpress, javascript) — new persona for diversified job matching (0 candidates in current corpus — expected, corpus is TypeScript-focused)
+- **CANONICAL_TAGS expanded:** Added `wordpress` (persona_defining, backend) and `docker` (persona_defining, devops) to support the new PHP/Laravel persona and full-stack persona. Total: 146 entries.
+- **Company corpus is the bottleneck:** At 449 companies (~29 new jobs/day), the funnel produces ~1-2 approved matches/week. Quadrupling to 1,800+ companies would produce ~4-8 approved matches/week. See `docs/governing/company-corpus-expansion-prompt.md` for the dedicated expansion session plan.
 
 **Full report:** `docs/reports/calibration-report.md`
 

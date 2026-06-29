@@ -74,6 +74,7 @@ export type Gate3Context = {
     embeddingSummary: string;
     mustHaveTags: string[];
     blocklistTags: string[];
+    seniorityLevels: string[];
   };
   applicant: {
     allTags: string[];
@@ -95,10 +96,11 @@ Your job is to make a precise yes/no decision. You are the final gate — the ca
 
 EVALUATION CRITERIA:
 1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job (even if both are "frontend"). NOTE: Extracted tags are produced by an automated normalizer and may be incomplete — always check the job description for skills that may not appear in the extracted tags. Missing tags are a soft signal, not a hard blocker; the description is the source of truth.
-2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" or "7+ years" and the job asks for "8+ years" — the stated number is a minimum in the persona summary, not a maximum. A persona with "7+ years" can qualify for a role asking 8+ years. Only reject on seniority if the gap is extreme (e.g., junior persona vs. principal/staff role requiring 12+ years).
+2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" or "7+ years" and the job asks for "8+ years" — the stated number is a minimum in the persona summary, not a maximum. A persona with "7+ years" can qualify for a role asking 8+ years. Only reject on seniority if the gap is extreme (e.g., junior persona vs. principal/staff role requiring 12+ years). If the persona has specified preferred seniority levels, only reject if the job's inferred seniority is NOT among the persona's selected levels. If the persona's seniority levels are empty or "any", do not reject on seniority.
 3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. If the job's Workplace Type is "on-site" and the applicant's assignment types do not include "on-site", that's a hard blocker. If the job's Workplace Type is "hybrid" and the applicant's assignment types do not include "hybrid", that's a hard blocker. If Workplace Type is null, infer from the location and description but do not assume remote — check carefully. Also check modalities and compliance preferences.
-4. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
-5. **Domain relevance**: Is the job in a domain the persona would plausibly work in? A React developer persona should match a SaaS frontend job, not a React Native game dev job (unless the persona explicitly mentions mobile).
+4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match the job's remote geographic restriction, this is a HARD BLOCKER — list it as "remote restricted to [country/region], applicant is in [applicant country]". This check is critical: a remote job that only accepts US-based applicants should NOT match an applicant located in Serbia, even if all other criteria align perfectly.
+5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
+6. **Domain relevance**: Is the job in a domain the persona would plausibly work in? A React developer persona should match a SaaS frontend job, not a React Native game dev job (unless the persona explicitly mentions mobile).
 
 OUTPUT RULES:
 - Be conservative: only approve if you are confident this is a strong match. False positives waste the user's time; false negatives just mean the user sees fewer matches.
@@ -134,6 +136,7 @@ Label: ${persona.personaLabel}
 Self-Description: ${persona.embeddingSummary}
 Must-Have Tags: ${persona.mustHaveTags.join(", ") || "none"}
 Blocklist Tags: ${persona.blocklistTags.join(", ") || "none"}
+Preferred Seniority Levels: ${persona.seniorityLevels.join(", ") || "any"}
 
 ## APPLICANT HARD CONSTRAINTS
 Country: ${applicant.country ?? "not specified"}
@@ -144,7 +147,81 @@ Assignment Types: ${applicant.assignmentTypes.join(", ") || "any"}
 Full Skill Knowledge Base: ${applicant.allTags.join(", ") || "none"}
 
 ## EVALUATION
-Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types), and blocklist tags.`;
+Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types and country-specific remote restrictions), and blocklist tags.`;
+}
+
+// =============================================================================
+// A/B TEST PROMPT VARIANTS (P6)
+// =============================================================================
+// Three prompt variants for A/B testing Gate 3 approval rates:
+//   - "balanced" (control): the default prompt, balanced between precision and recall
+//   - "strict": more conservative, higher precision, lower recall
+//   - "thorough": more detailed reasoning, may catch nuances the balanced prompt misses
+//
+// The variant is randomly assigned per candidate and stored in matchQueue.promptVariant.
+// After enough data is collected, analyze approval rates per variant:
+//   SELECT prompt_variant, COUNT(*) FILTER (WHERE status='approved') AS approved,
+//          COUNT(*) AS total,
+//          ROUND(COUNT(*) FILTER (WHERE status='approved')::numeric / COUNT(*) * 100, 1) AS approval_pct
+//   FROM match_queue WHERE prompt_variant IS NOT NULL GROUP BY prompt_variant;
+
+const GATE3_STRICT_PROMPT = `You are an expert technical recruiter evaluating whether a job posting is a strong match for a specific developer persona.
+
+Your job is to make a PRECISE yes/no decision. You are the final gate — the candidate has already passed tag overlap and semantic similarity filters, so your role is to catch nuanced mismatches that keyword matching cannot.
+
+EVALUATION CRITERIA (be strict — only approve if you are highly confident):
+1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job. Extracted tags may be incomplete — always check the job description. If the job's core required skills do not include at least 2 of the persona's must-have tags, reject.
+2. **Seniority fit**: Does the job's seniority level match the persona? If the persona has specified preferred seniority levels, reject if the job's inferred seniority is NOT among the selected levels. Do NOT approve a senior persona for a junior role or vice versa. If the persona's seniority levels are empty or "any", do not reject on seniority.
+3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. On-site job + no on-site assignment = hard blocker. Hybrid job + no hybrid assignment = hard blocker. If Workplace Type is null, infer from the location and description carefully.
+4. **Country-specific remote restrictions**: Scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's Country doesn't match, this is a HARD BLOCKER.
+5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
+6. **Domain relevance**: Is the job in a domain the persona would plausibly work in?
+
+OUTPUT RULES:
+- Be STRICT: only approve if you are highly confident this is a strong match. When in doubt, reject.
+- If rejected, list ALL blockers in the blockers array.
+- matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
+- matchConfidence reflects your certainty, not the match quality.`;
+
+const GATE3_THOROUGH_PROMPT = `You are an expert technical recruiter evaluating whether a job posting is a strong match for a specific developer persona.
+
+Your job is to make a careful yes/no decision. You are the final gate — the candidate has already passed tag overlap and semantic similarity filters, so your role is to catch nuanced mismatches that keyword matching cannot.
+
+EVALUATION CRITERIA (reason step by step before deciding):
+1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job. NOTE: Extracted tags are produced by an automated normalizer and may be incomplete — always check the job description for skills that may not appear in the extracted tags. Consider both the must-have tags AND the applicant's full skill knowledge base — if the job requires a skill the applicant knows but it's not in the must-have tags, that's still a positive signal.
+2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" and the job asks for "8+ years" — the stated number is a minimum. If the persona has specified preferred seniority levels, only reject if the job's inferred seniority is NOT among the selected levels. If the persona's seniority levels are empty or "any", do not reject on seniority.
+3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. If the job's Workplace Type is "on-site" and the applicant's assignment types do not include "on-site", that's a hard blocker. If the job's Workplace Type is "hybrid" and the applicant's assignment types do not include "hybrid", that's a hard blocker. If Workplace Type is null, infer from the location and description but do not assume remote — check carefully. Also check modalities and compliance preferences.
+4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match the job's remote geographic restriction, this is a HARD BLOCKER.
+5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
+6. **Domain relevance**: Is the job in a domain the persona would plausibly work in? Consider transferable skills — a React developer can plausibly work in most SaaS/web product domains.
+
+OUTPUT RULES:
+- Be thorough: consider all criteria before deciding. A match doesn't require perfection — it requires plausibility. If the core tech stack aligns and there are no hard blockers, lean toward approving.
+- If rejected, list ALL blockers in the blockers array.
+- matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
+- matchConfidence reflects your certainty, not the match quality.`;
+
+export type Gate3PromptVariant = "balanced" | "strict" | "thorough";
+
+const PROMPT_VARIANTS: Gate3PromptVariant[] = [
+  "balanced",
+  "strict",
+  "thorough",
+];
+
+const VARIANT_PROMPTS: Record<Gate3PromptVariant, string> = {
+  balanced: GATE3_SYSTEM_PROMPT,
+  strict: GATE3_STRICT_PROMPT,
+  thorough: GATE3_THOROUGH_PROMPT,
+};
+
+/**
+ * Randomly assign a prompt variant for A/B testing.
+ * Uses a simple uniform distribution across the 3 variants.
+ */
+export function pickPromptVariant(): Gate3PromptVariant {
+  const idx = Math.floor(Math.random() * PROMPT_VARIANTS.length);
+  return PROMPT_VARIANTS[idx];
 }
 
 // =============================================================================
@@ -158,13 +235,18 @@ Based on the above, is this job a strong match for this persona? Consider tech s
  * for observability. Can also be called directly from tests (with a mocked
  * generateObject).
  *
- * @param ctx  The full Gate 3 context (job + persona + applicant)
- * @returns    The LLM verdict: { approved, matchConfidence, matchReasoning, blockers }
- * @throws     If the LLM call fails or returns unparseable output
+ * @param ctx      The full Gate 3 context (job + persona + applicant)
+ * @param variant  Optional prompt variant for A/B testing. Defaults to "balanced".
+ * @returns        The LLM verdict: { approved, matchConfidence, matchReasoning, blockers }
+ * @throws         If the LLM call fails or returns unparseable output
  */
-export async function evaluateGate3(ctx: Gate3Context): Promise<Gate3Verdict> {
+export async function evaluateGate3(
+  ctx: Gate3Context,
+  variant: Gate3PromptVariant = "balanced",
+): Promise<Gate3Verdict> {
+  const systemPrompt = VARIANT_PROMPTS[variant] ?? GATE3_SYSTEM_PROMPT;
   const messages: ModelMessage[] = [
-    { role: "system", content: GATE3_SYSTEM_PROMPT },
+    { role: "system", content: systemPrompt },
     { role: "user", content: buildGate3Prompt(ctx) },
   ];
 

@@ -10,6 +10,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import type z from "zod";
 import { applicant } from "./applicant";
+import { seniorityLevelEnum } from "./enums";
 
 export const persona = pgTable(
   "persona",
@@ -31,6 +32,13 @@ export const persona = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // Per-persona seniority levels — drives Gate 3 seniority matching.
+    // Initialized from the applicant's inferred seniority during onboarding,
+    // then independently editable per persona in profile management.
+    // Gate 3 uses THIS field (not applicant.seniorityLevels) to check the
+    // job's inferred seniority. If empty/null, Gate 3 treats it as "any".
+    // Validation: max 3 consecutive (adjacent) levels per persona.
+    seniorityLevels: seniorityLevelEnum("seniority_levels").array(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .$onUpdate(() => /* @__PURE__ */ new Date())

@@ -64,14 +64,15 @@ async function seedOnboardingData(userId: string) {
   await sql`
     INSERT INTO applicant (
       user_id, country, can_work_us_hours, assignment_types, modalities,
-      preferred_compliance, all_tags, is_onboarded
+      preferred_compliance, all_tags, is_onboarded, seniority_levels
     ) VALUES (
       ${applicantId}, 'US', true,
       ARRAY['remote']::assignment_type[],
       ARRAY['full-time']::modality[],
       ARRAY['w2']::compliance[],
       ${allTags}::text[],
-      true
+      true,
+      ARRAY['senior']::seniority_level[]
     )
   `;
 
@@ -166,7 +167,7 @@ async function seedOnboardingData(userId: string) {
   await sql`
     INSERT INTO persona (
       id, applicant_id, persona_id, persona_label, embedding_summary,
-      must_have_tags, blocklist_tags, persona_embedding, created_at, updated_at
+      must_have_tags, blocklist_tags, persona_embedding, seniority_levels, created_at, updated_at
     ) VALUES (
       ${personaId},
       ${applicantId},
@@ -176,6 +177,7 @@ async function seedOnboardingData(userId: string) {
       ${["react", "typescript", "nodejs", "postgresql", "javascript"]}::text[],
       ${[]}::text[],
       ${JSON.stringify(Array(1536).fill(0.01))},
+      ARRAY['senior']::seniority_level[],
       NOW(),
       NOW()
     )
@@ -321,6 +323,26 @@ test.describe("Profile Management — onboarding and editing", () => {
     await page
       .getByRole("button", { name: "Save personas" })
       .click({ force: true });
+    await expect(
+      page.getByRole("heading", { name: "Updated Persona" }),
+    ).toBeVisible({ timeout: 15000 });
+  });
+
+  test("edits persona seniority levels", async ({ page }) => {
+    await page
+      .locator("section", { hasText: "Personas" })
+      .getByRole("button", { name: "Edit" })
+      .click({ force: true });
+    // The seniority checkboxes should be visible within the persona form
+    const senioritySection = page.locator("text=Seniority levels (max 3");
+    await expect(senioritySection).toBeVisible({ timeout: 10000 });
+    // Toggle on "lead" checkbox (should already have "senior" checked from seed)
+    const leadCheckbox = page.getByLabel("Lead (8-12 years)");
+    await leadCheckbox.check({ force: true });
+    await page
+      .getByRole("button", { name: "Save personas" })
+      .click({ force: true });
+    // Verify save succeeded
     await expect(
       page.getByRole("heading", { name: "Updated Persona" }),
     ).toBeVisible({ timeout: 15000 });

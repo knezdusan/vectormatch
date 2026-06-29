@@ -1,0 +1,1 @@
+ALTER TABLE "match_queue" ADD COLUMN "prompt_variant" text;

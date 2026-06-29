@@ -425,6 +425,12 @@ export const CANONICAL_TAGS: CanonicalTag[] = [
     category: "backend",
   },
   {
+    tag: "wordpress",
+    label: "WordPress",
+    classification: "persona_defining",
+    category: "backend",
+  },
+  {
     tag: "aspnet",
     label: "ASP.NET",
     classification: "persona_defining",
@@ -749,6 +755,12 @@ export const CANONICAL_TAGS: CanonicalTag[] = [
     classification: "supporting",
     category: "devops",
   },
+  {
+    tag: "docker",
+    label: "Docker",
+    classification: "supporting",
+    category: "devops",
+  },
 
   // ===========================================================================
   // MOBILE
@@ -859,6 +871,310 @@ export const CANONICAL_TAGS: CanonicalTag[] = [
   {
     tag: "rabbitmq",
     label: "RabbitMQ",
+    classification: "supporting",
+    category: "library",
+  },
+
+  // ===========================================================================
+  // AI/LLM FRAMEWORKS & ORCHESTRATION
+  // ===========================================================================
+  // LLM application frameworks — supporting (tools used by AI Engineers, not
+  // standalone identities). "LangChain Developer" is not a common job title.
+  {
+    tag: "langgraph",
+    label: "LangGraph",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "llamaindex",
+    label: "LlamaIndex",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "crewai",
+    label: "CrewAI",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "autogen",
+    label: "AutoGen",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "semantic-kernel",
+    label: "Semantic Kernel",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "haystack",
+    label: "Haystack",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "dspy",
+    label: "DSPy",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "mastra",
+    label: "Mastra",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "vercel-ai-sdk",
+    label: "Vercel AI SDK",
+    classification: "supporting",
+    category: "library",
+  },
+
+  // ===========================================================================
+  // LLM PLATFORMS & PROVIDERS
+  // ===========================================================================
+  // LLM provider APIs — supporting (provider-specific, not an identity).
+  // "OpenAI Developer" is not a common job title; "AI Engineer" is.
+  {
+    tag: "anthropic",
+    label: "Anthropic Claude",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "gemini",
+    label: "Google Gemini",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "mistral",
+    label: "Mistral AI",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "cohere",
+    label: "Cohere",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "deepseek",
+    label: "DeepSeek",
+    classification: "supporting",
+    category: "library",
+  },
+  // Cloud AI platforms — supporting (managed LLM services)
+  {
+    tag: "aws-bedrock",
+    label: "AWS Bedrock",
+    classification: "supporting",
+    category: "devops",
+  },
+  {
+    tag: "azure-openai",
+    label: "Azure OpenAI",
+    classification: "supporting",
+    category: "devops",
+  },
+  {
+    tag: "vertex-ai",
+    label: "Google Vertex AI",
+    classification: "supporting",
+    category: "devops",
+  },
+
+  // ===========================================================================
+  // VECTOR DATABASES
+  // ===========================================================================
+  // All supporting — follows the same pattern as traditional databases.
+  // "Pinecone Developer" is not a common job title; "RAG Engineer" / "AI Engineer" is.
+  {
+    tag: "pinecone",
+    label: "Pinecone",
+    classification: "supporting",
+    category: "database",
+  },
+  {
+    tag: "weaviate",
+    label: "Weaviate",
+    classification: "supporting",
+    category: "database",
+  },
+  {
+    tag: "chromadb",
+    label: "ChromaDB",
+    classification: "supporting",
+    category: "database",
+  },
+  {
+    tag: "qdrant",
+    label: "Qdrant",
+    classification: "supporting",
+    category: "database",
+  },
+  {
+    tag: "milvus",
+    label: "Milvus",
+    classification: "supporting",
+    category: "database",
+  },
+  {
+    tag: "pgvector",
+    label: "pgvector",
+    classification: "supporting",
+    category: "database",
+  },
+
+  // ===========================================================================
+  // AI INFRASTRUCTURE & SERVING
+  // ===========================================================================
+  // LLM serving tools — supporting (infra tools, not identities)
+  {
+    tag: "vllm",
+    label: "vLLM",
+    classification: "supporting",
+    category: "devops",
+  },
+  {
+    tag: "ollama",
+    label: "Ollama",
+    classification: "supporting",
+    category: "devops",
+  },
+  {
+    tag: "tensorrt",
+    label: "TensorRT",
+    classification: "supporting",
+    category: "devops",
+  },
+  {
+    tag: "llama-cpp",
+    label: "llama.cpp",
+    classification: "supporting",
+    category: "devops",
+  },
+
+  // ===========================================================================
+  // AI METHODOLOGIES & PATTERNS
+  // ===========================================================================
+  // RAG — persona_defining: "RAG Engineer" is now a common job title (74% of
+  // LLM-focused roles mention RAG per 2025-2026 job market research).
+  {
+    tag: "rag",
+    label: "RAG",
+    classification: "persona_defining",
+    category: "methodology",
+  },
+  // Prompt Engineering — persona_defining: "Prompt Engineer" is a recognized
+  // job title, though it is being absorbed into "AI Engineer" over time.
+  {
+    tag: "prompt-engineering",
+    label: "Prompt Engineering",
+    classification: "persona_defining",
+    category: "methodology",
+  },
+  // AI agents — supporting: "AI Agents" is a pattern/methodology, not a
+  // standalone identity. "AI Agent Developer" is a role, but the tag "agents"
+  // is too generic to anchor a persona on its own.
+  {
+    tag: "ai-agents",
+    label: "AI Agents",
+    classification: "supporting",
+    category: "methodology",
+  },
+  {
+    tag: "function-calling",
+    label: "Function Calling",
+    classification: "supporting",
+    category: "methodology",
+  },
+  {
+    tag: "mcp",
+    label: "Model Context Protocol",
+    classification: "supporting",
+    category: "methodology",
+  },
+  {
+    tag: "rlhf",
+    label: "RLHF",
+    classification: "supporting",
+    category: "methodology",
+  },
+
+  // ===========================================================================
+  // AI EVALUATION & OBSERVABILITY
+  // ===========================================================================
+  // LLM observability/eval platforms — supporting (tools, not identities)
+  {
+    tag: "langsmith",
+    label: "LangSmith",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "langfuse",
+    label: "Langfuse",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "weights-and-biases",
+    label: "Weights & Biases",
+    classification: "supporting",
+    category: "library",
+  },
+
+  // ===========================================================================
+  // FINE-TUNING & TRAINING TOOLS
+  // ===========================================================================
+  // Fine-tuning methodologies — supporting (specialized ML tools, not
+  // standalone identities for application developers)
+  {
+    tag: "lora",
+    label: "LoRA",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "peft",
+    label: "PEFT",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "axolotl",
+    label: "Axolotl",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "unsloth",
+    label: "Unsloth",
+    classification: "supporting",
+    category: "library",
+  },
+
+  // ===========================================================================
+  // AI CODING ASSISTANTS
+  // ===========================================================================
+  // AI-powered dev tools — supporting (ubiquitous tools, not identities.
+  // "Cursor Developer" is not a job title; these are productivity enhancers.)
+  {
+    tag: "github-copilot",
+    label: "GitHub Copilot",
+    classification: "supporting",
+    category: "library",
+  },
+  {
+    tag: "cursor",
+    label: "Cursor",
     classification: "supporting",
     category: "library",
   },

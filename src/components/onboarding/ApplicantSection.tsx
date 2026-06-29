@@ -39,11 +39,13 @@ import type {
   OnboardingPayloadInput,
   PreferredCompliance,
   Schema2WorkHistoryEntry,
+  SeniorityLevel,
 } from "@/lib/onboarding/schemas";
 import {
   assignmentTypesEnum,
   modalitiesEnum,
   preferredComplianceEnum,
+  seniorityLevelsEnum,
 } from "@/lib/onboarding/schemas";
 
 const ASSIGNMENT_TYPE_LABELS: Record<string, string> = {
@@ -71,6 +73,15 @@ const COMPLIANCE_LABELS: Record<string, string> = {
   ic_global: "International contractor (non-US)",
 };
 
+const SENIORITY_LABELS: Record<string, string> = {
+  junior: "Junior (0-2 years)",
+  mid: "Mid-level (2-5 years)",
+  senior: "Senior (5-8 years)",
+  lead: "Lead (8-12 years)",
+  staff: "Staff (12+ years)",
+  principal: "Principal (15+ years)",
+};
+
 type ApplicantSectionProps = {
   workHistory: Schema2WorkHistoryEntry[];
   onWorkHistoryChange: (next: Schema2WorkHistoryEntry[]) => void;
@@ -84,6 +95,8 @@ type ApplicantSectionProps = {
   onModalitiesChange: (next: Modality[]) => void;
   preferredCompliance: PreferredCompliance[];
   onPreferredComplianceChange: (next: PreferredCompliance[]) => void;
+  seniorityLevels: SeniorityLevel[];
+  onSeniorityLevelsChange: (next: SeniorityLevel[]) => void;
   errors?: FieldErrors<OnboardingPayloadInput>;
 };
 
@@ -105,6 +118,8 @@ export function ApplicantSection({
   onModalitiesChange,
   preferredCompliance,
   onPreferredComplianceChange,
+  seniorityLevels,
+  onSeniorityLevelsChange,
   errors,
 }: ApplicantSectionProps) {
   const updateEntry = (
@@ -314,6 +329,16 @@ export function ApplicantSection({
                 value,
                 onPreferredComplianceChange,
               )
+            }
+          />
+
+          <MultiCheckboxField
+            label="Seniority levels"
+            options={seniorityLevelsEnum.options}
+            labels={SENIORITY_LABELS}
+            values={seniorityLevels}
+            onToggle={(value) =>
+              toggleArrayValue(seniorityLevels, value, onSeniorityLevelsChange)
             }
           />
         </CardContent>

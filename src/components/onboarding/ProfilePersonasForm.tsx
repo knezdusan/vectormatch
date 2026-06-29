@@ -27,6 +27,8 @@ function personasToInput(personas: Persona[]): PersonaInput[] {
     embeddingSummary: p.embeddingSummary,
     mustHaveTags: p.mustHaveTags,
     blocklistTags: p.blocklistTags,
+    seniorityLevels: (p.seniorityLevels ??
+      []) as PersonaInput["seniorityLevels"],
   }));
 }
 

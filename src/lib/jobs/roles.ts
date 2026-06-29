@@ -88,13 +88,54 @@ export const CANONICAL_ROLES: CanonicalRole[] = [
   { label: "Senior Data Scientist", onetSoc: "15-2051" },
   { label: "Data Engineer", onetSoc: "15-1252" },
   { label: "Senior Data Engineer", onetSoc: "15-1252" },
-  { label: "Machine Learning Engineer", onetSoc: "15-1252" },
-  { label: "ML Engineer", onetSoc: "15-1252" },
-  { label: "AI Engineer", onetSoc: "15-1252" },
   { label: "Data Analyst", onetSoc: "15-2031" },
   { label: "Business Intelligence Analyst", onetSoc: "15-2031" },
   { label: "BI Developer", onetSoc: "15-2031" },
   { label: "Statistician", onetSoc: "15-2041" },
+
+  // ── AI Engineering (LLM application development) ──────────────────────────
+  { label: "AI Engineer", onetSoc: "15-1252" },
+  { label: "Senior AI Engineer", onetSoc: "15-1252" },
+  { label: "LLM Engineer", onetSoc: null },
+  { label: "Applied AI Engineer", onetSoc: "15-1252" },
+  { label: "Generative AI Engineer", onetSoc: null },
+  { label: "AI Research Engineer", onetSoc: "15-1252" },
+  { label: "AI Application Developer", onetSoc: "15-1252" },
+  { label: "AI Integration Engineer", onetSoc: "15-1252" },
+  { label: "AI Solutions Engineer", onetSoc: "15-1252" },
+  { label: "AI Product Engineer", onetSoc: "15-1252" },
+  { label: "AI Full-Stack Developer", onetSoc: "15-1252" },
+  { label: "AI Software Engineer", onetSoc: "15-1252" },
+
+  // ── Machine Learning Engineering (model training & deployment) ────────────
+  { label: "Machine Learning Engineer", onetSoc: "15-1252" },
+  { label: "ML Engineer", onetSoc: "15-1252" },
+  { label: "Senior Machine Learning Engineer", onetSoc: "15-1252" },
+  { label: "NLP Engineer", onetSoc: "15-1252" },
+  { label: "Computer Vision Engineer", onetSoc: "15-1252" },
+
+  // ── RAG & LLM Infrastructure ─────────────────────────────────────────────
+  { label: "RAG Engineer", onetSoc: null },
+  { label: "Prompt Engineer", onetSoc: null },
+  { label: "MLOps Engineer", onetSoc: "15-1252" },
+  { label: "ML Platform Engineer", onetSoc: "15-1252" },
+  { label: "AI Platform Engineer", onetSoc: "15-1252" },
+  { label: "AI Infrastructure Engineer", onetSoc: "15-1252" },
+
+  // ── AI Agents & Automation ────────────────────────────────────────────────
+  { label: "AI Agent Developer", onetSoc: "15-1252" },
+  { label: "AI Automation Engineer", onetSoc: "15-1252" },
+  { label: "Conversational AI Engineer", onetSoc: "15-1252" },
+
+  // ── AI Research ───────────────────────────────────────────────────────────
+  { label: "Research Scientist", onetSoc: "15-2051" },
+  { label: "Applied Research Scientist", onetSoc: "15-2051" },
+  { label: "ML Researcher", onetSoc: "15-2051" },
+  { label: "AI Researcher", onetSoc: "15-2051" },
+
+  // ── AI Safety & Governance ────────────────────────────────────────────────
+  { label: "AI Safety Engineer", onetSoc: null },
+  { label: "Responsible AI Engineer", onetSoc: "15-1252" },
 
   // ===========================================================================
   // MOBILE & SPECIALIZED DEVELOPMENT
@@ -151,6 +192,12 @@ export const CANONICAL_ROLES: CanonicalRole[] = [
   { label: "VP of Engineering", onetSoc: "11-3021" },
   { label: "Head of Engineering", onetSoc: "11-3021" },
   { label: "Director of Engineering", onetSoc: "11-3021" },
+  // AI leadership — emerging C-suite and director-level roles
+  { label: "Head of AI", onetSoc: "11-3021" },
+  { label: "Director of AI", onetSoc: "11-3021" },
+  { label: "VP of AI", onetSoc: "11-3021" },
+  { label: "Chief AI Officer", onetSoc: "11-3021" },
+  { label: "AI Product Manager", onetSoc: null },
   { label: "IT Manager", onetSoc: "11-3021" },
   { label: "Project Manager", onetSoc: "15-1299.09" },
   { label: "Technical Project Manager", onetSoc: "15-1299.09" },

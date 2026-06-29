@@ -25,6 +25,8 @@ import {
   hnAlgoliaSeeder,
   jobIngestedHandler,
   normalizationRetrySweep,
+  pendingQueueSweep,
+  personaUpdatedHandler,
   phalanxPoller,
   pollCompanyFn,
   staleCleanup,
@@ -58,6 +60,8 @@ export const { GET, POST, PUT } = serve({
     normalizationRetrySweep,
     jobIngestedHandler,
     gate3Evaluator,
+    pendingQueueSweep,
+    personaUpdatedHandler,
     cleanupOrphanedCvUploads,
   ],
 });

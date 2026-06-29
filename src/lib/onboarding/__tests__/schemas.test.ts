@@ -11,6 +11,7 @@
 import {
   onboardingPayloadSchema,
   resumeExtractionSchema,
+  validateAdjacentSeniority,
   validateCvDomain,
   validateCvRawText,
 } from "@/lib/onboarding/schemas";
@@ -45,6 +46,7 @@ const validExtraction = {
   canonical_skills_detected: ["react", "typescript", "nextjs"],
   raw_skills_detected: ["React", "TypeScript", "Next.js"],
   proposed_stacks: [validStack],
+  inferred_seniority: "senior",
 };
 
 /** A minimal valid Schema 2 work history entry. */
@@ -67,6 +69,7 @@ const validPersona = {
     "Senior React developer with 8 years building production SaaS apps. Strong in TypeScript and Next.js. Prefers full-stack roles in fintech.",
   mustHaveTags: ["react", "typescript", "nextjs", "javascript", "css"],
   blocklistTags: [],
+  seniorityLevels: ["senior"],
 };
 
 /** A minimal valid Schema 2 payload. */
@@ -76,6 +79,7 @@ const validPayload = {
   assignmentTypes: ["remote"],
   modalities: ["full-time"],
   preferredCompliance: ["b2b"],
+  seniorityLevels: ["senior"],
   cvUploadId: "550e8400-e29b-41d4-a716-446655440000",
   workHistory: [validWorkHistoryEntry],
   personas: [validPersona],
@@ -302,6 +306,61 @@ describe("onboardingPayloadSchema", () => {
       expect(result.data.personas[0].blocklistTags).toEqual([]);
     }
   });
+
+  it("applies the seniorityLevels default when omitted from persona", () => {
+    const payloadWithoutSeniority = {
+      ...validPayload,
+      personas: [{ ...validPersona, seniorityLevels: undefined }],
+    };
+    const result = onboardingPayloadSchema.safeParse(payloadWithoutSeniority);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.personas[0].seniorityLevels).toEqual([]);
+    }
+  });
+
+  it("accepts persona with 3 consecutive seniority levels", () => {
+    const payload = {
+      ...validPayload,
+      personas: [
+        { ...validPersona, seniorityLevels: ["senior", "lead", "staff"] },
+      ],
+    };
+    const result = onboardingPayloadSchema.safeParse(payload);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects persona with more than 3 seniority levels", () => {
+    const payload = {
+      ...validPayload,
+      personas: [
+        {
+          ...validPersona,
+          seniorityLevels: ["junior", "mid", "senior", "lead"],
+        },
+      ],
+    };
+    const result = onboardingPayloadSchema.safeParse(payload);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects persona with non-consecutive seniority levels", () => {
+    const payload = {
+      ...validPayload,
+      personas: [{ ...validPersona, seniorityLevels: ["junior", "senior"] }],
+    };
+    const result = onboardingPayloadSchema.safeParse(payload);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts persona with empty seniority levels (treats as 'any')", () => {
+    const payload = {
+      ...validPayload,
+      personas: [{ ...validPersona, seniorityLevels: [] }],
+    };
+    const result = onboardingPayloadSchema.safeParse(payload);
+    expect(result.success).toBe(true);
+  });
 });
 
 // ─── validateCvRawText ────────────────────────────────────────────────────────
@@ -443,5 +502,74 @@ describe("validateCvDomain", () => {
       "Implemented responsive designs and optimized Core Web Vitals.\n" +
       "Education: B.Sc. in Web Development, Full Sail University (2016-2020).";
     expect(validateCvDomain(nextjsText)).toBeNull();
+  });
+});
+
+// =============================================================================
+// validateAdjacentSeniority — per-persona seniority validation
+// =============================================================================
+
+describe("validateAdjacentSeniority", () => {
+  it("accepts empty array (no seniority filter)", () => {
+    expect(validateAdjacentSeniority([])).toBeNull();
+  });
+
+  it("accepts a single level", () => {
+    expect(validateAdjacentSeniority(["senior"])).toBeNull();
+    expect(validateAdjacentSeniority(["junior"])).toBeNull();
+    expect(validateAdjacentSeniority(["principal"])).toBeNull();
+  });
+
+  it("accepts 2 consecutive levels", () => {
+    expect(validateAdjacentSeniority(["mid", "senior"])).toBeNull();
+    expect(validateAdjacentSeniority(["senior", "lead"])).toBeNull();
+    expect(validateAdjacentSeniority(["lead", "staff"])).toBeNull();
+  });
+
+  it("accepts 3 consecutive levels", () => {
+    expect(validateAdjacentSeniority(["mid", "senior", "lead"])).toBeNull();
+    expect(validateAdjacentSeniority(["senior", "lead", "staff"])).toBeNull();
+    expect(validateAdjacentSeniority(["junior", "mid", "senior"])).toBeNull();
+  });
+
+  it("rejects more than 3 levels", () => {
+    expect(
+      validateAdjacentSeniority(["junior", "mid", "senior", "lead"]),
+    ).toContain("at most 3");
+    expect(
+      validateAdjacentSeniority([
+        "mid",
+        "senior",
+        "lead",
+        "staff",
+        "principal",
+      ]),
+    ).toContain("at most 3");
+  });
+
+  it("rejects non-consecutive levels (gap)", () => {
+    expect(validateAdjacentSeniority(["junior", "senior"])).toContain(
+      "consecutive",
+    );
+    expect(validateAdjacentSeniority(["junior", "lead"])).toContain(
+      "consecutive",
+    );
+    expect(validateAdjacentSeniority(["mid", "staff"])).toContain(
+      "consecutive",
+    );
+    expect(validateAdjacentSeniority(["junior", "mid", "lead"])).toContain(
+      "consecutive",
+    );
+  });
+
+  it("rejects non-consecutive levels even if only 2 selected", () => {
+    expect(validateAdjacentSeniority(["junior", "principal"])).toContain(
+      "consecutive",
+    );
+  });
+
+  it("accepts levels in any order (sorts internally)", () => {
+    expect(validateAdjacentSeniority(["lead", "senior", "mid"])).toBeNull();
+    expect(validateAdjacentSeniority(["senior", "mid"])).toBeNull();
   });
 });

@@ -61,6 +61,9 @@ function extractionToFormDefaults(
     assignmentTypes: [],
     modalities: [],
     preferredCompliance: [],
+    seniorityLevels: extraction.inferred_seniority
+      ? [extraction.inferred_seniority]
+      : ["senior"],
     cvUploadId,
     workHistory: extraction.roles.map((role) => ({
       company: role.company,
@@ -78,6 +81,11 @@ function extractionToFormDefaults(
       embeddingSummary: stack.embedding_summary,
       mustHaveTags: stack.must_have_tags,
       blocklistTags: [],
+      // Initialize each persona's seniority from the LLM-inferred level.
+      // The user can adjust per-persona in the PersonaSection UI.
+      seniorityLevels: extraction.inferred_seniority
+        ? [extraction.inferred_seniority]
+        : [],
     })),
   };
 }
@@ -121,6 +129,7 @@ export function OnboardingReview({
   const assignmentTypes = form.watch("assignmentTypes");
   const modalities = form.watch("modalities");
   const preferredCompliance = form.watch("preferredCompliance");
+  const seniorityLevels = form.watch("seniorityLevels");
   const personas = form.watch("personas");
 
   // The full pool of canonical skills detected across all roles — used by
@@ -202,6 +211,10 @@ export function OnboardingReview({
             preferredCompliance={preferredCompliance}
             onPreferredComplianceChange={(next) =>
               form.setValue("preferredCompliance", next, { shouldDirty: true })
+            }
+            seniorityLevels={seniorityLevels}
+            onSeniorityLevelsChange={(next) =>
+              form.setValue("seniorityLevels", next, { shouldDirty: true })
             }
             errors={form.formState.errors}
           />

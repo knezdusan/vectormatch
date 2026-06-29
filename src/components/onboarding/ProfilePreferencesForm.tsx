@@ -16,6 +16,7 @@ import type {
   AssignmentType,
   Modality,
   PreferredCompliance,
+  SeniorityLevel,
 } from "@/lib/onboarding/schemas";
 
 const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
@@ -68,6 +69,24 @@ const COMPLIANCE_VALUES: PreferredCompliance[] = [
   "ic_global",
 ];
 
+const SENIORITY_LABELS: Record<SeniorityLevel, string> = {
+  junior: "Junior (0-2 years)",
+  mid: "Mid-level (2-5 years)",
+  senior: "Senior (5-8 years)",
+  lead: "Lead (8-12 years)",
+  staff: "Staff (12+ years)",
+  principal: "Principal (15+ years)",
+};
+
+const SENIORITY_VALUES: SeniorityLevel[] = [
+  "junior",
+  "mid",
+  "senior",
+  "lead",
+  "staff",
+  "principal",
+];
+
 type ProfilePreferencesFormProps = {
   applicant: Applicant;
   onSaved?: () => void;
@@ -97,6 +116,9 @@ export function ProfilePreferencesForm({
   const [preferredCompliance, setPreferredCompliance] = useState<
     PreferredCompliance[]
   >((applicant.preferredCompliance ?? []) as PreferredCompliance[]);
+  const [seniorityLevels, setSeniorityLevels] = useState<SeniorityLevel[]>(
+    (applicant.seniorityLevels ?? []) as SeniorityLevel[],
+  );
 
   const reset = () => {
     setCountry(applicant.country ?? "");
@@ -106,6 +128,7 @@ export function ProfilePreferencesForm({
     setPreferredCompliance(
       (applicant.preferredCompliance ?? []) as PreferredCompliance[],
     );
+    setSeniorityLevels((applicant.seniorityLevels ?? []) as SeniorityLevel[]);
   };
 
   useEffect(() => {
@@ -141,6 +164,7 @@ export function ProfilePreferencesForm({
         assignmentTypes,
         modalities,
         preferredCompliance,
+        seniorityLevels,
       }),
     );
     startTransition(() => {
@@ -242,6 +266,29 @@ export function ProfilePreferencesForm({
                 className="font-normal"
               >
                 {COMPLIANCE_LABELS[value]}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Seniority levels</Label>
+        <div className="flex flex-wrap gap-4">
+          {SENIORITY_VALUES.map((value) => (
+            <div key={value} className="flex items-center gap-2">
+              <Checkbox
+                id={`profile-seniority-${value}`}
+                checked={seniorityLevels.includes(value)}
+                onCheckedChange={(_checked) =>
+                  toggleArrayValue(seniorityLevels, value, setSeniorityLevels)
+                }
+              />
+              <Label
+                htmlFor={`profile-seniority-${value}`}
+                className="font-normal"
+              >
+                {SENIORITY_LABELS[value]}
               </Label>
             </div>
           ))}

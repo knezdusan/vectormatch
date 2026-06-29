@@ -27,9 +27,23 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  type SeniorityLevel,
+  seniorityLevelsEnum,
+} from "@/lib/onboarding/schemas";
+
+const SENIORITY_LABELS: Record<string, string> = {
+  junior: "Junior (0-2 years)",
+  mid: "Mid-level (2-5 years)",
+  senior: "Senior (5-8 years)",
+  lead: "Lead (8-12 years)",
+  staff: "Staff (12+ years)",
+  principal: "Principal (15+ years)",
+};
 
 const MAX_PERSONAS = 3;
 
@@ -43,6 +57,7 @@ type PersonaSectionPersona = {
   embeddingSummary: string;
   mustHaveTags: string[];
   blocklistTags?: string[];
+  seniorityLevels?: SeniorityLevel[];
 };
 
 // RHF's array field errors have a complex nested type. We use a loose shape
@@ -83,6 +98,7 @@ export function PersonaSection({
         embeddingSummary: "",
         mustHaveTags: [],
         blocklistTags: [],
+        seniorityLevels: [],
       },
     ]);
   };
@@ -204,6 +220,42 @@ export function PersonaSection({
               />
               <p className="text-xs text-muted-foreground">
                 Jobs matching these tags will never be routed to this persona.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>Seniority levels (max 3, must be adjacent)</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {seniorityLevelsEnum.options.map((option) => {
+                  const checked = (persona.seniorityLevels ?? []).includes(
+                    option,
+                  );
+                  return (
+                    <div key={option} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`persona-${index}-seniority-${option}`}
+                        checked={checked}
+                        onCheckedChange={() => {
+                          const current = persona.seniorityLevels ?? [];
+                          const next = checked
+                            ? current.filter((v) => v !== option)
+                            : [...current, option];
+                          updatePersona(index, { seniorityLevels: next });
+                        }}
+                      />
+                      <Label
+                        htmlFor={`persona-${index}-seniority-${option}`}
+                        className="font-normal"
+                      >
+                        {SENIORITY_LABELS[option]}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select the seniority levels this persona should match. Maximum 3
+                consecutive levels (e.g., senior, lead, staff).
               </p>
             </div>
           </div>

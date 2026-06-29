@@ -16,6 +16,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { applicant, cvUpload, persona, workingHistory } from "@/db/schemas";
+import { inngest } from "@/inngest/client";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { getAuthSession } from "@/lib/auth";
 import { CANONICAL_TAGS, PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
@@ -64,7 +65,9 @@ PERSONA_DEFINING_TAGS (at least 1 of these must appear in each proposed stack's 
 
 For each role, extract: company, title, start_date (YYYY-MM), end_date (YYYY-MM or null if current), is_current, summary, canonical_skills_detected (mapped to CANONICAL_TAGS), raw_skills_detected (as written in CV).
 
-Propose 1-2 personas (proposed_stacks) based on the extracted skills. Each must have exactly 5 must_have_tags, at least 1 of which must be persona_defining. The embedding_summary must be 50-500 characters, 3 dense sentences describing the persona for semantic matching.`;
+Propose 1-2 personas (proposed_stacks) based on the extracted skills. Each must have exactly 5 must_have_tags, at least 1 of which must be persona_defining. The embedding_summary must be 50-500 characters, 3 dense sentences describing the persona for semantic matching.
+
+Also infer the applicant's overall seniority level (inferred_seniority) based on years of experience, role titles, and career progression. Use one of: junior (0-2 years), mid (2-5 years), senior (5-8 years), lead (8-12 years), staff (12+ years), principal (15+ years). Choose the level that best represents the applicant's current career stage.`;
 
 // =============================================================================
 // 1. Update applicant preferences
@@ -101,6 +104,7 @@ export async function updateApplicantPreferencesAction(
         assignmentTypes: parsed.data.assignmentTypes,
         modalities: parsed.data.modalities,
         preferredCompliance: parsed.data.preferredCompliance,
+        seniorityLevels: parsed.data.seniorityLevels,
       })
       .where(eq(applicant.userId, session.user.id));
 
@@ -341,6 +345,7 @@ export async function updatePersonasAction(
           embeddingSummary: p.embeddingSummary,
           mustHaveTags: p.mustHaveTags,
           blocklistTags: p.blocklistTags,
+          seniorityLevels: p.seniorityLevels ?? [],
         };
 
         if (p.id) {
@@ -377,6 +382,49 @@ export async function updatePersonasAction(
           );
       }
     });
+
+    // Gate 3 Feedback Loop: emit persona/updated events for personas whose
+    // tags or embedding summary changed. The personaUpdatedHandler Inngest
+    // function re-evaluates rejected match_queue rows for these personas.
+    const changedPersonaIds: string[] = [];
+    for (let i = 0; i < personasInput.length; i++) {
+      const p = personasInput[i];
+      if (!p.id) continue;
+      const existing = existingPersonas.find((ep) => ep.id === p.id);
+      if (!existing) continue;
+      const summaryChanged = existing.embeddingSummary !== p.embeddingSummary;
+      const tagsChanged =
+        new Set(existing.mustHaveTags).size !== new Set(p.mustHaveTags).size ||
+        p.mustHaveTags.some((t) => !existing.mustHaveTags.includes(t));
+      const blocklistChanged =
+        new Set(existing.blocklistTags).size !==
+          new Set(p.blocklistTags).size ||
+        p.blocklistTags.some((t) => !existing.blocklistTags.includes(t));
+      const seniorityChanged =
+        new Set(existing.seniorityLevels ?? []).size !==
+          new Set(p.seniorityLevels ?? []).size ||
+        (p.seniorityLevels ?? []).some(
+          (s) => !(existing.seniorityLevels ?? []).includes(s),
+        );
+      if (
+        summaryChanged ||
+        tagsChanged ||
+        blocklistChanged ||
+        seniorityChanged
+      ) {
+        changedPersonaIds.push(p.id);
+      }
+    }
+
+    if (changedPersonaIds.length > 0) {
+      await inngest.send(
+        changedPersonaIds.map((pid) => ({
+          id: `persona-updated-${pid}-${Date.now()}`,
+          name: "persona/updated" as const,
+          data: { personaId: pid },
+        })),
+      );
+    }
 
     return ok();
   } catch (error) {

@@ -93,6 +93,7 @@ describe("updateApplicantPreferencesAction", () => {
       assignmentTypes: ["remote"],
       modalities: ["contract"],
       preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
     };
 
     const result = await updateApplicantPreferencesAction(
@@ -108,6 +109,7 @@ describe("updateApplicantPreferencesAction", () => {
       assignmentTypes: ["remote"],
       modalities: ["contract"],
       preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
     });
   });
 });

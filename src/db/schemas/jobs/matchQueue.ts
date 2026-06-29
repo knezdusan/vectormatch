@@ -68,6 +68,10 @@ export const matchQueue = pgTable(
     llmBlockers: text("llm_blockers").array(),
     // Which model evaluated: gpt-4o-mini (MVP) | gpt-4o (escalation, post-MVP).
     llmModel: text("llm_model"),
+    // Which Gate 3 prompt variant was used for this evaluation. Used for A/B
+    // testing prompt variations to optimize approval rates. Null for rows
+    // evaluated before the A/B test feature was deployed.
+    promptVariant: text("prompt_variant"),
     // When Gate 3 ran. Null until Gate 3 completes.
     evaluatedAt: timestamp("evaluated_at"),
     // In-app notification badge (§8). Defaults to false; set true when the

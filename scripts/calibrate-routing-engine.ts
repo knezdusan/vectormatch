@@ -443,6 +443,7 @@ async function main(): Promise<void> {
               embeddingSummary: persona.embeddingSummary,
               mustHaveTags: persona.mustHaveTags,
               blocklistTags: persona.blocklistTags,
+              seniorityLevels: persona.seniorityLevels,
             })
             .from(persona)
             .where(eq(persona.id, c.personaId))
@@ -480,6 +481,7 @@ async function main(): Promise<void> {
               embeddingSummary: personaRow[0].embeddingSummary,
               mustHaveTags: personaRow[0].mustHaveTags,
               blocklistTags: personaRow[0].blocklistTags,
+              seniorityLevels: personaRow[0].seniorityLevels ?? [],
             },
             applicant: {
               allTags: applicantRow[0].allTags,

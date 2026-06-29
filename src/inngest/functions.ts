@@ -1071,6 +1071,7 @@ export const gate3Evaluator = inngest.createFunction(
             embeddingSummary: persona.embeddingSummary,
             mustHaveTags: persona.mustHaveTags,
             blocklistTags: persona.blocklistTags,
+            seniorityLevels: persona.seniorityLevels,
           })
           .from(persona)
           .where(eq(persona.id, personaId))
@@ -1123,6 +1124,7 @@ export const gate3Evaluator = inngest.createFunction(
             embeddingSummary: personaRows[0].embeddingSummary,
             mustHaveTags: personaRows[0].mustHaveTags,
             blocklistTags: personaRows[0].blocklistTags,
+            seniorityLevels: personaRows[0].seniorityLevels ?? [],
           },
           applicant: {
             allTags: applicantRows[0].allTags,
@@ -1144,11 +1146,19 @@ export const gate3Evaluator = inngest.createFunction(
     // NO DB connection held during the LLM call (~3-5s).
     // step.ai.wrap adds observability (prompts, tokens, latency in Inngest
     // dashboard) without routing traffic through Inngest's proxy.
+    //
+    // A/B test: randomly assign a prompt variant per candidate. The variant
+    // is stored in matchQueue.promptVariant for later analysis.
+    const promptVariant = await step.run("pick-variant", async () => {
+      const { pickPromptVariant } = await import("@/lib/jobs/gate-3");
+      return pickPromptVariant();
+    });
+
     const verdict = await step.ai.wrap(
       "gate-3-evaluate",
       async (ctx: Gate3Context) => {
         const { evaluateGate3 } = await import("@/lib/jobs/gate-3");
-        return evaluateGate3(ctx);
+        return evaluateGate3(ctx, promptVariant);
       },
       context.context,
     );
@@ -1172,6 +1182,7 @@ export const gate3Evaluator = inngest.createFunction(
           llmConfidence: verdict.matchConfidence,
           llmBlockers: verdict.blockers,
           llmModel: "gpt-4o-mini",
+          promptVariant: promptVariant,
           evaluatedAt: new Date(),
         })
         .where(eq(matchQueue.id, matchQueueId));
@@ -1198,6 +1209,178 @@ export const gate3Evaluator = inngest.createFunction(
       confidence: verdict.matchConfidence,
       reasoning: verdict.matchReasoning,
     };
+  },
+);
+
+// ── Module C: Pending Queue Sweep ────────────────────────────────────────────
+
+/**
+ * Pending Queue Sweep — picks up match_queue rows stuck in 'pending' status.
+ *
+ * Triggers: cron every 15 minutes ("0,15,30,45 * * * *")
+ *
+ * When match_queue rows are inserted by Gate 1+2 but the Gate 3 event was not
+ * emitted (e.g. script ran without Inngest event key, or an event was lost),
+ * these rows sit in 'pending' forever. This sweep finds them and emits
+ * match/gate-3-evaluate events so they get evaluated.
+ *
+ * Also handles rows that have been pending for >10 minutes (the normal Gate 3
+ * evaluation takes ~5s, so 10 minutes is a generous timeout for a retried event).
+ */
+export const pendingQueueSweep = inngest.createFunction(
+  {
+    id: "pending-queue-sweep",
+    name: "Pending Queue Sweep",
+    triggers: [{ cron: "0,15,30,45 * * * *" }],
+  },
+  async ({ step }) => {
+    const result = await step.run("find-pending", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+
+      // Find pending rows older than 10 minutes (excludes freshly inserted
+      // rows that are still being processed by their original Gate 3 event).
+      const pendingRows = await db.execute(sql`
+        SELECT id, job_id, persona_id, applicant_id
+        FROM match_queue
+        WHERE status = 'pending'
+          AND created_at < NOW() - INTERVAL '10 minutes'
+        LIMIT 50
+      `);
+
+      return pendingRows.rows as {
+        id: string;
+        job_id: string;
+        persona_id: string;
+        applicant_id: string;
+      }[];
+    });
+
+    if (result.length === 0) {
+      return { swept: 0 };
+    }
+
+    // Emit Gate 3 events for each pending row.
+    await step.sendEvent(
+      "sweep-fan-out",
+      result.map((row) => ({
+        id: `gate-3-sweep-${row.id}`,
+        name: "match/gate-3-evaluate" as const,
+        data: {
+          matchQueueId: row.id,
+          jobId: row.job_id,
+          personaId: row.persona_id,
+          applicantId: row.applicant_id,
+        },
+      })),
+    );
+
+    return { swept: result.length };
+  },
+);
+
+// ── Module C: Persona Updated — Gate 3 Feedback Loop ─────────────────────────
+
+/**
+ * Persona Updated — re-evaluates rejected match_queue rows when a persona's
+ * tags or embedding summary change.
+ *
+ * Triggered by: `persona/updated` event (emitted by updatePersonasAction when
+ * must_have_tags, blocklist_tags, or embedding_summary change).
+ *
+ * When a user updates their persona (e.g., adds a new must-have tag, removes
+ * a blocklist tag, or changes their embedding summary), previously rejected
+ * jobs may now be a match. This function:
+ *   1. Finds all match_queue rows with status='rejected' for the updated persona
+ *   2. Resets them to 'pending'
+ *   3. Emits match/gate-3-evaluate events for each
+ *
+ * Limits to 50 re-evaluations per persona update to control LLM costs.
+ * Only re-evaluates rows for jobs that are still active.
+ */
+export const personaUpdatedHandler = inngest.createFunction(
+  {
+    id: "persona-updated-feedback",
+    name: "Persona Updated — Gate 3 Feedback Loop",
+    triggers: [{ event: "persona/updated" }],
+  },
+  async ({ event, step }) => {
+    const { personaId } = event.data;
+
+    const result = await step.run("find-rejected", async () => {
+      const { db } = await import("@/db/db");
+      const { matchQueue, job } = await import("@/db/schemas");
+      const { eq, and } = await import("drizzle-orm");
+
+      // Find rejected match_queue rows for this persona where the job is
+      // still active. Limit to 50 to control LLM costs.
+      const rejectedRows = await db
+        .select({
+          id: matchQueue.id,
+          jobId: matchQueue.jobId,
+          applicantId: matchQueue.applicantId,
+          personaId: matchQueue.personaId,
+        })
+        .from(matchQueue)
+        .innerJoin(job, eq(matchQueue.jobId, job.id))
+        .where(
+          and(
+            eq(matchQueue.personaId, personaId),
+            eq(matchQueue.status, "rejected"),
+            eq(job.status, "active"),
+          ),
+        )
+        .limit(50);
+
+      if (rejectedRows.length === 0) {
+        return { count: 0, rows: [] as typeof rejectedRows };
+      }
+
+      // Reset these rows to 'pending' so Gate 3 can re-evaluate them.
+      const { inArray } = await import("drizzle-orm");
+      await db
+        .update(matchQueue)
+        .set({
+          status: "pending",
+          llmVerdict: null,
+          llmReasoning: null,
+          llmConfidence: null,
+          llmBlockers: null,
+          evaluatedAt: null,
+        })
+        .where(
+          and(
+            eq(matchQueue.personaId, personaId),
+            inArray(
+              matchQueue.id,
+              rejectedRows.map((r) => r.id),
+            ),
+          ),
+        );
+
+      return { count: rejectedRows.length, rows: rejectedRows };
+    });
+
+    if (result.count === 0) {
+      return { personaId, reEvaluated: 0 };
+    }
+
+    // Emit Gate 3 events for each re-evaluated row.
+    await step.sendEvent(
+      "feedback-fan-out",
+      result.rows.map((row) => ({
+        id: `gate-3-feedback-${row.id}`,
+        name: "match/gate-3-evaluate" as const,
+        data: {
+          matchQueueId: row.id,
+          jobId: row.jobId,
+          personaId: row.personaId,
+          applicantId: row.applicantId,
+        },
+      })),
+    );
+
+    return { personaId, reEvaluated: result.count };
   },
 );
 

@@ -18,18 +18,24 @@
  * Gate 2 HNSW cosine distance threshold.
  *
  * `< GATE2_MAX_COSINE_DISTANCE` = cosine similarity `> 1 - GATE2_MAX_COSINE_DISTANCE`
- * (0.55 → similarity > 0.45). Lower distance = more similar.
+ * (0.48 → similarity > 0.52). Lower distance = more similar.
  *
  * Calibration status: CALIBRATED AGAINST REAL DATA (June 2026, C6-real).
  * Initial value 0.35 was an uncalibrated guess that rejected 100% of real
  * job-persona pairs — real embeddings have much wider variance (0.45–0.74)
  * than synthetic data (0.18–0.21). Raised to 0.55 based on real-data
- * distribution analysis: min distance 0.45, avg 0.61, max 0.74. The 0.55
- * threshold lets the top ~15-20% of matches through to Gate 3 LLM
- * arbitration, which makes the final approve/reject call.
+ * distribution analysis: min distance 0.45, avg 0.61, max 0.74.
+ *
+ * Tightened from 0.55 → 0.48 after yield analysis showed that 77% of
+ * candidates (124/160) had cosine distance > 0.45 (weak semantic matches)
+ * and the 0.50–0.55 bucket had only a 2.9% approval rate (likely false
+ * positives). At 0.48, ~65% of borderline candidates are filtered before
+ * the LLM, cutting Gate 3 costs while retaining strong matches. The 0.31–0.45
+ * bucket had a 33% approval rate — those are the high-signal candidates we
+ * want to keep.
  * See docs/reports/calibration-report.md §8 for the real-data analysis.
  */
-export const GATE2_MAX_COSINE_DISTANCE = 0.55;
+export const GATE2_MAX_COSINE_DISTANCE = 0.48;
 
 /**
  * Maximum number of candidates Gate 1+2 inserts into matchQueue per job

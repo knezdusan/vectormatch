@@ -72,7 +72,9 @@ PERSONA_DEFINING_TAGS (at least 1 of these must appear in each proposed stack's 
 
 For each role, extract: company, title, start_date (YYYY-MM), end_date (YYYY-MM or null if current), is_current, summary, canonical_skills_detected (mapped to CANONICAL_TAGS), raw_skills_detected (as written in CV).
 
-Propose 1-2 personas (proposed_stacks) based on the extracted skills. Each must have exactly 5 must_have_tags, at least 1 of which must be persona_defining. The embedding_summary must be 50-500 characters, 3 dense sentences describing the persona for semantic matching.`;
+Propose 1-2 personas (proposed_stacks) based on the extracted skills. Each must have exactly 5 must_have_tags, at least 1 of which must be persona_defining. The embedding_summary must be 50-500 characters, 3 dense sentences describing the persona for semantic matching.
+
+Also infer the applicant's overall seniority level (inferred_seniority) based on years of experience, role titles, and career progression. Use one of: junior (0-2 years), mid (2-5 years), senior (5-8 years), lead (8-12 years), staff (12+ years), principal (15+ years). Choose the level that best represents the applicant's current career stage.`;
 
 /**
  * Parse a CV's raw text with gpt-4o and persist the extraction to cvUpload.
@@ -278,6 +280,7 @@ export async function finalizeOnboardingAction(
           assignmentTypes: data.assignmentTypes,
           modalities: data.modalities,
           preferredCompliance: data.preferredCompliance,
+          seniorityLevels: data.seniorityLevels,
           isOnboarded: true,
         })
         .onConflictDoUpdate({
@@ -288,6 +291,7 @@ export async function finalizeOnboardingAction(
             assignmentTypes: data.assignmentTypes,
             modalities: data.modalities,
             preferredCompliance: data.preferredCompliance,
+            seniorityLevels: data.seniorityLevels,
             isOnboarded: true,
           },
         });
@@ -324,6 +328,7 @@ export async function finalizeOnboardingAction(
           personaEmbedding: embeddings[i],
           mustHaveTags: p.mustHaveTags,
           blocklistTags: p.blocklistTags,
+          seniorityLevels: p.seniorityLevels ?? [],
         })),
       );
     });

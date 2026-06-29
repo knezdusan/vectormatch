@@ -11,6 +11,8 @@ import {
   assignmentTypesEnum,
   modalitiesEnum,
   preferredComplianceEnum,
+  seniorityLevelsEnum,
+  validateAdjacentSeniority,
 } from "./schemas";
 
 // =============================================================================
@@ -29,6 +31,9 @@ export const updatePreferencesSchema = z.object({
   preferredCompliance: z
     .array(preferredComplianceEnum)
     .min(1, "At least 1 compliance preference is required"),
+  seniorityLevels: z
+    .array(seniorityLevelsEnum)
+    .min(1, "At least 1 seniority level is required"),
 });
 
 export type UpdatePreferencesInput = z.input<typeof updatePreferencesSchema>;
@@ -82,14 +87,30 @@ export const personaSchema = z.object({
     .array(z.string())
     .length(5, "Each persona must have exactly 5 mustHaveTags"),
   blocklistTags: z.array(z.string()).default([]),
+  // Per-persona seniority levels — drives Gate 3 matching. Max 3, must be
+  // consecutive (adjacent). Initialized from applicant's inferred seniority.
+  seniorityLevels: z.array(seniorityLevelsEnum).max(3).default([]),
 });
 
-export const updatePersonasPayloadSchema = z.object({
-  personas: z
-    .array(personaSchema)
-    .min(1, "At least 1 persona is required")
-    .max(3, "At most 3 personas allowed"),
-});
+export const updatePersonasPayloadSchema = z
+  .object({
+    personas: z
+      .array(personaSchema)
+      .min(1, "At least 1 persona is required")
+      .max(3, "At most 3 personas allowed"),
+  })
+  // Each persona's seniority levels must be ≤3 and consecutive (adjacent)
+  .refine(
+    (data) =>
+      data.personas.every(
+        (persona) =>
+          validateAdjacentSeniority(persona.seniorityLevels ?? []) === null,
+      ),
+    {
+      message:
+        "Each persona's seniority levels must be at most 3 and consecutive (e.g., mid, senior, lead)",
+    },
+  );
 
 export type PersonaInput = z.input<typeof personaSchema>;
 export type UpdatePersonasInput = z.input<typeof updatePersonasPayloadSchema>;
