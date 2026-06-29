@@ -32,6 +32,15 @@ describe("bigQueryRowSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("parses a row with workable ats_source", () => {
+    const result = bigQueryRowSchema.safeParse({
+      root_page: "allucent.com",
+      page: "https://allucent.com/",
+      ats_source: "workable",
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("parses a row with missing page field", () => {
     const result = bigQueryRowSchema.safeParse({
       root_page: "acme.com",
@@ -74,7 +83,7 @@ describe("bigQueryRowSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("fails when ats_source is not greenhouse or lever", () => {
+  it("fails when ats_source is not greenhouse, lever, or workable", () => {
     const result = bigQueryRowSchema.safeParse({
       root_page: "acme.com",
       ats_source: "ashby",

@@ -5,21 +5,30 @@
 // this is the only file to update. The Phalanx Poller and all seeders read
 // from this registry — never hardcode ATS URLs elsewhere.
 //
-// All three MVP ATS platforms expose public, no-auth JSON APIs:
-// - Greenhouse: boards-api.greenhouse.io (v1 Job Board API)
-// - Lever:      api.lever.co (v0 Postings API — v1 requires auth)
-// - Ashby:      api.ashbyhq.com (Public Job Posting API)
+// All six supported ATS platforms expose public, no-auth JSON APIs:
+// - Greenhouse:       boards-api.greenhouse.io (v1 Job Board API)
+// - Lever:            api.lever.co (v0 Postings API — v1 requires auth)
+// - Ashby:            api.ashbyhq.com (Public Job Posting API)
+// - SmartRecruiters:  api.smartrecruiters.com (v1 Consuming API) — F2
+// - Workable:         apply.workable.com (Public widget API) — F2
+// - Recruitee:        api.recruitee.com (v1 Public API) — F2
 //
 // Automated endpoint health monitoring & LLM-based recovery is specified in
 // TDD §4.2.2 and will be implemented once the Inngest base infrastructure is
 // set up. Until then, the registry is static — updates require a code change.
 //
-// See TDD §4.2.1 for the full specification.
+// See TDD §4.2.1 and CORPUS_EXPANSION_TDD §1.5 (F2) for the full specification.
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-/** The three ATS platforms supported in the MVP. */
-export type AtsSource = "greenhouse" | "lever" | "ashby";
+/** The six ATS platforms supported (MVP: 3, F2 expansion: 3). */
+export type AtsSource =
+  | "greenhouse"
+  | "lever"
+  | "ashby"
+  | "smartrecruiters"
+  | "workable"
+  | "recruitee";
 
 /** URL builder functions for a single ATS platform. */
 export interface AtsEndpointConfig {
@@ -83,6 +92,33 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     // separate single-job endpoint. The health probe uses jobsList with a
     // known-active slug and inspects the first element.
     hostedBoard: (slug) => `https://jobs.ashbyhq.com/${slug}`,
+  },
+  smartrecruiters: {
+    // Public API — no auth required.
+    // Docs: https://developers.smartrecruiters.com/docs/consuming-api
+    name: "SmartRecruiters",
+    apiHost: "api.smartrecruiters.com",
+    jobsList: (slug) =>
+      `https://api.smartrecruiters.com/v1/companies/${slug}/postings`,
+    hostedBoard: (slug) => `https://jobs.smartrecruiters.com/${slug}`,
+  },
+  workable: {
+    // Public widget API — no auth required.
+    // Per-company: apply.workable.com/api/v1/widget/accounts/{slug}
+    // Meta-search: jobs.workable.com/api/v1/jobs?query=... (for B1 discovery)
+    name: "Workable",
+    apiHost: "apply.workable.com",
+    jobsList: (slug) =>
+      `https://apply.workable.com/api/v1/widget/accounts/${slug}?details=true`,
+    hostedBoard: (slug) => `https://apply.workable.com/${slug}`,
+  },
+  recruitee: {
+    // Public API — no auth required.
+    // Docs: https://docs.recruitee.com/reference
+    name: "Recruitee",
+    apiHost: "api.recruitee.com",
+    jobsList: (slug) => `https://api.recruitee.com/v1/companies/${slug}/offers`,
+    hostedBoard: (slug) => `https://${slug}.recruitee.com`,
   },
 } as const;
 

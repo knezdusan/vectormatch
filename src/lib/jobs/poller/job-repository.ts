@@ -108,7 +108,13 @@ export async function upsertJobs(
       target: [job.atsSource, job.atsSlug, job.externalJobId],
       set: {
         title: sql`excluded.title`,
-        rawJson: sql`excluded.raw_json`,
+        // G7: only refresh rawJson if the job hasn't been normalized yet
+        // (normalizedAt IS NULL). After normalization, rawJson is NULLed to
+        // reclaim storage and normalizedText holds the cleaned text. Over-
+        // writing rawJson on re-poll would undo the storage reclamation
+        // (~15KB back per job). The normalizer's idempotency guard skips
+        // already-normalized jobs, so the stale rawJson is never needed again.
+        rawJson: sql`CASE WHEN ${job.normalizedAt} IS NULL THEN excluded.raw_json ELSE ${job.rawJson} END`,
         lastSeenAt: now,
         // Only resurrect stale/gone jobs back to active. Rejected and
         // normalization_failed jobs keep their status — re-polling should
@@ -232,4 +238,58 @@ export async function countActiveJobs(
       sql`${job.atsSource} = ${atsSource} AND ${job.atsSlug} = ${atsSlug} AND ${job.status} = 'active'`,
     );
   return result[0]?.count ?? 0;
+}
+
+// ── G3: Aggregator job insertion (CORPUS_EXPANSION_TDD §1.7) ──────────────────
+
+/**
+ * Insert an aggregator-sourced job into the job table. Aggregator jobs use
+ * `atsSource = "aggregator"` and `atsSlug = source_name` (e.g. "remoteok").
+ *
+ * Per G7: rawJson is NULL (no ATS JSON to store), normalizedText is set to
+ * the cleaned fullText. The job is inserted with `status = "active"` and
+ * `normalizedAt = NOW()` (normalization is already complete — the aggregator
+ * handler normalizes before inserting).
+ *
+ * Uses `onConflictDoNothing()` on the `(atsSource, atsSlug, externalJobId)`
+ * unique index — if the same aggregator job is ingested twice (e.g. from a
+ * retry), the duplicate is silently skipped.
+ *
+ * @returns  The job UUID if inserted, or null if it was a duplicate.
+ */
+export async function insertAggregatorJob(
+  aggregatorJob: {
+    source: string;
+    externalJobId: string;
+    title: string;
+    applyUrl?: string;
+    publishedAt?: Date;
+  },
+  normalization: { fullText: string; tags: string[] },
+  embedding: number[],
+): Promise<string | null> {
+  const embeddingStr = `[${embedding.join(",")}]`;
+
+  const inserted = await db
+    .insert(job)
+    .values({
+      atsSource: "aggregator",
+      atsSlug: aggregatorJob.source,
+      externalJobId: aggregatorJob.externalJobId,
+      title: aggregatorJob.title,
+      rawJson: null, // G7: no ATS JSON for aggregator jobs
+      normalizedText: normalization.fullText, // G7: cleaned text
+      extractedTags: normalization.tags,
+      jobEmbedding: embeddingStr as never,
+      status: "active",
+      normalizedAt: new Date(),
+      applyUrl: aggregatorJob.applyUrl ?? null,
+      publishedAt: aggregatorJob.publishedAt ?? null,
+    })
+    .onConflictDoNothing({
+      target: [job.atsSource, job.atsSlug, job.externalJobId],
+    })
+    .returning({ id: job.id });
+
+  return inserted.length > 0 ? inserted[0].id : null;
 }

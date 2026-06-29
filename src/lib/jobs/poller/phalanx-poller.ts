@@ -9,10 +9,11 @@
 //   5. Emit `job/ingested` events for genuinely new jobs (B→C handoff)
 //   6. Update company state (lastPolledAt, health, consecutiveFailures)
 //
-// ── Architecture (TDD §4.4.1) ────────────────────────────────────────────────
-// The poller runs as per-company Inngest function instances, triggered by
-// `poller/poll-company` events from the tier fan-out functions. Inngest's
-// concurrency cap (50) naturally limits simultaneous polls.
+// ── Architecture (G5 — CORPUS_EXPANSION_TDD §1.2) ───────────────────────────
+// The poller is called directly by the batchPollTier Inngest function, which
+// polls up to 100 companies per run. The old per-company fan-out pattern
+// (poller/poll-company events) is retired. pollCompany() is also called by
+// the manual phalanxPoller function for admin/testing.
 //
 // ── Injectable fetch ─────────────────────────────────────────────────────────
 // The fetch function is injectable for testing. In production, the global
@@ -67,7 +68,7 @@ export interface PollResult {
  * PollResult. The caller (Inngest function) can retry based on the error.
  *
  * @param companyId  The company UUID
- * @param atsSource  The ATS platform ("greenhouse", "lever", "ashby")
+ * @param atsSource  The ATS platform ("greenhouse", "lever", "ashby", "smartrecruiters", "workable", "recruitee")
  * @param atsSlug    The company's ATS slug
  * @param fetchFn    Injectable fetch (defaults to global fetch)
  */
@@ -92,7 +93,13 @@ export async function pollCompany(
 
   // Step 1: Fetch jobs from the ATS API (rate-limited + Zod validated).
   const fetchResult = await fetchJobsFromAts(
-    atsSource as "greenhouse" | "lever" | "ashby",
+    atsSource as
+      | "greenhouse"
+      | "lever"
+      | "ashby"
+      | "smartrecruiters"
+      | "workable"
+      | "recruitee",
     atsSlug,
     fetchFn,
   );

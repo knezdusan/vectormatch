@@ -1,15 +1,14 @@
-// Tier Queries — Get Companies by Tier for Fan-Out Polling
+// Tier Queries — Get Companies by Tier for Batch Polling
 // src/lib/jobs/poller/tier-queries.ts
 //
-// The Phalanx Poller uses a fan-out pattern (TDD §4.4.1):
-//   1. Two scheduled Inngest functions query companies by tier
-//   2. Each emits `poller/poll-company` events for the matching companies
-//   3. Each event triggers a separate per-company poll function instance
+// The Phalanx Poller uses a batch polling pattern (G5 — CORPUS_EXPANSION_TDD §1.2):
+//   1. A single scheduled Inngest function (batchPollTier) queries companies by tier
+//   2. It polls up to 100 companies per run, sequentially within the batch
 //
-// This module provides the queries that the scheduled functions use to find
-// which companies need polling.
+// This module provides the queries that the batch poller uses to find which
+// companies need polling.
 //
-// See TDD §4.4.1 (Three Optimizations) and §4.4 (Decay Polling).
+// See CORPUS_EXPANSION_TDD §1.2 (Batch Polling) and §3.1 (G1 Adaptive Cadence).
 
 import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
@@ -91,6 +90,38 @@ export async function getCompanyById(
     .where(sql`${company.id} = ${companyId}`)
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Get a batch of companies for a specific tier, due for polling.
+ * (G5 — CORPUS_EXPANSION_TDD §1.2: Batch Polling Architecture)
+ *
+ * Returns up to `limit` companies ordered by lastPolledAt ASC NULLS FIRST —
+ * companies that haven't been polled recently (or ever) get priority. This
+ * replaces the old fan-out pattern (getActiveTierCompanies → emit per-company
+ * events) with a single batch query consumed by the batchPollTier function.
+ *
+ * @param tier   The company tier ("active_hot" | "active" | "dormant")
+ * @param limit  Max companies to return (default 100 — the G5 batch size)
+ */
+export async function getBatchForTier(
+  tier: "active_hot" | "active" | "dormant",
+  limit = 100,
+): Promise<CompanyToPoll[]> {
+  const rows = await db
+    .select({
+      id: company.id,
+      atsSource: company.atsSource,
+      atsSlug: company.atsSlug,
+      companyName: company.companyName,
+    })
+    .from(company)
+    .where(
+      sql`${company.tier} = ${tier}::company_tier AND ${company.pollingEnabled} = true`,
+    )
+    .orderBy(sql`${company.lastPolledAt} ASC NULLS FIRST`)
+    .limit(limit);
+  return rows;
 }
 
 // ── Tier recalculation ───────────────────────────────────────────────────────

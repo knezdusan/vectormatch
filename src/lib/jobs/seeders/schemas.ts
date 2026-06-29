@@ -10,10 +10,17 @@
 
 import { z } from "zod";
 
-// The three ATS platforms supported in the MVP. Mirrors atsSourceEnum but as a
-// Zod enum for runtime validation (the DB enum is for Postgres, this is for
+// The six ATS platforms supported. Mirrors atsSourceEnum but as a Zod enum
+// for runtime validation (the DB enum is for Postgres, this is for
 // application-level validation before the insert).
-export const atsSourceSchema = z.enum(["greenhouse", "lever", "ashby"]);
+export const atsSourceSchema = z.enum([
+  "greenhouse",
+  "lever",
+  "ashby",
+  "smartrecruiters",
+  "recruitee",
+  "workable",
+]);
 
 // How a company was discovered. Mirrors discoverySourceEnum.
 export const discoverySourceSchema = z.enum([
@@ -22,6 +29,15 @@ export const discoverySourceSchema = z.enum([
   "crt_sh",
   "hn_custom_url",
   "manual",
+  "workable_meta_search",
+  "google_cse",
+  "yc_directory",
+  "vc_portfolio",
+  "newsletter_archive",
+  "wayback_cdx",
+  "rapid7_fdns",
+  "cross_pollination",
+  "sitemap_probe",
 ]);
 
 // Input to the company insert function — used by all seeders. This is the

@@ -307,6 +307,7 @@ describe("getMatchDetail", () => {
       jobAtsSource: "greenhouse",
       jobAtsSlug: "acme",
       jobRawJson: '{"title":"Senior React Engineer","description":"..."}',
+      jobNormalizedText: null,
       jobExtractedTags: ["react", "typescript"],
       personaId: "persona-1",
       personaLabel: "Senior React Developer",

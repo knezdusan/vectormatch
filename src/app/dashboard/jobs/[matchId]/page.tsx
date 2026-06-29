@@ -70,17 +70,19 @@ export default async function MatchDetailPage({
     notFound();
   }
 
-  // Extract job description from rawJson
+  // Extract job description — prefer normalizedText (G7, post-normalization
+  // cleaned text) over rawJson (which is NULLed after normalization).
   const jobContent = extractJobContent(
     match.job.atsSource,
     match.job.rawJson,
     match.job.title,
+    match.job.normalizedText,
   );
 
   // Prefer the job-specific posting URL (lands the user directly on the
   // matched job). Fall back to the company-wide hosted board URL when the
   // per-job URL is absent from rawJson (e.g. some Ashby boards omit
-  // jobUrl).
+  // jobUrl). After G7, rawJson may be null — extractJobUrl handles that.
   const jobUrl =
     extractJobUrl(match.job.atsSource, match.job.rawJson) ??
     ATS_ENDPOINTS[

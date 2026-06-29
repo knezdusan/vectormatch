@@ -54,13 +54,18 @@ export type ResolutionResult =
 
 // ── CNAME target → ATS source mapping ────────────────────────────────────────
 
-const CNAME_ATS_MAP: Record<string, AtsSource> = {
+export const CNAME_ATS_MAP: Record<string, AtsSource> = {
   "boards.greenhouse.io": "greenhouse",
   "boards-api.greenhouse.io": "greenhouse",
   "jobs.lever.co": "lever",
   "api.lever.co": "lever",
   "api.ashbyhq.com": "ashby",
   "jobs.ashbyhq.com": "ashby",
+  // F2 additions
+  "jobs.smartrecruiters.com": "smartrecruiters",
+  "api.smartrecruiters.com": "smartrecruiters",
+  "apply.workable.com": "workable",
+  "recruitee.com": "recruitee",
 };
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -72,10 +77,10 @@ const CNAME_ATS_MAP: Record<string, AtsSource> = {
  * @param url           The custom URL to resolve (e.g. "https://careers.acme.com")
  * @param resolveCname  Injectable DNS CNAME resolver (defaults to node:dns/promises)
  * @param fetchFn       Injectable fetch (defaults to global fetch)
- * @param atsHint       Optional ATS source hint ("greenhouse", "lever", "ashby").
- *                      When provided, the slug probe only tries the hinted ATS
- *                      instead of all three — 3x fewer API calls. Used by the
- *                      BigQuery seeder where Wappalyzer detects the ATS.
+ * @param atsHint       Optional ATS source hint. When provided, the slug
+ *                      probe only tries the hinted ATS instead of all six —
+ *                      6x fewer API calls. Used by the BigQuery seeder where
+ *                      Wappalyzer detects the ATS.
  */
 export async function resolveCustomUrl(
   url: string,
@@ -212,7 +217,7 @@ async function tryCnameResolution(
  * points to the ATS host, but the slug is the company's root domain (without
  * TLD), NOT the first subdomain label (which is often "careers" or "jobs").
  */
-function inferSlugFromHostname(hostname: string): string | null {
+export function inferSlugFromHostname(hostname: string): string | null {
   const labels = hostname.split(".");
 
   // We need at least 2 labels (e.g. "acme.com") to extract a slug.
@@ -260,10 +265,17 @@ async function trySlugProbe(
   // root domain (without TLD).
   const candidates = extractSlugCandidates(hostname, rootDomain);
 
-  // If an ATS hint is provided, only probe that ATS. Otherwise try all three.
+  // If an ATS hint is provided, only probe that ATS. Otherwise try all six.
   const sourcesToProbe: AtsSource[] = atsHint
     ? [atsHint]
-    : (["greenhouse", "lever", "ashby"] as AtsSource[]);
+    : ([
+        "greenhouse",
+        "lever",
+        "ashby",
+        "smartrecruiters",
+        "workable",
+        "recruitee",
+      ] as AtsSource[]);
 
   for (const slug of candidates) {
     for (const source of sourcesToProbe) {
@@ -326,22 +338,37 @@ function extractSlugCandidates(
  * Quick check if the response text looks like a valid ATS response (not an
  * error page or empty response). We don't fully parse with Zod here — the
  * poller does that. This is just a slug existence check.
+ *
+ * Exported for reuse by the Slugger (F1).
  */
-function looksLikeValidAtsResponse(text: string, source: AtsSource): boolean {
+export function looksLikeValidAtsResponse(
+  text: string,
+  source: AtsSource,
+): boolean {
   const trimmed = text.trim();
   if (trimmed.length === 0) return false;
 
   try {
     const json: unknown = JSON.parse(trimmed);
-    // Greenhouse: { "jobs": [...] }
     // Lever: [...]
-    // Ashby: { "jobs": [...] }
-    if (source === "lever") {
+    // Workable: [...] (bare array, same as Lever)
+    if (source === "lever" || source === "workable") {
       return Array.isArray(json);
     }
     if (typeof json === "object" && json !== null) {
-      // Greenhouse and Ashby both return { jobs: [...] }
-      return "jobs" in json;
+      // Greenhouse: { "jobs": [...] }
+      // Ashby: { "jobs": [...] }
+      if (source === "greenhouse" || source === "ashby") {
+        return "jobs" in json;
+      }
+      // SmartRecruiters: { "content": [...] }
+      if (source === "smartrecruiters") {
+        return "content" in json;
+      }
+      // Recruitee: { "offers": [...] }
+      if (source === "recruitee") {
+        return "offers" in json;
+      }
     }
   } catch {
     // Not valid JSON — not a valid ATS response.
@@ -351,7 +378,7 @@ function looksLikeValidAtsResponse(text: string, source: AtsSource): boolean {
 
 // ── Default DNS resolver (lazy import of node:dns/promises) ──────────────────
 
-async function defaultResolveCname(hostname: string): Promise<string[]> {
+export async function defaultResolveCname(hostname: string): Promise<string[]> {
   // Dynamic import — node:dns/promises is Node-only, not available in edge
   // runtime. The import is deferred so the module can be loaded in non-Node
   // environments (e.g. vitest with happy-dom) without crashing.

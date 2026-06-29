@@ -20,7 +20,15 @@ export const job = pgTable(
     atsSource: text("ats_source").notNull(),
     atsSlug: text("ats_slug").notNull(),
     title: text("title").notNull(),
-    rawJson: text("raw_json").notNull(),
+    // G7 (CORPUS_EXPANSION_TDD §1.1): rawJson is NULLed after normalization to
+    // reclaim storage (~15KB → 0). The cleaned text lives in normalizedText
+    // (~3KB). Made nullable so the normalizer can set it to null. During the
+    // transition period (pre-backfill) legacy jobs still carry rawJson.
+    rawJson: text("raw_json"),
+    // G7: Cleaned, HTML-stripped job text. Populated by the normalizer after
+    // extraction. rawJson is NULLed at the same time to reclaim storage. Gate 3
+    // reads this instead of rawJson (no HTML stripping needed — already clean).
+    normalizedText: text("normalized_text"),
     extractedTags: text("extracted_tags")
       .array()
       .notNull()

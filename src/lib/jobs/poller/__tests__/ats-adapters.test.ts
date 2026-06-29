@@ -275,3 +275,260 @@ describe("fetchJobsFromAts — normalization", () => {
     }
   });
 });
+
+// ── SmartRecruiters (F2) ─────────────────────────────────────────────────────
+
+describe("fetchJobsFromAts — SmartRecruiters", () => {
+  const validResponse = {
+    limit: 100,
+    offset: 0,
+    totalFound: 2,
+    content: [
+      {
+        id: "74983486",
+        name: "Senior Frontend Engineer",
+        company: { identifier: "acme", name: "Acme Corp" },
+        location: { city: "San Francisco", country: "us", remote: true },
+        department: { label: "Engineering" },
+        typeOfEmployment: { label: "Full-time" },
+        releasedDate: "2024-01-15T10:00:00Z",
+      },
+      {
+        id: "74983487",
+        name: "Backend Developer",
+      },
+    ],
+  };
+
+  it("fetches and normalizes SmartRecruiters jobs", async () => {
+    const result = await fetchJobsFromAts(
+      "smartrecruiters",
+      "acme",
+      mockFetch(jsonResponse(validResponse)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(2);
+      expect(result.jobs[0].externalJobId).toBe("74983486");
+      // SmartRecruiters calls the title "name"
+      expect(result.jobs[0].title).toBe("Senior Frontend Engineer");
+      expect(result.jobs[0].rawJson).toContain("Senior Frontend Engineer");
+    }
+  });
+
+  it("handles empty content array", async () => {
+    const result = await fetchJobsFromAts(
+      "smartrecruiters",
+      "acme",
+      mockFetch(jsonResponse({ content: [], totalFound: 0 })),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(0);
+    }
+  });
+
+  it("returns validation error on malformed response", async () => {
+    const result = await fetchJobsFromAts(
+      "smartrecruiters",
+      "acme",
+      mockFetch(jsonResponse({ jobs: [] })), // Wrong field name
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.kind).toBe("validation");
+      expect(result.error).toContain("SmartRecruiters");
+    }
+  });
+
+  it("extracts metadata correctly", async () => {
+    const result = await fetchJobsFromAts(
+      "smartrecruiters",
+      "acme",
+      mockFetch(jsonResponse(validResponse)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const meta = result.jobs[0].metadata;
+      expect(meta.companyName).toBe("Acme Corp");
+      expect(meta.workplaceType).toBe("remote");
+      expect(meta.employmentType).toBe("full-time");
+      expect(meta.department).toBe("Engineering");
+      expect(meta.locationName).toContain("San Francisco");
+    }
+  });
+});
+
+// ── Workable (F2) ────────────────────────────────────────────────────────────
+
+describe("fetchJobsFromAts — Workable", () => {
+  const validResponse = [
+    {
+      shortcode: "ABC123",
+      title: "Full Stack Engineer",
+      companyName: "Acme Corp",
+      department: "Engineering",
+      employmentType: "Full-time",
+      workplace: "remote",
+      location: { city: "Berlin", country: "Germany" },
+      url: "https://apply.workable.com/j/ABC123",
+      applyUrl: "https://apply.workable.com/j/ABC123/apply",
+      description: "<p>We need a React developer</p>",
+      publishedAt: "2024-01-15",
+    },
+  ];
+
+  it("fetches and normalizes Workable jobs (bare array)", async () => {
+    const result = await fetchJobsFromAts(
+      "workable",
+      "acme",
+      mockFetch(jsonResponse(validResponse)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(1);
+      expect(result.jobs[0].externalJobId).toBe("ABC123");
+      expect(result.jobs[0].title).toBe("Full Stack Engineer");
+      expect(result.jobs[0].url).toBe("https://apply.workable.com/j/ABC123");
+    }
+  });
+
+  it("handles empty array", async () => {
+    const result = await fetchJobsFromAts(
+      "workable",
+      "acme",
+      mockFetch(jsonResponse([])),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(0);
+    }
+  });
+
+  it("returns validation error on non-array response", async () => {
+    const result = await fetchJobsFromAts(
+      "workable",
+      "acme",
+      mockFetch(jsonResponse({ jobs: [] })), // Workable returns a bare array
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.kind).toBe("validation");
+      expect(result.error).toContain("Workable");
+    }
+  });
+
+  it("extracts metadata correctly", async () => {
+    const result = await fetchJobsFromAts(
+      "workable",
+      "acme",
+      mockFetch(jsonResponse(validResponse)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const meta = result.jobs[0].metadata;
+      expect(meta.companyName).toBe("Acme Corp");
+      expect(meta.workplaceType).toBe("remote");
+      expect(meta.employmentType).toBe("full-time");
+      expect(meta.department).toBe("Engineering");
+    }
+  });
+});
+
+// ── Recruitee (F2) ───────────────────────────────────────────────────────────
+
+describe("fetchJobsFromAts — Recruitee", () => {
+  const validResponse = {
+    offers: [
+      {
+        id: 1853589,
+        title: "DevOps Engineer",
+        company_name: "Acme Corp",
+        department: "Infrastructure",
+        careers_url: "https://acme.recruitee.com/o/devops-engineer",
+        careers_apply_url: "https://acme.recruitee.com/o/devops-engineer/c/new",
+        description: "We need someone who knows Kubernetes",
+        requirements: "3+ years of DevOps experience",
+        remote: true,
+        on_site: false,
+        hybrid: false,
+        employment_type_code: "fulltime_permanent",
+        locations: [
+          { id: 1, city: "Berlin", country: "Germany", country_code: "DE" },
+        ],
+        published_at: "2024-01-15 10:00:00 UTC",
+      },
+    ],
+  };
+
+  it("fetches and normalizes Recruitee jobs", async () => {
+    const result = await fetchJobsFromAts(
+      "recruitee",
+      "acme",
+      mockFetch(jsonResponse(validResponse)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(1);
+      expect(result.jobs[0].externalJobId).toBe("1853589");
+      expect(result.jobs[0].title).toBe("DevOps Engineer");
+      expect(result.jobs[0].url).toBe(
+        "https://acme.recruitee.com/o/devops-engineer",
+      );
+    }
+  });
+
+  it("handles empty offers array", async () => {
+    const result = await fetchJobsFromAts(
+      "recruitee",
+      "acme",
+      mockFetch(jsonResponse({ offers: [] })),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(0);
+    }
+  });
+
+  it("returns validation error on malformed response", async () => {
+    const result = await fetchJobsFromAts(
+      "recruitee",
+      "acme",
+      mockFetch(jsonResponse({ jobs: [] })), // Wrong field name
+    );
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.kind).toBe("validation");
+      expect(result.error).toContain("Recruitee");
+    }
+  });
+
+  it("extracts metadata correctly", async () => {
+    const result = await fetchJobsFromAts(
+      "recruitee",
+      "acme",
+      mockFetch(jsonResponse(validResponse)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const meta = result.jobs[0].metadata;
+      expect(meta.companyName).toBe("Acme Corp");
+      expect(meta.workplaceType).toBe("remote");
+      expect(meta.employmentType).toBe("full-time");
+      expect(meta.department).toBe("Infrastructure");
+      expect(meta.locationName).toContain("Berlin");
+    }
+  });
+});

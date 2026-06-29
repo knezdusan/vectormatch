@@ -28,6 +28,7 @@ import "server-only";
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { passesGateZero } from "@/lib/jobs/gate-zero";
 import { GATE_NORMALIZATION_MIN_PERSONA_TAGS } from "@/lib/jobs/matching-config";
 import {
   CANONICAL_TAG_MAP,
@@ -81,12 +82,41 @@ export type LlmTagExtractor = (fullText: string) => Promise<string[]>;
  * fallbackTitle }. The normalizer proceeds with title-only text — the regex
  * scan may still find tags in the title, and the LLM fallback gets the title
  * as context. (MODULE_C_DECISIONS.md §4.1)
+ *
+ * G7 fast path (CORPUS_EXPANSION_TDD §1.1): if `normalizedText` is provided
+ * (non-null, non-empty), it is returned directly as both `description` and
+ * `fullText` — no rawJson parsing or HTML stripping needed. This is the
+ * post-normalization read path used by gate3Evaluator and the dashboard. The
+ * `rawJson` parameter accepts null to accommodate the G7 schema change
+ * (rawJson is NULLed after normalization).
  */
 export function extractJobContent(
   atsSource: string,
-  rawJson: string,
+  rawJson: string | null,
   fallbackTitle: string,
+  normalizedText?: string | null,
 ): { title: string; description: string; fullText: string } {
+  // G7 fast path: if normalizedText is already available (post-normalization),
+  // return it directly. It's already HTML-stripped and cleaned — no parsing
+  // or stripping needed. This is the read path used by gate3Evaluator and the
+  // dashboard match detail page after the G7 migration.
+  if (typeof normalizedText === "string" && normalizedText.length > 0) {
+    return {
+      title: fallbackTitle,
+      description: normalizedText,
+      fullText: normalizedText,
+    };
+  }
+
+  // Legacy / pre-normalization path: parse rawJson.
+  if (rawJson === null) {
+    return {
+      title: fallbackTitle,
+      description: "",
+      fullText: fallbackTitle,
+    };
+  }
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawJson);
@@ -174,6 +204,38 @@ export function extractJobContent(
       const description = plainDesc ? plainDesc : stripHtml(rawDesc);
       return { title, description, fullText: `${title} ${description}`.trim() };
     }
+    case "smartrecruiters": {
+      // SmartRecruiters calls the title "name". The list endpoint does NOT
+      // include the job description — only the detail endpoint does. For the
+      // MVP, we degrade to title-only (same as Greenhouse without ?content=true).
+      // The detail endpoint can be added later if needed.
+      const title = typeof obj.name === "string" ? obj.name : fallbackTitle;
+      return { title, description: "", fullText: title };
+    }
+    case "workable": {
+      const title = typeof obj.title === "string" ? obj.title : fallbackTitle;
+      // Workable widget API with ?details=true includes `description` (HTML).
+      const rawDesc =
+        typeof obj.description === "string" && obj.description.length > 0
+          ? obj.description
+          : "";
+      const description = stripHtml(rawDesc);
+      return { title, description, fullText: `${title} ${description}`.trim() };
+    }
+    case "recruitee": {
+      const title = typeof obj.title === "string" ? obj.title : fallbackTitle;
+      // Recruitee provides `description` and `requirements` as plain text.
+      const desc =
+        typeof obj.description === "string" && obj.description.length > 0
+          ? obj.description
+          : "";
+      const req =
+        typeof obj.requirements === "string" && obj.requirements.length > 0
+          ? obj.requirements
+          : "";
+      const description = `${desc} ${req}`.trim();
+      return { title, description, fullText: `${title} ${description}`.trim() };
+    }
     default: {
       // Unknown ATS source — degrade to title-only.
       return {
@@ -207,8 +269,9 @@ export function extractJobContent(
  */
 export function extractJobUrl(
   atsSource: string,
-  rawJson: string,
+  rawJson: string | null,
 ): string | null {
+  if (rawJson === null) return null;
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawJson);
@@ -225,7 +288,13 @@ export function extractJobUrl(
         ? "hostedUrl"
         : atsSource === "ashby"
           ? "jobUrl"
-          : null;
+          : atsSource === "smartrecruiters"
+            ? "postingUrl"
+            : atsSource === "workable"
+              ? "url"
+              : atsSource === "recruitee"
+                ? "careers_url"
+                : null;
 
   if (!field) return null;
   const value = obj[field];
@@ -285,7 +354,7 @@ export type JobMetadata = {
  */
 export function extractJobMetadata(
   atsSource: string,
-  rawJson: string,
+  rawJson: string | null,
 ): JobMetadata {
   const empty: JobMetadata = {
     workplaceType: null,
@@ -297,6 +366,8 @@ export function extractJobMetadata(
     publishedAt: null,
     companyName: null,
   };
+
+  if (rawJson === null) return empty;
 
   let parsed: unknown;
   try {
@@ -315,6 +386,12 @@ export function extractJobMetadata(
       return extractLeverMetadata(obj);
     case "ashby":
       return extractAshbyMetadata(obj);
+    case "smartrecruiters":
+      return extractSmartRecruitersMetadata(obj);
+    case "workable":
+      return extractWorkableMetadata(obj);
+    case "recruitee":
+      return extractRecruiteeMetadata(obj);
     default:
       return empty;
   }
@@ -483,6 +560,227 @@ function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
     publishedAt,
     companyName: null, // Ashby Public API doesn't include company name
   };
+}
+
+// ── SmartRecruiters metadata extraction (F2) ─────────────────────────────────
+
+function extractSmartRecruitersMetadata(
+  obj: Record<string, unknown>,
+): JobMetadata {
+  // Location — nested object { city, region, country, remote }
+  const locationObj = obj.location;
+  const loc =
+    typeof locationObj === "object" && locationObj !== null
+      ? (locationObj as Record<string, unknown>)
+      : {};
+  const city = typeof loc.city === "string" ? loc.city : null;
+  const region = typeof loc.region === "string" ? loc.region : null;
+  const country = typeof loc.country === "string" ? loc.country : null;
+  const locationName =
+    [city, region, country].filter(Boolean).join(", ") || null;
+
+  // Workplace type — SmartRecruiters uses location.remote (boolean)
+  let workplaceType: JobMetadata["workplaceType"] = null;
+  if (loc.remote === true) {
+    workplaceType = "remote";
+  }
+
+  // Employment type — typeOfEmployment.label ("Full-time", "Permanent", etc.)
+  const toeObj = obj.typeOfEmployment;
+  const toe =
+    typeof toeObj === "object" && toeObj !== null
+      ? (toeObj as Record<string, unknown>)
+      : {};
+  const employmentType = normalizeEmploymentTypeLabel(toe.label);
+
+  // Department — department.label
+  const deptObj = obj.department;
+  const dept =
+    typeof deptObj === "object" && deptObj !== null
+      ? (deptObj as Record<string, unknown>)
+      : {};
+  const department = typeof dept.label === "string" ? dept.label : null;
+
+  // Company name — company.name
+  const companyObj = obj.company;
+  const company =
+    typeof companyObj === "object" && companyObj !== null
+      ? (companyObj as Record<string, unknown>)
+      : {};
+  const companyName =
+    typeof company.name === "string" && company.name.length > 0
+      ? company.name
+      : null;
+
+  // Published date — releasedDate (ISO 8601)
+  const publishedAt = parseDate(obj.releasedDate);
+
+  return {
+    workplaceType,
+    employmentType,
+    locationName,
+    department,
+    team: null,
+    applyUrl: null,
+    publishedAt,
+    companyName,
+  };
+}
+
+// ── Workable metadata extraction (F2) ────────────────────────────────────────
+
+function extractWorkableMetadata(obj: Record<string, unknown>): JobMetadata {
+  // Location — nested object { city, region, country }
+  const locationObj = obj.location;
+  const loc =
+    typeof locationObj === "object" && locationObj !== null
+      ? (locationObj as Record<string, unknown>)
+      : {};
+  const city = typeof loc.city === "string" ? loc.city : null;
+  const region = typeof loc.region === "string" ? loc.region : null;
+  const country = typeof loc.country === "string" ? loc.country : null;
+  const locationName =
+    [city, region, country].filter(Boolean).join(", ") || null;
+
+  // Workplace type — Workable uses lowercase: "remote", "hybrid", "on_site"
+  const rawWorkplace = obj.workplace;
+  let workplaceType: JobMetadata["workplaceType"] = null;
+  if (typeof rawWorkplace === "string") {
+    switch (rawWorkplace.toLowerCase()) {
+      case "remote":
+        workplaceType = "remote";
+        break;
+      case "hybrid":
+        workplaceType = "hybrid";
+        break;
+      case "on_site":
+      case "onsite":
+        workplaceType = "on-site";
+        break;
+    }
+  }
+
+  // Employment type — "Full-time", "Part-time", "Contract", etc.
+  const employmentType = normalizeEmploymentTypeLabel(obj.employmentType);
+
+  // Department
+  const department = typeof obj.department === "string" ? obj.department : null;
+
+  // Company name
+  const companyName =
+    typeof obj.companyName === "string" && obj.companyName.length > 0
+      ? obj.companyName
+      : null;
+
+  // Apply URL
+  const applyUrl =
+    typeof obj.applyUrl === "string" && obj.applyUrl.length > 0
+      ? obj.applyUrl
+      : null;
+
+  // Published date — publishedAt (ISO date or YYYY-MM-DD)
+  const publishedAt = parseDate(obj.publishedAt);
+
+  return {
+    workplaceType,
+    employmentType,
+    locationName,
+    department,
+    team: null,
+    applyUrl,
+    publishedAt,
+    companyName,
+  };
+}
+
+// ── Recruitee metadata extraction (F2) ───────────────────────────────────────
+
+function extractRecruiteeMetadata(obj: Record<string, unknown>): JobMetadata {
+  // Location — first entry in locations array
+  const locations = obj.locations;
+  let locationName: string | null = null;
+  if (Array.isArray(locations) && locations.length > 0) {
+    const first = locations[0] as Record<string, unknown>;
+    const city = typeof first?.city === "string" ? first.city : null;
+    const country = typeof first?.country === "string" ? first.country : null;
+    locationName = [city, country].filter(Boolean).join(", ") || null;
+  }
+
+  // Workplace type — Recruitee uses separate boolean flags
+  let workplaceType: JobMetadata["workplaceType"] = null;
+  if (obj.remote === true) {
+    workplaceType = "remote";
+  } else if (obj.hybrid === true) {
+    workplaceType = "hybrid";
+  } else if (obj.on_site === true) {
+    workplaceType = "on-site";
+  }
+
+  // Employment type — employment_type_code: "fulltime_permanent", "contract", etc.
+  const employmentType = normalizeRecruiteeEmploymentType(
+    obj.employment_type_code,
+  );
+
+  // Department
+  const department = typeof obj.department === "string" ? obj.department : null;
+
+  // Company name
+  const companyName =
+    typeof obj.company_name === "string" && obj.company_name.length > 0
+      ? obj.company_name
+      : null;
+
+  // Apply URL
+  const applyUrl =
+    typeof obj.careers_apply_url === "string" &&
+    obj.careers_apply_url.length > 0
+      ? obj.careers_apply_url
+      : null;
+
+  // Published date — published_at (e.g. "20**-09-26 10:46:21 UTC")
+  const publishedAt = parseDate(obj.published_at);
+
+  return {
+    workplaceType,
+    employmentType,
+    locationName,
+    department,
+    team: null,
+    applyUrl,
+    publishedAt,
+    companyName,
+  };
+}
+
+/**
+ * Normalize a generic employment type label to a standard string.
+ * Used by SmartRecruiters and Workable which both use labels like
+ * "Full-time", "Part-time", "Contract", "Permanent", etc.
+ */
+function normalizeEmploymentTypeLabel(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const lower = value.toLowerCase();
+  if (lower.includes("full")) return "full-time";
+  if (lower.includes("part")) return "part-time";
+  if (lower.includes("contract")) return "contract";
+  if (lower.includes("intern")) return "internship";
+  if (lower.includes("permanent")) return "full-time";
+  if (lower.includes("temporary")) return "contract";
+  return null;
+}
+
+/**
+ * Normalize Recruitee's employment_type_code to a standard employment type.
+ * Recruitee values: "fulltime_permanent", "parttime_permanent", "contract", etc.
+ */
+function normalizeRecruiteeEmploymentType(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  if (value.includes("fulltime")) return "full-time";
+  if (value.includes("parttime")) return "part-time";
+  if (value.includes("contract")) return "contract";
+  if (value.includes("intern")) return "internship";
+  if (value.includes("temporary")) return "contract";
+  return null;
 }
 
 /**
@@ -723,7 +1021,7 @@ function countPersonaDefining(tags: string[]): number {
  */
 export async function normalizeJob(
   atsSource: string,
-  rawJson: string,
+  rawJson: string | null,
   fallbackTitle: string,
   llmExtractor: LlmTagExtractor = extractTagsLLM,
 ): Promise<NormalizationResult> {
@@ -826,4 +1124,67 @@ export function decideNormalizationAction(
   }
   // status = 'active', normalizedAt IS NULL → run normalization
   return { action: "normalize" };
+}
+
+// =============================================================================
+// G3: AGGREGATOR JOB NORMALIZATION (CORPUS_EXPANSION_TDD §1.7)
+// =============================================================================
+
+/**
+ * An aggregator-sourced job (Remote OK, Remotive, Himalayas, WWR, Jobicy,
+ * HN comments, Reddit, newsletters). These jobs come from non-ATS sources
+ * and bypass the ATS poller — they're ingested directly via the
+ * `aggregatorJobHandler` Inngest function.
+ */
+export interface AggregatorJob {
+  source:
+    | "remoteok"
+    | "remotive"
+    | "himalayas"
+    | "wwr"
+    | "jobicy"
+    | "hn_comment"
+    | "reddit"
+    | "newsletter";
+  externalJobId: string; // e.g. "remoteok-12345"
+  company: string;
+  title: string;
+  description: string; // HTML or plain text
+  location?: string;
+  tags?: string[];
+  applyUrl?: string;
+  publishedAt?: Date;
+}
+
+/**
+ * Normalize an aggregator-sourced job. This is the G3 entry point for
+ * non-ATS jobs (Remote OK, Remotive, HN comments, Reddit, newsletters).
+ *
+ * Unlike `normalizeJob()` (which reads from rawJson), this function receives
+ * the job fields directly — aggregator sources provide structured data, not
+ * ATS JSON. The normalization is simpler:
+ *   1. Strip HTML from description
+ *   2. Combine title + company + location + cleaned description → fullText
+ *   3. Run regex tag extraction (Phase 1 only — no LLM fallback for MVP)
+ *   4. Gate 0 check on title (reject non-engineering roles)
+ *
+ * @returns  { status, fullText, tags } — status is 'normalized' or 'rejected'
+ */
+export function normalizeAggregatorJob(job: AggregatorJob): {
+  status: "normalized" | "rejected";
+  fullText: string;
+  tags: string[];
+} {
+  // Strip HTML from description
+  const cleanedDescription = stripHtml(job.description);
+  // Combine: title + company + location + cleaned description
+  const locationLine = job.location ? `${job.location}\n` : "";
+  const combinedText = `${job.title} at ${job.company}\n${locationLine}${cleanedDescription}`;
+  // Run regex tag extraction (same as ATS jobs)
+  const tags = scanTagsRegex(combinedText);
+  // Gate 0 check on title — reject non-engineering roles
+  if (!passesGateZero(job.title)) {
+    return { status: "rejected", fullText: combinedText, tags };
+  }
+  return { status: "normalized", fullText: combinedText, tags };
 }

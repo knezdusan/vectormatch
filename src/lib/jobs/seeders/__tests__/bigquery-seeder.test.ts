@@ -53,6 +53,12 @@ const rowLever: BigQueryRow = {
   ats_source: "lever",
 };
 
+const rowWorkable: BigQueryRow = {
+  root_page: "allucent.com",
+  page: "https://allucent.com/",
+  ats_source: "workable",
+};
+
 const rowGreenhouseNoPage: BigQueryRow = {
   root_page: "nopage.com",
   ats_source: "greenhouse",
@@ -90,6 +96,7 @@ describe("buildBigQuerySql", () => {
     expect(sql).toContain("technologies");
     expect(sql).toContain("Greenhouse");
     expect(sql).toContain("Lever");
+    expect(sql).toContain("Workable");
     // Must NOT reference payload (the expensive JSON column)
     expect(sql).not.toContain("payload");
     expect(sql).not.toContain("TO_JSON_STRING");
@@ -102,6 +109,7 @@ describe("buildBigQuerySql", () => {
     expect(sql).toContain("ats_source");
     expect(sql).toContain("'greenhouse'");
     expect(sql).toContain("'lever'");
+    expect(sql).toContain("'workable'");
   });
 
   it("appends LIMIT when provided", () => {
@@ -133,9 +141,9 @@ describe("generateCrawlDates", () => {
     expect(dates[1] > dates[2]).toBe(true);
   });
 
-  it("defaults to 3 partitions", () => {
+  it("defaults to 6 partitions", () => {
     const dates = generateCrawlDates();
-    expect(dates).toHaveLength(3);
+    expect(dates).toHaveLength(6);
   });
 });
 
@@ -219,6 +227,30 @@ describe("processBigQueryRows — slug probe resolution", () => {
       undefined,
       undefined,
       "lever",
+    );
+  });
+
+  it("passes workable as ats_source hint for workable rows", async () => {
+    const successResult: ResolutionResult = {
+      success: true,
+      input: {
+        atsSlug: "allucent",
+        atsSource: "workable",
+        discoverySource: "hn_custom_url",
+        rootDomain: "allucent.com",
+        discoveryContext: "https://allucent.com",
+      },
+      resolvedBy: "slug_probe",
+    };
+    vi.mocked(resolveCustomUrl).mockResolvedValue(successResult);
+
+    await processBigQueryRows([rowWorkable]);
+
+    expect(resolveCustomUrl).toHaveBeenCalledWith(
+      "https://allucent.com",
+      undefined,
+      undefined,
+      "workable",
     );
   });
 

@@ -67,7 +67,8 @@ export type MatchDetail = {
     title: string;
     atsSource: string;
     atsSlug: string;
-    rawJson: string;
+    rawJson: string | null;
+    normalizedText: string | null;
     extractedTags: string[] | null;
   };
   persona: {
@@ -260,6 +261,7 @@ export async function getMatchDetail(
       jobAtsSource: job.atsSource,
       jobAtsSlug: job.atsSlug,
       jobRawJson: job.rawJson,
+      jobNormalizedText: job.normalizedText,
       jobExtractedTags: job.extractedTags,
       personaId: persona.id,
       personaLabel: persona.personaLabel,
@@ -296,6 +298,7 @@ export async function getMatchDetail(
       atsSource: r.jobAtsSource,
       atsSlug: r.jobAtsSlug,
       rawJson: r.jobRawJson,
+      normalizedText: r.jobNormalizedText,
       extractedTags: r.jobExtractedTags,
     },
     persona: {

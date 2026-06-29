@@ -48,6 +48,7 @@ export const company = pgTable(
     atsSource: atsSourceEnum("ats_source").notNull(),
     companyName: text("company_name"), // Filled in by poller from ATS metadata
     rootDomain: text("root_domain"), // For cross-seeder dedup
+    canonicalName: text("canonical_name"), // F1: Canonicalized name for cross-platform dedup
 
     // ── Discovery Provenance ────────────────────────────────────────────────
     discoverySource: discoverySourceEnum("discovery_source").notNull(),
@@ -89,6 +90,10 @@ export const company = pgTable(
     ),
     // Index for domain-based dedup across seeders
     domainIdx: index("company_root_domain_idx").on(table.rootDomain),
+    // F1: Index for canonical name dedup (Slugger DB cache check)
+    canonicalNameIdx: index("company_canonical_name_idx").on(
+      table.canonicalName,
+    ),
     // Index for health dashboard queries
     healthIdx: index("company_health_idx").on(table.health),
   }),

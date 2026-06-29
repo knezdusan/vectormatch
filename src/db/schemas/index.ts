@@ -34,6 +34,7 @@ export * from "./jobs/ingestionLog";
 export * from "./jobs/job";
 export * from "./jobs/matchQueue";
 export * from "./jobs/persona";
+export * from "./jobs/sluggerRetry";
 export * from "./jobs/tagsExperience";
 export * from "./jobs/workingHistory";
 

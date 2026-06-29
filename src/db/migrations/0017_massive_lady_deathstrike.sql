@@ -1,0 +1,1 @@
+ALTER TYPE "public"."company_tier" ADD VALUE 'active_hot' BEFORE 'active';

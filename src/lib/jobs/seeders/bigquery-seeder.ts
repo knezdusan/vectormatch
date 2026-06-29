@@ -117,13 +117,13 @@ const ALL_TECHS = [
  * Multi-partition scan (June 2026 optimization): Instead of scanning a single
  * monthly partition, the query can scan multiple partitions in a single query.
  * This catches companies that were added between crawls. Each partition adds
- * ~15 GB to the scan cost — 3 partitions = ~45 GB (well within the 1 TB/month
- * free tier, allowing 20+ multi-partition runs per month).
+ * ~15 GB to the scan cost — 6 partitions = ~90 GB (well within the 1 TB/month
+ * free tier, allowing 10+ multi-partition runs per month).
  *
- * Wappalyzer detects Greenhouse and Lever as technologies with category
- * "Recruitment & staffing". Ashby is NOT detected by Wappalyzer (too niche),
- * so BigQuery-discovered companies are Greenhouse or Lever only. HN seeder
- * catches Ashby companies.
+ * Wappalyzer detects Greenhouse, Lever, and Workable as technologies with
+ * category "Recruitment & staffing". Ashby, SmartRecruiters, and Recruitee
+ * are NOT detected by Wappalyzer (too niche), so BigQuery-discovered companies
+ * are Greenhouse, Lever, or Workable only. HN seeder catches the rest.
  *
  * The query:
  *   1. Filters on one or more monthly crawl dates (partition pruning)
@@ -157,6 +157,7 @@ export function buildBigQuerySql(
   CASE
     WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Greenhouse') THEN 'greenhouse'
     WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Lever') THEN 'lever'
+    WHEN EXISTS (SELECT 1 FROM UNNEST(technologies) t WHERE t.technology = 'Workable') THEN 'workable'
   END AS ats_source
 FROM \`httparchive.crawl.pages\`
 WHERE
@@ -169,7 +170,7 @@ WHERE
   )
   AND EXISTS (
     SELECT 1 FROM UNNEST(technologies) t
-    WHERE t.technology IN ('Greenhouse', 'Lever')
+    WHERE t.technology IN ('Greenhouse', 'Lever', 'Workable')
   )`;
 
   if (limit) {
@@ -185,10 +186,10 @@ WHERE
  *
  * Uses UTC consistently to avoid timezone-related off-by-one errors.
  *
- * @param count  Number of monthly partitions to generate (default: 3)
+ * @param count  Number of monthly partitions to generate (default: 6)
  * @returns      Array of date strings in "YYYY-MM-DD" format
  */
-export function generateCrawlDates(count = 3): string[] {
+export function generateCrawlDates(count = 6): string[] {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth(); // 0-indexed

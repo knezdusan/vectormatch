@@ -9,7 +9,7 @@
 // stacks that also contain ATS script URLs. Extracts ATS slugs (directly from
 // payload or via slug probe) and inserts new companies into the company table.
 //
-// Multi-partition mode: By default, scans the last 3 monthly partitions to
+// Multi-partition mode: By default, scans the last 6 monthly partitions to
 // catch companies added between crawls. Use --partitions 1 for a single
 // partition, or --date to specify an exact date.
 //
@@ -33,7 +33,7 @@ import {
 function parseArgs(): { dates: string[]; limit?: number } {
   const args = process.argv.slice(2);
   let date: string | undefined;
-  let partitions = 3;
+  let partitions = 6;
   let limit: number | undefined;
 
   for (let i = 0; i < args.length; i++) {

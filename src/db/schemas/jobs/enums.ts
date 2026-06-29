@@ -71,18 +71,24 @@ export const cvUploadStatusEnum = pgEnum("cv_upload_status", [
 // ============================================================================
 
 // ATS platform a company's jobs board is hosted on. MVP covers the three
-// native JSON APIs; future values are commented for forward compatibility.
+// native JSON APIs; F2 (CORPUS_EXPANSION_TDD §1.5) adds three more.
 export const atsSourceEnum = pgEnum("ats_source", [
   "greenhouse",
   "lever",
   "ashby",
-  // Future: "smartrecruiters", "recruitee", "workable"
+  "smartrecruiters", // F2
+  "recruitee", // F2
+  "workable", // F2
 ]);
 
 // Polling cadence tier — orthogonal to health. Drives the decay polling
-// algorithm (Tier A → 12h, Tier B → weekly, Tier C → stopped). Recalculated
-// daily from `company.lastJobPostedAt`.
+// algorithm. Recalculated daily from `company.lastJobPostedAt` (and, with G1,
+// from approved match history).
+// G1 (CORPUS_EXPANSION_TDD §3.1): active_hot tier for companies with approved
+// matches in the last 30 days → polled every 3h. The batchPollTier function
+// (G5) uses this tier via its 3h cron trigger.
 export const companyTierEnum = pgEnum("company_tier", [
+  "active_hot", // Tier A-Hot: approved matches in last 30d → poll every 3h (G1)
   "active", // Tier A: posted a job in last 14 days → poll every 12h
   "dormant", // Tier B: no jobs in >14 days → poll weekly
   "dead", // Tier C: endpoint returns 404 or 3+ consecutive failures → stop
@@ -107,6 +113,15 @@ export const discoverySourceEnum = pgEnum("discovery_source", [
   "crt_sh", // Certificate Transparency stealth seeder (Phase 2)
   "hn_custom_url", // HN comment with non-ATS URL → CNAME/probe resolved
   "manual", // Admin-added via dashboard
+  "workable_meta_search", // B1: Workable meta-search API
+  "google_cse", // B2/D1: Google CSE batch + daily
+  "yc_directory", // B3: YC directory (Algolia API, isHiring filter)
+  "vc_portfolio", // B4: VC portfolio mining
+  "newsletter_archive", // B5: Developer newsletter archives
+  "wayback_cdx", // B7: Wayback Machine CDX
+  "rapid7_fdns", // B8: Rapid7 FDNS v2 CNAME reversal
+  "cross_pollination", // B9: Cross-pollination from job descriptions
+  "sitemap_probe", // B10: Sitemap.xml probing
 ]);
 
 // Type of ingestion log entry — distinguishes seeder runs, poller runs, and

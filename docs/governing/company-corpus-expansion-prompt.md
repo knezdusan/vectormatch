@@ -1,164 +1,156 @@
-# Company Corpus Expansion — Dedicated Session Prompt
+# Company Corpus Expansion — Brainstorming Session Summary
 
-## Current Architecture
+> **Status:** Brainstorming complete (6 iterations, June 29 2026). Implementation TDD prepared at `docs/reports/CORPUS_EXPANSION_TDD.md`. Implementation handoff prompt at `docs/reports/CORPUS_EXPANSION_HANDOFF.md`.
+>
+> **Supersedes:** The original expansion prompt (this file's prior content) which set a target of 1,800 companies for 1-2 approved matches/week. The new target is 5,000 quality companies for 5-10 approved matches/day.
 
-### Company Discovery Sources (Module B)
+---
 
-1. **HTTP Archive BigQuery Seeder** (`src/lib/jobs/seeders/bigquery-seeder.ts`)
-   - Scans HTTP Archive's `crawl_responses` table for ATS API endpoints (Greenhouse, Lever, Ashby)
-   - Uses multi-partition scanning (2-3 recent monthly partitions) to stay within free tier limits
-   - Extracts `(ats_source, ats_slug)` tuples from URL patterns like:
-     - `boards.greenhouse.io/{slug}`
-     - `jobs.lever.co/{slug}`
-     - `api.ashbyhq.com/{slug}`
-   - Deduplicates against existing companies in the DB
+## Session Overview
 
-2. **HN Algolia Seeder** (`src/lib/jobs/seeders/hn-algolia.ts`)
-   - Searches Hacker News "Who is Hiring" threads (monthly)
-   - Runs daily for first 7 days of each month, then weekly
-   - Extracts company names from job posts and resolves them to ATS slugs via:
-     - Direct ATS URL mentions in comments
-     - DNS CNAME check + slug probe against ATS APIs for non-ATS URLs
-   - Discards URLs that don't resolve to a known ATS
+Six iterations of structured brainstorming (conventional + challenger reports per iteration) produced a comprehensive, cost-verified portfolio for continuous company acquisition. The session evolved through three major architectural pivots:
 
-3. **Manual Addition** — Admin-added via dashboard (discovery_source = "manual")
+1. **Iteration 1-3:** Discovery source identification and verification (batch sources)
+2. **Iteration 4:** Daily-flow architecture — the realization that batch dumps cause burst/drought UX, and the poller itself is the steady-state engine
+3. **Iteration 5-6:** Infrastructure cost analysis — the discovery that Inngest's 50K execution/month limit and Neon's 512MB storage limit are the real binding constraints, not discovery source availability
 
-4. **crt.sh (Phase 2, deferred)** — Certificate Transparency stealth seeder
+## Final Target
 
-### Company Schema (`src/db/schemas/jobs/company.ts`)
-- `atsSource`: greenhouse | lever | ashby
-- `atsSlug`: the company's slug on the ATS platform
-- `tier`: active (posted in last 14 days) | dormant | dead
-- `health`: healthy | degraded | rate_limited | blocked | error | dead
-- `lastJobPostedAt`: timestamp of most recent job posting
-- `lastHttpStatus`: HTTP status from last poll attempt
-- `discoverySource`: httparchive | hn_algolia | crt_sh | hn_custom_url | manual
+- **5-10 approved matches per day** on the user's dashboard (up from 1-2/week)
+- **~5,000 quality companies** in the corpus (up from 449)
+- **Continuous daily flow** of new matches, not burst-and-drought from monthly batch dumps
+- **$0 infrastructure cost** — stay within Inngest Hobby (50K exec, 5 concurrent), Neon Free (512MB, 100 CU-hours), OpenAI (~$0.79/month)
 
-### Polling Architecture
-- **Tier A** (active): posted a job in last 14 days → polled every 12h via `tierActiveFanOut`
-- **Tier B** (dormant): no jobs in >14 days → polled weekly via `tierDormantFanOut`
-- **Tier C** (dead): endpoint returns 404 or 3+ consecutive failures → stopped
-- Daily `tierRecalc` recalculates tiers from `lastJobPostedAt`
-- Daily `companyRevivalSweep` re-enables polling for transiently dead companies
+## The Three Infrastructure Walls (and Their Solutions)
 
-### Current Stats (June 28, 2026)
-- **449 companies** in the corpus
-- **447 Tier A** companies polled every 12h
-- **~4,086 active jobs** in the database
-- **~29 new jobs/day** in steady state
-- **~1-2 approved matches/week** (3 personas, 0.48 Gate 2 threshold)
+### Wall 1: Inngest Executions (50K/month, 5 concurrent steps)
 
-## The Problem
+**Problem:** The current fan-out architecture (1 Inngest function per company poll + 1 per job normalization) consumes 600K+ executions/month at 5,000 companies — 12x over the limit.
 
-449 companies is far too small for a viable job matching service. The yield analysis shows:
+**Solution: G5 (Batch Polling) + G6 (Batch Matcher)**
+- G5: Poll 100 companies per Inngest function run instead of 1. Reduces polling executions by 50x.
+- G6: Normalize + embed + run Gate 1+2 within the batch poller function. Reduces matcher executions by 19x. Gate 3 remains fan-out (small numbers, ~20/day).
+- Combined: ~30% of the 50K budget at 5,000 companies with adaptive polling.
 
-| Metric | Current (449 companies) | Target (1,800+ companies) |
+**Escape hatch:** Self-host Inngest on existing Hetzner + Coolify infrastructure. Open-source, removes all limits. Migration: deploy Inngest server, update env vars, redeploy. No code changes.
+
+### Wall 2: Neon Storage (512MB)
+
+**Problem:** At 5,000 companies × 21,500 jobs, `rawJson` alone consumes 322MB. Total storage: 709MB — 38% over limit.
+
+**Solution: G7 (rawJson Pruning) + G8 (Aggressive Cleanup)**
+- G7: Add `normalizedText` column. After normalization, store cleaned text (3KB) and NULL out `rawJson` (15KB). 80% reduction in text storage. **Must be implemented BEFORE the flush** — otherwise the backfill causes simultaneous storage of both fields, exceeding the limit.
+- G8: Delete `rejected` jobs immediately, `gone` jobs after 7 days, `normalization_failed` after 7 days. Weekly `VACUUM FULL`.
+- Combined: ~80% of 512MB at 5,000 companies.
+
+**Escape hatch:** Neon Launch at $0.35/GB-month. At 1GB: $0.35/month.
+
+### Wall 3: Neon Compute (100 CU-hours/month)
+
+**Problem:** At 5,000 companies with adaptive polling, estimated 93 CU-hours/month — only 7% headroom.
+
+**Solution:** Optimize DB active time (batch DB operations), leverage Neon's scale-to-zero (5-min idle), monitor from day 1 with automatic cadence reduction if CU-hours exceed 80% by day 20.
+
+**Escape hatch:** Neon Launch at $0.106/CU-hour. At 100 CU-hours: $10.60/month.
+
+## The Flush-and-Flow Architecture
+
+Replaces the rejected "Staggered Batch Queue" (which would have made jobs stale by delaying company insertion).
+
+**Phase 1 — Flush (Week 1-2):** Fire all 10 batch sources simultaneously. Process all discovered companies immediately. The initial flush produces 100-300 approved matches from existing job inventory. This is a feature (immediate value to user), not a bug.
+
+**Phase 2 — Steady State (Week 2+):** The poller's 12h cycle (with G1 adaptive cadence: 3h for hot companies, 12h for standard, weekly for dormant) produces 7-10 approved/day from new jobs at existing companies. Daily-native sources add 60-200 new companies/day, each contributing fresh jobs via G3 (job-level direct ingestion).
+
+**Phase 3 — Maturity (Month 2+):** Q2 Adversarial Quality Flywheel pushes approval rate from 2% to 3-4%. At 5,000 companies: ~13 approved/day.
+
+## The Approved Portfolio
+
+### Foundation Infrastructure (Sprint 1 — must exist before any seeder runs)
+
+| ID | Pathway | Description |
 |---|---|---|
-| New jobs/day | ~29 | ~116 |
-| New candidates/day | ~2-5 | ~8-20 |
-| Approved matches/week | ~1-2 | ~4-8 |
+| **G5** | Batch Polling Architecture | 100 companies per Inngest function run. Replaces fan-out. |
+| **G6** | Batch Matcher | Normalize + embed + Gate 1+2 within batch poller. Gate 3 remains fan-out. |
+| **G7** | rawJson Pruning | Add `normalizedText` column, NULL `rawJson` after normalization. **Before flush.** |
+| **G8** | Aggressive Job Cleanup | Delete rejected/gone/failed jobs faster. Weekly VACUUM FULL. |
+| **F1** | The Slugger | Company name → ATS slug resolution. Multi-strategy normalization, concurrent probing, DB-cached, retry queue. Integrates F3 (cross-platform identity resolution / name canonicalization). |
+| **F2** | Phase 2 ATS Expansion | SmartRecruiters, Workable, Recruitee — all verified public no-auth JSON APIs. |
+| **G4** | Stale-Job GC | Re-verify dashboard matches against ATS API, hide dead listings. |
+| **G3** | Job-Level Inversion | New `normalizeAggregatorJob()` + `job/aggregator-ingested` event for daily sources. Collapses discovery-to-match latency to minutes. |
+| **Q1** | Quality Probe at Insertion | Score companies by engineering-role count. 0 → dormant, 1-2 → dormant, 3+ → active. |
 
-The current seeders are discovering companies, but the rate is too slow:
-- BigQuery seeder: limited by free tier partition scanning
-- HN seeder: limited to companies mentioned in HN "Who is Hiring" threads
-- No other discovery mechanisms are active
+### Quality Architecture (Sprint 1-2)
 
-## What Needs to Be Solved
+| ID | Pathway | Description |
+|---|---|---|
+| **Q2** | Adversarial Quality Flywheel | Dynamic Bayesian scoring. Approved matches promote companies. Persistent rejections demote/purge. Match feedback improves discovery heuristics. |
+| **Q3** | Layoff Signal Deprioritization | Track public layoffs (Layoffs.fyi RSS). Demote affected companies. Re-promote after 60 days. |
+| **Q4** | Hourly Bootstrap Polling | New companies polled every 2h for first 48h, then taper to tier cadence. |
+| **Q5** | Multi-Intent Fusion Scoring | Cross-signal strength at discovery: GitHub activity + ad spend + HN mention + funding = god-tier. |
+| **G1** | Tiered Adaptive Polling Cadence | A-Hot (approved matches in 30d): 3h. A-Standard: 12h. B-Dormant: weekly. New (48h): 2h. |
 
-### 1. BigQuery Free Tier Optimization
-The HTTP Archive BigQuery seeder is constrained by the Google Cloud free tier (1 TB/month of query data). Multi-partition scanning was implemented (scanning 2-3 recent monthly partitions), but we need to:
-- Analyze the query costs and optimize further
-- Consider scanning specific fields only (not SELECT *) to reduce data scanned
-- Explore partition pruning strategies
-- Consider using the HTTP Archive's monthly summary tables instead of full crawl data
-- Evaluate whether BigQuery sandbox (free, no billing) is sufficient or if we need a paid tier
+### Batch Discovery Sources (produce the flush — one-time + periodic refresh)
 
-### 2. New Discovery Sources
-We need to explore and implement additional company discovery sources beyond BigQuery and HN:
+| ID | Pathway | Est. Companies | Verified |
+|---|---|---|---|
+| **B1** | Workable Meta-Search (`jobs.workable.com/api/v1/jobs`) | 300-600 | ✅ Endpoint confirmed via Apify scraper docs |
+| **B2** | Google CSE Batch Sweep (`site:boards.greenhouse.io` etc.) | 200-500 | ✅ |
+| **B3** | YC Directory (Algolia API, `isHiring=true`) | 150-400 | ✅ |
+| **B4** | VC Portfolio Mining (50+ VC portfolio pages) | 500-2,000 | ✅ |
+| **B5** | Developer Newsletter Archives (JS Weekly, React Status, etc.) | 200-500 | ✅ |
+| **B6** | BigQuery 6-partition scan (expand from 3 to 6) | 200-400 | ✅ |
+| **B7** | Wayback Machine CDX (date-filtered to last 18 months) | 200-500 | ✅ |
+| **B8** | CNAME Reversal via Rapid7 FDNS v2 (free bulk DNS dataset) | 300-1,000 | ✅ |
+| **B9** | Cross-Pollination from Job Descriptions | 50-150 | ✅ |
+| **B10** | Sitemap.xml Probing (rescue failed Slugger probes) | Rescues 20-30% | ✅ |
+| | **Batch Total** | **~2,100-6,050** | |
 
-**a) Direct ATS API Enumeration**
-- Greenhouse, Lever, and Ashby all have predictable URL patterns. Can we enumerate slugs?
-- Greenhouse: `boards.greenhouse.io/{slug}` — can we discover slugs from their public API?
-- Lever: `jobs.lever.co/{slug}` — any directory or search API?
-- Ashby: `api.ashbyhq.com/{slug}` — any enumeration possible?
-- What are the rate limits and ethical considerations of slug probing?
+### Daily-Native Discovery Sources (produce the flow — continuous)
 
-**b) Job Board Aggregators**
-- Can we extract company names from job board aggregators (LinkedIn, Indeed, Glassdoor)?
-- These platforms list companies that are hiring — can we cross-reference with ATS slugs?
-- What APIs or data sources are available (legally and ethically)?
+| ID | Pathway | Est. New/day | Verified |
+|---|---|---|---|
+| **D1** | Google CSE Date-Restricted Daily (`dateRestrict=d1`, `sort=date`) | 10-30 | ✅ |
+| **D2** | HN Algolia Daily ATS Link Mining (`search_by_date`, `created_at_i>YESTERDAY`) | 5-15 | ✅ |
+| **D3** | Reddit RSS Hiring Feeds (`.rss` endpoint, `.json` is dead May 2026) | 5-15 | ✅ |
+| **D4** | Remote OK + Remotive + Himalayas (3 free public APIs, company names → Slugger) | 10-30 | ✅ |
+| **D5** | We Work Remotely + Jobicy RSS | 5-15 | ✅ |
+| **D6** | CertStream Real-Time WebSocket (self-hosted, CT log streaming) | 2-10 | ✅ |
+| **D7** | Funding Signal Pre-emptive Seeder (Crunchbase free API + TechCrunch RSS) | 3-10 | ✅ |
+| **D8** | Product Hunt Daily Launches (free GraphQL API) | 4-20 | ✅ |
+| **D9** | Company Engineering Blog RSS Monitoring (500-1,000 feeds) | 5-15 | ✅ |
+| **D10** | GitHub Trending + CONTRIBUTING.md Daily Scan (30 req/min) | 3-10 | ✅ |
+| **D11** | Tech News RSS + LLM Hiring Signal Extraction (gpt-4o-mini, ~$1/day) | 3-10 | ✅ |
+| **D12** | NPM Registry New Package Monitoring (org-scoped packages) | 3-10 | ✅ |
+| **D13** | Meta Ads Library Employment Ads (`ad_type=EMPLOYMENT_ADS`, requires FB Dev account) | 2-8 | ✅ |
+| | **Daily Total** | **~60-200/day** | |
 
-**c) Company Directories**
-- Crunchbase, AngelList/Wellfound, Y Combinator startup directory
-- These list companies with their tech stacks and hiring status
-- Can we programmatically extract company names and resolve them to ATS slugs?
+### Dismissed Pathways
 
-**d) GitHub/GitLab Discovery**
-- Companies often link to their careers page in their GitHub org profile
-- Can we scan GitHub orgs for careers page links?
-- Can we identify companies using specific tech stacks (e.g., TypeScript repos → likely hiring TS developers)?
+| Pathway | Reason |
+|---|---|
+| Twitter/X Filtered Stream | $5,000/month for Pro tier. Economically impossible. |
+| Stack Overflow Jobs | Shut down April 2026. |
+| Reddit `.json` endpoint | Shut down May 2026. RSS still works. |
+| LinkedIn Job Signal Streaming | Actively blocks automated access. No free API. |
+| Staggered Batch Queue | Delays make jobs stale — violates freshness requirement. |
+| All Challenger "weaponized" ideas | Deceptive, illegal, or unethical (honeypot profiles, WAF exploitation, credential scraping, etc.) |
 
-**e) Social Media**
-- Twitter/X: Companies posting job links
-- LinkedIn: Company pages with careers sections
-- What APIs are available and what are the rate limits?
+## Sprint Sequencing
 
-**f) Web Crawling (Ethical)**
-- Can we crawl company "about" or "careers" pages from a seed list?
-- What robots.txt considerations apply?
-- How to detect ATS-powered career pages vs custom-built ones?
+**Sprint 1:** G7 → G5 → G6 → F1 (with F3 integrated) → F2 → G4 → G3 → Q1 → Fire batch sources (B1-B10) → Wire daily sources (D1-D13, staggered)
 
-### 3. ATS Slug Resolution Pipeline
-Once we have company names from new sources, we need to resolve them to ATS slugs:
-- Current: DNS CNAME check + slug probe (for HN non-ATS URLs)
-- Needed: A more robust resolution pipeline that can:
-  - Try multiple ATS platforms for each company name
-  - Handle company name variations (e.g., "Stripe" vs "Stripe Inc" vs "stripe.com")
-  - Cache resolution results to avoid redundant probes
-  - Rate-limit probes to avoid being blocked
+**Sprint 2:** Q2 (Quality Flywheel) → Q3 (Layoff signals) → Q4 (Bootstrap polling) → Q5 (Multi-intent scoring) → G1 (Adaptive cadence)
 
-### 4. Quality Control
-Not all companies are worth polling:
-- Companies with <5 job postings are low-value
-- Companies that haven't posted in >6 months are dead
-- Companies using non-standard ATS setups may fail polling
-- Need a scoring/filtering mechanism to prioritize high-value companies
+**Sprint 3:** Remaining daily sources, optimization, monitoring
 
-### 5. Scaling Considerations
-- **Polling load**: 1,800 companies × 2 polls/day = 3,600 polls/day. At 2 req/s per ATS, that's ~30 minutes of polling per cycle. Is this sustainable?
-- **Database size**: More companies → more jobs → more embeddings → larger DB. Neon free tier limits?
-- **Inngest function concurrency**: More polls = more concurrent Inngest functions. Free plan cap?
-- **Embedding costs**: More jobs = more OpenAI embedding API calls. Cost per 1K tokens?
+## Key Files
 
-## Key Files to Reference
-
-- `src/lib/jobs/seeders/bigquery-seeder.ts` — BigQuery seeder implementation
-- `src/lib/jobs/seeders/hn-algolia.ts` — HN Algolia seeder implementation
-- `src/lib/jobs/seeders/company-repository.ts` — Company upsert + discovery logic
-- `src/lib/jobs/ats-endpoints.ts` — ATS API endpoint definitions
-- `src/db/schemas/jobs/company.ts` — Company schema
-- `src/db/schemas/jobs/enums.ts` — ATS source, tier, health, discovery source enums
-- `src/inngest/functions.ts` — All Inngest functions (pollers, seeders, sweeps)
-- `scripts/seed-bigquery.ts` — BigQuery seeder script
-- `docs/governing/VectorMatchTechicalImplementation.md` — Technical implementation docs
-- `AGENTS.md` — Project rules and conventions
-
-## Success Criteria
-
-1. **1,800+ companies** in the corpus within 2 months
-2. **At least 3 new discovery sources** implemented beyond BigQuery and HN
-3. **Polling infrastructure** scales to handle 3,600+ polls/day without degradation
-4. **Quality filtering** ensures >70% of discovered companies have active job postings
-5. **Cost-neutral** — stays within free tiers (BigQuery, Neon, Inngest, OpenAI)
-6. **No manual intervention** — all discovery and resolution is automated
-
-## Session Goals
-
-In the dedicated session, we should:
-1. **Brainstorm and prioritize** new discovery sources based on feasibility, cost, and yield
-2. **Design the architecture** for the new discovery pipeline
-3. **Implement the highest-priority discovery source** end-to-end
-4. **Optimize the BigQuery seeder** for better free tier utilization
-5. **Implement quality scoring** for discovered companies
-6. **Test the scaling** of the polling infrastructure
-7. **Create a rollout plan** for gradually increasing the corpus from 449 → 1,800+
+- `docs/reports/CORPUS_EXPANSION_TDD.md` — The comprehensive implementation TDD
+- `docs/reports/CORPUS_EXPANSION_HANDOFF.md` — The initial prompt for the implementation session
+- `src/inngest/functions.ts` — All Inngest functions (1421 lines, 16 functions)
+- `src/lib/jobs/ats-endpoints.ts` — ATS endpoint registry (3 platforms, needs F2 expansion)
+- `src/db/schemas/jobs/company.ts` — Company schema (needs tier/health extensions for G1)
+- `src/db/schemas/jobs/job.ts` — Job schema (needs `normalizedText` column for G7)
+- `src/db/schemas/jobs/enums.ts` — Enums (needs new ATS sources, discovery sources, tier values)
+- `src/lib/jobs/seeders/resolve-custom-url.ts` — Existing slug resolution (basis for F1 Slugger)
+- `src/lib/jobs/poller/job-repository.ts` — Job upsert logic (basis for G5/G6 batching)

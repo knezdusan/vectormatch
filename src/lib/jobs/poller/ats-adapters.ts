@@ -27,6 +27,9 @@ import {
   ashbyJobsResponseSchema,
   greenhouseJobsResponseSchema,
   leverJobsResponseSchema,
+  recruiteeJobsResponseSchema,
+  smartRecruitersJobsResponseSchema,
+  workableJobsResponseSchema,
 } from "@/lib/jobs/ats-schemas";
 import {
   extractJobMetadata,
@@ -98,6 +101,12 @@ export async function fetchJobsFromAts(
         return normalizeLever(json);
       case "ashby":
         return normalizeAshby(json);
+      case "smartrecruiters":
+        return normalizeSmartRecruiters(json);
+      case "workable":
+        return normalizeWorkable(json);
+      case "recruitee":
+        return normalizeRecruitee(json);
     }
   } catch (error) {
     return {
@@ -185,6 +194,92 @@ function normalizeAshby(json: unknown): AtsFetchResult {
       rawJson: rawJsonStr,
       url: job.jobUrl,
       metadata: extractJobMetadata("ashby", rawJsonStr),
+    };
+  });
+
+  return { success: true, jobs };
+}
+
+// ── SmartRecruiters (F2) ─────────────────────────────────────────────────────
+
+function normalizeSmartRecruiters(json: unknown): AtsFetchResult {
+  const parsed = smartRecruitersJobsResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: `SmartRecruiters Zod validation failed: ${parsed.error.message}`,
+      kind: "validation",
+    };
+  }
+
+  // SmartRecruiters response: { content: [Posting, ...] }
+  const rawJobs = (json as { content: unknown[] }).content;
+  const jobs: NormalizedJob[] = parsed.data.content.map((job, i) => {
+    const rawJsonStr = JSON.stringify(rawJobs[i]);
+    return {
+      externalJobId: job.id,
+      title: job.name, // SmartRecruiters calls the title "name"
+      rawJson: rawJsonStr,
+      // The list endpoint doesn't include postingUrl — it's in the detail endpoint.
+      // The hosted URL can be constructed from the company identifier + job id.
+      url: undefined,
+      metadata: extractJobMetadata("smartrecruiters", rawJsonStr),
+    };
+  });
+
+  return { success: true, jobs };
+}
+
+// ── Workable (F2) ────────────────────────────────────────────────────────────
+
+function normalizeWorkable(json: unknown): AtsFetchResult {
+  const parsed = workableJobsResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: `Workable Zod validation failed: ${parsed.error.message}`,
+      kind: "validation",
+    };
+  }
+
+  // Workable widget API returns a bare array (like Lever v0)
+  const rawJobs = json as unknown[];
+  const jobs: NormalizedJob[] = parsed.data.map((job, i) => {
+    const rawJsonStr = JSON.stringify(rawJobs[i]);
+    return {
+      externalJobId: job.shortcode ?? job.id ?? "",
+      title: job.title,
+      rawJson: rawJsonStr,
+      url: job.url,
+      metadata: extractJobMetadata("workable", rawJsonStr),
+    };
+  });
+
+  return { success: true, jobs };
+}
+
+// ── Recruitee (F2) ───────────────────────────────────────────────────────────
+
+function normalizeRecruitee(json: unknown): AtsFetchResult {
+  const parsed = recruiteeJobsResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: `Recruitee Zod validation failed: ${parsed.error.message}`,
+      kind: "validation",
+    };
+  }
+
+  // Recruitee response: { offers: [...] }
+  const rawJobs = (json as { offers: unknown[] }).offers;
+  const jobs: NormalizedJob[] = parsed.data.offers.map((job, i) => {
+    const rawJsonStr = JSON.stringify(rawJobs[i]);
+    return {
+      externalJobId: String(job.id),
+      title: job.title,
+      rawJson: rawJsonStr,
+      url: job.careers_url,
+      metadata: extractJobMetadata("recruitee", rawJsonStr),
     };
   });
 

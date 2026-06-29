@@ -14,11 +14,13 @@
  */
 
 import {
+  type AggregatorJob,
   decideNormalizationAction,
   extractJobContent,
   extractJobMetadata,
   extractJobUrl,
   type LlmTagExtractor,
+  normalizeAggregatorJob,
   normalizeJob,
   scanTagsRegex,
 } from "@/lib/jobs/job-normalizer";
@@ -1077,5 +1079,508 @@ describe("decideNormalizationAction — idempotency decision tree", () => {
 
     expect(decision.action).toBe("skip");
     expect(decision.reason).toContain("Already processed");
+  });
+});
+
+// =============================================================================
+// G7: normalizedText fast path + nullable rawJson (CORPUS_EXPANSION_TDD §1.1)
+// =============================================================================
+
+describe("extractJobContent — G7 normalizedText fast path", () => {
+  it("returns normalizedText directly when provided (no rawJson parsing)", () => {
+    const normalizedText =
+      "Senior React Engineer We are looking for a React developer with TypeScript experience.";
+    const result = extractJobContent(
+      "greenhouse",
+      null,
+      "Senior React Engineer",
+      normalizedText,
+    );
+
+    expect(result.title).toBe("Senior React Engineer");
+    expect(result.description).toBe(normalizedText);
+    expect(result.fullText).toBe(normalizedText);
+  });
+
+  it("returns normalizedText directly even when rawJson is also present", () => {
+    // After G7, rawJson might still be present during the transition period.
+    // normalizedText takes priority — no HTML stripping or parsing needed.
+    const rawJson = JSON.stringify({
+      title: "Old Title",
+      content: "<p>Old <b>HTML</b> content</p>",
+    });
+    const normalizedText = "Cleaned text from normalization step";
+    const result = extractJobContent(
+      "greenhouse",
+      rawJson,
+      "DB Title",
+      normalizedText,
+    );
+
+    expect(result.fullText).toBe(normalizedText);
+    expect(result.description).toBe(normalizedText);
+  });
+
+  it("ignores empty-string normalizedText and falls back to rawJson", () => {
+    const rawJson = JSON.stringify({
+      title: "Backend Engineer",
+      content: "<p>Node.js and PostgreSQL required</p>",
+    });
+    const result = extractJobContent(
+      "greenhouse",
+      rawJson,
+      "Backend Engineer",
+      "",
+    );
+
+    // Empty normalizedText → fall back to rawJson parsing
+    expect(result.description).toBe("Node.js and PostgreSQL required");
+  });
+
+  it("ignores null normalizedText and falls back to rawJson", () => {
+    const rawJson = JSON.stringify({
+      title: "DevOps Engineer",
+      content: "<p>Kubernetes and Terraform</p>",
+    });
+    const result = extractJobContent(
+      "greenhouse",
+      rawJson,
+      "DevOps Engineer",
+      null,
+    );
+
+    expect(result.description).toBe("Kubernetes and Terraform");
+  });
+});
+
+describe("extractJobContent — G7 nullable rawJson (no normalizedText)", () => {
+  it("degrades to title-only when rawJson is null and no normalizedText", () => {
+    const result = extractJobContent("greenhouse", null, "Fallback Title");
+
+    expect(result.title).toBe("Fallback Title");
+    expect(result.description).toBe("");
+    expect(result.fullText).toBe("Fallback Title");
+  });
+
+  it("degrades to title-only when rawJson is null for any ATS source", () => {
+    for (const source of ["lever", "ashby", "unknown_ats"]) {
+      const result = extractJobContent(source, null, "Engineer");
+      expect(result.fullText).toBe("Engineer");
+      expect(result.description).toBe("");
+    }
+  });
+});
+
+describe("extractJobUrl — G7 nullable rawJson", () => {
+  it("returns null when rawJson is null", () => {
+    expect(extractJobUrl("greenhouse", null)).toBeNull();
+    expect(extractJobUrl("lever", null)).toBeNull();
+    expect(extractJobUrl("ashby", null)).toBeNull();
+  });
+});
+
+describe("extractJobMetadata — G7 nullable rawJson", () => {
+  it("returns all-null metadata when rawJson is null", () => {
+    const meta = extractJobMetadata("greenhouse", null);
+    expect(meta.workplaceType).toBeNull();
+    expect(meta.employmentType).toBeNull();
+    expect(meta.locationName).toBeNull();
+    expect(meta.companyName).toBeNull();
+  });
+});
+
+describe("normalizeJob — G7 nullable rawJson", () => {
+  it("degrades to title-only when rawJson is null (no LLM call needed)", async () => {
+    // normalizeJob with null rawJson → extractJobContent returns title-only
+    // → regex scan on title → likely < threshold → LLM fallback on title
+    // Use a mock LLM that returns no tags → rejected
+    const mockLlm: LlmTagExtractor = async () => [];
+    const result = await normalizeJob("greenhouse", null, "Manager", mockLlm);
+
+    expect(result.status).toBe("rejected");
+    expect(result.fullText).toBe("Manager");
+  });
+
+  it("produces fullText that should be stored as normalizedText", async () => {
+    // Verify that normalizeJob's fullText output is the cleaned text that
+    // the handler writes to normalizedText (G7). This is the contract:
+    //   DB update: normalizedText = normalization.fullText, rawJson = null
+    const rawJson = JSON.stringify({
+      title: "Senior React Engineer",
+      content: "<p>We need <strong>React</strong> and <em>TypeScript</em>.</p>",
+    });
+    const mockLlm: LlmTagExtractor = async () => ["react", "typescript"];
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      mockLlm,
+    );
+
+    expect(result.status).toBe("normalized");
+    // fullText is the HTML-stripped, cleaned text — this is what gets
+    // written to normalizedText and what Gate 3 reads. Note: HTML tag
+    // stripping replaces tags with spaces, so </em>. becomes " .".
+    expect(result.fullText).toBe(
+      "Senior React Engineer We need React and TypeScript .",
+    );
+    // Verify it's significantly smaller than rawJson (G7 storage win)
+    expect(result.fullText.length).toBeLessThan(rawJson.length);
+  });
+});
+
+// =============================================================================
+// F2: New ATS platform extraction (SmartRecruiters, Workable, Recruitee)
+// CORPUS_EXPANSION_TDD §1.5
+// =============================================================================
+
+describe("extractJobContent — F2 SmartRecruiters", () => {
+  it("extracts title from 'name' field (no description in list endpoint)", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Senior React Engineer",
+      company: { name: "Acme" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.title).toBe("Senior React Engineer");
+    expect(result.description).toBe(""); // List endpoint has no description
+    expect(result.fullText).toBe("Senior React Engineer");
+  });
+
+  it("degrades to fallback title when name is missing", () => {
+    const rawJson = JSON.stringify({ id: "123" });
+    const result = extractJobContent(
+      "smartrecruiters",
+      rawJson,
+      "Fallback Title",
+    );
+
+    expect(result.title).toBe("Fallback Title");
+    expect(result.fullText).toBe("Fallback Title");
+  });
+});
+
+describe("extractJobContent — F2 Workable", () => {
+  it("extracts title and strips HTML from description", () => {
+    const rawJson = JSON.stringify({
+      title: "Backend Developer",
+      description: "<p>We need <strong>Node.js</strong> and PostgreSQL</p>",
+    });
+    const result = extractJobContent("workable", rawJson, "Fallback");
+
+    expect(result.title).toBe("Backend Developer");
+    expect(result.description).toBe("We need Node.js and PostgreSQL");
+    expect(result.fullText).toBe(
+      "Backend Developer We need Node.js and PostgreSQL",
+    );
+  });
+
+  it("degrades to title-only when description is missing", () => {
+    const rawJson = JSON.stringify({ title: "Engineer" });
+    const result = extractJobContent("workable", rawJson, "Fallback");
+
+    expect(result.title).toBe("Engineer");
+    expect(result.description).toBe("");
+    expect(result.fullText).toBe("Engineer");
+  });
+});
+
+describe("extractJobContent — F2 Recruitee", () => {
+  it("extracts title and combines description + requirements", () => {
+    const rawJson = JSON.stringify({
+      title: "DevOps Engineer",
+      description: "We need Kubernetes expertise",
+      requirements: "3+ years of DevOps",
+    });
+    const result = extractJobContent("recruitee", rawJson, "Fallback");
+
+    expect(result.title).toBe("DevOps Engineer");
+    expect(result.description).toContain("Kubernetes");
+    expect(result.description).toContain("DevOps");
+    expect(result.fullText).toContain("Kubernetes");
+  });
+
+  it("degrades to title-only when both description and requirements are missing", () => {
+    const rawJson = JSON.stringify({ title: "Manager" });
+    const result = extractJobContent("recruitee", rawJson, "Fallback");
+
+    expect(result.title).toBe("Manager");
+    expect(result.fullText).toBe("Manager");
+  });
+});
+
+describe("extractJobMetadata — F2 SmartRecruiters", () => {
+  it("extracts all metadata fields correctly", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      company: { name: "Acme Corp", identifier: "acme" },
+      location: {
+        city: "San Francisco",
+        region: "CA",
+        country: "us",
+        remote: true,
+      },
+      department: { label: "Engineering" },
+      typeOfEmployment: { label: "Full-time" },
+      releasedDate: "2024-01-15T10:00:00Z",
+    });
+    const meta = extractJobMetadata("smartrecruiters", rawJson);
+
+    expect(meta.companyName).toBe("Acme Corp");
+    expect(meta.workplaceType).toBe("remote");
+    expect(meta.employmentType).toBe("full-time");
+    expect(meta.department).toBe("Engineering");
+    expect(meta.locationName).toContain("San Francisco");
+    expect(meta.publishedAt).toEqual(new Date("2024-01-15T10:00:00Z"));
+  });
+
+  it("returns nulls for missing fields", () => {
+    const rawJson = JSON.stringify({ id: "123", name: "Engineer" });
+    const meta = extractJobMetadata("smartrecruiters", rawJson);
+
+    expect(meta.companyName).toBeNull();
+    expect(meta.workplaceType).toBeNull();
+    expect(meta.employmentType).toBeNull();
+    expect(meta.department).toBeNull();
+    expect(meta.locationName).toBeNull();
+  });
+});
+
+describe("extractJobMetadata — F2 Workable", () => {
+  it("extracts metadata with workplace type mapping", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      workplace: "on_site",
+      employmentType: "Full-time",
+      department: "Engineering",
+      companyName: "Acme",
+      location: { city: "Berlin", country: "Germany" },
+      publishedAt: "2024-01-15",
+    });
+    const meta = extractJobMetadata("workable", rawJson);
+
+    expect(meta.workplaceType).toBe("on-site");
+    expect(meta.employmentType).toBe("full-time");
+    expect(meta.department).toBe("Engineering");
+    expect(meta.companyName).toBe("Acme");
+    expect(meta.locationName).toContain("Berlin");
+  });
+
+  it("maps hybrid workplace type", () => {
+    const rawJson = JSON.stringify({ title: "Engineer", workplace: "hybrid" });
+    const meta = extractJobMetadata("workable", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+});
+
+describe("extractJobMetadata — F2 Recruitee", () => {
+  it("extracts metadata from boolean flags and locations array", () => {
+    const rawJson = JSON.stringify({
+      id: 1,
+      title: "Engineer",
+      company_name: "Acme Corp",
+      department: "Engineering",
+      remote: true,
+      on_site: false,
+      hybrid: false,
+      employment_type_code: "fulltime_permanent",
+      locations: [{ city: "Berlin", country: "Germany" }],
+      careers_apply_url: "https://acme.recruitee.com/o/eng/apply",
+      published_at: "2024-01-15 10:00:00 UTC",
+    });
+    const meta = extractJobMetadata("recruitee", rawJson);
+
+    expect(meta.companyName).toBe("Acme Corp");
+    expect(meta.workplaceType).toBe("remote");
+    expect(meta.employmentType).toBe("full-time");
+    expect(meta.department).toBe("Engineering");
+    expect(meta.locationName).toContain("Berlin");
+    expect(meta.applyUrl).toContain("apply");
+  });
+
+  it("maps hybrid from boolean flag", () => {
+    const rawJson = JSON.stringify({
+      id: 1,
+      title: "Engineer",
+      remote: false,
+      hybrid: true,
+      on_site: false,
+    });
+    const meta = extractJobMetadata("recruitee", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("maps on_site from boolean flag", () => {
+    const rawJson = JSON.stringify({
+      id: 1,
+      title: "Engineer",
+      remote: false,
+      hybrid: false,
+      on_site: true,
+    });
+    const meta = extractJobMetadata("recruitee", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+});
+
+describe("extractJobUrl — F2 new ATS platforms", () => {
+  it("extracts postingUrl from SmartRecruiters (detail endpoint only)", () => {
+    const rawJson = JSON.stringify({
+      postingUrl: "https://jobs.smartrecruiters.com/acme/123",
+    });
+    expect(extractJobUrl("smartrecruiters", rawJson)).toBe(
+      "https://jobs.smartrecruiters.com/acme/123",
+    );
+  });
+
+  it("returns null for SmartRecruiters list endpoint (no postingUrl)", () => {
+    const rawJson = JSON.stringify({ id: "123", name: "Engineer" });
+    expect(extractJobUrl("smartrecruiters", rawJson)).toBeNull();
+  });
+
+  it("extracts url from Workable", () => {
+    const rawJson = JSON.stringify({
+      url: "https://apply.workable.com/j/ABC123",
+    });
+    expect(extractJobUrl("workable", rawJson)).toBe(
+      "https://apply.workable.com/j/ABC123",
+    );
+  });
+
+  it("extracts careers_url from Recruitee", () => {
+    const rawJson = JSON.stringify({
+      careers_url: "https://acme.recruitee.com/o/devops-engineer",
+    });
+    expect(extractJobUrl("recruitee", rawJson)).toBe(
+      "https://acme.recruitee.com/o/devops-engineer",
+    );
+  });
+});
+
+// =============================================================================
+// G3: normalizeAggregatorJob — aggregator-sourced job normalization (§1.7)
+// =============================================================================
+
+describe("normalizeAggregatorJob — G3 (TDD §1.7)", () => {
+  const baseJob: AggregatorJob = {
+    source: "remoteok",
+    externalJobId: "remoteok-12345",
+    company: "Acme",
+    title: "Senior Frontend Engineer",
+    description:
+      "We are looking for a React engineer with TypeScript experience.",
+  };
+
+  it("normalizes a valid engineering job", () => {
+    const result = normalizeAggregatorJob(baseJob);
+
+    expect(result.status).toBe("normalized");
+    expect(result.fullText).toContain("Senior Frontend Engineer at Acme");
+    expect(result.fullText).toContain("React engineer with TypeScript");
+    // Should extract tags from the combined text
+    expect(result.tags.length).toBeGreaterThan(0);
+    expect(result.tags).toContain("react");
+    expect(result.tags).toContain("typescript");
+  });
+
+  it("rejects non-engineering jobs via Gate 0", () => {
+    const result = normalizeAggregatorJob({
+      ...baseJob,
+      title: "Account Executive",
+      description: "We need a salesperson to close deals.",
+    });
+
+    expect(result.status).toBe("rejected");
+    // fullText is still populated (for audit/debugging)
+    expect(result.fullText).toContain("Account Executive at Acme");
+  });
+
+  it("strips HTML from description", () => {
+    const result = normalizeAggregatorJob({
+      ...baseJob,
+      description: "<p>We need a <strong>React</strong> engineer.</p>",
+    });
+
+    expect(result.status).toBe("normalized");
+    expect(result.fullText).not.toContain("<p>");
+    expect(result.fullText).not.toContain("<strong>");
+    expect(result.fullText).toContain("React engineer");
+  });
+
+  it("includes location in fullText when provided", () => {
+    const result = normalizeAggregatorJob({
+      ...baseJob,
+      location: "San Francisco, CA",
+    });
+
+    expect(result.fullText).toContain("San Francisco, CA");
+  });
+
+  it("omits location line when not provided", () => {
+    const result = normalizeAggregatorJob(baseJob);
+
+    // Should not have an empty line where location would be
+    expect(result.fullText).toContain("Senior Frontend Engineer at Acme\n");
+    expect(result.fullText).not.toContain("at Acme\n\n");
+  });
+
+  it("extracts tags from combined title + company + description text", () => {
+    const result = normalizeAggregatorJob({
+      ...baseJob,
+      title: "Backend Engineer",
+      description: "Node.js, PostgreSQL, Docker, AWS. Must know Python.",
+    });
+
+    expect(result.status).toBe("normalized");
+    expect(result.tags).toContain("nodejs");
+    expect(result.tags).toContain("postgresql");
+    expect(result.tags).toContain("docker");
+    expect(result.tags).toContain("aws");
+    expect(result.tags).toContain("python");
+  });
+
+  it("handles all aggregator source types", () => {
+    const sources: AggregatorJob["source"][] = [
+      "remoteok",
+      "remotive",
+      "himalayas",
+      "wwr",
+      "jobicy",
+      "hn_comment",
+      "reddit",
+      "newsletter",
+    ];
+
+    for (const source of sources) {
+      const result = normalizeAggregatorJob({
+        ...baseJob,
+        source,
+        externalJobId: `${source}-001`,
+      });
+
+      expect(result.status).toBe("normalized");
+    }
+  });
+
+  it("handles empty description", () => {
+    const result = normalizeAggregatorJob({
+      ...baseJob,
+      description: "",
+    });
+
+    expect(result.status).toBe("normalized");
+    expect(result.fullText).toContain("Senior Frontend Engineer at Acme");
+  });
+
+  it("handles HTML-only description (strips to empty)", () => {
+    const result = normalizeAggregatorJob({
+      ...baseJob,
+      description: "<div></div>",
+    });
+
+    expect(result.status).toBe("normalized");
+    // Title still passes Gate 0
   });
 });

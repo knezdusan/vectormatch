@@ -23,6 +23,12 @@ import {
   greenhouseJobsResponseSchema,
   leverJobSchema,
   leverJobsResponseSchema,
+  recruiteeJobSchema,
+  recruiteeJobsResponseSchema,
+  smartRecruitersJobSchema,
+  smartRecruitersJobsResponseSchema,
+  workableJobSchema,
+  workableJobsResponseSchema,
 } from "@/lib/jobs/ats-schemas";
 
 // ── Greenhouse ───────────────────────────────────────────────────────────────
@@ -463,5 +469,229 @@ describe("ashbyJobsResponseSchema", () => {
   it("fails when jobs is missing", () => {
     const result = ashbyJobsResponseSchema.safeParse({ boardVersion: "2.0" });
     expect(result.success).toBe(false);
+  });
+});
+
+// ── SmartRecruiters (F2) ─────────────────────────────────────────────────────
+
+describe("smartRecruitersJobSchema", () => {
+  const validJob = {
+    id: "74983486",
+    name: "Senior Frontend Engineer",
+  };
+
+  it("parses a minimal valid job (only required fields)", () => {
+    const result = smartRecruitersJobSchema.safeParse(validJob);
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a full job with all optional fields", () => {
+    const result = smartRecruitersJobSchema.safeParse({
+      ...validJob,
+      uuid: "34225731-e7cf-4584-b0b7-78098fe1a66b",
+      company: { identifier: "acme", name: "Acme Corp" },
+      releasedDate: "2024-01-15T10:00:00Z",
+      location: {
+        city: "San Francisco",
+        region: "CA",
+        country: "us",
+        remote: true,
+      },
+      department: { id: 18554, label: "Engineering" },
+      typeOfEmployment: { id: "permanent", label: "Full-time" },
+      experienceLevel: { id: "mid_senior_level", label: "Mid-Senior Level" },
+      ref: "https://api.smartrecruiters.com/v1/companies/acme/postings/74983486",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("fails when id is missing", () => {
+    const result = smartRecruitersJobSchema.safeParse({ name: "Engineer" });
+    expect(result.success).toBe(false);
+  });
+
+  it("fails when name (title) is missing", () => {
+    const result = smartRecruitersJobSchema.safeParse({ id: "123" });
+    expect(result.success).toBe(false);
+  });
+
+  it("allows extra fields via passthrough", () => {
+    const result = smartRecruitersJobSchema.safeParse({
+      ...validJob,
+      customField: "something",
+      unknownFutureField: 42,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("smartRecruitersJobsResponseSchema", () => {
+  it("parses a valid response with content array", () => {
+    const result = smartRecruitersJobsResponseSchema.safeParse({
+      limit: 100,
+      offset: 0,
+      totalFound: 2,
+      content: [
+        { id: "1", name: "Engineer" },
+        { id: "2", name: "Designer" },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("fails when content is missing", () => {
+    const result = smartRecruitersJobsResponseSchema.safeParse({
+      limit: 100,
+      offset: 0,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("allows extra fields via passthrough", () => {
+    const result = smartRecruitersJobsResponseSchema.safeParse({
+      content: [{ id: "1", name: "Engineer" }],
+      provider: "SmartRecruiters",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+// ── Workable (F2) ────────────────────────────────────────────────────────────
+
+describe("workableJobSchema", () => {
+  const validJob = {
+    title: "Backend Developer",
+    shortcode: "ABC123",
+  };
+
+  it("parses a minimal valid job (only title required)", () => {
+    const result = workableJobSchema.safeParse(validJob);
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a full job with all optional fields", () => {
+    const result = workableJobSchema.safeParse({
+      ...validJob,
+      id: "abc:ABC123",
+      companyName: "Acme Corp",
+      department: "Engineering",
+      employmentType: "Full-time",
+      workplace: "remote",
+      location: { city: "Berlin", country: "Germany", countryCode: "DE" },
+      url: "https://apply.workable.com/j/ABC123",
+      applyUrl: "https://apply.workable.com/j/ABC123/apply",
+      description: "<p>Job description</p>",
+      publishedAt: "2024-01-15",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("fails when title is missing", () => {
+    const result = workableJobSchema.safeParse({ shortcode: "ABC" });
+    expect(result.success).toBe(false);
+  });
+
+  it("allows extra fields via passthrough", () => {
+    const result = workableJobSchema.safeParse({
+      ...validJob,
+      unknownField: "value",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("workableJobsResponseSchema", () => {
+  it("parses a bare array of jobs", () => {
+    const result = workableJobsResponseSchema.safeParse([
+      { title: "Engineer", shortcode: "A1" },
+      { title: "Designer", shortcode: "A2" },
+    ]);
+    expect(result.success).toBe(true);
+  });
+
+  it("fails on non-array input", () => {
+    const result = workableJobsResponseSchema.safeParse({ jobs: [] });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ── Recruitee (F2) ───────────────────────────────────────────────────────────
+
+describe("recruiteeJobSchema", () => {
+  const validJob = {
+    id: 1853589,
+    title: "Senior Python Developer",
+  };
+
+  it("parses a minimal valid job (id + title required)", () => {
+    const result = recruiteeJobSchema.safeParse(validJob);
+    expect(result.success).toBe(true);
+  });
+
+  it("parses a full job with all optional fields", () => {
+    const result = recruiteeJobSchema.safeParse({
+      ...validJob,
+      company_name: "Acme Corp",
+      slug: "senior-python-developer",
+      department: "Engineering",
+      status: "published",
+      careers_url: "https://acme.recruitee.com/o/senior-python-developer",
+      careers_apply_url:
+        "https://acme.recruitee.com/o/senior-python-developer/c/new",
+      description: "We are looking for a Python developer",
+      requirements: "5+ years of Python experience",
+      remote: true,
+      on_site: false,
+      hybrid: false,
+      employment_type_code: "fulltime_permanent",
+      locations: [
+        { id: 1, city: "Berlin", country: "Germany", country_code: "DE" },
+      ],
+      published_at: "2024-01-15 10:00:00 UTC",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("fails when id is missing", () => {
+    const result = recruiteeJobSchema.safeParse({ title: "Engineer" });
+    expect(result.success).toBe(false);
+  });
+
+  it("fails when title is missing", () => {
+    const result = recruiteeJobSchema.safeParse({ id: 123 });
+    expect(result.success).toBe(false);
+  });
+
+  it("allows extra fields via passthrough", () => {
+    const result = recruiteeJobSchema.safeParse({
+      ...validJob,
+      custom_field: "value",
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("recruiteeJobsResponseSchema", () => {
+  it("parses a valid response with offers array", () => {
+    const result = recruiteeJobsResponseSchema.safeParse({
+      offers: [
+        { id: 1, title: "Engineer" },
+        { id: 2, title: "Designer" },
+      ],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("fails when offers is missing", () => {
+    const result = recruiteeJobsResponseSchema.safeParse({ jobs: [] });
+    expect(result.success).toBe(false);
+  });
+
+  it("allows extra fields via passthrough", () => {
+    const result = recruiteeJobsResponseSchema.safeParse({
+      offers: [{ id: 1, title: "Engineer" }],
+      meta: { total: 1 },
+    });
+    expect(result.success).toBe(true);
   });
 });

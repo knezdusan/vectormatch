@@ -32,6 +32,9 @@ const TEST_SLUGS: Record<AtsSource, string[]> = {
   greenhouse: ["airbnb", "stripe", "coinbase", "notion", "figma"],
   lever: ["notion", "ramp", "merge", "arc", "tonic"],
   ashby: ["mercury", "retool", "vercel", "linear", "exa"],
+  smartrecruiters: ["BoschGroup", "Visa", "Equinox"],
+  workable: ["allucent", "northramp"],
+  recruitee: ["tellent"],
 };
 
 // ── Result tracking ───────────────────────────────────────────────────────────
@@ -59,7 +62,14 @@ async function main(): Promise<void> {
   console.log();
 
   const results: SlugResult[] = [];
-  const sources: AtsSource[] = ["greenhouse", "lever", "ashby"];
+  const sources: AtsSource[] = [
+    "greenhouse",
+    "lever",
+    "ashby",
+    "smartrecruiters",
+    "workable",
+    "recruitee",
+  ];
 
   for (const source of sources) {
     console.log(

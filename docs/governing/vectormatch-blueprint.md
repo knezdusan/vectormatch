@@ -449,7 +449,7 @@ When a new job listing is successfully ingested, an asynchronous workflow is tri
     - Top rejection reasons: location mismatch (38%), wrong tech stack (24%), seniority mismatch (18%), role type mismatch (12%).
     - Persona consolidation: 3 TypeScript personas → 2 distinct + 1 new PHP/Laravel persona.
     - Seniority-aware matching + A/B test prompt variants + Gate 3 feedback loop implemented.
-    - Company corpus (449 companies) identified as the primary bottleneck — expansion to 1,800+ companies planned (see `docs/governing/company-corpus-expansion-prompt.md`).
+    - Company corpus (449 companies) identified as the primary bottleneck — **Continuous Company Acquisition Pipeline** designed through 6-iteration brainstorming session (June 29 2026). Target: 5,000 quality companies, 5-10 approved matches/day. Implementation TDD at `docs/reports/CORPUS_EXPANSION_TDD.md`, session handoff at `docs/reports/CORPUS_EXPANSION_HANDOFF.md`, brainstorming summary at `docs/governing/company-corpus-expansion-prompt.md`. Key architectural pivots: G5+G6 batch polling (Inngest 50K exec limit), G7 rawJson pruning (Neon 512MB limit), Flush-and-Flow architecture (replaces staggered queue). 10 batch sources + 13 daily-native sources, all verified for free-tier compliance.
   - **⚠️ LAUNCH-BLOCKING (for public access)**: Thresholds must be benchmarked against real job/persona pairs before any non-developer user sees Module C output. A/B test prompt variants need sufficient data before declaring a winner.
 
 ### User Journey Summary
