@@ -113,6 +113,19 @@ export async function resolveAlertsByType(
   return result.length;
 }
 
+/**
+ * Resolve every active alert regardless of type. Used by the admin dashboard
+ * "Resolve all" bulk action.
+ */
+export async function resolveAllAlerts(resolvedBy = "auto"): Promise<number> {
+  const result = await db
+    .update(alerts)
+    .set({ status: "resolved", resolvedAt: new Date(), resolvedBy })
+    .where(eq(alerts.status, "active"))
+    .returning({ id: alerts.id });
+  return result.length;
+}
+
 // ── Alert Queries ────────────────────────────────────────────────────────────
 
 /**

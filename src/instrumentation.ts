@@ -2,8 +2,8 @@
 // src/instrumentation.ts
 //
 // Next.js calls register() once when the server starts. We use this to
-// automatically sync function definitions with Inngest Cloud after every
-// deploy — no manual `curl -X PUT` needed.
+// automatically sync function definitions with the self-hosted Inngest server
+// after every deploy — no manual `curl -X PUT` needed.
 //
 // The sync is delayed by a few seconds to ensure the Next.js server is
 // ready to accept requests (the /api/inngest endpoint must be available).
@@ -29,7 +29,10 @@ export async function register(): Promise<void> {
   const SYNC_DELAY_MS = 5000;
 
   setTimeout(async () => {
-    const baseUrl = process.env.INNGEST_SERVE_ORIGIN ?? "http://localhost:3000";
+    const baseUrl =
+      process.env.INNGEST_SERVE_ORIGIN ??
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      "http://localhost:3000";
     const syncUrl = `${baseUrl}/api/inngest`;
 
     try {
@@ -50,10 +53,10 @@ export async function register(): Promise<void> {
         );
       }
     } catch (error) {
-      // Non-fatal — Inngest Cloud will also poll the endpoint periodically.
+      // Non-fatal — the Inngest server will also poll the endpoint periodically.
       // This just speeds up the sync after deploy.
       console.warn(
-        "[instrumentation] Inngest auto-sync failed (non-fatal — Inngest Cloud will poll):",
+        "[instrumentation] Inngest auto-sync failed (non-fatal — Inngest will poll):",
         error instanceof Error ? error.message : String(error),
       );
     }

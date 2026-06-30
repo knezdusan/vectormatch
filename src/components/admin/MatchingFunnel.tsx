@@ -1,18 +1,19 @@
-// Matching Funnel & Quality Card — Admin Dashboard (Sprint 4 Task 6)
+// Matching Funnel & Quality — Admin Dashboard (Sprint 4 Task 6)
 // src/components/admin/MatchingFunnel.tsx
 //
-// Server Component that renders the matching funnel and quality metrics:
-//   - Funnel: total jobs → Gate 0 → Gate 1+2 candidates → Gate 3 approved
-//   - Approval rate
-//   - Tier distribution (active_hot, active, dormant, dead)
-//   - Quality score distribution (0-10, 10-30, 30-50, 50-100)
-//   - Fusion score distribution
-//   - Top companies by quality + purge candidates
-//
-// Data is fetched server-side via admin-queries.ts.
+// Server Component that renders the matching funnel and quality metrics with
+// charts and an interactive time-range selector. Funnel data is fetched for
+// the selected range (1, 7, or 30 days); distributions and company tables are
+// all-time snapshots.
 
 import { Award, Filter, TrendingUp, Users } from "lucide-react";
 
+import { DistributionCharts } from "@/components/admin/DistributionCharts";
+import { FunnelChart } from "@/components/admin/FunnelChart";
+import {
+  type TimeRange,
+  TimeRangeSelector,
+} from "@/components/admin/TimeRangeSelector";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -46,7 +47,7 @@ import {
 function tierColor(tier: string) {
   switch (tier) {
     case "active_hot":
-      return "bg-green-500/20 text-green-700 dark:text-green-400";
+      return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400";
     case "active":
       return "bg-blue-500/20 text-blue-700 dark:text-blue-400";
     case "dormant":
@@ -56,6 +57,47 @@ function tierColor(tier: string) {
     default:
       return "";
   }
+}
+
+function tierChartColor(tier: string) {
+  switch (tier) {
+    case "active_hot":
+      return "var(--chart-2)";
+    case "active":
+      return "var(--chart-1)";
+    case "dormant":
+      return "var(--chart-4)";
+    case "dead":
+      return "var(--chart-5)";
+    default:
+      return "var(--muted-foreground)";
+  }
+}
+
+function qualityBucketColor(bucket: string) {
+  switch (bucket) {
+    case "0-10":
+      return "var(--chart-5)";
+    case "10-30":
+      return "var(--chart-4)";
+    case "30-50":
+      return "var(--chart-2)";
+    case "50-100":
+      return "var(--chart-1)";
+    default:
+      return "var(--primary)";
+  }
+}
+
+function fusionScoreColor(score: number) {
+  const colors = [
+    "var(--chart-5)",
+    "var(--chart-4)",
+    "var(--chart-3)",
+    "var(--chart-2)",
+    "var(--chart-1)",
+  ];
+  return colors[Math.min(score, 4)] ?? colors[0];
 }
 
 function CompanyTable({
@@ -69,7 +111,7 @@ function CompanyTable({
     return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-lg border overflow-hidden">
       <Table>
         <TableHeader>
           <TableRow>
@@ -104,7 +146,19 @@ function CompanyTable({
   );
 }
 
-export async function MatchingFunnel() {
+function parseRange(value: string | undefined): TimeRange {
+  if (value === "1" || value === "30") return value;
+  return "7";
+}
+
+interface MatchingFunnelProps {
+  range?: string;
+}
+
+export async function MatchingFunnel({ range }: MatchingFunnelProps) {
+  const daysBack = Number.parseInt(parseRange(range), 10);
+  const rangeLabel = daysBack === 1 ? "24h" : `${daysBack}d`;
+
   let funnel: FunnelStats | null = null;
   let tiers: TierDistribution[] = [];
   let qualityBuckets: QualityScoreBucket[] = [];
@@ -116,7 +170,7 @@ export async function MatchingFunnel() {
   try {
     [funnel, tiers, qualityBuckets, fusionDist, topCompanies, purgeCandidates] =
       await Promise.all([
-        getFunnelStats(7),
+        getFunnelStats(daysBack),
         getTierDistribution(),
         getQualityScoreDistribution(),
         getFusionScoreDistribution(),
@@ -129,7 +183,7 @@ export async function MatchingFunnel() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle>Matching Funnel & Quality</CardTitle>
         </CardHeader>
@@ -142,144 +196,201 @@ export async function MatchingFunnel() {
 
   const approvalPct = ((funnel?.approvalRate ?? 0) * 100).toFixed(1);
 
+  const funnelData = [
+    {
+      stage: "Total Jobs",
+      count: funnel?.totalJobs ?? 0,
+      color: "var(--chart-1)",
+    },
+    {
+      stage: "Gate 0 Passed",
+      count: funnel?.gate0Passed ?? 0,
+      color: "var(--chart-2)",
+    },
+    {
+      stage: "Gate 1+2",
+      count: funnel?.gate12Candidates ?? 0,
+      color: "var(--chart-3)",
+    },
+    {
+      stage: "Gate 3 Approved",
+      count: funnel?.gate3Approved ?? 0,
+      color: "var(--chart-4)",
+    },
+  ];
+
+  const tierData = tiers.map((t) => ({
+    tier: t.tier,
+    count: t.count,
+    color: tierChartColor(t.tier),
+    label: t.tier,
+  }));
+
+  const qualityData = qualityBuckets.map((b) => ({
+    bucket: b.bucket,
+    count: b.count,
+    color: qualityBucketColor(b.bucket),
+  }));
+
+  const fusionData = fusionDist.map((f) => ({
+    bucket: f.fusionScore >= 5 ? "5+" : `${f.fusionScore}`,
+    count: f.count,
+    color: fusionScoreColor(f.fusionScore),
+  }));
+
   return (
-    <Card>
-      <CardHeader>
+    <div className="space-y-4">
+      {/* Header + range selector */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <Filter className="size-5 text-muted-foreground" />
-          <CardTitle>Matching Funnel & Quality</CardTitle>
+          <h2 className="text-xl font-bold tracking-tight">
+            Matching Funnel & Quality
+          </h2>
         </div>
-        <CardDescription>
-          7-day matching funnel, tier distribution, and quality metrics
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Funnel stats */}
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <div className="rounded-lg border p-3 space-y-1">
+        <TimeRangeSelector value={parseRange(range)} />
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Funnel stats for the last {rangeLabel}; distributions and quality tables
+        reflect all-time data.
+      </p>
+
+      {/* Funnel stat cards */}
+      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingUp className="size-3" />
-              <span>Total Jobs (7d)</span>
+              <span>Total Jobs ({rangeLabel})</span>
             </div>
-            <p className="text-xl font-bold">{funnel?.totalJobs ?? 0}</p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Gate 0 Passed</p>
-            <p className="text-xl font-bold">{funnel?.gate0Passed ?? 0}</p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Gate 1+2 Candidates</p>
-            <p className="text-xl font-bold">{funnel?.gate12Candidates ?? 0}</p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Gate 3 Approved</p>
-            <p className="text-xl font-bold text-green-500">
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums">
+              {funnel?.totalJobs ?? 0}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">Gate 0 Passed</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums">
+              {funnel?.gate0Passed ?? 0}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">
+              Gate 1+2 Candidates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums">
+              {funnel?.gate12Candidates ?? 0}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">
+              Gate 3 Approved
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums text-emerald-500">
               {funnel?.gate3Approved ?? 0}
             </p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Gate 3 Rejected</p>
-            <p className="text-xl font-bold text-red-500">
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">
+              Gate 3 Rejected
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums text-red-500">
               {funnel?.gate3Rejected ?? 0}
             </p>
-          </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs text-muted-foreground">Approval Rate</p>
-            <p className="text-xl font-bold">{approvalPct}%</p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription className="text-xs">Approval Rate</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold tabular-nums">{approvalPct}%</p>
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Tier + Quality + Fusion distributions */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          {/* Tier distribution */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold">Tier Distribution</h4>
-            <div className="space-y-1">
-              {tiers.map((t) => (
-                <div
-                  key={t.tier}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <Badge className={tierColor(t.tier)}>{t.tier}</Badge>
-                  <span className="font-mono">{t.count}</span>
-                </div>
-              ))}
-              {tiers.length === 0 && (
-                <p className="text-xs text-muted-foreground">No data</p>
-              )}
-            </div>
-          </div>
+      {/* Funnel chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Funnel ({rangeLabel})</CardTitle>
+          <CardDescription>
+            Drop-off from ingestion through Gate 3 approval
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <FunnelChart data={funnelData} />
+        </CardContent>
+      </Card>
 
-          {/* Quality score distribution */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold">
-              Quality Score Distribution
-            </h4>
-            <div className="space-y-1">
-              {qualityBuckets.map((b) => (
-                <div
-                  key={b.bucket}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span className="text-muted-foreground">{b.bucket}</span>
-                  <span className="font-mono">{b.count}</span>
-                </div>
-              ))}
-              {qualityBuckets.length === 0 && (
-                <p className="text-xs text-muted-foreground">No data</p>
-              )}
-            </div>
-          </div>
-
-          {/* Fusion score distribution */}
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold">Fusion Score Distribution</h4>
-            <div className="space-y-1">
-              {fusionDist.map((f) => (
-                <div
-                  key={f.fusionScore}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span className="text-muted-foreground">
-                    {f.fusionScore >= 5 ? "5+" : f.fusionScore} source
-                    {f.fusionScore === 1 ? "" : "s"}
-                  </span>
-                  <span className="font-mono">{f.count}</span>
-                </div>
-              ))}
-              {fusionDist.length === 0 && (
-                <p className="text-xs text-muted-foreground">No data</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Top companies by quality */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Award className="size-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold">Top Companies by Quality</h4>
-          </div>
-          <CompanyTable
-            rows={topCompanies}
-            emptyMessage="No quality scores yet."
+      {/* Distribution charts */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Distributions</CardTitle>
+          <CardDescription>
+            Tier, quality score, and fusion score distributions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DistributionCharts
+            tiers={tierData}
+            qualityBuckets={qualityData}
+            fusionScores={fusionData}
           />
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Purge candidates */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Users className="size-4 text-muted-foreground" />
-            <h4 className="text-sm font-semibold">
-              Purge Candidates (active tier, score &lt; 10)
-            </h4>
-          </div>
-          <CompanyTable
-            rows={purgeCandidates}
-            emptyMessage="No purge candidates."
-          />
-        </div>
-      </CardContent>
-    </Card>
+      {/* Company tables */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Award className="size-5 text-muted-foreground" />
+              <CardTitle>Top Companies by Quality</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <CompanyTable
+              rows={topCompanies}
+              emptyMessage="No quality scores yet."
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Users className="size-5 text-muted-foreground" />
+              <CardTitle>Purge Candidates</CardTitle>
+            </div>
+            <CardDescription>
+              Active tier companies with quality score &lt; 10
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CompanyTable
+              rows={purgeCandidates}
+              emptyMessage="No purge candidates."
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }

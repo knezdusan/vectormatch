@@ -25,6 +25,7 @@ const {
   mockEnableSource,
   mockResolveAlert,
   mockResolveAlertsByType,
+  mockResolveAllAlerts,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
   mockRequireRole: vi.fn(),
@@ -32,6 +33,7 @@ const {
   mockEnableSource: vi.fn(),
   mockResolveAlert: vi.fn(),
   mockResolveAlertsByType: vi.fn(),
+  mockResolveAllAlerts: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
 
@@ -51,6 +53,7 @@ vi.mock("@/lib/jobs/alerting", () => ({
     mockResolveAlert(id, resolvedBy),
   resolveAlertsByType: (type: string, resolvedBy?: string) =>
     mockResolveAlertsByType(type, resolvedBy),
+  resolveAllAlerts: (resolvedBy?: string) => mockResolveAllAlerts(resolvedBy),
 }));
 
 vi.mock("next/cache", () => ({
@@ -62,6 +65,7 @@ import {
   enableSourceAction,
   resolveAlertAction,
   resolveAlertsByTypeAction,
+  resolveAllAlertsAction,
 } from "@/actions/admin";
 
 // --- Helpers ---
@@ -96,6 +100,7 @@ describe("admin Server Actions", () => {
     mockEnableSource.mockResolvedValue(undefined);
     mockResolveAlert.mockResolvedValue(undefined);
     mockResolveAlertsByType.mockResolvedValue(1);
+    mockResolveAllAlerts.mockResolvedValue(3);
   });
 
   // ── disableSourceAction ───────────────────────────────────────────────────
@@ -255,6 +260,36 @@ describe("admin Server Actions", () => {
       await expect(
         resolveAlertsByTypeAction("storage_near_limit"),
       ).rejects.toThrow("NEXT_REDIRECT");
+    });
+  });
+
+  // ── resolveAllAlertsAction ──────────────────────────────────────────────────
+
+  describe("resolveAllAlertsAction", () => {
+    it("calls requireRole with admin", async () => {
+      await resolveAllAlertsAction();
+      expect(mockRequireRole).toHaveBeenCalledWith("admin", undefined);
+    });
+
+    it("resolves all active alerts and revalidates the admin path", async () => {
+      const result = await resolveAllAlertsAction();
+      expect(mockResolveAllAlerts).toHaveBeenCalledWith(
+        "admin:admin@example.com",
+      );
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/admin");
+      expect(result).toEqual({ success: true });
+    });
+
+    it("returns error when resolveAllAlerts throws", async () => {
+      mockResolveAllAlerts.mockRejectedValue(new Error("DB error"));
+      const result = await resolveAllAlertsAction();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("DB error");
+    });
+
+    it("throws when user is not admin", async () => {
+      mockNonAdminAuth();
+      await expect(resolveAllAlertsAction()).rejects.toThrow("NEXT_REDIRECT");
     });
   });
 });

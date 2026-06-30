@@ -2,12 +2,11 @@
 // src/components/admin/InfrastructureHealth.tsx
 //
 // Server Component that renders the infrastructure health section:
-//   - Neon storage usage (current / limit / percentage)
+//   - Neon storage usage (current / limit / percentage) with a Progress bar
 //   - Gate 2 cosine distance threshold
-//   - Source health table (circuit breaker status per source)
+//   - Source health table (circuit breaker status per source) with toggle actions
 //
-// Data is fetched server-side via admin-queries.ts. No client interactivity
-// needed — the page refreshes on navigation.
+// Data is fetched server-side via admin-queries.ts.
 
 import { AlertTriangle, CheckCircle, Database, HardDrive } from "lucide-react";
 
@@ -20,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -29,11 +29,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getAllSourceHealth,
   getInfraStats,
   type InfraStats,
   type SourceHealthStats,
 } from "@/lib/jobs/admin-queries";
+import {
+  DEGRADED_FAILURE_THRESHOLD,
+  HARD_CIRCUIT_BREAKER_THRESHOLD,
+} from "@/lib/jobs/source-health";
+import { cn } from "@/lib/utils";
 
 function statusBadge(status: string) {
   if (status === "disabled") {
@@ -52,7 +63,7 @@ function statusBadge(status: string) {
 function storageColor(percentage: number) {
   if (percentage >= 0.94) return "text-red-500";
   if (percentage >= 0.88) return "text-yellow-500";
-  return "text-green-500";
+  return "text-emerald-500";
 }
 
 export async function InfrastructureHealth() {
@@ -72,10 +83,10 @@ export async function InfrastructureHealth() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="border-destructive/50">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <AlertTriangle className="size-5 text-muted-foreground" />
+            <AlertTriangle className="size-5 text-destructive" />
             <CardTitle>Infrastructure Health</CardTitle>
           </div>
         </CardHeader>
@@ -94,108 +105,169 @@ export async function InfrastructureHealth() {
   const gate2 = infra?.gate2Threshold ?? 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <HardDrive className="size-5 text-muted-foreground" />
-          <CardTitle>Infrastructure Health</CardTitle>
-        </div>
-        <CardDescription>
-          Neon storage, Gate 2 threshold, and circuit breaker status
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Storage + Gate 2 stats */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-lg border p-3 space-y-1">
+    <div className="space-y-4">
+      {/* Key infra metrics */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Database className="size-4" />
               <span>Neon Storage</span>
             </div>
-            <p className={`text-2xl font-bold ${storageColor(storagePct)}`}>
-              {storageMb.toFixed(0)} MB
-            </p>
-            <p className="text-xs text-muted-foreground">
-              of {storageLimit} MB ({(storagePct * 100).toFixed(1)}%)
-            </p>
-          </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-3xl font-bold ${storageColor(storagePct)}`}
+              >
+                {storageMb.toFixed(0)} MB
+              </span>
+              <span className="text-sm text-muted-foreground">
+                of {storageLimit} MB
+              </span>
+            </div>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="space-y-1">
+                    <Progress
+                      value={Math.min(storagePct * 100, 100)}
+                      className={cn(
+                        "h-2",
+                        storagePct >= 0.94
+                          ? "**:data-[slot=progress-indicator]:bg-red-500"
+                          : storagePct >= 0.88
+                            ? "**:data-[slot=progress-indicator]:bg-yellow-500"
+                            : "**:data-[slot=progress-indicator]:bg-emerald-500",
+                      )}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {(storagePct * 100).toFixed(1)}% used
+                    </p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>
+                    Warning at {(0.88 * 100).toFixed(0)}%, critical at{" "}
+                    {(0.94 * 100).toFixed(0)}%.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardContent>
+        </Card>
 
-          <div className="rounded-lg border p-3 space-y-1">
+        <Card>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle className="size-4" />
               <span>Gate 2 Threshold</span>
             </div>
-            <p className="text-2xl font-bold">{gate2.toFixed(2)}</p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-3xl font-bold">{gate2.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">
-              cosine distance (env-configurable)
+              Max cosine distance for HNSW match candidates.
             </p>
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="rounded-lg border p-3 space-y-1">
+        <Card>
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertTriangle className="size-4" />
               <span>Circuit Breakers</span>
             </div>
-            <p className="text-2xl font-bold">
-              {disabledCount} disabled
-              {degradedCount > 0 && (
-                <span className="text-yellow-500">
-                  {" "}
-                  / {degradedCount} degraded
-                </span>
-              )}
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-3xl font-bold">
+              {disabledCount}{" "}
+              <span className="text-sm font-medium text-muted-foreground">
+                disabled
+              </span>
             </p>
-            <p className="text-xs text-muted-foreground">
-              of {sources.length} total sources
-            </p>
-          </div>
-        </div>
+            {degradedCount > 0 ? (
+              <p className="text-sm text-yellow-500">
+                {degradedCount} degraded
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Degraded after {DEGRADED_FAILURE_THRESHOLD} failures; hard open
+                after {HARD_CIRCUIT_BREAKER_THRESHOLD}.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
-        {/* Source health table */}
-        {sources.length > 0 ? (
-          <div className="rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Failures</TableHead>
-                  <TableHead className="text-right">Total Runs</TableHead>
-                  <TableHead>Last Error</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sources.map((s) => (
-                  <TableRow key={s.sourceName}>
-                    <TableCell className="font-mono text-xs">
-                      {s.sourceName}
-                    </TableCell>
-                    <TableCell>{statusBadge(s.status)}</TableCell>
-                    <TableCell className="text-right">
-                      {s.consecutiveFailures}
-                    </TableCell>
-                    <TableCell className="text-right">{s.totalRuns}</TableCell>
-                    <TableCell className="max-w-48 truncate text-xs text-muted-foreground">
-                      {s.lastError ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <SourceToggleButton
-                        sourceName={s.sourceName}
-                        currentStatus={s.status}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+      {/* Source health table */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <HardDrive className="size-5 text-muted-foreground" />
+            <CardTitle>Source Health</CardTitle>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No source health records yet.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+          <CardDescription>
+            Per-source circuit breaker status and failure history
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {sources.length > 0 ? (
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Failures</TableHead>
+                    <TableHead className="text-right">Total Runs</TableHead>
+                    <TableHead>Last Success</TableHead>
+                    <TableHead>Last Error</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sources.map((s) => (
+                    <TableRow key={s.sourceName}>
+                      <TableCell className="font-mono text-xs">
+                        {s.sourceName}
+                      </TableCell>
+                      <TableCell>{statusBadge(s.status)}</TableCell>
+                      <TableCell className="text-right">
+                        {s.consecutiveFailures}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {s.totalRuns}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {s.lastSuccessAt
+                          ? new Date(s.lastSuccessAt).toLocaleDateString()
+                          : "—"}
+                      </TableCell>
+                      <TableCell
+                        className="max-w-48 truncate text-xs text-muted-foreground"
+                        title={s.lastError ?? undefined}
+                      >
+                        {s.lastError ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <SourceToggleButton
+                          sourceName={s.sourceName}
+                          currentStatus={s.status}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No source health records yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

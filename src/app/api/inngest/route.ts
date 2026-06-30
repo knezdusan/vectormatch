@@ -2,12 +2,12 @@
 // src/app/api/inngest/route.ts
 //
 // Serves all Inngest functions at /api/inngest. The Inngest Dev Server
-// (and Inngest Cloud in production) polls this endpoint to discover and
-// invoke registered functions.
+// (local) and the self-hosted Inngest server (production) poll this endpoint
+// to discover and invoke registered functions.
 //
 // Auto-sync: src/instrumentation.ts automatically sends a PUT request to
-// this endpoint on server startup, syncing function definitions with
-// Inngest Cloud after every deploy. No manual `curl -X PUT` needed.
+// this endpoint on server startup, syncing function definitions with the
+// self-hosted Inngest server after every deploy. No manual `curl -X PUT` needed.
 //
 // Environment:
 //   INNGEST_DEV=1      → connect to local dev server

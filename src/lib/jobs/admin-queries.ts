@@ -14,6 +14,8 @@ import "server-only";
 import { count, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
+import { user } from "@/db/schemas/auth/user";
+import { applicant } from "@/db/schemas/jobs/applicant";
 import { company } from "@/db/schemas/jobs/company";
 import { companyQualityScore } from "@/db/schemas/jobs/companyQualityScore";
 import { job } from "@/db/schemas/jobs/job";
@@ -79,6 +81,20 @@ export interface CompanyQualityRow {
   approvedMatches: number;
   fusionScore: number;
   tier: string;
+}
+
+export interface SystemOverviewStats {
+  totalUsers: number;
+  onboardedUsers: number;
+  totalCompanies: number;
+  totalJobs: number;
+  activeJobs: number;
+  totalMatches: number;
+}
+
+export interface StatusDistribution {
+  status: string;
+  count: number;
 }
 
 // =============================================================================
@@ -303,4 +319,78 @@ export async function getPurgeCandidates(
     .orderBy(companyQualityScore.score)
     .limit(limit);
   return rows as CompanyQualityRow[];
+}
+
+// =============================================================================
+// SYSTEM OVERVIEW QUERIES
+// =============================================================================
+
+/**
+ * Get high-level system overview stats for the admin dashboard.
+ *
+ * Aggregates across users, applicants, companies, jobs, and match queue rows.
+ * All counts are simple index-backed COUNT(*) queries.
+ */
+export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
+  const [
+    totalUsersRows,
+    onboardedRows,
+    companyRows,
+    jobRows,
+    activeJobRows,
+    matchRows,
+  ] = await Promise.all([
+    db.select({ cnt: count() }).from(user),
+    db
+      .select({ cnt: count() })
+      .from(applicant)
+      .where(sql`${applicant.isOnboarded} = true`),
+    db.select({ cnt: count() }).from(company),
+    db.select({ cnt: count() }).from(job),
+    db.select({ cnt: count() }).from(job).where(eq(job.status, "active")),
+    db.select({ cnt: count() }).from(matchQueue),
+  ]);
+
+  return {
+    totalUsers: totalUsersRows[0]?.cnt ?? 0,
+    onboardedUsers: onboardedRows[0]?.cnt ?? 0,
+    totalCompanies: companyRows[0]?.cnt ?? 0,
+    totalJobs: jobRows[0]?.cnt ?? 0,
+    activeJobs: activeJobRows[0]?.cnt ?? 0,
+    totalMatches: matchRows[0]?.cnt ?? 0,
+  };
+}
+
+/**
+ * Get job status distribution for the pipeline dashboard.
+ */
+export async function getJobStatusDistribution(): Promise<
+  StatusDistribution[]
+> {
+  const rows = await db
+    .select({
+      status: job.status,
+      count: count(),
+    })
+    .from(job)
+    .groupBy(job.status)
+    .orderBy(job.status);
+  return rows.map((r) => ({ status: r.status, count: r.count }));
+}
+
+/**
+ * Get match queue status distribution for the pipeline dashboard.
+ */
+export async function getMatchQueueStatusDistribution(): Promise<
+  StatusDistribution[]
+> {
+  const rows = await db
+    .select({
+      status: matchQueue.status,
+      count: count(),
+    })
+    .from(matchQueue)
+    .groupBy(matchQueue.status)
+    .orderBy(matchQueue.status);
+  return rows.map((r) => ({ status: r.status, count: r.count }));
 }

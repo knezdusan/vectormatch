@@ -43,6 +43,7 @@ import {
   hasActiveAlert,
   resolveAlert,
   resolveAlertsByType,
+  resolveAllAlerts,
 } from "@/lib/jobs/alerting";
 import { getDatabaseSizeMb } from "@/lib/jobs/storage-check";
 
@@ -151,6 +152,18 @@ describe("resolveAlertsByType", () => {
     mockUpdateChain([{ id: "uuid-1" }, { id: "uuid-2" }]);
     const count = await resolveAlertsByType("storage_near_limit");
     expect(count).toBe(2);
+  });
+});
+
+// ── resolveAllAlerts ─────────────────────────────────────────────────────────
+
+describe("resolveAllAlerts", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("resolves every active alert regardless of type and returns count", async () => {
+    mockUpdateChain([{ id: "uuid-1" }, { id: "uuid-2" }, { id: "uuid-3" }]);
+    const count = await resolveAllAlerts("admin:test@example.com");
+    expect(count).toBe(3);
   });
 });
 

@@ -2,11 +2,13 @@
 // src/components/admin/AlertsPanel.tsx
 //
 // Server Component that renders active alerts at the top of the admin dashboard.
-// Critical alerts appear first, then warnings, then info.
+// Critical alerts appear first, then warnings, then info. Includes a bulk
+// "Resolve all" action in the header.
 
 import { AlertCircle, Bell } from "lucide-react";
 
 import { AlertResolveButton } from "@/components/admin/AlertResolveButton";
+import { ResolveAllAlertsButton } from "@/components/admin/ResolveAllAlertsButton";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -54,10 +56,10 @@ export async function AlertsPanel() {
 
   if (error) {
     return (
-      <Card>
+      <Card className="border-destructive/50">
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Bell className="size-5 text-muted-foreground" />
+            <Bell className="size-5 text-destructive" />
             <CardTitle>Alerts</CardTitle>
           </div>
         </CardHeader>
@@ -75,9 +77,12 @@ export async function AlertsPanel() {
   return (
     <Card className="border-yellow-500/30">
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Bell className="size-5 text-yellow-500" />
-          <CardTitle>Active Alerts ({alertsList.length})</CardTitle>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <Bell className="size-5 text-yellow-500" />
+            <CardTitle>Active Alerts ({alertsList.length})</CardTitle>
+          </div>
+          <ResolveAllAlertsButton count={alertsList.length} />
         </div>
         <CardDescription>
           Infrastructure and pipeline alerts requiring attention
@@ -90,14 +95,14 @@ export async function AlertsPanel() {
             className="flex items-start gap-3 rounded-lg border p-3"
           >
             <div className="mt-0.5">{severityIcon(alert.severity)}</div>
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2">
+            <div className="flex-1 space-y-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 {severityBadge(alert.severity)}
                 <span className="text-xs font-mono text-muted-foreground">
                   {alert.type}
                 </span>
                 {alert.sourceName && (
-                  <span className="text-xs font-mono text-muted-foreground">
+                  <span className="text-xs font-mono text-muted-foreground truncate">
                     {alert.sourceName}
                   </span>
                 )}

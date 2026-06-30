@@ -13,7 +13,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
-import { resolveAlert, resolveAlertsByType } from "@/lib/jobs/alerting";
+import {
+  resolveAlert,
+  resolveAlertsByType,
+  resolveAllAlerts,
+} from "@/lib/jobs/alerting";
 import { disableSource, enableSource } from "@/lib/jobs/source-health";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -101,6 +105,18 @@ export async function resolveAlertsByTypeAction(
   }
   try {
     await resolveAlertsByType(parsed.data, `admin:${session.user.email}`);
+    revalidatePath("/dashboard/admin");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed" };
+  }
+}
+
+/** Resolve every active alert in one bulk action. */
+export async function resolveAllAlertsAction(): Promise<AdminActionState> {
+  const session = await requireRole("admin");
+  try {
+    await resolveAllAlerts(`admin:${session.user.email}`);
     revalidatePath("/dashboard/admin");
     return { success: true };
   } catch (e) {

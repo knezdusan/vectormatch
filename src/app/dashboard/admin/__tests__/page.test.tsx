@@ -32,14 +32,27 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 // Mock the admin dashboard components that make DB calls (Sprint 4 Tasks 5, 6, 8)
+// + new dashboard components added in the redesign.
 vi.mock("@/components/admin/AlertsPanel", () => ({
   AlertsPanel: () => null,
+}));
+vi.mock("@/components/admin/AdminDashboardTabs", () => ({
+  AdminDashboardTabs: () => <div data-testid="admin-dashboard-tabs" />,
+}));
+vi.mock("@/components/admin/AdminOverview", () => ({
+  AdminOverview: () => null,
 }));
 vi.mock("@/components/admin/InfrastructureHealth", () => ({
   InfrastructureHealth: () => null,
 }));
 vi.mock("@/components/admin/MatchingFunnel", () => ({
   MatchingFunnel: () => null,
+}));
+vi.mock("@/components/admin/PipelineStatus", () => ({
+  PipelineStatus: () => null,
+}));
+vi.mock("@/components/admin/RecentAlerts", () => ({
+  RecentAlerts: () => null,
 }));
 
 // --- Helpers ---

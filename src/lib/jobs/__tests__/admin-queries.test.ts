@@ -34,8 +34,11 @@ import {
   getFunnelStats,
   getFusionScoreDistribution,
   getInfraStats,
+  getJobStatusDistribution,
+  getMatchQueueStatusDistribution,
   getPurgeCandidates,
   getQualityScoreDistribution,
+  getSystemOverviewStats,
   getTierDistribution,
   getTopCompaniesByQuality,
 } from "@/lib/jobs/admin-queries";
@@ -258,5 +261,80 @@ describe("getPurgeCandidates", () => {
     expect(result).toHaveLength(1);
     expect(result[0].score).toBe(5);
     expect(result[0].tier).toBe("active");
+  });
+});
+
+// ── getSystemOverviewStats ───────────────────────────────────────────────────
+
+describe("getSystemOverviewStats", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns aggregated system counts", async () => {
+    const counts = [10, 8, 50, 1200, 900, 3000];
+    let callIndex = 0;
+    vi.mocked(db.select).mockImplementation(() => {
+      const idx = callIndex++;
+      const chain = Object.assign(Promise.resolve([{ cnt: counts[idx] }]), {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+      });
+      return chain as never;
+    });
+
+    const result = await getSystemOverviewStats();
+    expect(result.totalUsers).toBe(10);
+    expect(result.onboardedUsers).toBe(8);
+    expect(result.totalCompanies).toBe(50);
+    expect(result.totalJobs).toBe(1200);
+    expect(result.activeJobs).toBe(900);
+    expect(result.totalMatches).toBe(3000);
+  });
+});
+
+// ── getJobStatusDistribution ─────────────────────────────────────────────────
+
+describe("getJobStatusDistribution", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns job status counts grouped by status", async () => {
+    const rows = [
+      { status: "active", count: 800 },
+      { status: "stale", count: 150 },
+      { status: "rejected", count: 50 },
+    ];
+    const chain = Object.assign(Promise.resolve(rows), {
+      from: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+    });
+    vi.mocked(db.select).mockReturnValue(chain as never);
+
+    const result = await getJobStatusDistribution();
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ status: "active", count: 800 });
+  });
+});
+
+// ── getMatchQueueStatusDistribution ────────────────────────────────────────────
+
+describe("getMatchQueueStatusDistribution", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("returns match queue status counts grouped by status", async () => {
+    const rows = [
+      { status: "pending", count: 120 },
+      { status: "approved", count: 45 },
+      { status: "rejected", count: 30 },
+    ];
+    const chain = Object.assign(Promise.resolve(rows), {
+      from: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+    });
+    vi.mocked(db.select).mockReturnValue(chain as never);
+
+    const result = await getMatchQueueStatusDistribution();
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({ status: "pending", count: 120 });
   });
 });

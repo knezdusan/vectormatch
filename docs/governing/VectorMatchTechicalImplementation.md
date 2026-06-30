@@ -1647,6 +1647,39 @@ Eight tasks implemented across two sub-sessions (Sprint 4 + Sprint 4b). See `COR
 
 **Verification:** 1,564 tests pass (78 files), 0 TS errors, 1 new migration (0033). 123 new tests across 8 new test files. 3 pre-existing Biome warnings (Sprint 1 files, require `--unsafe` to fix).
 
+#### 4.7.9 Sprint 5 — Inngest Self-Hosting Migration `[Status: Implemented — June 30 2026]`
+
+Migrated Inngest operations from Inngest Cloud (free plan: 5 concurrent steps, 50K executions/month) to self-hosted Inngest on the existing Hetzner CX33 / Coolify v4.1.2 infrastructure. This is primarily a deployment and configuration task — the only code change is a one-line improvement to `src/instrumentation.ts`.
+
+**Self-Hosted Architecture:** Three-container Docker Compose service deployed via Coolify REST API (`POST /api/v1/services` with base64-encoded `docker_compose_raw`):
+- **Inngest server** (`inngest/inngest:v1.34.0`) — Event API, Runner, Queue, Executor, Dashboard, GraphQL API. Ports 8288 (API + Dashboard) and 8289 (Connect WebSocket). Healthcheck: `inngest alpha doctor healthcheck`.
+- **PostgreSQL** (`postgres:17`) — Persistence for event history, function definitions, apps, run results. Internal only (port 5432). Healthcheck: `pg_isready`.
+- **Redis** (`redis:7`) — Queue + state store for runs. Internal only (port 6379). Healthcheck: `redis-cli ping`.
+
+**Coolify Service:** UUID `otrzmmwzdh8z6hcg5at9yi03`, name `inngest`, FQDN `https://inngest.vectormatch.dev` (routed via Cloudflare wildcard `*.vectormatch.dev` → Traefik v3.6.21 → Inngest container). Service env vars: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY` (hex, 64 chars), `INNGEST_POSTGRES_PASSWORD` — referenced via `${...}` substitution in the compose file. Status: `running:healthy`.
+
+**VectorMatch App Configuration:** Updated 4 env vars via Coolify REST API (`PATCH /api/v1/applications/{uuid}/envs/bulk` — upsert by key):
+- `INNGEST_BASE_URL` = `https://inngest.vectormatch.dev` (new — runtime only)
+- `INNGEST_EVENT_KEY` = (self-hosted event key, overwrote Cloud key)
+- `INNGEST_SIGNING_KEY` = (self-hosted signing key, overwrote Cloud key)
+- `INNGEST_SERVE_ORIGIN` = `https://vectormatch.dev` (unchanged — was already set)
+- `INNGEST_DEV` = unset (production mode — no action needed)
+
+**Auto-Sync:** `src/instrumentation.ts` sends a `PUT` to `{INNGEST_SERVE_ORIGIN}/api/inngest` 5 seconds after server startup. After redeploy, the Inngest SDK's serve handler pushed all 45 function definitions to the self-hosted server. Log confirmed: `[instrumentation] Inngest sync successful: 200 {"message":"Successfully registered","modified":true}`.
+
+**Event API:** Events are sent to `POST /e/{INNGEST_EVENT_KEY}` (event key in URL path, not Authorization header). The Inngest SDK handles this automatically via `INNGEST_BASE_URL` + `INNGEST_EVENT_KEY`. The `/v1/events` endpoint is the REST API for *listing* events (GET, requires signing key auth), not for sending.
+
+**Code Change — instrumentation.ts Fallback:** The `INNGEST_SERVE_ORIGIN` fallback was improved to use `NEXT_PUBLIC_SITE_URL` as a secondary fallback before `http://localhost:3000`:
+```typescript
+const baseUrl =
+  process.env.INNGEST_SERVE_ORIGIN ??
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  "http://localhost:3000";
+```
+This ensures the auto-sync works in production even if `INNGEST_SERVE_ORIGIN` is not explicitly set, since `NEXT_PUBLIC_SITE_URL` is always set in production.
+
+**Verification:** App registered in Inngest dashboard (functionCount=45, SDK v4.8.0, framework nextjs, sync URL `https://vectormatch.dev/api/inngest`). All 45 functions visible via `GET /v2/apps/vectormatch/functions?limit=100` (40 cron triggers, 16 event triggers). Test event `poller/run` accepted via `POST /e/{EVENT_KEY}` (ID `01KWD5GYBTM25S3F1BNRJ7SZ63`), triggered function run `01KWD5GYJ4RCS6N0FTCTC6M8JY` → status `Completed` in 433ms. VectorMatch app `running:healthy`. 1,584 tests pass (83 files), 0 TS errors in changed file, 0 new migrations. Inngest Cloud project kept active for 48h rollback window.
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
