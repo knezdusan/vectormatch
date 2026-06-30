@@ -838,7 +838,9 @@ export const dailySourceD1 = inngest.createFunction(
 
 ---
 
-## 3. SPRINT 2 — QUALITY ARCHITECTURE
+## 3. SPRINT 2 — QUALITY ARCHITECTURE `[Status: Implemented — June 30 2026]`
+
+> All five Sprint 2 features (G1, Q2, Q3, Q4, Q5) are implemented, tested, and deployed. See TDD §4.7 (`VectorMatchTechicalImplementation.md`) for the full implementation details. The specifications below are the original design — the implementation matches unless noted.
 
 ### 3.1 G1: Tiered Adaptive Polling Cadence
 

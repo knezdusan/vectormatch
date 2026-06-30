@@ -56,7 +56,10 @@ export const company = pgTable(
     discoveryContext: text("discovery_context"), // HN comment URL, BQ query date, etc.
 
     // ── Tier & Polling State ────────────────────────────────────────────────
-    tier: companyTierEnum("tier").notNull().default("dormant"),
+    // Q4 Bootstrap: new companies default to "active_hot" for the first 48h
+    // (poll every 3h) to immediately test their ATS endpoint. The daily tier
+    // recalc demotes them to "active" or "dormant" after 48h based on job count.
+    tier: companyTierEnum("tier").notNull().default("active_hot"),
     lastPolledAt: timestamp("last_polled_at"),
     lastJobPostedAt: timestamp("last_job_posted_at"), // Drives tier transitions
     activeJobCount: integer("active_job_count").notNull().default(0),
@@ -68,6 +71,12 @@ export const company = pgTable(
 
     // ── Operational Flags ───────────────────────────────────────────────────
     pollingEnabled: boolean("polling_enabled").notNull().default(true),
+
+    // ── Q5: Multi-Intent Fusion Score ────────────────────────────────────────
+    // Increments each time a DIFFERENT discovery source finds this company.
+    // High-fusion companies (discovered by HN + GitHub + Product Hunt, etc.)
+    // get priority for polling. See CORPUS_EXPANSION_TDD §3.4.
+    fusionScore: integer("fusion_score").notNull().default(1),
 
     // ── Timestamps ──────────────────────────────────────────────────────────
     createdAt: timestamp("created_at").defaultNow().notNull(),

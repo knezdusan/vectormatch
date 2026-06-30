@@ -10,24 +10,32 @@
 // ── API ──────────────────────────────────────────────────────────────────────
 // GET https://jobs.workable.com/api/v1/jobs?query={query}&limit=20
 //
-// Response shape:
+// Response shape (updated June 2026 — the API was revised; company.shortName
+// was removed and company.name was renamed to company.title):
 // {
+//   "title": "Developer",
+//   "totalSize": 9329,
+//   "nextPageToken": "eyJ...",   ← null when no more pages
 //   "jobs": [
 //     {
 //       "id": "abc123",
 //       "title": "Senior Engineer",
 //       "company": {
-//         "name": "Acme",
-//         "shortName": "acme",      ← this is the Workable slug
-//         "website": "https://acme.com"
+//         "id": "uuid",
+//         "title": "Acme",              ← company name (was "name")
+//         "website": "https://acme.com",
+//         "url": "https://jobs.workable.com/company/{id}/jobs-at-{slug}"
 //       },
-//       "location": { "city": "SF", "country": "USA" },
-//       "url": "https://apply.workable.com/j/ABC123"
+//       "location": { "city": "SF", "countryName": "USA" },
+//       "url": "https://jobs.workable.com/view/..."
 //     },
 //     ...
-//   ],
-//   "nextPageToken": "token123"     ← null when no more pages
+//   ]
 // }
+//
+// The Workable slug (for apply.workable.com/{slug}) is extracted from the
+// company.url field by taking the last path segment and removing the
+// "jobs-at-" prefix.
 //
 // ── Pagination ───────────────────────────────────────────────────────────────
 // The API returns 20 jobs per page. Pass `nextPageToken` as the `pageToken`
@@ -69,9 +77,10 @@ const DEFAULT_SEARCH_QUERIES = [
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
 const workableCompanySchema = z.object({
-  name: z.string().optional(),
-  shortName: z.string().min(1),
+  id: z.string().optional(),
+  title: z.string().optional(),
   website: z.string().optional(),
+  url: z.string().optional(),
 });
 
 const workableJobSchema = z.object({
@@ -106,12 +115,48 @@ export interface WorkableMetaSearchResult {
   error?: string;
 }
 
+// ── Pure function: extract slug from company URL ─────────────────────────────
+
+/**
+ * Extract the Workable slug from a company URL.
+ *
+ * The company URL format is:
+ *   https://jobs.workable.com/company/{encodedId}/jobs-at-{slug}
+ *
+ * The slug is the last path segment with the "jobs-at-" prefix removed.
+ * URL-encoded characters are decoded (e.g. %2C → comma).
+ *
+ * @param companyUrl  The company URL from the API response
+ * @returns           The extracted slug, or null if extraction fails
+ */
+export function extractSlugFromCompanyUrl(companyUrl: string): string | null {
+  try {
+    const url = new URL(companyUrl);
+    const segments = url.pathname.split("/").filter(Boolean);
+    if (segments.length < 2) return null;
+
+    // The slug is in the last segment: "jobs-at-{slug}"
+    const lastSegment = decodeURIComponent(segments[segments.length - 1]);
+    if (lastSegment.startsWith("jobs-at-")) {
+      return lastSegment.slice("jobs-at-".length);
+    }
+
+    // Fallback: if the format changes, use the last segment as-is
+    return lastSegment || null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Pure function: extract company inputs from jobs ──────────────────────────
 
 /**
  * Extract unique SeedCompanyInput tuples from Workable job results.
- * Deduplicates by company slug (shortName) — multiple jobs from the same
+ * Deduplicates by company slug — multiple jobs from the same
  * company only produce one company entry.
+ *
+ * The slug is extracted from the company.url field (format:
+ * /company/{id}/jobs-at-{slug}). If extraction fails, the company is skipped.
  */
 export function extractCompanyInputs(
   jobs: WorkableJob[],
@@ -121,7 +166,12 @@ export function extractCompanyInputs(
   const inputs: SeedCompanyInput[] = [];
 
   for (const job of jobs) {
-    const slug = job.company.shortName;
+    // Extract slug from company URL
+    const companyUrl = job.company.url;
+    if (!companyUrl) continue;
+
+    const slug = extractSlugFromCompanyUrl(companyUrl);
+    if (!slug || slug.length === 0) continue;
     if (seen.has(slug)) continue;
     seen.add(slug);
 
@@ -139,7 +189,7 @@ export function extractCompanyInputs(
     inputs.push({
       atsSlug: slug,
       atsSource: "workable",
-      companyName: job.company.name,
+      companyName: job.company.title,
       rootDomain,
       discoverySource: "workable_meta_search",
       discoveryContext: `search:"${searchQuery}"`,

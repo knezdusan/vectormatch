@@ -15,12 +15,13 @@
 //
 // See TDD §1.4 for the full specification.
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/db";
 import { company } from "@/db/schemas/jobs/company";
 import { sluggerRetry } from "@/db/schemas/jobs/sluggerRetry";
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
 import { getAtsEndpoint } from "@/lib/jobs/ats-endpoints";
+import { recordDiscoverySource } from "@/lib/jobs/quality/fusion-score";
 import type { FetchFn } from "@/lib/jobs/types";
 import {
   type CompanyTier,
@@ -335,6 +336,28 @@ export async function resolveSlugger(
       { atsSource, atsSlug, canonicalName: canonical },
       probe.initialTier,
     );
+
+    // Q5: Multi-Intent Fusion Scoring — record the discovery source.
+    // If this is a new company, recordDiscoverySource records the initial source
+    // (fusionScore stays at 1). If it's a duplicate (companyId is null), we look
+    // up the existing company and record the source — if it's a new source, the
+    // fusion score is incremented.
+    if (input.discoverySource) {
+      const existingId =
+        companyId ??
+        (await db
+          .select({ id: company.id })
+          .from(company)
+          .where(
+            and(eq(company.atsSource, atsSource), eq(company.atsSlug, atsSlug)),
+          )
+          .limit(1)
+          .then((rows) => rows[0]?.id ?? null));
+
+      if (existingId) {
+        await recordDiscoverySource(existingId, input.discoverySource);
+      }
+    }
 
     return {
       success: true,

@@ -28,6 +28,8 @@ export * from "./blog/tags";
 // JOBS
 export * from "./jobs/applicant";
 export * from "./jobs/company";
+export * from "./jobs/companyDiscoverySources";
+export * from "./jobs/companyQualityScore";
 export * from "./jobs/cvUpload";
 export * from "./jobs/enums";
 export * from "./jobs/ingestionLog";

@@ -127,22 +127,51 @@ export async function getBatchForTier(
 // ── Tier recalculation ───────────────────────────────────────────────────────
 
 /**
- * Recalculate all company tiers based on activity. Run as a daily Inngest
- * scheduled function (TDD §4.4.1).
+ * Recalculate all company tiers based on activity and match quality.
+ * Run as a daily Inngest scheduled function (TDD §4.4.1).
  *
- * Tier transitions:
+ * G1 — Adaptive Polling Cadence (CORPUS_EXPANSION_TDD §3.1):
+ *
+ * Tier transitions (evaluated in order — first match wins):
  *   - health = "dead" OR consecutiveFailures >= 3 → tier = "dead"
+ *   - approved match_queue entry in last 30 days → tier = "active_hot"
+ *   - discovered within last 48 hours (Q4 bootstrap) → tier = "active_hot"
  *   - lastJobPostedAt within 14 days → tier = "active"
  *   - otherwise → tier = "dormant"
+ *
+ * The `active_hot` tier (G1) polls every 3h — companies that recently produced
+ * an approved match are checked more frequently for new job postings.
+ *
+ * Q4 — Bootstrap Polling: New companies default to `active_hot` at insertion
+ * (schema default). This check preserves that tier for the first 48h after
+ * discovery, giving new companies a chance to be polled before being demoted
+ * to `active` or `dormant` by the job-count-based logic.
  */
 export async function recalculateTiers(): Promise<number> {
   // The tier column is a custom enum type (company_tier). PostgreSQL requires
   // explicit casts from text to enum — the CASE expression returns text, so we
   // cast each branch to company_tier. Discovered via live testing 2026-06-23.
+  //
+  // G1: The active_hot check uses an EXISTS subquery against match_queue joined
+  // to job on (ats_source, ats_slug). This is the logical relationship — there
+  // is no FK from company to job (by design, see TDD §4.0 key design decisions).
+  // The subquery is correlated on company.ats_source + company.ats_slug.
+  //
+  // Q4: The bootstrap check uses discovered_at > NOW() - INTERVAL '48 hours'
+  // to preserve active_hot for newly discovered companies.
   const result = await db.execute(
     sql`UPDATE company SET
   tier = CASE
     WHEN health = 'dead' OR consecutive_failures >= 3 THEN 'dead'::company_tier
+    WHEN EXISTS (
+      SELECT 1 FROM match_queue mq
+      JOIN job j ON j.id = mq.job_id
+      WHERE j.ats_source = company.ats_source
+        AND j.ats_slug = company.ats_slug
+        AND mq.status = 'approved'
+        AND mq.evaluated_at > NOW() - INTERVAL '30 days'
+    ) THEN 'active_hot'::company_tier
+    WHEN discovered_at > NOW() - INTERVAL '48 hours' THEN 'active_hot'::company_tier
     WHEN last_job_posted_at > NOW() - INTERVAL '14 days' THEN 'active'::company_tier
     ELSE 'dormant'::company_tier
   END

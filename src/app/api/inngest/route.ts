@@ -20,7 +20,6 @@ import {
   aggregatorJobHandler,
   batchPollTier,
   batchSourceB1Workable,
-  batchSourceB2GoogleCse,
   batchSourceB3YcDirectory,
   batchSourceB4VcPortfolios,
   batchSourceB5NewsletterArchives,
@@ -32,7 +31,6 @@ import {
   cleanupOrphanedCvUploads,
   companyRevivalSweep,
   customUrlResolver,
-  dailySourceD1GoogleCse,
   dailySourceD2HnAlgolia,
   dailySourceD3RedditRss,
   dailySourceD4RemoteJobBoards,
@@ -48,10 +46,12 @@ import {
   gate3Evaluator,
   hnAlgoliaSeeder,
   jobIngestedHandler,
+  layoffSignalChecker,
   normalizationRetrySweep,
   pendingQueueSweep,
   personaUpdatedHandler,
   phalanxPoller,
+  qualityFlywheelRecalc,
   staleCleanup,
   staleJobVerifier,
   tierRecalc,
@@ -77,6 +77,8 @@ export const { GET, POST, PUT } = serve({
     batchPollTier,
     phalanxPoller,
     tierRecalc,
+    qualityFlywheelRecalc,
+    layoffSignalChecker,
     staleCleanup,
     staleJobVerifier,
     companyRevivalSweep,
@@ -87,7 +89,9 @@ export const { GET, POST, PUT } = serve({
     personaUpdatedHandler,
     cleanupOrphanedCvUploads,
     // Daily source functions (TDD §2.2 — staggered cron schedule)
-    dailySourceD1GoogleCse,
+    // NOTE: D1 (Google CSE) disabled — Google CSE API discontinued for new
+    // customers (Jan 2027 sunset). Revisit with Brave Search API alternative.
+    // See CORPUS_EXPANSION_HANDOFF.md §"Search API Alternatives".
     dailySourceD2HnAlgolia,
     dailySourceD3RedditRss,
     dailySourceD4RemoteJobBoards,
@@ -101,8 +105,8 @@ export const { GET, POST, PUT } = serve({
     dailySourceD12NpmRegistry,
     dailySourceD13MetaAds,
     // Batch source functions (TDD §2.1 — event-triggered for one-time flush)
+    // NOTE: B2 (Google CSE) disabled — same reason as D1 above.
     batchSourceB1Workable,
-    batchSourceB2GoogleCse,
     batchSourceB3YcDirectory,
     batchSourceB4VcPortfolios,
     batchSourceB5NewsletterArchives,

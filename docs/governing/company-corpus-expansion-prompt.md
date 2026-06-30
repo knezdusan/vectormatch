@@ -137,11 +137,11 @@ Replaces the rejected "Staggered Batch Queue" (which would have made jobs stale 
 
 ## Sprint Sequencing
 
-**Sprint 1:** G7 → G5 → G6 → F1 (with F3 integrated) → F2 → G4 → G3 → Q1 → Fire batch sources (B1-B10) → Wire daily sources (D1-D13, staggered)
+**Sprint 1:** G7 → G5 → G6 → F1 (with F3 integrated) → F2 → G4 → G3 → Q1 → Fire batch sources (B1-B10) → Wire daily sources (D1-D13, staggered) — `[Status: Complete — June 29 2026]`
 
-**Sprint 2:** Q2 (Quality Flywheel) → Q3 (Layoff signals) → Q4 (Bootstrap polling) → Q5 (Multi-intent scoring) → G1 (Adaptive cadence)
+**Sprint 2:** Q2 (Quality Flywheel) → Q3 (Layoff signals) → Q4 (Bootstrap polling) → Q5 (Multi-intent scoring) → G1 (Adaptive cadence) — `[Status: Complete — June 30 2026]`
 
-**Sprint 3:** Remaining daily sources, optimization, monitoring
+**Sprint 3:** Remaining daily sources, optimization, monitoring — `[Status: Not started]`
 
 ## Key Files
 

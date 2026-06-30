@@ -642,6 +642,104 @@ export const tierRecalc = inngest.createFunction(
 );
 
 /**
+ * Quality Flywheel Recalculation — Q2 (CORPUS_EXPANSION_TDD §3.2)
+ *
+ * Triggers: cron "0 4 * * *" (daily at 04:00 UTC, after tier recalc)
+ *
+ * Recalculates per-company quality scores from match_queue data and
+ * promotes/demotes company tiers:
+ *   - score > 50 AND approvedMatches > 3 → promote to active_hot
+ *   - score < 10 AND totalJobsProcessed > 20 → demote to dormant
+ *   - 0 approved in 90 days → purge candidate (logged, not auto-deleted)
+ */
+export const qualityFlywheelRecalc = inngest.createFunction(
+  {
+    id: "quality-flywheel-recalc",
+    name: "Quality Flywheel Recalculation",
+    triggers: [{ cron: "0 4 * * *" }],
+  },
+  async ({ step }) => {
+    const { recalculateQualityScores } = await import(
+      "@/lib/jobs/quality/quality-flywheel"
+    );
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const result = await step.run("recalculate-quality-scores", async () => {
+      return recalculateQualityScores();
+    });
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "tier_recalc",
+        source: "quality_flywheel",
+        status: "success",
+        itemsProcessed: result.companiesScored,
+        itemsInserted: 0,
+        itemsUpdated: result.promoted + result.demoted,
+        itemsRejected: 0,
+        itemsSkipped: result.purgeCandidates,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return result;
+  },
+);
+
+/**
+ * Layoff Signal Checker — Q3 (CORPUS_EXPANSION_TDD §3.3)
+ *
+ * Triggers: cron "0 5 * * *" (daily at 05:00 UTC, after tier recalc + quality flywheel)
+ *
+ * Fetches Layoffs.fyi RSS feed, matches company names against the corpus,
+ * and demotes affected companies from active_hot to active (reduced polling
+ * frequency — they may still have open roles).
+ */
+export const layoffSignalChecker = inngest.createFunction(
+  {
+    id: "layoff-signal-checker",
+    name: "Layoff Signal Checker",
+    triggers: [{ cron: "0 5 * * *" }],
+  },
+  async ({ step }) => {
+    const { checkLayoffSignals } = await import(
+      "@/lib/jobs/quality/layoff-signals"
+    );
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const result = await step.run("check-layoff-signals", async () => {
+      return checkLayoffSignals();
+    });
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "tier_recalc",
+        source: "layoff_signal_checker",
+        status: "success",
+        itemsProcessed: result.layoffsParsed,
+        itemsInserted: 0,
+        itemsUpdated: result.companiesDemoted,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return result;
+  },
+);
+
+/**
  * Stale Job Cleanup — mark jobs as stale/gone based on last-seen age.
  *
  * Triggers: cron "0 3 * * *" (daily at 03:00 UTC)

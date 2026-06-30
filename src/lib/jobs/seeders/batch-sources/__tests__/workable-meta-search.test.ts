@@ -23,6 +23,7 @@ vi.mock("@/lib/jobs/seeders/company-repository", () => ({
 
 import {
   extractCompanyInputs,
+  extractSlugFromCompanyUrl,
   runWorkableMetaSearch,
   type WorkableJob,
 } from "@/lib/jobs/seeders/batch-sources/workable-meta-search";
@@ -31,45 +32,53 @@ import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Test fixtures ────────────────────────────────────────────────────────────
 
+// Updated to match the June 2026 Workable API format:
+// company.name → company.title, company.shortName removed,
+// slug extracted from company.url (/company/{id}/jobs-at-{slug})
+
 const job1: WorkableJob = {
   id: "job-1",
   title: "Senior Frontend Engineer",
   company: {
-    name: "Acme",
-    shortName: "acme",
+    id: "uuid-1",
+    title: "Acme",
     website: "https://acme.com",
+    url: "https://jobs.workable.com/company/abc123/jobs-at-acme",
   },
-  url: "https://apply.workable.com/j/ABC123",
+  url: "https://jobs.workable.com/view/ABC123",
 };
 
 const job2: WorkableJob = {
   id: "job-2",
   title: "Backend Developer",
   company: {
-    name: "Foobar",
-    shortName: "foobar",
+    id: "uuid-2",
+    title: "Foobar",
     website: "https://foobar.com",
+    url: "https://jobs.workable.com/company/def456/jobs-at-foobar",
   },
-  url: "https://apply.workable.com/j/DEF456",
+  url: "https://jobs.workable.com/view/DEF456",
 };
 
 const job3SameCompany: WorkableJob = {
   id: "job-3",
   title: "DevOps Engineer",
   company: {
-    name: "Acme",
-    shortName: "acme", // Same slug as job1
+    id: "uuid-1",
+    title: "Acme",
     website: "https://acme.com",
+    url: "https://jobs.workable.com/company/abc123/jobs-at-acme", // Same slug as job1
   },
-  url: "https://apply.workable.com/j/GHI789",
+  url: "https://jobs.workable.com/view/GHI789",
 };
 
 const jobNoWebsite: WorkableJob = {
   id: "job-4",
   title: "Data Engineer",
   company: {
-    name: "NoSite",
-    shortName: "nosite",
+    id: "uuid-3",
+    title: "NoSite",
+    url: "https://jobs.workable.com/company/ghi789/jobs-at-nosite",
   },
 };
 
@@ -132,13 +141,67 @@ describe("extractCompanyInputs", () => {
       id: "x",
       title: "Engineer",
       company: {
-        name: "Bad",
-        shortName: "bad",
+        id: "uuid-x",
+        title: "Bad",
         website: "not-a-url",
+        url: "https://jobs.workable.com/company/xxx/jobs-at-bad",
       },
     };
     const inputs = extractCompanyInputs([job], "test");
     expect(inputs[0].rootDomain).toBeUndefined();
+  });
+
+  it("skips jobs without company.url", () => {
+    const job: WorkableJob = {
+      id: "x",
+      title: "Engineer",
+      company: {
+        id: "uuid-x",
+        title: "NoUrl",
+      },
+    };
+    const inputs = extractCompanyInputs([job], "test");
+    expect(inputs).toHaveLength(0);
+  });
+});
+
+// ── extractSlugFromCompanyUrl ────────────────────────────────────────────────
+
+describe("extractSlugFromCompanyUrl", () => {
+  it("extracts slug from standard company URL", () => {
+    const url = "https://jobs.workable.com/company/abc123/jobs-at-acme";
+    expect(extractSlugFromCompanyUrl(url)).toBe("acme");
+  });
+
+  it("extracts slug from URL with multi-word company name", () => {
+    const url =
+      "https://jobs.workable.com/company/pScfjBzGATtPx3geL93jwD/jobs-at-biopharma-consulting-jad-group";
+    expect(extractSlugFromCompanyUrl(url)).toBe(
+      "biopharma-consulting-jad-group",
+    );
+  });
+
+  it("URL-decodes encoded characters in slug", () => {
+    const url =
+      "https://jobs.workable.com/company/abc/jobs-at-essnova-solutions%2C-inc.";
+    expect(extractSlugFromCompanyUrl(url)).toBe("essnova-solutions,-inc.");
+  });
+
+  it("returns null for invalid URL", () => {
+    expect(extractSlugFromCompanyUrl("not-a-url")).toBeNull();
+  });
+
+  it("returns null for URL with no path segments", () => {
+    expect(extractSlugFromCompanyUrl("https://example.com")).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(extractSlugFromCompanyUrl("")).toBeNull();
+  });
+
+  it("handles slug without jobs-at prefix (fallback)", () => {
+    const url = "https://jobs.workable.com/company/abc/acme-labs";
+    expect(extractSlugFromCompanyUrl(url)).toBe("acme-labs");
   });
 });
 

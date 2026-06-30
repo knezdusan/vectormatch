@@ -673,13 +673,16 @@ export const atsSourceEnum = pgEnum("ats_source", [
   "greenhouse",
   "lever",
   "ashby",
-  // Future: "smartrecruiters", "recruitee", "workable"
+  "smartrecruiters",  // Added June 29 2026 — corpus expansion (B5 newsletters, D4 remote boards)
+  "recruitee",        // Added June 29 2026 — corpus expansion (D4 remote boards, D5 WWR)
+  "workable",         // Added June 29 2026 — corpus expansion (B1 Workable Meta-Search)
 ]);
 
 export const companyTierEnum = pgEnum("company_tier", [
-  "active",   // Tier A: posted a job in last 14 days → poll every 12h
-  "dormant",  // Tier B: no jobs in >14 days → poll weekly
-  "dead",     // Tier C: endpoint returns 404 or 3+ consecutive failures → stop
+  "active_hot",  // Tier A+: companies with recent approved matches → poll every 3h (G1, added June 29 2026)
+  "active",      // Tier A: posted a job in last 14 days → poll every 12h
+  "dormant",     // Tier B: no jobs in >14 days → poll weekly
+  "dead",        // Tier C: endpoint returns 404 or 3+ consecutive failures → stop
 ]);
 
 export const companyHealthEnum = pgEnum("company_health", [
@@ -692,11 +695,25 @@ export const companyHealthEnum = pgEnum("company_health", [
 ]);
 
 export const discoverySourceEnum = pgEnum("discovery_source", [
-  "httparchive",   // BigQuery volume seeder
-  "hn_algolia",    // Hacker News delta seeder
-  "crt_sh",        // Certificate Transparency stealth seeder (Phase 2)
-  "hn_custom_url", // HN comment with non-ATS URL → CNAME/probe resolved
-  "manual",        // Admin-added via dashboard
+  "httparchive",         // BigQuery volume seeder (B6)
+  "hn_algolia",          // Hacker News delta seeder (D2)
+  "crt_sh",              // Certificate Transparency stealth seeder (Phase 2 — deferred)
+  "hn_custom_url",       // HN comment with non-ATS URL → CNAME/probe resolved
+  "manual",              // Admin-added via dashboard
+  // ── Corpus expansion sources (added June 29 2026, migrations 0016-0028) ──
+  "workable_meta_search",  // B1: Workable meta-search API
+  "google_cse",            // B2/D1: Google CSE (DISABLED — API discontinued, revisit with Brave Search)
+  "yc_directory",          // B3: YC Directory
+  "vc_portfolio",          // B4: VC portfolio page mining
+  "newsletter_archive",    // B5: Developer newsletter archives
+  "wayback_cdx",           // B7: Wayback Machine CDX API
+  "rapid7_fdns",           // B8: Rapid7 FDNS v2 CNAME reversal (SKIPPED — commercial licensing)
+  "cross_pollination",     // B9: Company names from existing job descriptions
+  "sitemap_probe",         // B10: Sitemap.xml probing for failed Slugger rescues
+  "certstream",            // D6: CertStream CT log domain matching
+  "meta_ads",              // D13: Meta Ads Library hiring ad companies
+  // Note: D3-D5, D7-D12 use "hn_algolia" as discovery_source due to enum limitation.
+  // The Slugger resolves all non-direct-slug sources through the same code path.
 ]);
 
 // ── Table ──────────────────────────────────────────────────────────────────
@@ -710,6 +727,7 @@ export const company = pgTable(
     atsSlug: text("ats_slug").notNull(),
     atsSource: atsSourceEnum("ats_source").notNull(),
     companyName: text("company_name"),  // Filled in by poller from ATS metadata
+    canonicalName: text("canonical_name"),  // Added June 29 2026 — normalized name for dedup across sources
     rootDomain: text("root_domain"),    // For cross-seeder dedup
 
     // ── Discovery Provenance ────────────────────────────────────────────────
@@ -755,10 +773,33 @@ export const company = pgTable(
 
 **Key design decisions:**
 - **`uniqueIndex(atsSource, atsSlug)`** — A company might use Greenhouse for eng and Lever for sales. Slug alone isn't globally unique.
-- **`companyTierEnum` is separate from `companyHealthEnum`** — Tier (active/dormant/dead) is about polling cadence. Health (healthy/degraded/rate_limited/blocked/error/dead) is about last poll result. These are orthogonal.
+- **`companyTierEnum` is separate from `companyHealthEnum`** — Tier (active_hot/active/dormant/dead) is about polling cadence. Health (healthy/degraded/rate_limited/blocked/error/dead) is about last poll result. These are orthogonal.
+- **`active_hot` tier (added June 29 2026)** — Companies with recent approved Gate 3 matches are polled every 3h (vs. 12h for active). This ensures hot companies are checked more frequently for new job postings.
+- **`canonicalName` column (added June 29 2026)** — Normalized company name for cross-source dedup. When the Slugger resolves a company name to an ATS slug, the canonical name is stored to prevent the same company from being inserted multiple times under different discovery sources.
 - **`lastJobPostedAt` drives tier transitions** — The decay algorithm doesn't need a separate tracking table. The poller updates this field; tier recalculation runs as a daily scheduled query.
 - **`consecutiveFailures` with threshold of 3** — Automatic `→ dead` transition. Three consecutive poll failures mark the company as dead and stop polling.
 - **No FK to `job` table** — The relationship is logical (jobs matched by `atsSource + atsSlug`), not enforced. This prevents poller failures when a job arrives for a slug not yet in the registry.
+
+### 4.0a The `slugger_retry` Table — Slugger Retry Queue `[Status: Implemented — June 29 2026]`
+
+The Slugger (`src/lib/jobs/seeders/slugger.ts`) resolves company names to ATS slugs by trying each ATS platform's API. When resolution fails (company not on any ATS), the company is added to a retry queue instead of being discarded. The `fundingSignalSeeder` (D7) processes this queue daily, retrying companies whose websites may have added an ATS since the last attempt.
+
+**Drizzle Path:** `src/db/schemas/jobs/sluggerRetry.ts`
+
+```typescript
+export const sluggerRetry = pgTable("slugger_retry", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyName: text("company_name").notNull(),
+  website: text("website"),
+  discoverySource: discoverySourceEnum("discovery_source").notNull(),
+  discoveryContext: text("discovery_context"),
+  retryCount: integer("retry_count").notNull().default(0),
+  nextRetryAt: timestamp("next_retry_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+**Retry strategy:** Companies are retried after 30/60/90 days — companies may configure an ATS later, especially post-funding. The `fundingSignalSeeder` (D7) cron at 11:00 UTC processes the retry queue.
 
 ### 4.0b The `ingestionLog` Table — Observability `[Status: Implemented]`
 
@@ -812,11 +853,12 @@ export const ingestionLog = pgTable(
 
 ### 4.0c The `job` Table Updates — Deduplication & Stale Tracking `[Status: Implemented]`
 
-The existing `job` table (§2.1) needs three additions for Module B:
+The existing `job` table (§2.1) needs these additions for Module B:
 
 1. **`externalJobId` (text, notNull)** — The ATS's internal job ID (e.g. Greenhouse's numeric `id`, Lever's UUID string). Used for deduplication via upsert.
 2. **`lastSeenAt` (timestamp, notNull, default now)** — When the job was last seen in a poll. Updated on every re-poll. Drives stale detection.
-3. **`status` (text, notNull, default 'active')** — `active` | `stale` | `gone`. Jobs not seen in 7 days → `stale`. Not seen in 30 days → `gone`. Module C's Gate 1+2 query must filter `WHERE status = 'active'`.
+3. **`status` (text, notNull, default 'active')** — `active` | `stale` | `gone` | `rejected` | `normalization_failed`. Jobs not seen in 7 days → `stale`. Not seen in 30 days → `gone`. Module C's Gate 1+2 query must filter `WHERE status = 'active'`. `rejected` and `normalization_failed` are Module C statuses (set by `jobIngestedHandler`).
+4. **`normalizedText` (text, nullable, added June 29 2026 — G7)** — The cleaned full-text extracted from `rawJson` during normalization. After normalization, `rawJson` is NULLed and `normalizedText` retains the ~3KB cleaned text (vs. ~15KB rawJson). This is an 80% storage reduction per job. One-time backfill script: `scripts/backfill-normalized-text.ts` (4,491 jobs processed, ~31MB reclaimed).
 
 **New indexes:**
 - `uniqueIndex("job_unique_ats_job").on(atsSource, atsSlug, externalJobId)` — The deduplication anchor. A job is uniquely identified by `(ats_source, ats_slug, external_job_id)`.
@@ -847,17 +889,34 @@ await db.insert(job).values({
 
 ### 4.1 The Discovery/Seeding Engines
 
-Do not scrape career pages dynamically. Seed the database with known ATS slugs. The system is fully autonomous — unresolvable discoveries are discarded, not queued for manual review.
+Do not scrape career pages dynamically. Seed the database with known ATS slugs. The system is fully autonomous — unresolvable discoveries are added to the Slugger retry queue (daily retries with exponential backoff) or discarded after 7 failed attempts.
 
-**Timescale separation — three different operational patterns:**
+**Timescale separation — three operational patterns (updated June 29 2026):**
 
 | Component | Schedule | Implementation | Failure Mode |
 |-----------|----------|----------------|--------------|
-| BigQuery Volume Seeder | Monthly (Inngest scheduled) | Inngest function `seeder-bigquery` with `cron: "0 0 1 * *"` (multi-partition scan: last 3 monthly crawls, ~45 GB per run) | Query fails → no new companies → retry next month |
-| HN Algolia Delta Seeder | Daily (first 7 days of month) | Inngest function `seeder/hn-algolia` with `cron: "0 0 * * *"` (skips days 8-31) | API fails → Inngest automatic retry (3 attempts) |
+| BigQuery Volume Seeder (B6) | Monthly (Inngest scheduled) | Inngest function `bigQuerySeeder` with `cron: "0 0 1 * *"` (multi-partition scan: last 6 monthly crawls, ~90 GB per run) | Query fails → no new companies → retry next month |
+| HN Algolia Delta Seeder (existing) | Daily (first 7 days of month) | Inngest function `hnAlgoliaSeeder` with `cron: "0 0 * * *"` (skips days 8-31) | API fails → Inngest automatic retry (3 attempts) |
+| Batch Source Flush (B1-B10) | One-time (event-triggered) | `scripts/fire-flush.ts` sends `batch/*` events to Inngest | Individual source failure → logged, other sources continue |
+| Daily Sources (D2-D13) | Staggered cron schedule | 12 Inngest functions with staggered crons (see §4.1.4) | API fails → Inngest automatic retry |
 | crt.sh Stealth Seeder | Phase 2 (deferred) | — | — |
 
-#### 4.1.1 HTTPArchive BigQuery (The Volume Seeder) `[Status: Implemented]`
+#### 4.1.0 The Slugger — Company Name → ATS Slug Resolution `[Status: Implemented — June 29 2026]`
+
+**Drizzle Path:** `src/lib/jobs/seeders/slugger.ts`
+
+The Slugger is the core resolution engine for daily sources (D3-D13) that discover company names but not ATS slugs. It takes a company name (and optionally a website) and tries to find the company's ATS slug by:
+
+1. **Canonical name normalization** (`canonicalizeCompanyName`) — lowercases, strips suffixes (Inc., LLC, Ltd.), removes punctuation.
+2. **Slug variant generation** (`generateSlugVariants`) — generates candidate slugs from the canonical name (e.g. "Acme Corp" → ["acme-corp", "acmecorp", "acme"]).
+3. **ATS API probe** — for each variant, tries each ATS platform's API (`boards-api.greenhouse.io/v1/boards/{slug}/jobs`, `api.lever.co/v0/postings/{slug}?mode=json`, `api.ashbyhq.com/posting-api/job-board/{slug}`). If any returns valid JSON with jobs, the slug is found.
+4. **DB cache check** (`checkDbCache`) — before probing, checks if the company name was already resolved (avoids redundant API calls).
+5. **Retry queue** (`addToRetryQueue`) — if resolution fails, the company is added to `slugger_retry` for daily retries by the funding signal seeder (D7).
+6. **Company insertion** (`insertResolvedCompany`) — when resolved, inserts the company into the `company` table with the discovered ATS slug.
+
+**Key option:** `insertCompany: true` (default) — when set, the Slugger inserts the company into the `company` table after resolution. When `false`, it only returns the resolved slug (used by sources that handle insertion themselves).
+
+#### 4.1.1 HTTPArchive BigQuery (The Volume Seeder — B6) `[Status: Implemented]`
 
 **⚠️ CRITICAL: The `httparchive.technologies` table no longer exists.** As of April 2025, the HTTP Archive reorganized their BigQuery dataset. The data now lives in `httparchive.crawl.pages` (~30 TB/month) as a nested `technologies.technology` array field within each page record. The old query strategy (`WHERE technology = 'Next.js'` against a standalone table) will not run.
 
@@ -986,6 +1045,70 @@ crt.sh's wildcard query (`%.careers.*`) returns every domain with "careers" in t
 - Query the `certificate_identity` table directly with date constraints (`ci.NOT_BEFORE > NOW() - INTERVAL '30 days'`) to only get new certificates.
 - **Expanded pattern matching:** `%.careers.*`, `%.jobs.*`, `%.join.*`, `%.work.*`, `%.hiring.*`, `%.talent.*`, `%.opportunities.*`, `%.roles.*`, `%.apply.*`, `%.team.*`.
 - **Two-stage verification:** (1) CNAME lookup, (2) slug probe against all three ATS APIs. If both fail, discard — no manual review.
+
+#### 4.1.3a Batch Sources (B1-B10) — One-Time Flush `[Status: Implemented — June 29 2026]`
+
+The Continuous Company Acquisition Pipeline (TDD `docs/reports/CORPUS_EXPANSION_TDD.md`) adds 10 batch sources for one-time corpus bootstrapping. Each source is an Inngest function triggered by a `batch/*` event (sent via `scripts/fire-flush.ts`).
+
+**Source inventory:**
+
+| ID | Source | Discovery Method | Est. Yield | Actual Yield | Status |
+|----|--------|-----------------|------------|--------------|--------|
+| B1 | Workable Meta-Search | `jobs.workable.com/api/v1/jobs` — extract company slugs from `company.url` | 300-600 | 26 (test run) | ✅ Fixed (API schema drift) |
+| B2 | Google CSE | `site:boards.greenhouse.io` searches via Google CSE API | 200-500 | 0 | ❌ Disabled (API discontinued) |
+| B3 | YC Directory | Algolia API — `yc-organizations` index, `isHiring:true` filter | 150-400 | 374 | ✅ Success |
+| B4 | VC Portfolios | Cheerio HTML scraping of curated VC portfolio pages (a16z, Sequoia, etc.) | 500-2,000 | 36 | ✅ Success |
+| B5 | Newsletter Archives | Crawl JS Weekly, React Status, etc. — extract ATS URLs from issue links | 200-500 | 257 | ✅ Success |
+| B6 | BigQuery (existing) | HTTPArchive Wappalyzer detection — monthly cron | 300-500 | 316 | ✅ Already running |
+| B7 | Wayback CDX | `web.archive.org/cdx/search` — query ATS domains, extract slugs from archived URLs | 200-500 | 4,163 | ✅ Top source |
+| B8 | Rapid7 FDNS | Rapid7 FDNS v2 CNAME dataset — match CNAMEs to ATS targets | 500-2,000 | 0 | ❌ Skipped (commercial licensing) |
+| B9 | Cross-Pollination | Extract company names from existing `job` table, run through Slugger | 50-150 | 11 | ✅ Success |
+| B10 | Sitemap Probe | Probe `sitemap.xml`, `jobs/sitemap.xml` for companies where Slugger failed | rescues 20-30% | 0 | ✅ Ran too soon after others |
+
+**Flush results (June 29 2026):** 449 → 5,290 companies (106% of 5,000 target). Total: 4,841 new companies inserted. Tier distribution: 475 active, 4,815 dormant.
+
+**Critical decisions:**
+- **B2 Google CSE disabled:** Google's Programmable Search Engine API is discontinued for new customers ("This API is not available for new customers." — Jan 2027 sunset for existing). Bing Search API also retired (August 11, 2025). **Revisit with Brave Search API** ($5/1K requests, $5 free monthly, supports `site:` operator). See `docs/reports/CORPUS_EXPANSION_HANDOFF.md` §"Search API Alternatives".
+- **B8 Rapid7 FDNS skipped:** Rapid7 Open Data now requires commercial licensing. D6 CertStream covers the same CNAME-based discovery approach via Certificate Transparency logs (free, real-time).
+- **B1 Workable API schema drift fixed:** The Workable meta-search API changed its response format (June 2026): `company.name` → `company.title`, `company.shortName` removed, `company.url` added. Slug now extracted from `company.url` (`/company/{id}/jobs-at-{slug}`) via `extractSlugFromCompanyUrl()`. 23 tests (8 new for slug extraction).
+
+**File locations:**
+- Batch source seeders: `src/lib/jobs/seeders/batch-sources/` (9 files: workable-meta-search, google-cse, yc-directory, vc-portfolios, newsletter-archives, wayback-cdx, rapid7-cname, cross-pollination, sitemap-probe)
+- Inngest functions: `src/inngest/functions.ts` (lines 2200-2850 — `batchSourceB1Workable` through `batchSourceB10SitemapProbe`)
+- Flush script: `scripts/fire-flush.ts`
+
+#### 4.1.3b Daily Sources (D1-D13) — Continuous Discovery `[Status: Implemented — June 29 2026]`
+
+13 daily-native sources run on staggered cron triggers to continuously discover new companies. The staggered schedule (TDD §2.2) avoids concurrent execution contention.
+
+**Daily source schedule (all times UTC):**
+
+| ID | Source | Cron | Method | Slugger? |
+|----|--------|------|--------|----------|
+| D1 | Google CSE Daily | `0 0,14 * * *` | `site:` searches | Direct | ❌ DISABLED |
+| D2 | HN Algolia Daily | `0 1,16 * * *` | ATS URL extraction from comments | Direct |
+| D3 | Reddit RSS | `0 2,18 * * *` | RSS feed parsing (r/forhire, r/jobbit) | Direct |
+| D4 | Remote Job Boards | `0 3 * * *` | Remote OK + Remotive + Himalayas APIs | Slugger |
+| D5 | WWR RSS | `0 4 * * *` | We Work Remotely + Jobicy RSS feeds | Slugger |
+| D6 | CertStream | `0 10 * * *` | WebSocket to crt.sh CertStream — CT log domain matching | Slugger |
+| D7 | Funding Signal | `0 11 * * *` | Process Slugger retry queue + Crunchbase funding news | Slugger |
+| D8 | Product Hunt | `0 5 * * *` | Product Hunt API — daily launches | Slugger |
+| D9 | Engineering Blogs | `0 6 * * *` | RSS feeds of tech company engineering blogs | Slugger |
+| D10 | GitHub Trending | `0 7 * * *` | GitHub trending page + CONTRIBUTING.md scanning | Slugger |
+| D11 | Tech News RSS | `0 8 * * *` | TechCrunch, Verge, etc. — LLM extracts company names from funding articles | Slugger |
+| D12 | NPM Registry | `0 9 * * *` | NPM search API — org-scoped packages → org websites | Slugger |
+| D13 | Meta Ads | `0 12 * * *` | Meta Ads Library API — hiring-related ad companies | Slugger |
+
+**Key implementation details:**
+- All daily sources use `discoverySource: "hn_algolia"` (existing enum limitation — the Slugger code path is shared)
+- D6 CertStream: Connects to `wss://certstream.calidog.io/`, collects certificate updates for 60s, filters for career-page subdomains (careers.*, jobs.*, boards.*, etc.), does DNS CNAME lookups, matches against ATS CNAME targets, runs through Slugger. Reuses `matchAtsCname` from rapid7-cname.ts. 28 tests.
+- D13 Meta Ads: Searches Meta Ads Library API for hiring-related ads ("we're hiring", "join our team"), extracts company names from `page_name`, deduplicates, runs through Slugger. Uses `META_ADS_ACCESS_TOKEN` env var. 27 tests.
+- D7 Funding Signal: Dual purpose — (1) processes the Slugger retry queue (up to 50 companies per run with exponential backoff), (2) queries Crunchbase API for recently funded companies and runs them through the Slugger.
+
+**File locations:**
+- Daily source seeders: `src/lib/jobs/seeders/daily-sources/` (12 files)
+- Inngest functions: `src/inngest/functions.ts` (lines 1803-2200 — `dailySourceD2HnAlgolia` through `dailySourceD13MetaAds`)
+- Tests: `src/lib/jobs/seeders/daily-sources/__tests__/` (7 test files, 150+ tests)
 
 ### 4.2 ATS Endpoint Registry & Defensive Zod Schemas `[Status: Implemented]`
 
@@ -1163,13 +1286,13 @@ Before the Poller saves a job to the database, a fast synchronous regex test on 
 
 **Implementation:** A single compiled regex with `\b` word boundaries and alternation. Phrase matching (`data engineer`, `ml engineer`) catches specialized roles without catching unrelated "data" or "ml" mentions. Word boundaries prevent "Data Entry Clerk" from matching `data`.
 
-### 4.4 The "Phalanx" Poller `[Status: Implemented]`
+### 4.4 The "Phalanx" Poller `[Status: Implemented — G5/G6 Batch Polling Architecture, June 29 2026]`
 
 Do not use AWS API Gateway for Native ATS endpoints. They do not run TLS fingerprinting.
 
-#### 4.4.1 Three Optimizations for Production Scalability
+#### 4.4.1 Four Optimizations for Production Scalability
 
-Polling 100,000 HTTP requests daily from a single Hetzner CX33 (2 vCPU / 8GB RAM) will exhaust resources, max out the Neon database connection pool, and likely get the server's IP blacklisted. Three optimizations prevent this:
+Polling 100,000 HTTP requests daily from a single Hetzner CX33 (2 vCPU / 8GB RAM) will exhaust resources, max out the Neon database connection pool, and likely get the server's IP blacklisted. Four optimizations prevent this:
 
 **Optimization 1 — Strict Concurrency Limits:**
 - Inngest is capped at 5 maximum concurrent steps (Inngest free plan limit, June 2026; originally 50). This protects the Hetzner CPU/RAM and prevents the Neon Serverless Postgres pool from being overwhelmed.
@@ -1185,6 +1308,7 @@ The TDD's original "Run Daily" is not scalable. A priority queuing strategy base
 
 | Tier | Condition | Polling Cadence |
 |------|-----------|-----------------|
+| **Tier A+ (Active Hot)** | Companies with recent approved Gate 3 matches | Every 3 hours (G1, added June 29 2026) |
 | **Tier A (Active)** | Posted a job in the last 14 days | Every 12 hours |
 | **Tier B (Dormant)** | No jobs posted in >14 days | Weekly |
 | **Tier C (Dead)** | Endpoint returns 404 or 3+ consecutive failures | Stop polling entirely |
@@ -1201,18 +1325,24 @@ UPDATE company SET
 WHERE polling_enabled = true;
 ```
 
-**Polling cadence is implemented via two Inngest scheduled functions (fan-out pattern):**
-- `poller-tier-active` (`cron: "0 */12 * * *"`) — emits `poller/poll-company` events for all Tier A companies.
-- `poller-tier-dormant` (`cron: "0 0 * * 0"`) — emits `poller/poll-company` events for all Tier B companies.
-- Each `poller/poll-company` event triggers a separate Inngest function instance that polls a single company. Inngest's concurrency cap (5, free plan limit) naturally limits simultaneous polls.
+**Optimization 4 — G5/G6 Batch Polling Architecture (June 29 2026):**
 
-**Bootstrap Poll (June 2026 update):** When seeders insert new companies, they immediately emit `poller/poll-company` events for them — eliminating the 7-day cold-start delay where new companies waited for the weekly dormant fan-out. This is implemented in the `hnAlgoliaSeeder`, `customUrlResolver`, and `bigQuerySeeder` Inngest functions.
+The original per-company fan-out pattern (1 Inngest function per company poll) does not scale to 5,000+ companies. At 5,290 companies with the fan-out pattern, the Inngest Hobby plan (50K executions/month) would be exhausted in ~10 days. The batch polling architecture replaces fan-out with batched execution:
+
+- **`batchPollTier`** (`src/lib/jobs/poller/batch-poll.ts`) — polls up to 100 companies per function run. Each company is polled sequentially within the function (rate-limited via bottleneck). This reduces Inngest execution count by 50-100x.
+- **Three cron triggers map to three tiers:**
+  - `batchPollActiveHot` (`cron: "0 */3 * * *"`) — polls `active_hot` tier companies every 3h.
+  - `batchPollActive` (`cron: "0 */12 * * *"`) — polls `active` tier companies every 12h.
+  - `batchPollDormant` (`cron: "0 3 * * 1"`) — polls `dormant` tier companies weekly (Monday 3am UTC).
+- **Execution math:** 5,290 companies / 100 per batch = 53 batches per tier cycle. Active hot (every 3h, ~50 companies) = 1 batch × 8 cycles/day = 8 executions/day. Active (every 12h, ~475 companies) = 5 batches × 2 cycles/day = 10 executions/day. Dormant (weekly, ~4,815 companies) = 49 batches × 1 cycle/week = 49 executions/week. Total: ~18 + 49/7 ≈ 25 executions/day = 750/month. Well within the 50K/month Hobby plan limit.
+- **Per-company error isolation:** If one company's poll fails (404, Zod validation error, network timeout), it's logged and the batch continues to the next company. A single failure does not abort the entire batch.
+- **Bootstrap Poll (June 2026 update):** When seeders insert new companies, they immediately emit `poller/poll-company` events for them — eliminating the 7-day cold-start delay where new companies waited for the weekly dormant fan-out. This is implemented in the `hnAlgoliaSeeder`, `customUrlResolver`, and `bigQuerySeeder` Inngest functions.
 
 **Company Revival Sweep (June 2026 update):** `poller-company-revival` (`cron: "0 5 * * *"`) — daily function that re-enables polling for dead companies after a 7-day cooldown. Without this, dead companies are permanently stuck (the tier recalculation only updates `WHERE polling_enabled = true`). The revival sweep resets `health = "healthy"`, `consecutiveFailures = 0`, and `pollingEnabled = true`, then emits bootstrap poll events to immediately re-test the revived companies.
 
 **Normalization Retry Sweep (June 2026 update):** `poller-normalization-retry` (`cron: "0 6 * * *"`) — daily function that re-emits `job/ingested` events for up to 50 `normalization_failed` jobs. These jobs have no `normalizedAt` (by design — they're retryable), so the `jobIngestedHandler` idempotency guard will re-process them. If the failure was transient (OpenAI timeout), the retry succeeds. If persistent, the job fails again and is retried the next day.
 
-**Do NOT create per-company Inngest scheduled functions** — 100,000 scheduled functions would overwhelm Inngest. The fan-out pattern (2 scheduled functions → N events → N function instances) is the correct architecture.
+**Do NOT create per-company Inngest scheduled functions** — 100,000 scheduled functions would overwhelm Inngest. The batch polling pattern (3 scheduled functions → N batches of 100 companies each) is the correct architecture for 5,000+ companies.
 
 #### 4.4.2 Rate Limiting Implementation
 
@@ -1265,8 +1395,9 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 | `ats-adapters.ts` | Fetch + Zod validate + normalize per ATS platform. Returns unified `NormalizedJob[]`. Uses original JSON for `rawJson` to preserve all fields. Injectable `FetchFn`. |
 | `job-repository.ts` | Job table upserts (`onConflictDoUpdate`), new job detection (for B→C handoff), stale cleanup (Phase 2: 7d→stale, 30d→gone), active job count. |
 | `company-state.ts` | Company polling state updates (lastPolledAt, health, consecutiveFailures). Auto-disables polling after 3 consecutive failures. HTTP status → health mapping (429→rate_limited, 403→blocked, 404→dead, 500+→error). |
-| `tier-queries.ts` | Tier-based company queries for fan-out (active every 12h, dormant weekly). Daily tier recalculation SQL (uses `::company_tier` enum cast for PostgreSQL compatibility). Single-company lookup by ID. |
+| `tier-queries.ts` | Tier-based company queries for batch polling (active_hot every 3h, active every 12h, dormant weekly). Daily tier recalculation SQL (uses `::company_tier` enum cast for PostgreSQL compatibility). Single-company lookup by ID. |
 | `phalanx-poller.ts` | Core orchestrator: fetch → Gate 0 filter → upsert → emit `job/ingested` → update company state. Never throws — all errors caught and returned in `PollResult`. |
+| `batch-poll.ts` | G5/G6 batch polling: polls up to 100 companies per function run. Per-company error isolation. Used by `batchPollActiveHot`, `batchPollActive`, `batchPollDormant` Inngest functions. |
 | `rate-limiter.ts` | Per-ATS Bottleneck limiters (2 req/s, 1 concurrent per platform). |
 | `schemas.ts` | Zod schemas for Inngest event payloads (`pollCompanyEventSchema`, `pollerRunEventSchema`, `jobIngestedEventSchema`). |
 
@@ -1274,19 +1405,20 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 
 | Function | Trigger | Role |
 |----------|---------|------|
-| `pollCompanyFn` | `poller/poll-company` event | Per-company fan-out target. Concurrency cap 50. Fetches → Gate 0 → upsert → emits `job/ingested`. |
-| `tierActiveFanOut` | cron `0 0/12 * * *` (every 12h) | Queries Tier A companies, emits `poller/poll-company` events. |
-| `tierDormantFanOut` | cron `0 0 * * 0` (weekly Sunday) | Queries Tier B companies, emits `poller/poll-company` events. |
+| `pollCompanyFn` | `poller/poll-company` event | Per-company fan-out target (bootstrap polls). Concurrency cap 50. Fetches → Gate 0 → upsert → emits `job/ingested`. |
+| `batchPollActiveHot` | cron `0 */3 * * *` (every 3h) | G5/G6 batch poll for `active_hot` tier companies (recent approved matches). |
+| `batchPollActive` | cron `0 */12 * * *` (every 12h) | G5/G6 batch poll for `active` tier companies. |
+| `batchPollDormant` | cron `0 3 * * 1` (weekly Monday 3am) | G5/G6 batch poll for `dormant` tier companies. |
 | `phalanxPoller` | `poller/run` event (manual) | Single-company poll by companyId (admin/testing). |
 | `tierRecalc` | cron `0 4 * * *` (daily 04:00 UTC) | Recalculates all company tiers based on activity. |
 | `staleCleanup` | cron `0 3 * * *` (daily 03:00 UTC) | Marks stale (7d) and gone (30d) jobs. |
 
-**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 470 project tests pass. Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
+**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 1,324 project tests pass. Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
 
-### 4.5 The B→C Handoff Contract `[Status: Implemented]`
+### 4.5 The B→C Handoff Contract `[Status: Implemented — G7 rawJson Pruning, June 29 2026]`
 
 **Module B owns:** fetching, validating (Zod), filtering (Gate 0), and persisting raw job data.
-**Module C owns:** normalization (tag extraction), embedding generation, and matching.
+**Module C owns:** normalization (tag extraction), embedding generation, rawJson pruning (G7), and matching.
 
 **The handoff:** The poller emits one `job/ingested` Inngest event per **newly inserted** job (not upserted jobs — only genuinely new jobs). This prevents Module C from re-normalizing jobs it's already processed.
 
@@ -1300,16 +1432,22 @@ Module B (Poller)                          Module C (Router)
    - extractedTags = []  (empty)
    - jobEmbedding = null
    - status = "active"
+   - rawJson = full ATS response (~15KB)
 5. If NEW job (not upsert):
    emit "job/ingested" { jobId }  ──────►  1. Receive "job/ingested" event
                                              2. Fetch job from DB
                                              3. Extract canonical tags
                                              4. Generate embedding
-                                             5. UPDATE job SET tags + embedding
-                                             6. Run Gate 1 + Gate 2 SQL query
-                                             7. Insert into match_queue
-                                             8. Fan out Gate 3 LLM evaluation
+                                             5. G7: Extract normalizedText from rawJson
+                                                - UPDATE job SET normalizedText = cleaned text
+                                                - UPDATE job SET rawJson = NULL  (80% storage reduction)
+                                             6. UPDATE job SET tags + embedding + normalizedAt
+                                             7. Run Gate 1 + Gate 2 SQL query
+                                             8. Insert into match_queue
+                                             9. Fan out Gate 3 LLM evaluation
 ```
+
+**G7 rawJson pruning (June 29 2026):** After normalization, the job's `rawJson` (~15KB) is NULLed and the cleaned text is stored in `normalizedText` (~3KB) — an 80% storage reduction per job. This prevents the `job` table from exceeding Neon's 512MB row limit when ATS responses are large (some Ashby responses are 50KB+). The `normalizedText` column was added via migration 0016. A one-time backfill script (`scripts/backfill-normalized-text.ts`) processed 4,491 existing jobs, reclaiming ~31MB. New jobs are pruned automatically by `jobIngestedHandler` during normalization. The dashboard's `extractJobContent` function reads from `normalizedText` (falling back to `rawJson` for pre-G7 jobs).
 
 **Why this boundary:**
 - **Testability:** Module B is tested by asserting `job` rows with `extractedTags = []` and `jobEmbedding = null`. Module C is tested by feeding it a job row and asserting tags/embedding are populated.
@@ -1325,11 +1463,139 @@ Module B (Poller)                          Module C (Router)
 | Lever | ~12% | Yes (`api.lever.co/v0`) | **MVP** |
 | iCIMS | ~10% | No | Skip |
 | Ashby | ~5% (fastest-growing) | Yes (`api.ashbyhq.com`) | **MVP** |
-| SmartRecruiters | ~3% | Yes | Phase 2 |
-| Recruitee | ~2% | Yes | Phase 2 |
-| Workable | ~2% | Yes (v3 API) | Phase 2 |
+| SmartRecruiters | ~3% | Yes (`api.smartrecruiters.com/v1`) | **Implemented (June 29 2026)** — added for corpus expansion (B5 newsletters, D4 remote boards) |
+| Recruitee | ~2% | Yes (`api.recruitee.com`) | **Implemented (June 29 2026)** — added for corpus expansion (D4 remote boards, D5 WWR) |
+| Workable | ~2% | Yes (meta-search `jobs.workable.com/api/v1/jobs`) | **Implemented (June 29 2026)** — B1 Workable Meta-Search source. API schema drift fixed (June 2026: `company.name`→`company.title`, slug extracted from `company.url`) |
 
-**Greenhouse + Lever + Ashby = ~35% of total market but ~60–70% of the startup/mid-size tech company market** — which is the target segment. Workday dominates enterprise (Fortune 500), which is not the target user's sweet spot.
+**Greenhouse + Lever + Ashby = ~35% of total market but ~60–70% of the startup/mid-size tech company market** — which is the target segment. Workday dominates enterprise (Fortune 500), which is not the target user's sweet spot. The corpus expansion (June 29 2026) added SmartRecruiters, Recruitee, and Workable support, bringing total ATS coverage to ~40% of the total market and ~75-80% of the startup/mid-size tech company market.
+
+---
+
+### 4.7 Sprint 2: Quality Architecture (G1, Q2, Q3, Q4, Q5) `[Status: Implemented — June 30 2026]`
+
+Sprint 2 implements the quality architecture from CORPUS_EXPANSION_TDD §3.1–§3.4. These five features work together to ensure that high-quality companies are polled more frequently, low-quality companies are demoted, and newly discovered companies get an immediate bootstrap poll.
+
+#### 4.7.1 G1: Adaptive Polling Cadence `[Status: Implemented]`
+
+**File:** `src/lib/jobs/poller/tier-queries.ts` — `recalculateTiers()`
+
+The daily tier recalculation now promotes companies to `active_hot` when they have approved matches in the last 30 days. The tier transition logic (evaluated in order — first match wins):
+
+```
+1. health = "dead" OR consecutiveFailures >= 3 → tier = "dead"
+2. approved match_queue entry in last 30 days → tier = "active_hot"
+3. discovered within last 48 hours (Q4 bootstrap) → tier = "active_hot"
+4. lastJobPostedAt within 14 days → tier = "active"
+5. otherwise → tier = "dormant"
+```
+
+The `active_hot` check uses an EXISTS subquery that joins `match_queue` → `job` on `(ats_source, ats_slug)` and correlates to `company`. This is the logical relationship — there is no FK from company to job (by design, see §4.0).
+
+**Cron schedule:** The `batchPollTier` Inngest function runs on three cron schedules:
+- `active_hot`: every 3h (`0 */3 * * *`)
+- `active`: every 12h (`0 */12 * * *`)
+- `dormant`: weekly (`0 3 * * 1`)
+
+**Tests:** `src/lib/jobs/poller/__tests__/tier-recalc.test.ts` (9 tests)
+
+#### 4.7.2 Q4: Bootstrap Polling `[Status: Implemented]`
+
+**Schema change:** `company.tier` default changed from `"dormant"` to `"active_hot"` (migration `0029_q4_bootstrap_default_active_hot.sql`).
+
+New companies default to `active_hot` for the first 48h after discovery (poll every 3h). This gives new companies an immediate chance to be polled and their ATS endpoint tested. After 48h, the daily tier recalc demotes them to `active` or `dormant` based on job count.
+
+The 48h protection is in `recalculateTiers()` — the `discovered_at > NOW() - INTERVAL '48 hours'` check preserves `active_hot` for new companies. The Q2 quality flywheel demotion also respects this 48h window (won't demote companies discovered within 48h).
+
+#### 4.7.3 Q2: Adversarial Quality Flywheel `[Status: Implemented]`
+
+**New table:** `company_quality_score` (migration `0030_q2_quality_flywheel_score.sql`)
+
+```typescript
+export const companyQualityScore = pgTable("company_quality_score", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").notNull().references(() => company.id, { onDelete: "cascade" }),
+  score: integer("score").notNull().default(0), // 0-100
+  approvedMatches: integer("approved_matches").notNull().default(0),
+  rejectedMatches: integer("rejected_matches").notNull().default(0),
+  totalJobsProcessed: integer("total_jobs_processed").notNull().default(0),
+  lastApprovedAt: timestamp("last_approved_at"),
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+```
+
+**Files:**
+- `src/db/schemas/jobs/companyQualityScore.ts` — Drizzle schema
+- `src/lib/jobs/quality/quality-flywheel.ts` — Recalculation logic
+- `src/inngest/functions.ts` — `qualityFlywheelRecalc` Inngest function (cron `0 4 * * *`)
+
+**Daily recalculation (`recalculateQualityScores()`):**
+1. Aggregates match_queue data per company (approved/rejected/total counts) via JOIN match_queue → job → company
+2. Upserts into `company_quality_score` with `ON CONFLICT (company_id) DO UPDATE`
+3. Promotes high-quality companies: `score > 50 AND approved_matches > 3` → `active_hot`
+4. Demotes low-quality companies: `score < 10 AND total_jobs_processed > 20` → `dormant` (respects Q4 48h bootstrap protection)
+5. Counts purge candidates: `0 approved in 90 days` (logged, not auto-deleted)
+
+**Score formula:** `score = (approvedMatches / totalJobsProcessed) * 100` (0 if no jobs processed)
+
+**Tests:** `src/lib/jobs/quality/__tests__/quality-flywheel.test.ts` (16 tests)
+
+#### 4.7.4 Q3: Layoff Signal Checker `[Status: Implemented]`
+
+**Files:**
+- `src/lib/jobs/quality/layoff-signals.ts` — RSS parsing + name matching + demotion
+- `src/inngest/functions.ts` — `layoffSignalChecker` Inngest function (cron `0 5 * * *`)
+
+**Daily check:**
+1. Fetches `https://layoffs.fyi/rss-feed/` RSS feed
+2. Parses company names from `<title>` elements (handles CDATA, HTML entities, suffix stripping)
+3. Matches against `company.company_name` and `company.canonical_name` using ILIKE
+4. Demotes matched companies from `active_hot` to `active` (not dormant — they may still have open roles, just reduce polling frequency)
+
+**Name normalization:** `normalizeCompanyName()` lowercases, strips suffixes (Inc, LLC, Ltd, Corp, etc.), removes punctuation. `namesMatch()` checks exact match after normalization or substring containment.
+
+**Tests:** `src/lib/jobs/quality/__tests__/layoff-signals.test.ts` (20 tests)
+
+#### 4.7.5 Q5: Multi-Intent Fusion Scoring `[Status: Implemented]`
+
+**Schema changes:**
+- `company.fusion_score` column (integer, default 1) — migration `0031_q5_fusion_score.sql`
+- New table: `company_discovery_sources` — tracks which sources discovered each company
+
+```typescript
+export const companyDiscoverySources = pgTable("company_discovery_sources", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id").notNull().references(() => company.id, { onDelete: "cascade" }),
+  discoverySource: discoverySourceEnum("discovery_source").notNull(),
+  discoveredAt: timestamp("discovered_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueCompanySource: uniqueIndex("company_discovery_sources_unique").on(table.companyId, table.discoverySource),
+}));
+```
+
+**Files:**
+- `src/db/schemas/jobs/companyDiscoverySources.ts` — Drizzle schema
+- `src/lib/jobs/quality/fusion-score.ts` — `recordDiscoverySource()`, `getDiscoverySources()`, `hasBeenDiscoveredBy()`
+- `src/lib/jobs/seeders/slugger.ts` — Integrated into `finalizeResolution()` — after company insertion or duplicate detection, calls `recordDiscoverySource()`
+
+**How it works:**
+1. When the Slugger resolves a company, it calls `recordDiscoverySource(companyId, source)`
+2. The function tries to insert a new `(companyId, discoverySource)` row into `company_discovery_sources`
+3. If the insert succeeds (new source for this company), `fusion_score` is incremented
+4. If the insert fails (unique constraint — source already recorded), `fusion_score` is NOT incremented (prevents double-counting)
+5. High-fusion companies (discovered by HN + YC + VC portfolio, etc.) get priority for polling
+
+**Tests:** `src/lib/jobs/quality/__tests__/fusion-score.test.ts` (7 tests)
+
+#### 4.7.6 Inngest Function Registration
+
+All Sprint 2 functions are registered in `src/app/api/inngest/route.ts`:
+
+| Function | ID | Cron | Purpose |
+|----------|-----|------|---------|
+| `qualityFlywheelRecalc` | `quality-flywheel-recalc` | `0 4 * * *` | Q2: Daily quality score recalculation + tier promotion/demotion |
+| `layoffSignalChecker` | `layoff-signal-checker` | `0 5 * * *` | Q3: Daily layoff signal check + demotion |
+
+The tier recalc (`tierRecalc`, `0 4 * * *`) runs at the same time as the quality flywheel — both fire at 04:00 UTC. The layoff checker runs at 05:00 UTC, after both have completed.
 
 ---
 
@@ -1562,6 +1828,15 @@ The dashboard UI was built specifically as the calibration debugging interface. 
   3. **PHP/Laravel Developer** (php, laravel, mysql, wordpress, javascript) — new persona for diversified job matching (0 candidates in current corpus — expected, corpus is TypeScript-focused)
 - **CANONICAL_TAGS expanded:** Added `wordpress` (persona_defining, backend) and `docker` (persona_defining, devops) to support the new PHP/Laravel persona and full-stack persona. Total: 146 entries.
 - **Company corpus is the bottleneck:** At 449 companies (~29 new jobs/day), the funnel produces ~1-2 approved matches/week. Quadrupling to 1,800+ companies would produce ~4-8 approved matches/week. See `docs/governing/company-corpus-expansion-prompt.md` for the dedicated expansion session plan.
+
+**Key findings (post-flush, June 29 2026 — 5,290 companies, 4,086 active jobs, 3 personas):**
+- **Corpus expansion complete:** 449 → 5,290 companies (106% of 5,000 target) via 10 batch sources + 13 daily-native sources. Top source: Wayback CDX (4,163 companies). See `docs/reports/CORPUS_EXPANSION_TDD.md` and `docs/reports/CORPUS_EXPANSION_HANDOFF.md`.
+- **Expected job volume increase:** At 5,290 companies with an average of 5-50 open engineering roles each (after Gate 0 filtering), the active job count is expected to grow from 4,086 to ~21,500-50,000 once the batch poller processes all companies. This is an 5-12x increase in funnel input.
+- **Expected match rate improvement:** At 449 companies, the funnel produced ~1-2 approved matches/week. At 5,290 companies (11.8x), the expected rate is ~12-24 approved matches/week (1.7-3.4/day). This exceeds the 5-10 approved matches/day target.
+- **Next steps:** (1) Batch poller processes 5,290 companies on its cron schedule (active_hot every 3h, active every 12h, dormant weekly). (2) Module C normalizes and embeds new jobs. (3) Calibration thresholds (`GATE2_MAX_COSINE_DISTANCE = 0.48`, `GATE_ROUTER_LIMIT = 8`) may need re-tuning once the job volume increases — the current values were calibrated against 4,086 jobs, not 50,000.
+- **G7 rawJson pruning applied:** 4,491 existing jobs processed, ~31MB reclaimed. New jobs are pruned automatically during normalization. This prevents Neon storage issues at 50K+ job scale.
+- **Two sources disabled:** D1/B2 Google CSE (API discontinued — revisit with Brave Search API), B8 Rapid7 FDNS (commercial licensing — D6 CertStream covers same approach). See `docs/reports/CORPUS_EXPANSION_HANDOFF.md` §"Post-Flush Update".
+- **Workable API schema drift fixed:** June 2026 API revision changed response format. `company.name`→`company.title`, `company.shortName` removed, slug extracted from `company.url`. 23 tests (8 new for slug extraction).
 
 **Full report:** `docs/reports/calibration-report.md`
 
