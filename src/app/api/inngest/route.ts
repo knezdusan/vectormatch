@@ -18,8 +18,10 @@ import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
 import {
   aggregatorJobHandler,
+  aggressiveCleanup,
   batchPollTier,
   batchSourceB1Workable,
+  batchSourceB2BraveSearch,
   batchSourceB3YcDirectory,
   batchSourceB4VcPortfolios,
   batchSourceB5NewsletterArchives,
@@ -31,6 +33,7 @@ import {
   cleanupOrphanedCvUploads,
   companyRevivalSweep,
   customUrlResolver,
+  dailySourceD1BraveSearch,
   dailySourceD2HnAlgolia,
   dailySourceD3RedditRss,
   dailySourceD4RemoteJobBoards,
@@ -52,9 +55,11 @@ import {
   personaUpdatedHandler,
   phalanxPoller,
   qualityFlywheelRecalc,
+  sluggerRetryProcessor,
   staleCleanup,
   staleJobVerifier,
   tierRecalc,
+  vacuumAnalyze,
 } from "@/inngest/functions";
 
 /**
@@ -79,6 +84,7 @@ export const { GET, POST, PUT } = serve({
     tierRecalc,
     qualityFlywheelRecalc,
     layoffSignalChecker,
+    aggressiveCleanup,
     staleCleanup,
     staleJobVerifier,
     companyRevivalSweep,
@@ -88,10 +94,11 @@ export const { GET, POST, PUT } = serve({
     pendingQueueSweep,
     personaUpdatedHandler,
     cleanupOrphanedCvUploads,
+    vacuumAnalyze,
+    sluggerRetryProcessor,
     // Daily source functions (TDD §2.2 — staggered cron schedule)
-    // NOTE: D1 (Google CSE) disabled — Google CSE API discontinued for new
-    // customers (Jan 2027 sunset). Revisit with Brave Search API alternative.
-    // See CORPUS_EXPANSION_HANDOFF.md §"Search API Alternatives".
+    // Sprint 3 Task 7: D1 replaced Google CSE with Brave Search API.
+    dailySourceD1BraveSearch,
     dailySourceD2HnAlgolia,
     dailySourceD3RedditRss,
     dailySourceD4RemoteJobBoards,
@@ -105,8 +112,9 @@ export const { GET, POST, PUT } = serve({
     dailySourceD12NpmRegistry,
     dailySourceD13MetaAds,
     // Batch source functions (TDD §2.1 — event-triggered for one-time flush)
-    // NOTE: B2 (Google CSE) disabled — same reason as D1 above.
+    // Sprint 3 Task 7: B2 replaced Google CSE with Brave Search API.
     batchSourceB1Workable,
+    batchSourceB2BraveSearch,
     batchSourceB3YcDirectory,
     batchSourceB4VcPortfolios,
     batchSourceB5NewsletterArchives,

@@ -656,7 +656,11 @@ export const qualityFlywheelRecalc = inngest.createFunction(
   {
     id: "quality-flywheel-recalc",
     name: "Quality Flywheel Recalculation",
-    triggers: [{ cron: "0 4 * * *" }],
+    // Sprint 3 Task 8: staggered to 04:30 UTC (30 min after tierRecalc at
+    // 04:00) to avoid race conditions on the company.tier column — both
+    // functions read/write tier and concurrent execution caused
+    // non-deterministic final state.
+    triggers: [{ cron: "30 4 * * *" }],
   },
   async ({ step }) => {
     const { recalculateQualityScores } = await import(
@@ -730,6 +734,215 @@ export const layoffSignalChecker = inngest.createFunction(
         itemsUpdated: result.companiesDemoted,
         itemsRejected: 0,
         itemsSkipped: 0,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return result;
+  },
+);
+
+/**
+ * G8 — Aggressive Job Cleanup + Retention Policies.
+ *
+ * Triggers: cron "0 2 * * *" (daily at 02:00 UTC — runs BEFORE staleCleanup
+ * at 03:00 so the stale-marker pass operates on a pruned corpus).
+ *
+ * Deletes terminal-state rows from the high-growth tables to keep the database
+ * within the Neon Free 512MB storage tier:
+ *   1. rejected / gone / normalization_failed jobs (1d / 7d / 7d retention)
+ *   2. approved/rejected match_queue rows (90d retention)
+ *   3. ingestion_log entries (30d retention)
+ *   4. exhausted slugger_retry rows (30d past next_retry_at + retry_count >= 3)
+ *
+ * The `job` table has `ON DELETE CASCADE` from `match_queue`, so deleting jobs
+ * automatically reclaims their match_queue rows — no separate cleanup needed
+ * for matches belonging to deleted jobs.
+ *
+ * TDD reference: CORPUS_EXPANSION_TDD §1.8 (G8).
+ */
+export const aggressiveCleanup = inngest.createFunction(
+  {
+    id: "aggressive-cleanup",
+    name: "Aggressive Cleanup (G8)",
+    triggers: [{ cron: "0 2 * * *" }],
+  },
+  async ({ step }) => {
+    const {
+      deleteExhaustedSluggerRetries,
+      deleteGoneJobs,
+      deleteNormalizationFailedJobs,
+      deleteOldIngestionLogs,
+      deleteOldTerminalMatches,
+      deleteRejectedJobs,
+    } = await import("@/lib/jobs/poller/cleanup-queries");
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const rejected = await step.run("delete-rejected-jobs", async () => {
+      return deleteRejectedJobs();
+    });
+    const gone = await step.run("delete-gone-jobs", async () => {
+      return deleteGoneJobs();
+    });
+    const failed = await step.run(
+      "delete-normalization-failed-jobs",
+      async () => {
+        return deleteNormalizationFailedJobs();
+      },
+    );
+    const matches = await step.run("delete-old-terminal-matches", async () => {
+      return deleteOldTerminalMatches();
+    });
+    const logs = await step.run("delete-old-ingestion-logs", async () => {
+      return deleteOldIngestionLogs();
+    });
+    const retries = await step.run(
+      "delete-exhausted-slugger-retries",
+      async () => {
+        return deleteExhaustedSluggerRetries();
+      },
+    );
+
+    const totalDeleted =
+      rejected.deletedCount +
+      gone.deletedCount +
+      failed.deletedCount +
+      matches.deletedCount +
+      logs.deletedCount +
+      retries.deletedCount;
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "stale_cleanup",
+        status: "success",
+        source: "aggressive_cleanup",
+        itemsProcessed: totalDeleted,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        errorDetails: {
+          rejectedJobs: rejected.deletedCount,
+          goneJobs: gone.deletedCount,
+          normalizationFailedJobs: failed.deletedCount,
+          terminalMatches: matches.deletedCount,
+          ingestionLogs: logs.deletedCount,
+          sluggerRetries: retries.deletedCount,
+        },
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return {
+      rejectedJobs: rejected.deletedCount,
+      goneJobs: gone.deletedCount,
+      normalizationFailedJobs: failed.deletedCount,
+      terminalMatches: matches.deletedCount,
+      ingestionLogs: logs.deletedCount,
+      sluggerRetries: retries.deletedCount,
+      totalDeleted,
+    };
+  },
+);
+
+/**
+ * Weekly VACUUM ANALYZE — reclaims space from dead tuples left by the daily
+ * G8 DELETEs. Runs Sunday 02:00 UTC (off-peak).
+ *
+ * Uses `VACUUM ANALYZE` (not `VACUUM FULL`) — no exclusive lock, safe during
+ * normal traffic. `VACUUM FULL` should only be run manually if storage
+ * exceeds 480MB and during a maintenance window.
+ *
+ * TDD reference: CORPUS_EXPANSION_TDD §1.8 (G8) — weekly maintenance.
+ */
+export const vacuumAnalyze = inngest.createFunction(
+  {
+    id: "vacuum-analyze",
+    name: "Weekly VACUUM ANALYZE",
+    triggers: [{ cron: "0 2 * * 0" }],
+  },
+  async ({ step }) => {
+    const { vacuumAnalyze: runVacuumAnalyze } = await import(
+      "@/lib/jobs/poller/cleanup-queries"
+    );
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    await step.run("vacuum-analyze", async () => {
+      return runVacuumAnalyze();
+    });
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "stale_cleanup",
+        status: "success",
+        source: "vacuum_analyze",
+        itemsProcessed: 0,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return { vacuumed: true };
+  },
+);
+
+/**
+ * Slugger Retry Queue Processor — Sprint 3 Task 6.
+ *
+ * Triggers: cron "0 0 * * 1" (weekly, Monday 00:00 UTC).
+ *
+ * Re-runs the Slugger for companies that failed initial resolution and were
+ * added to the `slugger_retry` queue. On success, the retry entry is deleted
+ * (the company is now in the corpus). On failure, the retry count is
+ * incremented with exponential backoff (7d → 14d → 28d). After 3 failures the
+ * entry stays for manual review until G8 cleanup reclaims it after 30 days.
+ */
+export const sluggerRetryProcessor = inngest.createFunction(
+  {
+    id: "slugger-retry-processor",
+    name: "Slugger Retry Queue Processor",
+    triggers: [{ cron: "0 0 * * 1" }],
+  },
+  async ({ step }) => {
+    const { processRetryQueue } = await import(
+      "@/lib/jobs/seeders/slugger-retry-processor"
+    );
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const result = await step.run("process-retry-queue", async () => {
+      return processRetryQueue();
+    });
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "seed",
+        status: result.errors.length > 0 ? "partial" : "success",
+        source: "slugger_retry_processor",
+        itemsProcessed: result.processed,
+        itemsInserted: result.succeeded,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: result.failed,
+        errorMessage:
+          result.errors.length > 0 ? result.errors.join("; ") : undefined,
         startedAt,
         finishedAt: new Date(),
       });
@@ -1438,7 +1651,10 @@ export const pendingQueueSweep = inngest.createFunction(
   {
     id: "pending-queue-sweep",
     name: "Pending Queue Sweep",
-    triggers: [{ cron: "0,15,30,45 * * * *" }],
+    // Sprint 3 Task 9: reduced from every 15 min (2,880 runs/month) to every
+    // 30 min (1,440 runs/month) — halves Inngest execution cost. Users check
+    // daily, not hourly; a 30-min feedback delay is acceptable.
+    triggers: [{ cron: "0,30 * * * *" }],
   },
   async ({ step }) => {
     const result = await step.run("find-pending", async () => {
@@ -1907,68 +2123,92 @@ export const aggregatorJobHandler = inngest.createFunction(
 // See CORPUS_EXPANSION_TDD §2.2 for the full schedule table.
 
 /**
- * D1: Google CSE Date-Restricted Daily — direct slug extraction.
+ * D1: Brave Search Fresh Daily — direct slug extraction.
+ * Sprint 3 Task 7: Replaced Google CSE with Brave Search API.
  * Runs at 00:00 and 14:00 UTC.
  */
-export const dailySourceD1GoogleCse = inngest.createFunction(
+export const dailySourceD1BraveSearch = inngest.createFunction(
   {
-    id: "daily-source-google-cse",
-    name: "Daily Source — Google CSE",
+    id: "daily-source-brave-search",
+    name: "Daily Source — Brave Search",
     triggers: [{ cron: "0 0,14 * * *" }],
   },
   async ({ step }) => {
-    const { runGoogleCseDaily } = await import(
-      "@/lib/jobs/seeders/batch-sources/google-cse"
+    const sourceName = "daily-source-brave-search";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
+    const { runBraveSearchDaily } = await import(
+      "@/lib/jobs/seeders/batch-sources/brave-search"
     );
     const { writeIngestionLog } = await import(
       "@/lib/jobs/poller/ingestion-log"
     );
 
     const startedAt = new Date();
-    const apiKey = process.env.GOOGLE_CSE_API_KEY;
-    const cseId = process.env.GOOGLE_CSE_CSE_ID;
+    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
 
-    if (!apiKey || !cseId) {
+    if (!apiKey) {
       await step.run("write-log", async () => {
         return writeIngestionLog({
           type: "seed",
           status: "failed",
-          source: "google_cse",
+          source: "brave_search",
           itemsProcessed: 0,
           itemsInserted: 0,
           itemsUpdated: 0,
           itemsRejected: 0,
           itemsSkipped: 0,
-          errorMessage:
-            "GOOGLE_CSE_API_KEY or GOOGLE_CSE_CSE_ID not configured",
+          errorMessage: "BRAVE_SEARCH_API_KEY not configured",
           startedAt,
           finishedAt: new Date(),
         });
       });
-      return { error: "Google CSE credentials not configured" };
+      return { skipped: true, reason: "credentials-not-configured" };
     }
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runGoogleCseDaily({ apiKey, cseId }, fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "google_cse",
-        itemsProcessed: result.totalResultsFound,
-        itemsInserted: result.insertResult.inserted,
-        itemsUpdated: 0,
-        itemsRejected: result.insertResult.rejected.length,
-        itemsSkipped: result.insertResult.skipped,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runBraveSearchDaily({ apiKey }, fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "brave_search",
+          itemsProcessed: result.totalResultsFound,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -1983,6 +2223,14 @@ export const dailySourceD2HnAlgolia = inngest.createFunction(
     triggers: [{ cron: "0 1,16 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-hn-algolia";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runHnAlgoliaDailySeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/hn-algolia-daily"
     );
@@ -1992,27 +2240,44 @@ export const dailySourceD2HnAlgolia = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runHnAlgoliaDailySeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalComments,
-        itemsInserted: result.insertResult.inserted,
-        itemsUpdated: 0,
-        itemsRejected: result.insertResult.rejected.length,
-        itemsSkipped: result.insertResult.skipped,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runHnAlgoliaDailySeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalComments,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2027,6 +2292,14 @@ export const dailySourceD3RedditRss = inngest.createFunction(
     triggers: [{ cron: "0 2,18 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-reddit-rss";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runRedditRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/reddit-rss"
     );
@@ -2036,27 +2309,44 @@ export const dailySourceD3RedditRss = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runRedditRssSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalPosts,
-        itemsInserted: result.insertResult.inserted,
-        itemsUpdated: 0,
-        itemsRejected: result.insertResult.rejected.length,
-        itemsSkipped: result.insertResult.skipped,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runRedditRssSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalPosts,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2071,6 +2361,14 @@ export const dailySourceD4RemoteJobBoards = inngest.createFunction(
     triggers: [{ cron: "0 3 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-remote-job-boards";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runRemoteJobBoardsSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/remote-job-boards"
     );
@@ -2080,27 +2378,44 @@ export const dailySourceD4RemoteJobBoards = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runRemoteJobBoardsSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalJobs,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runRemoteJobBoardsSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalJobs,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2115,6 +2430,14 @@ export const dailySourceD5WwrRss = inngest.createFunction(
     triggers: [{ cron: "0 4 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-wwr-rss";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runWwrRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/weworkremotely-rss"
     );
@@ -2124,27 +2447,44 @@ export const dailySourceD5WwrRss = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runWwrRssSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalPosts,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runWwrRssSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalPosts,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2159,6 +2499,14 @@ export const dailySourceD6CertStream = inngest.createFunction(
     triggers: [{ cron: "0 10 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-certstream";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runCertStreamProcessor } = await import(
       "@/lib/jobs/seeders/daily-sources/certstream-processor"
     );
@@ -2168,27 +2516,44 @@ export const dailySourceD6CertStream = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("collect-and-process", async () => {
-      return runCertStreamProcessor(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalCertificates,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("collect-and-process", async () => {
+        return runCertStreamProcessor(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalCertificates,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2203,6 +2568,14 @@ export const dailySourceD7FundingSignal = inngest.createFunction(
     triggers: [{ cron: "0 11 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-funding-signal";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runFundingSignalSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/funding-signal"
     );
@@ -2212,27 +2585,44 @@ export const dailySourceD7FundingSignal = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("process-retry-queue", async () => {
-      return runFundingSignalSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalRetried,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("process-retry-queue", async () => {
+        return runFundingSignalSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalRetried,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2247,6 +2637,14 @@ export const dailySourceD8ProductHunt = inngest.createFunction(
     triggers: [{ cron: "0 5 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-producthunt";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runProductHuntDailySeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/producthunt-daily"
     );
@@ -2256,27 +2654,44 @@ export const dailySourceD8ProductHunt = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runProductHuntDailySeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalProducts,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runProductHuntDailySeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalProducts,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2291,6 +2706,14 @@ export const dailySourceD9EngineeringBlogs = inngest.createFunction(
     triggers: [{ cron: "0 6 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-engineering-blogs";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runEngineeringBlogsRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/engineering-blogs-rss"
     );
@@ -2300,27 +2723,44 @@ export const dailySourceD9EngineeringBlogs = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runEngineeringBlogsRssSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalPosts,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runEngineeringBlogsRssSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalPosts,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2335,6 +2775,14 @@ export const dailySourceD10GithubTrending = inngest.createFunction(
     triggers: [{ cron: "0 7 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-github-trending";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runGithubTrendingSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/github-trending"
     );
@@ -2344,27 +2792,44 @@ export const dailySourceD10GithubTrending = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runGithubTrendingSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalRepos,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runGithubTrendingSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalRepos,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2379,6 +2844,14 @@ export const dailySourceD11TechNewsRss = inngest.createFunction(
     triggers: [{ cron: "0 8 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-tech-news-rss";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runTechNewsRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/tech-news-rss"
     );
@@ -2388,27 +2861,44 @@ export const dailySourceD11TechNewsRss = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runTechNewsRssSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalArticles,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runTechNewsRssSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalArticles,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2423,6 +2913,14 @@ export const dailySourceD12NpmRegistry = inngest.createFunction(
     triggers: [{ cron: "0 9 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-npm-registry";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runNpmRegistrySeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/npm-registry"
     );
@@ -2432,27 +2930,44 @@ export const dailySourceD12NpmRegistry = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runNpmRegistrySeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalPackages,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runNpmRegistrySeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalPackages,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2467,6 +2982,14 @@ export const dailySourceD13MetaAds = inngest.createFunction(
     triggers: [{ cron: "0 12 * * *" }],
   },
   async ({ step }) => {
+    const sourceName = "daily-source-meta-ads";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runMetaAdsSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/meta-ads"
     );
@@ -2476,27 +2999,44 @@ export const dailySourceD13MetaAds = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runMetaAdsSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "hn_algolia",
-        itemsProcessed: result.totalAds,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runMetaAdsSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "hn_algolia",
+          itemsProcessed: result.totalAds,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2513,9 +3053,17 @@ export const batchSourceB1Workable = inngest.createFunction(
   {
     id: "batch-source-workable-meta-search",
     name: "Batch Source — Workable Meta-Search",
-    triggers: [{ event: "batch/workable-meta-search" }],
+    triggers: [{ event: "batch/workable-meta-search" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-workable-meta-search";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runWorkableMetaSearch } = await import(
       "@/lib/jobs/seeders/batch-sources/workable-meta-search"
     );
@@ -2525,92 +3073,133 @@ export const batchSourceB1Workable = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runWorkableMetaSearch(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "workable_meta_search",
-        itemsProcessed: result.totalJobsFound,
-        itemsInserted: result.insertResult.inserted,
-        itemsUpdated: 0,
-        itemsRejected: result.insertResult.rejected.length,
-        itemsSkipped: result.insertResult.skipped,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runWorkableMetaSearch(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "workable_meta_search",
+          itemsProcessed: result.totalJobsFound,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
 /**
- * B2: Google CSE Batch Sweep — direct slug extraction from Google CSE.
+ * B2: Brave Search Batch Sweep — direct slug extraction from Brave Search.
+ * Sprint 3 Task 7: Replaced Google CSE with Brave Search API.
  */
-export const batchSourceB2GoogleCse = inngest.createFunction(
+export const batchSourceB2BraveSearch = inngest.createFunction(
   {
-    id: "batch-source-google-cse",
-    name: "Batch Source — Google CSE",
-    triggers: [{ event: "batch/google-cse" }],
+    id: "batch-source-brave-search",
+    name: "Batch Source — Brave Search",
+    triggers: [{ event: "batch/brave-search" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const { runGoogleCseBatch } = await import(
-      "@/lib/jobs/seeders/batch-sources/google-cse"
+    const sourceName = "batch-source-brave-search";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
+    const { runBraveSearchBatch } = await import(
+      "@/lib/jobs/seeders/batch-sources/brave-search"
     );
     const { writeIngestionLog } = await import(
       "@/lib/jobs/poller/ingestion-log"
     );
 
     const startedAt = new Date();
-    const apiKey = process.env.GOOGLE_CSE_API_KEY;
-    const cseId = process.env.GOOGLE_CSE_CSE_ID;
+    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
 
-    if (!apiKey || !cseId) {
+    if (!apiKey) {
       await step.run("write-log", async () => {
         return writeIngestionLog({
           type: "seed",
           status: "failed",
-          source: "google_cse",
+          source: "brave_search",
           itemsProcessed: 0,
           itemsInserted: 0,
           itemsUpdated: 0,
           itemsRejected: 0,
           itemsSkipped: 0,
-          errorMessage:
-            "GOOGLE_CSE_API_KEY or GOOGLE_CSE_CSE_ID not configured",
+          errorMessage: "BRAVE_SEARCH_API_KEY not configured",
           startedAt,
           finishedAt: new Date(),
         });
       });
-      return { error: "Google CSE credentials not configured" };
+      return { skipped: true, reason: "credentials-not-configured" };
     }
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runGoogleCseBatch({ apiKey, cseId }, fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "google_cse",
-        itemsProcessed: result.totalResultsFound,
-        itemsInserted: result.insertResult.inserted,
-        itemsUpdated: 0,
-        itemsRejected: result.insertResult.rejected.length,
-        itemsSkipped: result.insertResult.skipped,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runBraveSearchBatch({ apiKey }, fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "brave_search",
+          itemsProcessed: result.totalResultsFound,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2621,9 +3210,17 @@ export const batchSourceB3YcDirectory = inngest.createFunction(
   {
     id: "batch-source-yc-directory",
     name: "Batch Source — YC Directory",
-    triggers: [{ event: "batch/yc-directory" }],
+    triggers: [{ event: "batch/yc-directory" }, { cron: "0 0 1 */3 *" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-yc-directory";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runYcDirectorySeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/yc-directory"
     );
@@ -2633,27 +3230,44 @@ export const batchSourceB3YcDirectory = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runYcDirectorySeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "yc_directory",
-        itemsProcessed: result.totalHiringCompanies,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runYcDirectorySeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "yc_directory",
+          itemsProcessed: result.totalHiringCompanies,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2664,9 +3278,17 @@ export const batchSourceB4VcPortfolios = inngest.createFunction(
   {
     id: "batch-source-vc-portfolios",
     name: "Batch Source — VC Portfolios",
-    triggers: [{ event: "batch/vc-portfolios" }],
+    triggers: [{ event: "batch/vc-portfolios" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-vc-portfolios";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runVcPortfolioSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/vc-portfolios"
     );
@@ -2676,27 +3298,44 @@ export const batchSourceB4VcPortfolios = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runVcPortfolioSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "vc_portfolio",
-        itemsProcessed: result.totalCompaniesExtracted,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runVcPortfolioSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "vc_portfolio",
+          itemsProcessed: result.totalCompaniesExtracted,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2707,9 +3346,17 @@ export const batchSourceB5NewsletterArchives = inngest.createFunction(
   {
     id: "batch-source-newsletter-archives",
     name: "Batch Source — Newsletter Archives",
-    triggers: [{ event: "batch/newsletter-archives" }],
+    triggers: [{ event: "batch/newsletter-archives" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-newsletter-archives";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runNewsletterArchiveSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/newsletter-archives"
     );
@@ -2719,27 +3366,44 @@ export const batchSourceB5NewsletterArchives = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runNewsletterArchiveSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "newsletter_archive",
-        itemsProcessed: result.issuesCrawled,
-        itemsInserted: result.directSlugInserts + result.sluggerResolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.sluggerUnresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runNewsletterArchiveSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "newsletter_archive",
+          itemsProcessed: result.issuesCrawled,
+          itemsInserted: result.directSlugInserts + result.sluggerResolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.sluggerUnresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2750,9 +3414,17 @@ export const batchSourceB7WaybackCdx = inngest.createFunction(
   {
     id: "batch-source-wayback-cdx",
     name: "Batch Source — Wayback CDX",
-    triggers: [{ event: "batch/wayback-cdx" }],
+    triggers: [{ event: "batch/wayback-cdx" }, { cron: "0 0 1 */3 *" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-wayback-cdx";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runWaybackCdxSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/wayback-cdx"
     );
@@ -2762,27 +3434,44 @@ export const batchSourceB7WaybackCdx = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("fetch-and-process", async () => {
-      return runWaybackCdxSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "wayback_cdx",
-        itemsProcessed: result.totalRows,
-        itemsInserted: result.insertResult.inserted,
-        itemsUpdated: 0,
-        itemsRejected: result.insertResult.rejected.length,
-        itemsSkipped: result.insertResult.skipped,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runWaybackCdxSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "wayback_cdx",
+          itemsProcessed: result.totalRows,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2799,6 +3488,14 @@ export const batchSourceB8Rapid7Fdns = inngest.createFunction(
     triggers: [{ event: "batch/rapid7-fdns" }],
   },
   async ({ event, step }) => {
+    const sourceName = "batch-source-rapid7-fdns";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runRapid7CnameSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/rapid7-cname"
     );
@@ -2828,30 +3525,47 @@ export const batchSourceB8Rapid7Fdns = inngest.createFunction(
           finishedAt: new Date(),
         });
       });
-      return { error: "Rapid7 FDNS file path not configured" };
+      return { skipped: true, reason: "credentials-not-configured" };
     }
 
-    const result = await step.run("stream-and-process", async () => {
-      return runRapid7CnameSeeder(filePath, fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "rapid7_fdns",
-        itemsProcessed: result.totalRecords,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("stream-and-process", async () => {
+        return runRapid7CnameSeeder(filePath, fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "rapid7_fdns",
+          itemsProcessed: result.totalRecords,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2863,9 +3577,17 @@ export const batchSourceB9CrossPollination = inngest.createFunction(
   {
     id: "batch-source-cross-pollination",
     name: "Batch Source — Cross-Pollination",
-    triggers: [{ event: "batch/cross-pollination" }],
+    triggers: [{ event: "batch/cross-pollination" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-cross-pollination";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runCrossPollinationSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/cross-pollination"
     );
@@ -2875,27 +3597,44 @@ export const batchSourceB9CrossPollination = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("process-existing-jobs", async () => {
-      return runCrossPollinationSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "cross_pollination",
-        itemsProcessed: result.totalCompanyNames,
-        itemsInserted: result.resolved,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: result.unresolved,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("process-existing-jobs", async () => {
+        return runCrossPollinationSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "cross_pollination",
+          itemsProcessed: result.totalCompanyNames,
+          itemsInserted: result.resolved,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: result.unresolved,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );
 
@@ -2907,9 +3646,17 @@ export const batchSourceB10SitemapProbe = inngest.createFunction(
   {
     id: "batch-source-sitemap-probe",
     name: "Batch Source — Sitemap Probe",
-    triggers: [{ event: "batch/sitemap-probe" }],
+    triggers: [{ event: "batch/sitemap-probe" }, { cron: "0 0 * * 1" }],
   },
   async ({ step }) => {
+    const sourceName = "batch-source-sitemap-probe";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
     const { runSitemapProbeSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/sitemap-probe"
     );
@@ -2919,26 +3666,43 @@ export const batchSourceB10SitemapProbe = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const result = await step.run("probe-sitemaps", async () => {
-      return runSitemapProbeSeeder(fetch);
-    });
-
-    await step.run("write-log", async () => {
-      return writeIngestionLog({
-        type: "seed",
-        status: result.error ? "failed" : "success",
-        source: "sitemap_probe",
-        itemsProcessed: result.companiesProbed,
-        itemsInserted: result.companiesInserted,
-        itemsUpdated: 0,
-        itemsRejected: 0,
-        itemsSkipped: 0,
-        errorMessage: result.error,
-        startedAt,
-        finishedAt: new Date(),
+    try {
+      const result = await step.run("probe-sitemaps", async () => {
+        return runSitemapProbeSeeder(fetch);
       });
-    });
 
-    return result;
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "sitemap_probe",
+          itemsProcessed: result.companiesProbed,
+          itemsInserted: result.companiesInserted,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
   },
 );

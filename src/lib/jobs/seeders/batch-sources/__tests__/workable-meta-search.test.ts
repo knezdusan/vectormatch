@@ -21,13 +21,26 @@ vi.mock("@/lib/jobs/seeders/company-repository", () => ({
   }),
 }));
 
+// Mock the Slugger so fallback routing doesn't hit the DB or network.
+vi.mock("@/lib/jobs/seeders/slugger", () => ({
+  resolveSlugger: vi.fn().mockResolvedValue({
+    success: true,
+    atsSource: "workable",
+    atsSlug: "resolved-slug",
+    resolvedBy: "slug_probe",
+    canonicalName: "Resolved",
+  }),
+}));
+
 import {
   extractCompanyInputs,
   extractSlugFromCompanyUrl,
   runWorkableMetaSearch,
+  validateWorkableSlug,
   type WorkableJob,
 } from "@/lib/jobs/seeders/batch-sources/workable-meta-search";
 import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
+import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Test fixtures ────────────────────────────────────────────────────────────
@@ -84,13 +97,35 @@ const jobNoWebsite: WorkableJob = {
 
 // ── Mock fetch helper ────────────────────────────────────────────────────────
 
-function mockFetchPages(pages: { status: number; body: unknown }[]): FetchFn {
+/**
+ * Mock fetch that returns configured search pages for GET requests to the
+ * meta-search API, and a configurable status for HEAD requests to the widget
+ * API (used by validateWorkableSlug). By default HEAD validation returns 200
+ * (slug valid → direct insert path), so existing tests that don't care about
+ * validation behave as before.
+ */
+function mockFetchPages(
+  pages: { status: number; body: unknown }[],
+  opts: { headStatus?: number | ((slug: string) => number) } = {},
+): FetchFn {
   let callIndex = 0;
-  const mock = vi.fn(async () => {
-    const page = pages[Math.min(callIndex, pages.length - 1)];
-    callIndex++;
-    return new Response(JSON.stringify(page.body), { status: page.status });
-  });
+  const headStatus = opts.headStatus ?? 200;
+  const mock = vi.fn(
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      const urlStr = typeof input === "string" ? input : input.toString();
+      if (method === "HEAD") {
+        const status =
+          typeof headStatus === "function"
+            ? headStatus(urlStr.split("/").pop() ?? "")
+            : headStatus;
+        return new Response(null, { status });
+      }
+      const page = pages[Math.min(callIndex, pages.length - 1)];
+      callIndex++;
+      return new Response(JSON.stringify(page.body), { status: page.status });
+    },
+  );
   return mock as unknown as FetchFn;
 }
 
@@ -272,7 +307,8 @@ describe("runWorkableMetaSearch", () => {
 
     expect(result.totalJobsFound).toBe(2);
     expect(result.pagesFetched).toBe(2);
-    expect(fetchFn).toHaveBeenCalledTimes(2);
+    // 2 GET search pages + 2 HEAD slug validations (job1 + job2)
+    expect(fetchFn).toHaveBeenCalledTimes(4);
   });
 
   it("stops when nextPageToken is null", async () => {
@@ -293,7 +329,8 @@ describe("runWorkableMetaSearch", () => {
     );
 
     expect(result.pagesFetched).toBe(1);
-    expect(fetchFn).toHaveBeenCalledTimes(1);
+    // 1 GET search page + 1 HEAD slug validation (job1)
+    expect(fetchFn).toHaveBeenCalledTimes(2);
   });
 
   it("deduplicates companies across pages", async () => {
@@ -410,5 +447,191 @@ describe("runWorkableMetaSearch", () => {
     expect(callArg[0].atsSlug).toBe("acme");
     expect(callArg[0].atsSource).toBe("workable");
     expect(callArg[0].discoverySource).toBe("workable_meta_search");
+  });
+});
+
+// ── validateWorkableSlug ─────────────────────────────────────────────────────
+
+describe("validateWorkableSlug", () => {
+  it("returns true when the widget API responds 200", async () => {
+    const fetchFn = vi.fn(
+      async () => new Response(null, { status: 200 }),
+    ) as unknown as FetchFn;
+    expect(await validateWorkableSlug("acme", fetchFn)).toBe(true);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    const [url, init] = (fetchFn as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("https://apply.workable.com/api/v1/widget/accounts/acme");
+    expect(init?.method).toBe("HEAD");
+  });
+
+  it("returns false when the widget API responds 404", async () => {
+    const fetchFn = vi.fn(
+      async () => new Response(null, { status: 404 }),
+    ) as unknown as FetchFn;
+    expect(await validateWorkableSlug("bad-slug", fetchFn)).toBe(false);
+  });
+
+  it("returns false on network error (routes to Slugger fallback)", async () => {
+    const fetchFn = vi.fn(async () => {
+      throw new Error("ECONNREFUSED");
+    }) as unknown as FetchFn;
+    expect(await validateWorkableSlug("acme", fetchFn)).toBe(false);
+  });
+});
+
+// ── Slug validation integration into runWorkableMetaSearch ───────────────────
+
+describe("runWorkableMetaSearch — slug validation + Slugger fallback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(insertDiscoveredCompanies).mockResolvedValue({
+      inserted: 0,
+      skipped: 0,
+      rejected: [],
+      insertedCompanyIds: [],
+      insertedCompanies: [],
+    });
+  });
+
+  it("directly inserts valid slugs (fast path) and skips the Slugger", async () => {
+    const fetchFn = mockFetchPages(
+      [{ status: 200, body: { jobs: [job1, job2], nextPageToken: null } }],
+      { headStatus: 200 }, // both slugs valid
+    );
+
+    const result = await runWorkableMetaSearch(
+      fetchFn,
+      ["software engineer"],
+      10,
+    );
+
+    expect(result.validSlugs).toBe(2);
+    expect(result.sluggerFallbacks).toBe(0);
+    expect(insertDiscoveredCompanies).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(insertDiscoveredCompanies).mock.calls[0][0]).toHaveLength(
+      2,
+    );
+    expect(vi.mocked(resolveSlugger)).not.toHaveBeenCalled();
+  });
+
+  it("routes invalid slugs through the Slugger (slow path)", async () => {
+    const fetchFn = mockFetchPages(
+      [{ status: 200, body: { jobs: [job1, job2], nextPageToken: null } }],
+      { headStatus: 404 }, // both slugs invalid
+    );
+
+    const result = await runWorkableMetaSearch(
+      fetchFn,
+      ["software engineer"],
+      10,
+    );
+
+    expect(result.validSlugs).toBe(0);
+    expect(result.sluggerFallbacks).toBe(2);
+    // No direct insert when all slugs are invalid
+    expect(vi.mocked(insertDiscoveredCompanies)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(insertDiscoveredCompanies).mock.calls[0][0]).toHaveLength(
+      0,
+    );
+    // Slugger called once per invalid slug
+    expect(vi.mocked(resolveSlugger)).toHaveBeenCalledTimes(2);
+    const firstCall = vi.mocked(resolveSlugger).mock.calls[0][0];
+    expect(firstCall.companyName).toBe("Acme");
+    expect(firstCall.website).toBe("acme.com");
+    expect(firstCall.discoverySource).toBe("workable_meta_search");
+  });
+
+  it("splits valid and invalid slugs correctly (mixed batch)", async () => {
+    // job1 → "acme" valid, job2 → "foobar" invalid
+    const fetchFn = mockFetchPages(
+      [{ status: 200, body: { jobs: [job1, job2], nextPageToken: null } }],
+      { headStatus: (slug) => (slug === "acme" ? 200 : 404) },
+    );
+
+    const result = await runWorkableMetaSearch(
+      fetchFn,
+      ["software engineer"],
+      10,
+    );
+
+    expect(result.validSlugs).toBe(1);
+    expect(result.sluggerFallbacks).toBe(1);
+    expect(vi.mocked(insertDiscoveredCompanies)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(insertDiscoveredCompanies).mock.calls[0][0]).toHaveLength(
+      1,
+    );
+    expect(
+      vi.mocked(insertDiscoveredCompanies).mock.calls[0][0][0].atsSlug,
+    ).toBe("acme");
+    expect(vi.mocked(resolveSlugger)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(resolveSlugger).mock.calls[0][0].companyName).toBe(
+      "Foobar",
+    );
+  });
+
+  it("routes network errors during validation to the Slugger", async () => {
+    const fetchFn = mockFetchPages(
+      [{ status: 200, body: { jobs: [job1], nextPageToken: null } }],
+      {
+        headStatus: () => {
+          throw new Error("network down");
+        },
+      },
+    );
+
+    const result = await runWorkableMetaSearch(
+      fetchFn,
+      ["software engineer"],
+      10,
+    );
+
+    expect(result.validSlugs).toBe(0);
+    expect(result.sluggerFallbacks).toBe(1);
+    expect(vi.mocked(resolveSlugger)).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips Slugger fallback for companies with no name", async () => {
+    const noNameJob: WorkableJob = {
+      id: "job-x",
+      title: "Engineer",
+      company: {
+        id: "uuid-x",
+        url: "https://jobs.workable.com/company/xxx/jobs-at-noname",
+      },
+    };
+    const fetchFn = mockFetchPages(
+      [{ status: 200, body: { jobs: [noNameJob], nextPageToken: null } }],
+      { headStatus: 404 },
+    );
+
+    const result = await runWorkableMetaSearch(
+      fetchFn,
+      ["software engineer"],
+      10,
+    );
+
+    expect(result.sluggerFallbacks).toBe(1);
+    // Slugger NOT called because companyName is empty
+    expect(vi.mocked(resolveSlugger)).not.toHaveBeenCalled();
+  });
+
+  it("continues if the Slugger throws for one company (non-fatal)", async () => {
+    vi.mocked(resolveSlugger).mockRejectedValueOnce(new Error("slugger down"));
+    const fetchFn = mockFetchPages(
+      [{ status: 200, body: { jobs: [job1, job2], nextPageToken: null } }],
+      { headStatus: 404 },
+    );
+
+    const result = await runWorkableMetaSearch(
+      fetchFn,
+      ["software engineer"],
+      10,
+    );
+
+    // Should not throw — Slugger failure is non-fatal
+    expect(result.sluggerFallbacks).toBe(2);
+    expect(result.error).toBeUndefined();
+    // Second call still happens despite first throwing
+    expect(vi.mocked(resolveSlugger)).toHaveBeenCalledTimes(2);
   });
 });

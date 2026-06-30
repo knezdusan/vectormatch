@@ -1,3 +1,9 @@
+// DEPRECATED: Google CSE API discontinued for new customers (June 2026).
+// Replaced by brave-search.ts. This file is retained because brave-search.ts
+// reuses the pure extraction functions (extractCompaniesFromResults,
+// extractSlugFromUrl, inferAtsSource) defined here. Do NOT register any
+// Inngest functions from this file — use brave-search.ts instead.
+//
 // B2/D1: Google CSE Seeder — Batch + Daily (TDD §2.1, §2.2)
 // src/lib/jobs/seeders/batch-sources/google-cse.ts
 //

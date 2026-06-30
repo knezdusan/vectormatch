@@ -18,7 +18,7 @@
  * Gate 2 HNSW cosine distance threshold.
  *
  * `< GATE2_MAX_COSINE_DISTANCE` = cosine similarity `> 1 - GATE2_MAX_COSINE_DISTANCE`
- * (0.48 → similarity > 0.52). Lower distance = more similar.
+ * (0.50 → similarity > 0.50). Lower distance = more similar.
  *
  * Calibration status: CALIBRATED AGAINST REAL DATA (June 2026, C6-real).
  * Initial value 0.35 was an uncalibrated guess that rejected 100% of real
@@ -35,7 +35,17 @@
  * want to keep.
  * See docs/reports/calibration-report.md §8 for the real-data analysis.
  */
-export const GATE2_MAX_COSINE_DISTANCE = 0.48;
+// Env-configurable via `GATE2_MAX_COSINE_DISTANCE` so the threshold can be
+// tuned in production without a code redeploy. Set the env var to a number
+// (e.g. `GATE2_MAX_COSINE_DISTANCE=0.52`) to override the default below.
+//
+// Sprint 3 (June 30 2026): Loosened from 0.48 → 0.50 to lift the approval
+// rate from 1.6% (1/62) toward the TDD target of 2–4%. The 0.48 threshold
+// was over-filtering borderline-but-acceptable matches. Made env-configurable
+// so further tuning does not require a redeploy.
+export const GATE2_MAX_COSINE_DISTANCE = Number(
+  process.env.GATE2_MAX_COSINE_DISTANCE ?? 0.5,
+);
 
 /**
  * Maximum number of candidates Gate 1+2 inserts into matchQueue per job

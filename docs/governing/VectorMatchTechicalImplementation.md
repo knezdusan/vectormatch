@@ -1595,7 +1595,31 @@ All Sprint 2 functions are registered in `src/app/api/inngest/route.ts`:
 | `qualityFlywheelRecalc` | `quality-flywheel-recalc` | `0 4 * * *` | Q2: Daily quality score recalculation + tier promotion/demotion |
 | `layoffSignalChecker` | `layoff-signal-checker` | `0 5 * * *` | Q3: Daily layoff signal check + demotion |
 
-The tier recalc (`tierRecalc`, `0 4 * * *`) runs at the same time as the quality flywheel — both fire at 04:00 UTC. The layoff checker runs at 05:00 UTC, after both have completed.
+The tier recalc (`tierRecalc`, `0 4 * * *`) runs at 04:00 UTC. The quality flywheel (`qualityFlywheelRecalc`, `30 4 * * *`) now runs at 04:30 UTC — staggered 30 minutes after tierRecalc to avoid race conditions on the `company.tier` column (Sprint 3 Task 8). The layoff checker runs at 05:00 UTC, after both have completed.
+
+#### 4.7.7 Sprint 3 — Production Hardening `[Status: Implemented — June 30 2026]`
+
+Ten hardening tasks implemented addressing production stability and reliability issues. See `CORPUS_EXPANSION_HANDOFF.md` "Sprint 3 Hardening" section for the full task specifications and completion report.
+
+**G8 (Aggressive Job Cleanup):** New `aggressiveCleanup` Inngest function (cron `0 2 * * *`) deletes terminal-state jobs (rejected >1d, gone >7d, normalization_failed >7d), archives old match_queue rows (approved/rejected >90d), deletes old ingestion_log entries (>30d) and exhausted slugger_retry entries. New `vacuumAnalyze` function (cron `0 2 * * 0`) for weekly dead tuple reclamation. Files: `src/lib/jobs/poller/cleanup-queries.ts`.
+
+**Gate 2 Threshold Tuning:** `GATE2_MAX_COSINE_DISTANCE` in `src/lib/jobs/matching-config.ts` is now env-configurable via `process.env.GATE2_MAX_COSINE_DISTANCE` (default lowered from 0.48 to 0.50). Tunable without redeploy.
+
+**B1 Workable Slug Fix:** `validateWorkableSlug()` in `src/lib/jobs/seeders/batch-sources/workable-meta-search.ts` — fast-path HEAD request to Workable widget API. Invalid slugs route through `resolveSlugger({ insertCompany: true })`.
+
+**Circuit Breakers:** New `source_health` table (migration `0032_source_health.sql`) — tracks per-source `consecutiveFailures`, `lastSuccessAt`, `lastFailureAt`, `status` (active/degraded/disabled). All 22 source Inngest functions wrapped with check-health/record-success/record-failure steps. Auto-degrades at 3 consecutive failures, hard shutdown at 5. Files: `src/db/schemas/jobs/sourceHealth.ts`, `src/lib/jobs/source-health.ts`.
+
+**Batch Source Refresh Crons:** B1 (monthly `0 0 1 * *`), B3/B7 (quarterly `0 0 1 */3 *`), B4/B5/B9 (monthly), B10 (weekly `0 0 * * 1`). Batch sources now refresh periodically, not just flush-once.
+
+**Slugger Retry Processor:** New `sluggerRetryProcessor` Inngest function (cron `0 0 * * 1`) — retries failed Slugger resolutions with exponential backoff (7d→14d→28d), max 3 retries. Files: `src/lib/jobs/seeders/slugger-retry-processor.ts`.
+
+**Brave Search API (replaces Google CSE):** New `brave-search.ts` seeder. D1/B2 Inngest functions replaced. Old Google CSE functions removed from route registration. `google-cse.ts` marked deprecated (extraction functions still reused by brave-search.ts). Env var: `BRAVE_SEARCH_API_KEY`.
+
+**pendingQueueSweep Reduced:** Cron changed from `0,15,30,45 * * * *` (2,880 runs/mo) to `0,30 * * * *` (1,440 runs/mo) — halves Inngest execution cost.
+
+**Q5 Fusion Score Backfill:** `insertDiscoveredCompanies` in `src/lib/jobs/seeders/company-repository.ts` now calls `recordDiscoverySource()` after direct inserts. Backfill script: `scripts/backfill-fusion-scores.ts` (supports `--dry-run`, `--limit`, `--source`).
+
+**Verification:** 1,441 tests pass (70 files), 0 TS errors, 1 new migration (0032). 65 new tests across 4 new test files.
 
 ---
 

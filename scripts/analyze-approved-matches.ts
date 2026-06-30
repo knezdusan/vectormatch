@@ -6,14 +6,14 @@
 // Reads DATABASE_URL from .env (Next.js loads .env automatically; tsx does not,
 // so we load it manually with dotenv-style parsing).
 
-import { config } from "dotenv";
-import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
+import { config } from "dotenv";
 import { and, desc, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { applicant } from "../src/db/schemas/jobs/applicant";
 import { job } from "../src/db/schemas/jobs/job";
 import { matchQueue } from "../src/db/schemas/jobs/matchQueue";
 import { persona } from "../src/db/schemas/jobs/persona";
-import { applicant } from "../src/db/schemas/jobs/applicant";
 
 config();
 
@@ -56,7 +56,10 @@ async function main() {
       .select({ id: matchQueue.id })
       .from(matchQueue)
       .where(
-        and(eq(matchQueue.applicantId, a.userId), eq(matchQueue.status, "approved")),
+        and(
+          eq(matchQueue.applicantId, a.userId),
+          eq(matchQueue.status, "approved"),
+        ),
       );
     if (cnt.length > bestCount) {
       bestCount = cnt.length;
@@ -118,7 +121,12 @@ async function main() {
     .from(matchQueue)
     .innerJoin(job, eq(matchQueue.jobId, job.id))
     .innerJoin(persona, eq(matchQueue.personaId, persona.id))
-    .where(and(eq(matchQueue.applicantId, userId), eq(matchQueue.status, "approved")))
+    .where(
+      and(
+        eq(matchQueue.applicantId, userId),
+        eq(matchQueue.status, "approved"),
+      ),
+    )
     .orderBy(desc(matchQueue.createdAt));
 
   const report = {

@@ -15,13 +15,13 @@ vi.mock("@/lib/jobs/seeders/company-repository", () => ({
   }),
 }));
 
+import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
 import {
   buildCompanyInputsFromAtsUrls,
   computeYesterdayTimestamp,
   extractAtsUrlsFromText,
   runHnAlgoliaDailySeeder,
 } from "@/lib/jobs/seeders/daily-sources/hn-algolia-daily";
-import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── computeYesterdayTimestamp ────────────────────────────────────────────────
@@ -87,7 +87,9 @@ describe("extractAtsUrlsFromText", () => {
   });
 
   it("handles text with no URLs", () => {
-    expect(extractAtsUrlsFromText("Just a comment with no links")).toHaveLength(0);
+    expect(extractAtsUrlsFromText("Just a comment with no links")).toHaveLength(
+      0,
+    );
   });
 
   it("extracts URLs with trailing punctuation", () => {
@@ -103,7 +105,10 @@ describe("extractAtsUrlsFromText", () => {
 describe("buildCompanyInputsFromAtsUrls", () => {
   it("builds SeedCompanyInput from ATS URLs", () => {
     const urls = [
-      { url: "https://boards.greenhouse.io/acme/jobs/123", atsSource: "greenhouse" as const },
+      {
+        url: "https://boards.greenhouse.io/acme/jobs/123",
+        atsSource: "greenhouse" as const,
+      },
       { url: "https://jobs.lever.co/foobar/abc", atsSource: "lever" as const },
     ];
 
@@ -117,8 +122,14 @@ describe("buildCompanyInputsFromAtsUrls", () => {
 
   it("deduplicates by (atsSource, atsSlug)", () => {
     const urls = [
-      { url: "https://boards.greenhouse.io/acme/jobs/123", atsSource: "greenhouse" as const },
-      { url: "https://boards.greenhouse.io/acme/jobs/456", atsSource: "greenhouse" as const },
+      {
+        url: "https://boards.greenhouse.io/acme/jobs/123",
+        atsSource: "greenhouse" as const,
+      },
+      {
+        url: "https://boards.greenhouse.io/acme/jobs/456",
+        atsSource: "greenhouse" as const,
+      },
     ];
 
     const inputs = buildCompanyInputsFromAtsUrls(urls);
@@ -127,8 +138,14 @@ describe("buildCompanyInputsFromAtsUrls", () => {
 
   it("skips URLs where slug can't be extracted", () => {
     const urls = [
-      { url: "https://boards.greenhouse.io/", atsSource: "greenhouse" as const },
-      { url: "https://boards.greenhouse.io/acme/jobs/123", atsSource: "greenhouse" as const },
+      {
+        url: "https://boards.greenhouse.io/",
+        atsSource: "greenhouse" as const,
+      },
+      {
+        url: "https://boards.greenhouse.io/acme/jobs/123",
+        atsSource: "greenhouse" as const,
+      },
     ];
 
     const inputs = buildCompanyInputsFromAtsUrls(urls);
@@ -158,16 +175,14 @@ describe("runHnAlgoliaDailySeeder", () => {
     return vi.fn(async (url: string) => {
       for (const [domain, hits] of Object.entries(hitsByDomain)) {
         if (url.includes(`query=${encodeURIComponent(domain)}`)) {
-          return new Response(
-            JSON.stringify({ hits, nbPages: 1 }),
-            { status: 200 },
-          );
+          return new Response(JSON.stringify({ hits, nbPages: 1 }), {
+            status: 200,
+          });
         }
       }
-      return new Response(
-        JSON.stringify({ hits: [], nbPages: 1 }),
-        { status: 200 },
-      );
+      return new Response(JSON.stringify({ hits: [], nbPages: 1 }), {
+        status: 200,
+      });
     }) as unknown as FetchFn;
   }
 
@@ -182,7 +197,8 @@ describe("runHnAlgoliaDailySeeder", () => {
       "boards.greenhouse.io": [
         {
           objectID: "1",
-          comment_text: "We're hiring https://boards.greenhouse.io/acme/jobs/123",
+          comment_text:
+            "We're hiring https://boards.greenhouse.io/acme/jobs/123",
           created_at_i: Math.floor(Date.now() / 1000),
         },
       ],

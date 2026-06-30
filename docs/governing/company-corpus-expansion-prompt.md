@@ -141,7 +141,7 @@ Replaces the rejected "Staggered Batch Queue" (which would have made jobs stale 
 
 **Sprint 2:** Q2 (Quality Flywheel) → Q3 (Layoff signals) → Q4 (Bootstrap polling) → Q5 (Multi-intent scoring) → G1 (Adaptive cadence) — `[Status: Complete — June 30 2026]`
 
-**Sprint 3:** Remaining daily sources, optimization, monitoring — `[Status: Not started]`
+**Sprint 3:** Remaining daily sources, optimization, monitoring — `[Status: Complete — June 30 2026]` — 10 hardening tasks implemented: G8 aggressive cleanup + retention policies, Gate 2 threshold env-configurable (0.48→0.50), B1 Workable slug mismatch fix, circuit breakers + source_health table for all 22 source functions, batch source refresh crons (monthly/quarterly), slugger_retry processor with exponential backoff, Google CSE replaced with Brave Search API, cron staggering (qualityFlywheelRecalc → 04:30 UTC), pendingQueueSweep reduced to every 30 min, Q5 fusion score backfill for direct-insert companies. 1,441 tests pass (70 files), 0 TS errors, 1 new migration (0032).
 
 ## Key Files
 

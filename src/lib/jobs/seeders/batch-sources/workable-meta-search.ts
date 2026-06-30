@@ -111,6 +111,10 @@ export interface WorkableMetaSearchResult {
   pagesFetched: number;
   /** Company table insert result. */
   insertResult: InsertResult;
+  /** Slugs that passed Workable widget API validation (fast-path direct insert). */
+  validSlugs: number;
+  /** Slugs that failed validation and were routed through the Slugger. */
+  sluggerFallbacks: number;
   /** Error message if the API call failed. */
   error?: string;
 }
@@ -199,6 +203,45 @@ export function extractCompanyInputs(
   return inputs;
 }
 
+// ── Slug validation (fast-path vs. Slugger fallback) ─────────────────────────
+
+/**
+ * Workable widget API base. A HEAD request against this endpoint returns 200
+ * when the slug maps to a real Workable account, 404 when it does not.
+ */
+const WORKABLE_WIDGET_API_BASE =
+  "https://apply.workable.com/api/v1/widget/accounts";
+
+/**
+ * Validate that a Workable slug maps to a real Workable account by issuing a
+ * lightweight HEAD request against the widget API.
+ *
+ * Why HEAD: the widget accounts endpoint returns a small JSON body, but we
+ * only need the status code. HEAD avoids downloading the body, halving the
+ * bandwidth of the validation pass (we run this for every discovered slug).
+ *
+ * @param slug     The Workable slug extracted from company.url
+ * @param fetchFn  Injectable fetch (defaults to global fetch)
+ * @returns        `true` if the slug is valid (HTTP 2xx), `false` otherwise
+ *                 (404, network error, non-2xx). On any error we return
+ * `false` so the company is routed through the Slugger (slow path) — the
+ * Slugger will re-probe all 6 ATS platforms and either find the correct
+ * slug or queue the company for retry.
+ */
+export async function validateWorkableSlug(
+  slug: string,
+  fetchFn: FetchFn,
+): Promise<boolean> {
+  const url = `${WORKABLE_WIDGET_API_BASE}/${slug}`;
+  try {
+    const response = await fetchFn(url, { method: "HEAD" });
+    return response.ok;
+  } catch {
+    // Network error — assume invalid, route to Slugger for re-probe.
+    return false;
+  }
+}
+
 // ── API client: fetch a single page ──────────────────────────────────────────
 
 /**
@@ -281,13 +324,64 @@ export async function runWorkableMetaSearch(
       }
     }
 
-    const insertResult = await insertDiscoveredCompanies(allInputs);
+    // ── Sprint 3 Task 3: validate slugs before inserting ────────────────────
+    // The slug extracted from company.url (e.g. "acme-corp") may not match the
+    // Workable widget API slug (e.g. "acmecorp" or "acme"). Inserting a bad
+    // slug means every future poll fails, driving consecutiveFailures up until
+    // the company is marked dead. Validate via a HEAD request against the
+    // widget API; route failures through the Slugger (slow path) which probes
+    // all 6 ATS platforms.
+    const validInputs: SeedCompanyInput[] = [];
+    const sluggerFallbacks: {
+      companyName: string;
+      website?: string;
+    }[] = [];
+
+    for (const input of allInputs) {
+      const isValid = await validateWorkableSlug(input.atsSlug, fetchFn);
+      if (isValid) {
+        validInputs.push(input);
+      } else {
+        // Pass the company's root domain (when available) as the website hint
+        // for the Slugger's CNAME resolution stage. discoveryContext is the
+        // search query string, not a URL — rootDomain is the correct hint.
+        sluggerFallbacks.push({
+          companyName: input.companyName ?? "",
+          website: input.rootDomain,
+        });
+      }
+    }
+
+    const insertResult = await insertDiscoveredCompanies(validInputs);
+
+    // Route invalid slugs through the Slugger. Dynamic import avoids a circular
+    // dependency: slugger.ts → company-repository → schemas, while this module
+    // also imports company-repository.
+    for (const { companyName, website } of sluggerFallbacks) {
+      if (!companyName) continue;
+      try {
+        const { resolveSlugger } = await import("@/lib/jobs/seeders/slugger");
+        await resolveSlugger(
+          {
+            companyName,
+            website,
+            discoverySource: "workable_meta_search",
+          },
+          { insertCompany: true },
+        );
+      } catch {
+        // Slugger failure is non-fatal — the company is added to the
+        // slugger_retry queue inside resolveSlugger for a later retry.
+      }
+    }
 
     return {
       totalJobsFound,
       uniqueCompanySlugs: allInputs.length,
       pagesFetched,
       insertResult,
+      validSlugs: validInputs.length,
+      sluggerFallbacks: sluggerFallbacks.length,
     };
   } catch (error) {
     return {
@@ -301,6 +395,8 @@ export async function runWorkableMetaSearch(
         insertedCompanyIds: [],
         insertedCompanies: [],
       },
+      validSlugs: 0,
+      sluggerFallbacks: 0,
       error: error instanceof Error ? error.message : String(error),
     };
   }

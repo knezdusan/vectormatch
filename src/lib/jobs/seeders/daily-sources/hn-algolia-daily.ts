@@ -27,10 +27,10 @@
 // See TDD §2.2 (D2) for the full specification.
 
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
-import type { FetchFn } from "@/lib/jobs/types";
-import type { SeedCompanyInput } from "@/lib/jobs/seeders/schemas";
-import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
 import type { InsertResult } from "@/lib/jobs/seeders/company-repository";
+import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
+import type { SeedCompanyInput } from "@/lib/jobs/seeders/schemas";
+import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -120,7 +120,10 @@ export function extractAtsUrlsFromText(
 
 // ── Pure function: extract slug from ATS URL ─────────────────────────────────
 
-function extractSlugFromAtsUrl(url: string, atsSource: AtsSource): string | null {
+function extractSlugFromAtsUrl(
+  url: string,
+  atsSource: AtsSource,
+): string | null {
   try {
     const parsed = new URL(url);
     const pathParts = parsed.pathname.split("/").filter((p) => p.length > 0);
@@ -187,10 +190,7 @@ async function queryHnAlgoliaForDomain(
     const url = new URL(HN_ALGOLIA_ENDPOINT);
     url.searchParams.set("query", domain);
     url.searchParams.set("tags", "comment");
-    url.searchParams.set(
-      "numericFilters",
-      `created_at_i>${sinceUnix}`,
-    );
+    url.searchParams.set("numericFilters", `created_at_i>${sinceUnix}`);
     url.searchParams.set("hitsPerPage", String(HITS_PER_PAGE));
     url.searchParams.set("page", String(page));
 

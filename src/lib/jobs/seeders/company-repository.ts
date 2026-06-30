@@ -17,6 +17,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { company } from "@/db/schemas/jobs/company";
+import { recordDiscoverySource } from "@/lib/jobs/quality/fusion-score";
 import type { SeedCompanyInput } from "./schemas";
 import { seedCompanyInputSchema } from "./schemas";
 
@@ -121,6 +122,33 @@ export async function insertDiscoveredCompanies(
 
   const inserted = insertedRows.length;
   const skipped = unique.length - inserted;
+
+  // ── Q5: Record discovery sources for fusion scoring ───────────────────────
+  // Companies inserted directly (not via the Slugger) still need their
+  // discovery source recorded so fusion_score is tracked. We map each inserted
+  // row back to its original input by (atsSource, atsSlug) to find the
+  // discoverySource, then call recordDiscoverySource for each.
+  //
+  // Errors are caught and logged — a fusion-score failure must not cause the
+  // entire insert to fail. The company row is already persisted.
+  const sourceByKey = new Map<string, SeedCompanyInput["discoverySource"]>();
+  for (const item of unique) {
+    sourceByKey.set(`${item.atsSource}:${item.atsSlug}`, item.discoverySource);
+  }
+
+  for (const row of insertedRows) {
+    const key = `${row.atsSource}:${row.atsSlug}`;
+    const discoverySource = sourceByKey.get(key);
+    if (discoverySource) {
+      try {
+        await recordDiscoverySource(row.id, discoverySource);
+      } catch (e) {
+        console.error(
+          `[insertDiscoveredCompanies] Failed to record discovery source for company ${row.id}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
+  }
 
   return {
     inserted,

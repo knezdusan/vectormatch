@@ -473,3 +473,634 @@ None of these are blockers. They're expected consequences of the flush-and-flow 
 **Rationale:** The G1 tier recalculation already handles re-promotion: if a company has approved matches in the last 30 days, it gets promoted to `active_hot` regardless of whether it was previously demoted by the layoff checker. This is a merit-based approach — the company must earn re-promotion through match quality, not just wait 60 days. The automatic 60-day timer from the brainstorming doc would re-promote companies regardless of whether they've recovered (they may still be laying off). The G1 approach is safer and more aligned with the quality flywheel philosophy.
 
 **Trade-off:** A company that had layoffs, recovered, but doesn't produce approved matches will stay at `active` (12h polling) instead of being re-promoted to `active_hot` (3h polling). This is acceptable — if the company isn't producing approved matches, it doesn't deserve the hot tier.
+
+---
+
+## Sprint 3 Hardening Session Handoff (Session 4 — June 30 2026)
+
+> **Purpose:** This section is the initial prompt and full context for a dedicated implementation session that addresses 10 production stability and reliability issues identified during the post-Sprint-2 analysis. The session covers all CRITICAL and HIGH priority items from the evolving blueprint.
+>
+> **Infrastructure decision:** Option C (Hybrid) — self-host Inngest on Coolify, stay on Neon Free with G8 optimization, upgrade to Neon Launch when storage exceeds 450MB. This session does NOT implement the Inngest migration (that's a separate MEDIUM-priority task) — it implements the optimizations that keep us within free-tier limits.
+
+### Initial Prompt for New Session
+
+I am implementing Sprint 3 hardening tasks for the VectorMatch.dev Continuous Company Acquisition Pipeline. Sprints 1 and 2 are complete (1,376 tests pass, 0 TS errors, 6,685 companies in production). This session addresses 10 specific issues identified during post-Sprint-2 analysis — 4 CRITICAL (blocking production stability) and 6 HIGH (preventing future failures).
+
+**YOUR ROLE:** Implement the 10 tasks below in order. Each task has a detailed specification, file paths, and implementation guidance. Do NOT re-architect or second-guess the decisions — the analysis has been done. If you find a genuine bug or contradiction, raise it before proceeding.
+
+**CRITICAL RULES:**
+- Read `AGENTS.md` first — follow the Technology Stack (strict), Testing Strategy, Biome (not ESLint), and Database Mutation in Tests rules.
+- Run `npm run test` after each task. All 1,376+ tests must pass.
+- Run `npx tsc --noEmit` after each task. Must be clean.
+- Run `npx biome check --write` after each file change.
+- **No database mutation in tests.** Use mocked DB layer.
+- **NEVER run Git commands** (git add, git commit, git push, etc.) — leave all version control to the user.
+- Generate a Drizzle migration for each schema change (`npx drizzle-kit generate`).
+- Do NOT apply migrations to production — the user will do that manually after review.
+
+### Verified Production State (June 30 2026, 14:55 UTC)
+
+| Metric | Value |
+|---|---|
+| Tests | 1,376 pass, 0 TS errors, 65 files |
+| Companies | 6,685 (5,290 from flush + ~1,395 from daily sources) |
+| Active jobs | 5,043 |
+| Companies polled | 547/6,685 (8%) |
+| Approved matches | 1 out of 62 (1.6% approval rate) |
+| Inngest functions registered | 38 (16 infra + 13 daily + 9 batch) |
+| Gate 2 threshold | 0.48 cosine distance (hardcoded in `matching-config.ts`) |
+| G8 Aggressive Cleanup | NOT IMPLEMENTED (only `markStaleJobs` exists — marks stale/gone but never deletes) |
+| Circuit breakers | NOT IMPLEMENTED |
+| Batch source refresh crons | NOT IMPLEMENTED (all batch sources are event-only triggers) |
+| `slugger_retry` processor | NOT IMPLEMENTED (queue grows unbounded) |
+| Q5 fusion scores for direct-insert companies | NOT APPLIED (~4,163 Wayback CDX companies have `fusion_score = 1`) |
+
+### Key Files to Read Before Starting
+
+1. **`AGENTS.md`** — Project rules (Technology Stack, Testing Strategy, Biome, DB mutation rules)
+2. **`src/inngest/functions.ts`** — All 38 Inngest functions. Key functions for this session: `staleCleanup` (line ~657), `tierRecalc` (line ~608), `qualityFlywheelRecalc` (Sprint 2), `pendingQueueSweep` (line ~1339), all `batchSourceB*` and `dailySourceD*` functions.
+3. **`src/app/api/inngest/route.ts`** — Inngest serve handler. 38 functions registered.
+4. **`src/lib/jobs/matching-config.ts`** — Gate 2 threshold (line 38: `GATE2_MAX_COSINE_DISTANCE = 0.48`).
+5. **`src/lib/jobs/poller/job-repository.ts`** — `markStaleJobs()` (marks stale/gone, does NOT delete).
+6. **`src/lib/jobs/seeders/batch-sources/workable-meta-search.ts`** — B1 seeder with slug extraction bug.
+7. **`src/lib/jobs/seeders/slugger.ts`** — The Slugger with `resolveSlugger({ insertCompany: true })`.
+8. **`src/lib/jobs/quality/fusion-score.ts`** — `recordDiscoverySource()` function.
+9. **`src/lib/jobs/seeders/company-repository.ts`** — `insertDiscoveredCompanies()` (direct insert, bypasses Slugger).
+10. **`src/db/schemas/jobs/sluggerRetry.ts`** — Retry queue schema (has `nextRetryAt`, `retryCount` fields).
+11. **`src/db/schemas/jobs/ingestionLog.ts`** — Ingestion log schema (no retention policy).
+12. **`src/db/schemas/jobs/matchQueue.ts`** — Match queue schema (no archival policy).
+
+---
+
+### Task 1 (CRITICAL): Implement G8 — Aggressive Job Cleanup + Retention Policies
+
+**Problem:** The TDD and brainstorming doc both specify G8 (Aggressive Job Cleanup), but it was never implemented. The current `staleCleanup` function (cron `0 3 * * *`) only marks jobs as `stale` (7 days) and `gone` (30 days) — it never deletes them. Dead rows accumulate indefinitely. Combined with unbounded `match_queue`, `ingestion_log`, and `slugger_retry` growth, the 512MB Neon storage limit will be hit within 2-3 months.
+
+**Specification:**
+
+Create a new Inngest function `aggressiveCleanup` (cron `0 2 * * *` — daily at 02:00 UTC, before `staleCleanup` at 03:00) with the following steps:
+
+**Step 1 — Delete terminal-state jobs:**
+```sql
+-- Delete rejected jobs older than 1 day (already tombstoned, no retry value)
+DELETE FROM job WHERE status = 'rejected' AND normalized_at < NOW() - INTERVAL '1 day';
+-- Delete gone jobs older than 7 days (company left ATS, job is permanently dead)
+DELETE FROM job WHERE status = 'gone' AND last_seen_at < NOW() - INTERVAL '7 days';
+-- Delete normalization_failed jobs older than 7 days (retried for 7 days, give up)
+DELETE FROM job WHERE status = 'normalization_failed' AND normalized_at < NOW() - INTERVAL '7 days';
+```
+**Note:** `job` table has `ON DELETE CASCADE` from `match_queue` (FK), so deleting jobs automatically cleans up their match_queue rows. Verify this in `src/db/schemas/jobs/matchQueue.ts` — the `jobId` FK should have `onDelete: "cascade"`.
+
+**Step 2 — Archive old match_queue rows:**
+```sql
+-- Delete approved/rejected matches older than 90 days (no longer actionable)
+DELETE FROM match_queue WHERE status IN ('approved', 'rejected') AND created_at < NOW() - INTERVAL '90 days';
+```
+
+**Step 3 — Delete old ingestion_log entries:**
+```sql
+-- Delete ingestion logs older than 30 days (observability window)
+DELETE FROM ingestion_log WHERE created_at < NOW() - INTERVAL '30 days';
+```
+
+**Step 4 — Delete exhausted slugger_retry entries:**
+```sql
+-- Delete retry entries that have been retried 3+ times and are past their retry date
+DELETE FROM slugger_retry WHERE next_retry_at < NOW() - INTERVAL '30 days' AND retry_count >= 3;
+```
+
+**Step 5 — Write ingestion log entry** for the cleanup run.
+
+**Create a separate weekly VACUUM function** `vacuumAnalyze` (cron `0 2 * * 0` — Sunday 02:00 UTC):
+```sql
+VACUUM ANALYZE;
+```
+**Note:** `VACUUM FULL` requires an exclusive lock and can block queries. Use `VACUUM ANALYZE` instead — it reclaims space from dead tuples without exclusive locks. Only use `VACUUM FULL` if storage is critically high (>480MB) and schedule it during a maintenance window.
+
+**Files to create/modify:**
+- `src/lib/jobs/poller/cleanup-queries.ts` — NEW: Pure DB query functions for each deletion step. Each function takes no args, returns `{ deletedCount: number }`. Make them individually testable by mocking `db.execute(sql\`...\`)`.
+- `src/inngest/functions.ts` — Add `aggressiveCleanup` + `vacuumAnalyze` Inngest functions.
+- `src/app/api/inngest/route.ts` — Register both new functions.
+- `src/lib/jobs/poller/__tests__/cleanup-queries.test.ts` — NEW: Vitest tests for each deletion query (mock the DB, verify SQL is called with correct parameters).
+
+**Testing approach:** Mock `db.execute(sql\`...\`)` and verify the correct SQL is executed. Do NOT run against a real database. Test that each function returns the correct count. Test edge cases (zero rows deleted, large batch deleted).
+
+**Migration:** No schema changes needed — this only adds DELETE queries against existing tables.
+
+---
+
+### Task 2 (CRITICAL): Make Gate 2 Threshold Env-Configurable + Lower to 0.50
+
+**Problem:** The Gate 2 cosine distance threshold is hardcoded at 0.48 in `src/lib/jobs/matching-config.ts:38`. The current 1.6% approval rate (1/62) is below the TDD target of 2-4%. The threshold cannot be tuned without a code deploy, which is unacceptable for production iteration.
+
+**Specification:**
+
+**Step 1 — Make the threshold env-configurable:**
+```typescript
+// src/lib/jobs/matching-config.ts — replace line 38:
+export const GATE2_MAX_COSINE_DISTANCE = Number(
+  process.env.GATE2_MAX_COSINE_DISTANCE ?? 0.50,
+);
+```
+Update the JSDoc comment to document the env var and the new default of 0.50 (raised from 0.48).
+
+**Step 2 — Add to environment configuration:**
+Add `GATE2_MAX_COSINE_DISTANCE=0.50` to `.env.example` (or `.env.local.example` if that's the pattern). Document that this is tunable without a redeploy.
+
+**Step 3 — Update tests:**
+Any test that references `GATE2_MAX_COSINE_DISTANCE` should use the imported constant (not a hardcoded 0.48). If tests break because they expect 0.48, update them to use 0.50 or mock the env var.
+
+**Files to modify:**
+- `src/lib/jobs/matching-config.ts` — Change the constant to read from env.
+- `.env.example` (or equivalent) — Add the new env var.
+- Any test files that reference the threshold value.
+
+**No migration needed.** This is a config change only.
+
+---
+
+### Task 3 (CRITICAL): Fix B1 Workable Slug Mismatch
+
+**Problem:** The B1 Workable Meta-Search seeder extracts slugs from `company.url` (format: `jobs.workable.com/company/{id}/jobs-at-{slug}`) and inserts companies directly via `insertDiscoveredCompanies`. The extracted slug (e.g., `acme-corp`) may not match the Workable widget API slug (e.g., `acmecorp` or `acme`). Companies with wrong slugs fail every poll attempt, wasting Inngest executions and driving `consecutiveFailures` up until they're marked `dead`.
+
+**Specification:**
+
+**Step 1 — Add a fast-path slug validation:**
+Before inserting a company, validate the extracted slug by making a lightweight HEAD request to `apply.workable.com/api/v1/widget/accounts/{slug}`. If it returns 200, the slug is valid — insert directly (fast path). If it returns 404, fall back to the Slugger (slow path).
+
+**Step 2 — Route failures through the Slugger:**
+For slugs that fail validation, call `resolveSlugger({ companyName: job.company.title, website: undefined, discoverySource: "workable_meta_search", insertCompany: true })`. The Slugger will try the DB cache, CNAME resolution, and slug probe against all 6 ATS platforms.
+
+**Step 3 — Update the seeder:**
+Modify `runWorkableMetaSearch()` in `src/lib/jobs/seeders/batch-sources/workable-meta-search.ts`:
+
+```typescript
+// Current (line ~284):
+const insertResult = await insertDiscoveredCompanies(allInputs);
+
+// New:
+const validInputs: SeedCompanyInput[] = [];
+const sluggerInputs: { companyName: string; companyUrl: string }[] = [];
+
+for (const input of allInputs) {
+  const slug = input.atsSlug;
+  const isValid = await validateWorkableSlug(slug, fetchFn);
+  if (isValid) {
+    validInputs.push(input);
+  } else {
+    sluggerInputs.push({
+      companyName: input.companyName ?? "",
+      companyUrl: input.discoveryContext ?? "",
+    });
+  }
+}
+
+// Insert valid slugs directly
+const insertResult = await insertDiscoveredCompanies(validInputs);
+
+// Route invalid slugs through the Slugger
+for (const { companyName, companyUrl } of sluggerInputs) {
+  if (!companyName) continue;
+  await resolveSlugger({
+    companyName,
+    website: companyUrl,
+    discoverySource: "workable_meta_search",
+    insertCompany: true,
+  });
+}
+```
+
+**Step 4 — Create `validateWorkableSlug` function:**
+```typescript
+async function validateWorkableSlug(slug: string, fetchFn: FetchFn): Promise<boolean> {
+  const url = `https://apply.workable.com/api/v1/widget/accounts/${slug}`;
+  try {
+    const response = await fetchFn(url, { method: "HEAD" });
+    return response.ok;
+  } catch {
+    return false; // Network error — assume invalid, route to Slugger
+  }
+}
+```
+
+**Files to modify:**
+- `src/lib/jobs/seeders/batch-sources/workable-meta-search.ts` — Add `validateWorkableSlug`, update `runWorkableMetaSearch` to use fast-path + Slugger fallback.
+- `src/lib/jobs/seeders/batch-sources/__tests__/workable-meta-search.test.ts` — Add tests for slug validation (valid slug → direct insert, invalid slug → Slugger fallback, network error → Slugger fallback).
+
+**No migration needed.** This is a logic change only.
+
+**Note:** The Slugger import should be dynamic (`await import("@/lib/jobs/seeders/slugger")`) to avoid circular dependency issues — the Slugger module imports from company-repository which imports from schemas.
+
+---
+
+### Task 4 (CRITICAL): Implement Circuit Breakers + Source Health Tracking
+
+**Problem:** Two sources have already broken (Google CSE, Rapid7 FDNS) and one had schema drift (Workable). The pipeline has no circuit breakers, no per-source kill switches, and no automatic health monitoring. A failing source keeps running on its cron schedule, wasting Inngest executions.
+
+**Specification:**
+
+**Step 1 — Create `source_health` table:**
+```typescript
+// src/db/schemas/jobs/sourceHealth.ts — NEW
+import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+export const sourceHealth = pgTable("source_health", {
+  sourceName: text("source_name").primaryKey(),
+  status: text("status").notNull().default("active"), // active | degraded | disabled
+  consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+  lastSuccessAt: timestamp("last_success_at"),
+  lastFailureAt: timestamp("last_failure_at"),
+  lastError: text("last_error"),
+  totalRuns: integer("total_runs").notNull().default(0),
+  totalFailures: integer("total_failures").notNull().default(0),
+  disabledAt: timestamp("disabled_at"),
+  disabledReason: text("disabled_reason"),
+});
+```
+
+**Step 2 — Create health query functions:**
+```typescript
+// src/lib/jobs/source-health.ts — NEW
+export async function getSourceHealth(sourceName: string): Promise<SourceHealth | null> { ... }
+export async function recordSourceSuccess(sourceName: string): Promise<void> { ... }
+export async function recordSourceFailure(sourceName: string, error: string): Promise<void> { ... }
+export async function isSourceEnabled(sourceName: string): Promise<boolean> { ... }
+export async function disableSource(sourceName: string, reason: string): Promise<void> { ... }
+export async function enableSource(sourceName: string): Promise<void> { ... }
+```
+
+`recordSourceFailure` should increment `consecutiveFailures`. If `consecutiveFailures >= 3`, automatically set `status = "degraded"`. The source is NOT auto-disabled — degraded sources still run but are flagged for review. Only manual `disableSource()` sets `status = "disabled"`.
+
+`isSourceEnabled` returns `false` if `status === "disabled"` OR `consecutiveFailures >= 5` (hard circuit breaker — 5 consecutive failures = automatic shutdown).
+
+**Step 3 — Integrate circuit breaker into all batch + daily source Inngest functions:**
+For each `batchSourceB*` and `dailySourceD*` function in `src/inngest/functions.ts`, add a `check-health` step at the start and `record-success`/`record-failure` steps:
+
+```typescript
+export const dailySourceD2HnAlgolia = inngest.createFunction(
+  {
+    id: "daily-source-hn-algolia",
+    name: "Daily Source — HN Algolia",
+    triggers: [{ cron: "0 1,16 * * *" }],
+  },
+  async ({ step }) => {
+    const sourceName = "hn-algolia-daily";
+
+    const health = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+
+    if (!health) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
+
+    try {
+      const results = await step.run("fetch-and-process", async () => {
+        const { runHnAlgoliaDailySeeder } = await import(
+          "@/lib/jobs/seeders/daily-sources/hn-algolia-daily"
+        );
+        return runHnAlgoliaDailySeeder();
+      });
+
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import("@/lib/jobs/source-health");
+        return recordSourceSuccess(sourceName);
+      });
+
+      return results;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import("@/lib/jobs/source-health");
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error; // Re-throw for Inngest retry
+    }
+  },
+);
+```
+
+**Step 4 — Apply this pattern to ALL 22 source functions** (13 daily + 9 batch). Use the Inngest function `id` as the `sourceName`.
+
+**Files to create/modify:**
+- `src/db/schemas/jobs/sourceHealth.ts` — NEW: Schema.
+- `src/db/schemas/index.ts` — Export `sourceHealth`.
+- `src/lib/jobs/source-health.ts` — NEW: Health query functions.
+- `src/inngest/functions.ts` — Add circuit breaker to all 22 source functions.
+- `src/lib/jobs/__tests__/source-health.test.ts` — NEW: Tests for health functions (mock DB).
+- Generate migration: `npx drizzle-kit generate` → produces `0032_*.sql`.
+
+**Testing:** Mock the DB layer. Test: `isSourceEnabled` returns true for active, false for disabled, false for `consecutiveFailures >= 5`. Test `recordSourceFailure` increments counter and sets degraded at 3. Test `recordSourceSuccess` resets counter.
+
+---
+
+### Task 5 (HIGH): Add Batch Source Refresh Crons
+
+**Problem:** All 9 batch source Inngest functions use `triggers: [{ event: "batch/..." }]` — they only fire on manual event sends. There is no recurring refresh. The corpus becomes stale as new companies join ATS platforms after the initial flush.
+
+**Specification:**
+
+Add cron triggers to each batch source function using Inngest v4's multi-trigger support. Each function gets BOTH the event trigger (for manual flush) AND a cron trigger (for periodic refresh):
+
+| Source | Refresh Cron | Cadence | Rationale |
+|---|---|---|---|
+| B1 Workable Meta-Search | `0 0 1 * *` | Monthly | New companies join Workable continuously |
+| B3 YC Directory | `0 0 1 */3 *` | Quarterly | New batches 2x/year, `isHiring` toggles frequently |
+| B4 VC Portfolios | `0 0 1 * *` | Monthly | Portfolio pages update as VCs invest |
+| B5 Newsletter Archives | `0 0 1 * *` | Monthly | Weekly newsletters = monthly catch-up |
+| B7 Wayback CDX | `0 0 1 */3 *` | Quarterly | Historical archive, diminishing returns |
+| B8 Rapid7 FDNS | DISABLED | — | Commercial licensing required |
+| B9 Cross-Pollination | `0 0 1 * *` | Monthly | New job descriptions = new company names |
+| B10 Sitemap Probe | `0 0 * * 1` | Weekly | Rescues failed Slugger probes |
+| B6 BigQuery | Already has monthly cron | — | No change needed |
+
+**Implementation:**
+For each batch source function, change `triggers` from:
+```typescript
+triggers: [{ event: "batch/workable-meta-search" }],
+```
+to:
+```typescript
+triggers: [
+  { event: "batch/workable-meta-search" },  // manual flush
+  { cron: "0 0 1 * *" },                     // monthly refresh
+],
+```
+
+**Important:** The circuit breaker from Task 4 must be in place first — the refresh cron should respect the circuit breaker. If a source is disabled or has 5+ consecutive failures, the cron run should skip it.
+
+**Files to modify:**
+- `src/inngest/functions.ts` — Add cron triggers to 7 batch source functions (B1, B3, B4, B5, B7, B9, B10). B6 already has a cron. B2 and B8 are disabled.
+
+**No migration needed.** This is a cron configuration change.
+
+---
+
+### Task 6 (HIGH): Create `sluggerRetryProcessor` Inngest Function
+
+**Problem:** The `slugger_retry` table was created (migration 0019) and the Slugger inserts failed resolutions into it. But there is no Inngest function that processes the retry queue. Failed companies sit in the queue forever with `retryCount = 0` and `nextRetryAt` in the past.
+
+**Specification:**
+
+Create a new Inngest function `sluggerRetryProcessor` (cron `0 0 * * 1` — weekly, Monday 00:00 UTC):
+
+**Step 1 — Select retryable entries:**
+```sql
+SELECT * FROM slugger_retry
+WHERE next_retry_at < NOW() AND retry_count < 3
+ORDER BY next_retry_at ASC
+LIMIT 100;
+```
+
+**Step 2 — Re-run Slugger for each entry:**
+For each entry, call `resolveSlugger({ companyName, website, discoverySource, insertCompany: true })`.
+
+**Step 3 — Handle results:**
+- **Success:** Delete the `slugger_retry` row. The company is now in the corpus.
+- **Failure:** Increment `retryCount`, set `nextRetryAt = NOW() + INTERVAL '7 days' * POWER(2, retryCount)` (exponential backoff: 7d, 14d, 28d). If `retryCount >= 3`, leave in table for manual review (the G8 cleanup from Task 1 will delete it after 30 days).
+
+**Step 4 — Write ingestion log.**
+
+**Files to create/modify:**
+- `src/lib/jobs/seeders/slugger-retry-processor.ts` — NEW: Pure functions for selecting retryable entries, processing results, updating retry counts.
+- `src/inngest/functions.ts` — Add `sluggerRetryProcessor` Inngest function.
+- `src/app/api/inngest/route.ts` — Register the new function.
+- `src/lib/jobs/seeders/__tests__/slugger-retry-processor.test.ts` — NEW: Tests (mock DB + mock Slugger).
+
+**No migration needed.** The `slugger_retry` table already exists.
+
+---
+
+### Task 7 (HIGH): Replace Google CSE with Brave Search API (D1/B2 Revival)
+
+**Problem:** Google CSE API is discontinued for new customers. D1 (Google CSE Daily) and B2 (Google CSE Batch) are disabled. This creates a coverage gap of 200-500 companies. Brave Search API is the best available alternative — it supports `site:` queries and has a free tier ($5/month credits ≈ 1,000 searches/month).
+
+**Specification:**
+
+**Step 1 — Create a new Brave Search seeder** (replace the Google CSE seeder):
+- `src/lib/jobs/seeders/batch-sources/brave-search.ts` — NEW
+- The seeder should use the same `site:` query approach as Google CSE but with the Brave Search API:
+  - API endpoint: `https://api.search.brave.com/res/v1/web/search`
+  - Auth: `X-Subscription-Token` header (env var `BRAVE_SEARCH_API_KEY`)
+  - Query params: `q=site:boards.greenhouse.io`, `count=20` (max per page)
+  - Same 6 ATS domains as Google CSE
+  - Same slug extraction from URLs (the URL patterns are identical — Google indexes the same pages)
+  - Pagination via `offset` parameter
+
+**Step 2 — Create both batch and daily modes** (same as Google CSE had):
+- Batch mode: search all 6 ATS domains, extract all slugs, insert directly
+- Daily mode: same queries but with `freshness=pd` (past day) filter to catch newly-indexed pages
+
+**Step 3 — Replace the Google CSE Inngest functions:**
+- Rename `dailySourceD1GoogleCse` → `dailySourceD1BraveSearch` (cron `0 0,14 * * *`)
+- Rename `batchSourceB2GoogleCse` → `batchSourceB2BraveSearch` (event `batch/brave-search` + monthly cron `0 0 1 * *`)
+- Update `src/app/api/inngest/route.ts` to register the new functions and remove the old ones
+
+**Step 4 — Add env var:**
+- `BRAVE_SEARCH_API_KEY` to `.env.example`
+
+**Step 5 — Delete or archive the old Google CSE seeder:**
+- Keep `src/lib/jobs/seeders/batch-sources/google-cse.ts` for reference but do NOT register it in route.ts. Add a comment at the top: `// DEPRECATED: Google CSE API discontinued. Replaced by brave-search.ts.`
+
+**Files to create/modify:**
+- `src/lib/jobs/seeders/batch-sources/brave-search.ts` — NEW: Brave Search seeder (batch + daily).
+- `src/lib/jobs/seeders/batch-sources/__tests__/brave-search.test.ts` — NEW: Tests.
+- `src/inngest/functions.ts` — Replace Google CSE functions with Brave Search functions.
+- `src/app/api/inngest/route.ts` — Update registrations.
+- `src/lib/jobs/seeders/batch-sources/google-cse.ts` — Mark as deprecated.
+- `.env.example` — Add `BRAVE_SEARCH_API_KEY`.
+
+**No migration needed.** The `google_cse` discovery source enum value can be reused or a new `brave_search` value can be added. Prefer adding `brave_search` to `discoverySourceEnum` for clarity.
+
+---
+
+### Task 8 (HIGH): Stagger `tierRecalc` + `qualityFlywheelRecalc` Cron Times
+
+**Problem:** Both `tierRecalc` and `qualityFlywheelRecalc` run at `0 4 * * *` (04:00 UTC). They both read and write the `company.tier` column. Concurrent execution can cause race conditions — `tierRecalc` might promote a company to `active_hot` while `qualityFlywheelRecalc` simultaneously demotes it to `dormant`. The final state is non-deterministic.
+
+**Specification:**
+
+Change `qualityFlywheelRecalc` cron from `0 4 * * *` to `0 4 * * *` → `30 4 * * *` (04:30 UTC). This gives `tierRecalc` 30 minutes to complete before the quality flywheel starts.
+
+**Files to modify:**
+- `src/inngest/functions.ts` — Change `qualityFlywheelRecalc` triggers cron from `"0 4 * * *"` to `"30 4 * * *"`.
+- Update the comment in the function to reflect the new time.
+- Update the Inngest function registration table in `docs/governing/VectorMatchTechicalImplementation.md` §4.7.6 if it references the old cron.
+
+**No migration needed.** This is a cron configuration change.
+
+---
+
+### Task 9 (HIGH): Reduce `pendingQueueSweep` Frequency
+
+**Problem:** `pendingQueueSweep` runs every 15 minutes (`0,15,30,45 * * * *`) = 2,880 executions/month. This is ~6% of the 50K Inngest budget for a single function. As the corpus grows, each run takes longer.
+
+**Specification:**
+
+Change the cron from `0,15,30,45 * * * *` to `0,30 * * * *` (every 30 minutes = 1,440 executions/month). This halves the execution cost with minimal impact on user experience — users check daily, not hourly. A 30-minute feedback delay is acceptable.
+
+**Files to modify:**
+- `src/inngest/functions.ts` — Change `pendingQueueSweep` triggers cron from `"0,15,30,45 * * * *"` to `"0,30 * * * *"`.
+
+**No migration needed.** This is a cron configuration change.
+
+---
+
+### Task 10 (HIGH): Backfill Q5 Fusion Scores for Direct-Insert Companies
+
+**Problem:** B7 Wayback CDX and B6 BigQuery insert companies directly via `insertDiscoveredCompanies` (not through the Slugger). The Q5 fusion score integration is in the Slugger's `finalizeResolution()` function. Companies inserted directly never get a `recordDiscoverySource()` call, so their `fusion_score` stays at 1 forever. ~4,163 companies (70% of the corpus) from Wayback CDX are affected.
+
+**Specification:**
+
+**Step 1 — Create a backfill script:**
+`scripts/backfill-fusion-scores.ts` — A one-time script that:
+1. Queries all companies where `fusion_score = 1` (default, never incremented)
+2. For each company, checks its `discovery_source` column
+3. Calls `recordDiscoverySource(companyId, discoverySource)` to populate `company_discovery_sources` and increment `fusion_score` if the source is new
+
+**Step 2 — Also fix `insertDiscoveredCompanies` for future inserts:**
+Add a call to `recordDiscoverySource()` inside `insertDiscoveredCompanies()` in `src/lib/jobs/seeders/company-repository.ts`. After a successful insert, call `recordDiscoverySource(insertedCompanyId, input.discoverySource)`. This ensures all future direct-insert companies get their fusion score tracked.
+
+**Step 3 — Script flags:**
+- `--dry-run`: List companies that would be updated without making changes
+- `--limit N`: Process only N companies (for testing)
+- `--source S`: Only process companies from a specific discovery source
+
+**Files to create/modify:**
+- `scripts/backfill-fusion-scores.ts` — NEW: Backfill script.
+- `src/lib/jobs/seeders/company-repository.ts` — Add `recordDiscoverySource` call after insert.
+- `src/lib/jobs/seeders/__tests__/company-repository.test.ts` — Update tests to verify `recordDiscoverySource` is called (mock it).
+
+**No migration needed.** The `fusion_score` column and `company_discovery_sources` table already exist (migration 0031).
+
+---
+
+### Implementation Order
+
+Execute tasks in this order (dependencies noted):
+
+1. **Task 1 (G8 Cleanup)** — No dependencies. Foundation for storage sustainability.
+2. **Task 2 (Gate 2 threshold)** — No dependencies. Quick config change.
+3. **Task 3 (B1 Workable fix)** — No dependencies. Bug fix.
+4. **Task 4 (Circuit breakers)** — No dependencies. Foundation for Task 5.
+5. **Task 5 (Batch refresh crons)** — DEPENDS ON Task 4 (circuit breaker must be in place before adding crons).
+6. **Task 6 (Slugger retry processor)** — No dependencies.
+7. **Task 7 (Brave Search API)** — No dependencies. Can be done in parallel with Tasks 5-6.
+8. **Task 8 (Stagger crons)** — No dependencies. Quick config change.
+9. **Task 9 (Reduce pendingQueueSweep)** — No dependencies. Quick config change.
+10. **Task 10 (Fusion score backfill)** — No dependencies.
+
+**Recommended parallelization:** Tasks 1-4 are sequential (each builds confidence for the next). Tasks 5-10 can be parallelized with subagents after Task 4 is complete.
+
+### After All Tasks Complete
+
+1. Run full verification: `npm run test`, `npx tsc --noEmit`, `npx biome check --write`
+2. Generate all migrations: `npx drizzle-kit generate`
+3. Report the list of migrations that need to be applied to production
+4. Report the list of env vars that need to be set
+5. Report the backfill scripts that need to be run
+6. **DO NOT apply migrations, run backfill scripts, or commit changes.** The user will do all manual actions after review.
+
+### Environment Variables to Set (After Session)
+
+| Variable | Purpose | Task |
+|---|---|---|
+| `GATE2_MAX_COSINE_DISTANCE` | Gate 2 cosine distance threshold (default 0.50) | Task 2 |
+| `BRAVE_SEARCH_API_KEY` | Brave Search API authentication | Task 7 |
+
+### Migrations to Apply (After Session)
+
+| # | Description | Task |
+|---|---|---|
+| 0032 | `source_health` table | Task 4 |
+
+> **Note on Task 7:** The `brave_search` enum value was NOT added. The Brave Search seeder reuses `extractCompaniesFromResults` from `google-cse.ts`, which sets `discoverySource: "google_cse"`. This is a reasonable simplification — the discovery source is conceptually "search engine discovery", just using Brave as the API backend instead of Google. No migration 0033 is needed.
+
+### Backfill Scripts to Run (After Session)
+
+| Script | Purpose | Task |
+|---|---|---|
+| `scripts/backfill-fusion-scores.ts` | Populate Q5 fusion scores for direct-insert companies | Task 10 |
+
+---
+
+## Sprint 3 Hardening — Completion Report (Session 4 — June 30 2026)
+
+### Verification Results (Verified by orchestrator session, June 30 2026 15:10 UTC)
+
+| Check | Result |
+|---|---|
+| Vitest | **1,441 tests pass** across 70 test files (up from 1,376) |
+| TypeScript | **0 errors** (`npx tsc --noEmit`) |
+| Biome | **2 warnings** (pre-existing, in Sprint 1 files — `rapid7-cname.test.ts`, `sitemap-probe.test.ts`, `hn-algolia-daily.ts`. All Sprint 3 files are clean.) |
+| Migration | `0032_source_health.sql` generated, NOT applied to production |
+
+### Task-by-Task Verification
+
+| # | Task | Verified | Notes |
+|---|---|---|---|
+| 1 | G8 Aggressive Cleanup | ✅ | `aggressiveCleanup` (cron `0 2 * * *`) + `vacuumAnalyze` (cron `0 2 * * 0`) in `functions.ts`. `cleanup-queries.ts` created with deletion logic. |
+| 2 | Gate 2 Threshold | ✅ | `GATE2_MAX_COSINE_DISTANCE` now reads from `process.env`, default 0.50. Added to `.env.example`. |
+| 3 | B1 Workable Slug Fix | ✅ | `validateWorkableSlug()` added to `workable-meta-search.ts`. Invalid slugs route through `resolveSlugger({ insertCompany: true })`. |
+| 4 | Circuit Breakers | ✅ | `sourceHealth.ts` schema + `source-health.ts` query functions. 66 circuit breaker step references across 22 source functions in `functions.ts`. Migration `0032_source_health.sql`. |
+| 5 | Batch Refresh Crons | ✅ | B1 (monthly), B3/B7 (quarterly), B4/B5/B9 (monthly), B10 (weekly). B2 Brave Search also got monthly cron (fixed by orchestrator — session missed this). |
+| 6 | sluggerRetryProcessor | ✅ | Weekly Inngest function (cron `0 0 * * 1`) with exponential backoff. `slugger-retry-processor.ts` created. |
+| 7 | Brave Search API | ✅ | `brave-search.ts` seeder created. Old Google CSE functions removed from `functions.ts` and `route.ts`. `google-cse.ts` marked as deprecated (fixed by orchestrator — session missed this). Reuses `google_cse` discovery source enum (no new enum value needed). |
+| 8 | Stagger Cron Times | ✅ | `qualityFlywheelRecalc` cron changed from `0 4 * * *` to `30 4 * * *` (04:30 UTC). |
+| 9 | Reduce pendingQueueSweep | ✅ | Cron changed from `0,15,30,45 * * * *` to `0,30 * * * *` (every 30 min). |
+| 10 | Fusion Score Backfill | ✅ | `backfill-fusion-scores.ts` script created with `--dry-run`, `--limit`, `--source` flags. `insertDiscoveredCompanies` now calls `recordDiscoverySource()`. |
+
+### Issues Found & Fixed by Orchestrator
+
+1. **B2 Brave Search missing refresh cron** — The session created `batchSourceB2BraveSearch` with only an event trigger, no cron. The handoff specified a monthly refresh cron. Orchestrator added `{ cron: "0 0 1 * *" }` to the triggers.
+
+2. **google-cse.ts not marked as deprecated** — The handoff specified adding a deprecation comment. Orchestrator added the deprecation header noting that brave-search.ts reuses the extraction functions from this file.
+
+### New Files Created (10)
+
+| File | Purpose |
+|---|---|
+| `src/db/schemas/jobs/sourceHealth.ts` | Drizzle schema for `source_health` table |
+| `src/lib/jobs/source-health.ts` | Circuit breaker query functions |
+| `src/lib/jobs/poller/cleanup-queries.ts` | G8 deletion queries |
+| `src/lib/jobs/seeders/slugger-retry-processor.ts` | Retry queue processor |
+| `src/lib/jobs/seeders/batch-sources/brave-search.ts` | Brave Search API seeder (replaces Google CSE) |
+| `scripts/backfill-fusion-scores.ts` | One-time Q5 fusion score backfill |
+| `src/lib/jobs/__tests__/source-health.test.ts` | 15 tests for circuit breaker logic |
+| `src/lib/jobs/seeders/__tests__/slugger-retry-processor.test.ts` | 9 tests for retry processor |
+| `src/lib/jobs/seeders/batch-sources/__tests__/brave-search.test.ts` | 14 tests for Brave Search seeder |
+| `src/lib/jobs/seeders/__tests__/company-repository.test.ts` | 7 tests for fusion score integration |
+
+### Modified Files (8)
+
+| File | Changes |
+|---|---|
+| `src/inngest/functions.ts` | 22 source functions wrapped with circuit breakers; `aggressiveCleanup` + `vacuumAnalyze` + `sluggerRetryProcessor` added; D1/B2 replaced Google CSE with Brave Search; batch source cron triggers added; `qualityFlywheelRecalc` staggered to 04:30; `pendingQueueSweep` reduced to every 30 min |
+| `src/app/api/inngest/route.ts` | Registered `sluggerRetryProcessor`, `dailySourceD1BraveSearch`, `batchSourceB2BraveSearch`, `aggressiveCleanup`, `vacuumAnalyze` |
+| `src/db/schemas/index.ts` | Exported `sourceHealth` schema |
+| `src/lib/jobs/matching-config.ts` | `GATE2_MAX_COSINE_DISTANCE` env-configurable with 0.50 default |
+| `src/lib/jobs/seeders/batch-sources/workable-meta-search.ts` | Fast-path slug validation + Slugger fallback |
+| `src/lib/jobs/seeders/company-repository.ts` | `recordDiscoverySource()` called after direct inserts |
+| `src/lib/jobs/seeders/batch-sources/google-cse.ts` | Marked as deprecated (header comment) |
+| `.env.example` | Added `BRAVE_SEARCH_API_KEY` and `GATE2_MAX_COSINE_DISTANCE=0.50` |
+
+### Manual Actions Required (BLOCKING)
+
+1. **Apply migration `0032_source_health.sql`** to production Neon:
+   ```bash
+   npx drizzle-kit push
+   ```
+
+2. **Set environment variables** in Coolify/production:
+   - `GATE2_MAX_COSINE_DISTANCE=0.50` (Gate 2 threshold — tunable without redeploy)
+   - `BRAVE_SEARCH_API_KEY=<your_key>` (Sign up at https://brave.com/search/api/ — free tier has $5/month credits ≈ 1,000 searches)
+
+3. **Run the fusion score backfill** (one-time):
+   ```bash
+   # Dry run first:
+   node --conditions react-server --import tsx scripts/backfill-fusion-scores.ts --dry-run
+   # Then live:
+   node --conditions react-server --import tsx scripts/backfill-fusion-scores.ts
+   ```
+
+4. **Monitor Gate 2 approval rate** for 3 days after deploying the threshold change (0.48 → 0.50). If approval rate exceeds 2%, hold. If below 1.5%, consider raising to 0.52.

@@ -1060,7 +1060,7 @@ Flush (7,080) + steady state (13,540) + seeders (~1,000) = ~21,620 = **43% of 50
 
 **Total estimated effort: ~35-40 days of implementation.**
 
-Items 1-21 are Sprint 1 (infrastructure + first batch + first daily sources). Items 22-34 are Sprint 1 continued (remaining sources). Items 35-39 are Sprint 2 (quality architecture).
+Items 1-21 are Sprint 1 (infrastructure + first batch + first daily sources). Items 22-34 are Sprint 1 continued (remaining sources). Items 35-39 are Sprint 2 (quality architecture). Sprint 3 (production hardening, 10 tasks) is documented in `CORPUS_EXPANSION_HANDOFF.md` "Sprint 3 Hardening" section — includes G8 aggressive cleanup, circuit breakers, Gate 2 threshold tuning, batch source refresh crons, slugger retry processor, Brave Search API replacement, cron staggering, and Q5 fusion score backfill. `[Status: Complete — June 30 2026]`
 
 ---
 
