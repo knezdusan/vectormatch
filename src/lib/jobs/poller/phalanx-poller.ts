@@ -148,8 +148,32 @@ export async function pollCompany(
   const filteredJobs = allJobs.filter((job) => passesGateZero(job.title));
   const rejectedCount = allJobs.length - filteredJobs.length;
 
-  // Step 3: Upsert filtered jobs into the job table.
-  const upsertResult = await upsertJobs(atsSource, atsSlug, filteredJobs);
+  // Step 2a: SmartRecruiters Tier 2 selective detail fetch (Sprint 4 Task 7).
+  // For jobs where the Tier 1 pseudo-description is too short for a good
+  // embedding, fetch the detail endpoint to get the full job description.
+  // This is best-effort — failures are non-fatal (Tier 1 data is kept).
+  // Runs AFTER Gate 0 to avoid wasting detail fetches on jobs that will be
+  // rejected by the title filter.
+  let enrichedJobs = filteredJobs;
+  if (atsSource === "smartrecruiters" && filteredJobs.length > 0) {
+    try {
+      const { enrichSmartRecruitersJobs } = await import(
+        "@/lib/jobs/poller/smartrecruiters-detail"
+      );
+      const enrichment = await enrichSmartRecruitersJobs(
+        filteredJobs,
+        atsSlug,
+        fetchFn,
+      );
+      // Replace enrichedJobs with enriched + unchanged (order preserved by concat)
+      enrichedJobs = [...enrichment.unchanged, ...enrichment.enriched];
+    } catch {
+      // Non-fatal: if enrichment fails, proceed with Tier 1 data only
+    }
+  }
+
+  // Step 3: Upsert filtered (and possibly enriched) jobs into the job table.
+  const upsertResult = await upsertJobs(atsSource, atsSlug, enrichedJobs);
 
   // Step 4: Count active jobs and update company state.
   const activeJobCount = await countActiveJobs(atsSource, atsSlug);

@@ -1621,6 +1621,32 @@ Ten hardening tasks implemented addressing production stability and reliability 
 
 **Verification:** 1,441 tests pass (70 files), 0 TS errors, 1 new migration (0032). 65 new tests across 4 new test files.
 
+#### 4.7.8 Sprint 4 — Hardening + Observability + Admin Dashboard `[Status: Implemented — June 30 2026]`
+
+Eight tasks implemented across two sub-sessions (Sprint 4 + Sprint 4b). See `CORPUS_EXPANSION_HANDOFF.md` "Sprint 4 Hardening" and "Sprint 4b — Admin Interactivity" sections for full task specifications and completion reports.
+
+**SmartRecruiters Tier 1 Enrichment:** `extractJobContent` for SmartRecruiters in `src/lib/jobs/job-normalizer.ts` now synthesizes a pseudo-description from metadata fields (title + department + employment type + location + company name) instead of title-only. Zero API cost — uses fields already present in the list endpoint response.
+
+**crt.sh Batch Seeder (B8):** New `src/lib/jobs/seeders/batch-sources/crt-sh.ts` — queries Certificate Transparency logs via `crt.sh/?q=%25.boards.greenhouse.io&output=json` for historical ATS domain discoveries. Extracts company slugs from certificate common names. Replaces disabled Rapid7 FDNS. Monthly refresh cron (`0 0 1 * *`). `batchSourceB8CrtSh` Inngest function with circuit breaker.
+
+**VC Portfolio Expansion (B4):** `VC_PORTFOLIO_SOURCES` in `src/lib/jobs/seeders/batch-sources/vc-portfolios.ts` expanded from 53 to 76 entries. Added European VCs (Cherry Ventures, Earlybird, Speedinvest, Project A, La Famiglia, b2venture, Heartfelt, btov, Connexa, InReach, Kizoo, Molten), APAC VCs (Peak XV, Jungle, Monk's Hill, Beenext, Qualgro, Ananta, Gateway, Helion), and niche/vertical VCs (Lux Capital, Obvious, Congruent, Energy Impact Partners, Engine Ventures, E14 Fund, Ridge, Bowery, Social Capital, G2 Venture Partners, Powerhouse, Amity).
+
+**Newsletter Expansion (B5):** `NEWSLETTER_SOURCES` in `src/lib/jobs/seeders/batch-sources/newsletter-archives.ts` expanded from 5 to 14 entries. Added Frontend Focus, Ruby Weekly, Go Weekly, Postgres Weekly, iOS Dev Weekly, Python Weekly, PyCoder's Weekly, DevOps Weekly, Kubernetes Weekly, Android Weekly, TLDR Newsletter.
+
+**Pre-Flight Storage Check:** New `src/lib/jobs/storage-check.ts` module — `getDatabaseSizeMb()` queries `pg_database_size()`, `isStorageSafeForRefresh()` returns false if storage > 450MB (88% of 512MB Neon free tier limit). Integrated as `check-storage` step in all 9 batch source Inngest functions — skips refresh and logs warning if storage is near limit.
+
+**Admin Dashboard — Infrastructure Health:** `src/components/admin/InfrastructureHealth.tsx` Server Component — displays Neon storage usage (current/limit/percentage, color-coded), Gate 2 threshold, and source health table with circuit breaker status per source. Data fetched via `src/lib/jobs/admin-queries.ts` (`getInfraStats`, `getAllSourceHealth`).
+
+**Admin Dashboard — Matching Funnel:** `src/components/admin/MatchingFunnel.tsx` Server Component — displays funnel analysis (total jobs → Gate 0 passed → Gate 1+2 candidates → Gate 3 approved → approval rate), tier distribution, quality score distribution, fusion score distribution, top companies by quality, and purge candidates. Data fetched via `src/lib/jobs/admin-queries.ts` (`getFunnelStats`, `getTierDistribution`, `getQualityScoreDistribution`, `getFusionScoreDistribution`, `getTopCompaniesByQuality`, `getPurgeCandidates`).
+
+**SmartRecruiters Tier 2 Selective Detail Fetch:** New `src/lib/jobs/poller/smartrecruiters-detail.ts` — `enrichSmartRecruitersJobs()` fetches the detail endpoint (`/v1/companies/{slug}/postings/{postingId}`) only for jobs where the Tier 1 pseudo-description is < 100 chars, capped at 10 fetches per poll cycle. Best-effort — failures are non-fatal (Tier 1 data is kept). Integrated into `phalanx-poller.ts` AFTER Gate 0 filtering to avoid wasting API calls on rejected jobs. `smartRecruitersJobDetailSchema` added to `ats-schemas.ts`. `job-normalizer.ts` SmartRecruiters case updated to extract full description from `jobAd.sections` when present (Tier 2), falling back to Tier 1 synthesis.
+
+**Alerting System:** New `alerts` table (migration `0033_alerts.sql`) with `alert_type` enum (`storage_near_limit`, `storage_critical`, `schema_validation_spike`, `circuit_breaker_trip`) and `alert_severity` enum (`info`, `warning`, `critical`). `src/lib/jobs/alerting.ts` module with `createAlert`, `hasActiveAlert`, `resolveAlert`, `resolveAlertsByType`, `getActiveAlerts`, `getRecentAlerts`, `checkStorageAlerts`, `checkSchemaValidationAlerts`, `createCircuitBreakerAlert` — all with deduplication via `hasActiveAlert`. `dailyHealthCheck` Inngest function (cron `0 6 * * *`) runs storage + schema validation checks. Circuit breaker integration in `source-health.ts` auto-creates `circuit_breaker_trip` alerts on source disable. Schema validation monitoring queries `ingestion_log` for `error_message LIKE '%Zod validation failed%'` and alerts on failure rate > 20% over 60 minutes.
+
+**Admin Interactivity (Sprint 4b):** New `src/actions/admin.ts` Server Actions — `disableSourceAction`, `enableSourceAction`, `resolveAlertAction`, `resolveAlertsByTypeAction` with `requireRole("admin")` auth checks, Zod input validation, `revalidatePath("/dashboard/admin")` on success, and `resolvedBy` audit trail (`admin:{email}`). New `src/components/admin/AlertResolveButton.tsx` client component using `useTransition` — renders "Resolve" button per alert with loading state. New `src/components/admin/SourceToggleButton.tsx` client component — shows "Enable" for disabled sources, "Disable" for active/degraded, with loading state. Admin sidebar navigation fixed in `DashboardSidebarNav.tsx` — "Admin" now links to `/dashboard/admin` with "Dashboard" and "Users" sub-items.
+
+**Verification:** 1,564 tests pass (78 files), 0 TS errors, 1 new migration (0033). 123 new tests across 8 new test files. 3 pre-existing Biome warnings (Sprint 1 files, require `--unsafe` to fix).
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`

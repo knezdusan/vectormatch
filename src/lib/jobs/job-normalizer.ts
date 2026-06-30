@@ -206,11 +206,109 @@ export function extractJobContent(
     }
     case "smartrecruiters": {
       // SmartRecruiters calls the title "name". The list endpoint does NOT
-      // include the job description — only the detail endpoint does. For the
-      // MVP, we degrade to title-only (same as Greenhouse without ?content=true).
-      // The detail endpoint can be added later if needed.
+      // include the job description — only the detail endpoint does.
+      // Tier 1 enrichment (Sprint 4 Task 1): synthesize a pseudo-description
+      // from the metadata fields the list endpoint DOES provide, to give the
+      // embedding more semantic surface area without any extra API calls.
+      // Tier 2 enrichment (Sprint 4 Task 7): if the detail endpoint was fetched
+      // (jobAd.sections present in rawJson), extract the full description from
+      // the jobAd sections instead of the synthesized pseudo-description.
       const title = typeof obj.name === "string" ? obj.name : fallbackTitle;
-      return { title, description: "", fullText: title };
+
+      // Tier 2: Check if jobAd.sections are present (detail endpoint was fetched)
+      const jobAdObj = obj.jobAd;
+      const jobAd =
+        typeof jobAdObj === "object" && jobAdObj !== null
+          ? (jobAdObj as Record<string, unknown>)
+          : null;
+      const sectionsObj = jobAd?.sections;
+      const sections =
+        typeof sectionsObj === "object" && sectionsObj !== null
+          ? (sectionsObj as Record<string, Record<string, unknown>>)
+          : null;
+
+      if (sections) {
+        // Extract text from jobAd sections (jobDescription, qualifications,
+        // companyDescription, additionalInformation)
+        const sectionTexts: string[] = [];
+        for (const key of [
+          "jobDescription",
+          "qualifications",
+          "companyDescription",
+          "additionalInformation",
+        ]) {
+          const section = sections[key];
+          if (section) {
+            const text = section.text;
+            if (typeof text === "string" && text.length > 0) {
+              sectionTexts.push(stripHtml(text));
+            }
+          }
+        }
+        if (sectionTexts.length > 0) {
+          const description = sectionTexts.join("\n\n");
+          return {
+            title,
+            description,
+            fullText: `${title} ${description}`.trim(),
+          };
+        }
+      }
+
+      // Tier 1: synthesize a pseudo-description from metadata fields
+      const parts: string[] = [title];
+
+      // Department — department.label (e.g., "Engineering", "Data")
+      const deptObj = obj.department;
+      const dept =
+        typeof deptObj === "object" && deptObj !== null
+          ? (deptObj as Record<string, unknown>).label
+          : null;
+      if (typeof dept === "string" && dept.length > 0) {
+        parts.push(`${dept} department`);
+      }
+
+      // Employment type — typeOfEmployment.label (e.g., "Full-time")
+      const toeObj = obj.typeOfEmployment;
+      const toe =
+        typeof toeObj === "object" && toeObj !== null
+          ? (toeObj as Record<string, unknown>).label
+          : null;
+      if (typeof toe === "string" && toe.length > 0) {
+        parts.push(toe);
+      }
+
+      // Location — location.city, location.country, location.remote
+      const locObj = obj.location;
+      const loc =
+        typeof locObj === "object" && locObj !== null
+          ? (locObj as Record<string, unknown>)
+          : {};
+      const city = typeof loc.city === "string" ? loc.city : null;
+      const country = typeof loc.country === "string" ? loc.country : null;
+      const isRemote = loc.remote === true;
+      if (isRemote) {
+        parts.push("Remote");
+      } else if (city && country) {
+        parts.push(`${city}, ${country}`);
+      } else if (city) {
+        parts.push(city);
+      }
+
+      // Company name — company.name (if available in the list response)
+      const companyObj = obj.company;
+      const companyName =
+        typeof companyObj === "object" && companyObj !== null
+          ? (companyObj as Record<string, unknown>).name
+          : null;
+      if (typeof companyName === "string" && companyName.length > 0) {
+        parts.push(`at ${companyName}`);
+      }
+
+      const fullText = parts.join(", ");
+      // description stays empty — the list endpoint has no real description.
+      // fullText is the synthesized pseudo-description used for embedding.
+      return { title, description: "", fullText };
     }
     case "workable": {
       const title = typeof obj.title === "string" ? obj.title : fallbackTitle;

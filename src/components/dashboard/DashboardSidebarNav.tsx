@@ -1,6 +1,13 @@
 "use client";
 
-import { Briefcase, FileText, Shield, User, Users } from "lucide-react";
+import {
+  Briefcase,
+  FileText,
+  LayoutDashboard,
+  Shield,
+  User,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -37,6 +44,7 @@ export function DashboardSidebarNav({
   ];
 
   const isAdminActive = pathname.startsWith("/dashboard/admin");
+  const isAdminRoot = pathname === "/dashboard/admin";
 
   return (
     <SidebarMenu className="gap-2 py-2">
@@ -71,14 +79,25 @@ export function DashboardSidebarNav({
       {role === "admin" && (
         <SidebarMenuItem className="group-data-[collapsible=icon]:pl-2 pl-4">
           <SidebarMenuButton
+            asChild
             isActive={isAdminActive}
             tooltip="Admin"
             className="group-data-[collapsible=icon]:rounded-full rounded-r-none"
           >
-            <Shield />
-            <span>Admin</span>
+            <Link href="/dashboard/admin">
+              <Shield />
+              <span>Admin</span>
+            </Link>
           </SidebarMenuButton>
           <SidebarMenuSub>
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton asChild isActive={isAdminRoot}>
+                <Link href="/dashboard/admin">
+                  <LayoutDashboard />
+                  <span>Dashboard</span>
+                </Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
             <SidebarMenuSubItem>
               <SidebarMenuSubButton
                 asChild

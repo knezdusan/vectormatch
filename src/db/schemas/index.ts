@@ -26,6 +26,7 @@ export * from "./blog/comments";
 export * from "./blog/posts";
 export * from "./blog/tags";
 // JOBS
+export * from "./jobs/alerts";
 export * from "./jobs/applicant";
 export * from "./jobs/company";
 export * from "./jobs/companyDiscoverySources";

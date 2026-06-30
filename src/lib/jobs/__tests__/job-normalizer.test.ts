@@ -1235,6 +1235,9 @@ describe("normalizeJob — G7 nullable rawJson", () => {
 // =============================================================================
 
 describe("extractJobContent — F2 SmartRecruiters", () => {
+  // Sprint 4 Task 1: Tier 1 enrichment synthesizes a pseudo-description from
+  // list-endpoint metadata (department, employment type, location, company)
+  // to give the embedding more semantic surface area without extra API calls.
   it("extracts title from 'name' field (no description in list endpoint)", () => {
     const rawJson = JSON.stringify({
       id: "123",
@@ -1245,7 +1248,8 @@ describe("extractJobContent — F2 SmartRecruiters", () => {
 
     expect(result.title).toBe("Senior React Engineer");
     expect(result.description).toBe(""); // List endpoint has no description
-    expect(result.fullText).toBe("Senior React Engineer");
+    // Tier 1 enrichment: company name is appended as "at Acme"
+    expect(result.fullText).toBe("Senior React Engineer, at Acme");
   });
 
   it("degrades to fallback title when name is missing", () => {
@@ -1258,6 +1262,188 @@ describe("extractJobContent — F2 SmartRecruiters", () => {
 
     expect(result.title).toBe("Fallback Title");
     expect(result.fullText).toBe("Fallback Title");
+  });
+
+  // ── Tier 1 enrichment: metadata field synthesis ────────────────────────────
+  it("synthesizes fullText from department, employment type, location, company", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Senior Backend Engineer",
+      department: { label: "Engineering" },
+      typeOfEmployment: { label: "Full-time" },
+      location: { city: "Berlin", country: "Germany", remote: false },
+      company: { name: "Acme Corp" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.title).toBe("Senior Backend Engineer");
+    expect(result.description).toBe("");
+    expect(result.fullText).toBe(
+      "Senior Backend Engineer, Engineering department, Full-time, Berlin, Germany, at Acme Corp",
+    );
+  });
+
+  it("appends 'Remote' when location.remote is true (overrides city/country)", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "DevOps Engineer",
+      location: { city: "Lisbon", country: "Portugal", remote: true },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.fullText).toBe("DevOps Engineer, Remote");
+  });
+
+  it("appends city only when country is missing and not remote", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      location: { city: "Austin" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.fullText).toBe("Engineer, Austin");
+  });
+
+  it("omits location entirely when city/country/remote are all missing", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      department: { label: "Data" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.fullText).toBe("Engineer, Data department");
+  });
+
+  it("omits department when department.label is missing or empty", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      department: { label: "" },
+      typeOfEmployment: { label: "Contract" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.fullText).toBe("Engineer, Contract");
+  });
+
+  it("omits employment type when typeOfEmployment.label is missing", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      typeOfEmployment: {},
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.fullText).toBe("Engineer");
+  });
+
+  it("omits company when company.name is missing or empty", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      company: { name: "" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.fullText).toBe("Engineer");
+  });
+
+  it("handles non-object department/location/company gracefully", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      department: "Engineering",
+      location: null,
+      company: "Acme",
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.title).toBe("Engineer");
+    expect(result.fullText).toBe("Engineer");
+  });
+
+  // ── Tier 2 enrichment: jobAd.sections extraction (Sprint 4 Task 7) ────────
+  it("extracts full description from jobAd.sections when present (Tier 2)", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Senior Engineer",
+      jobAd: {
+        sections: {
+          jobDescription: {
+            title: "Job Description",
+            text: "We are looking for a senior engineer to build TypeScript applications.",
+          },
+          qualifications: {
+            title: "Qualifications",
+            text: "5+ years TypeScript, React, Node.js experience required.",
+          },
+          companyDescription: {
+            title: "About Us",
+            text: "Acme Corp builds developer tools.",
+          },
+        },
+      },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.title).toBe("Senior Engineer");
+    expect(result.description).toContain("TypeScript applications");
+    expect(result.description).toContain("5+ years TypeScript");
+    expect(result.description).toContain("Acme Corp builds developer tools");
+    expect(result.fullText).toContain("Senior Engineer");
+    expect(result.fullText).toContain("TypeScript applications");
+  });
+
+  it("falls back to Tier 1 when jobAd.sections is present but empty", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      jobAd: { sections: {} },
+      department: { label: "Engineering" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.title).toBe("Engineer");
+    expect(result.description).toBe("");
+    expect(result.fullText).toBe("Engineer, Engineering department");
+  });
+
+  it("falls back to Tier 1 when jobAd.sections text fields are all empty", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      jobAd: {
+        sections: {
+          jobDescription: { title: "Job Description", text: "" },
+          qualifications: { title: "Qualifications", text: "" },
+        },
+      },
+      department: { label: "Engineering" },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.description).toBe("");
+    expect(result.fullText).toBe("Engineer, Engineering department");
+  });
+
+  it("strips HTML from jobAd.sections text", () => {
+    const rawJson = JSON.stringify({
+      id: "123",
+      name: "Engineer",
+      jobAd: {
+        sections: {
+          jobDescription: {
+            title: "Job Description",
+            text: "<p>We need <strong>TypeScript</strong> developers</p>",
+          },
+        },
+      },
+    });
+    const result = extractJobContent("smartrecruiters", rawJson, "Fallback");
+
+    expect(result.description).toBe("We need TypeScript developers");
   });
 });
 

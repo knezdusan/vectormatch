@@ -25,6 +25,7 @@ vi.mock("@/lib/jobs/seeders/slugger", () => ({
 import {
   extractCompaniesFromHtml,
   runVcPortfolioSeeder,
+  VC_PORTFOLIO_SOURCES,
   type VcPortfolioSource,
 } from "@/lib/jobs/seeders/batch-sources/vc-portfolios";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
@@ -395,5 +396,26 @@ describe("runVcPortfolioSeeder", () => {
 
     // Only 2 companies from .portfolio-grid (Acme + Foobar)
     expect(result.totalCompaniesExtracted).toBe(2);
+  });
+});
+
+// ── VC portfolio source list sanity checks (Sprint 4 Task 3) ────────────────
+
+describe("VC_PORTFOLIO_SOURCES — source list", () => {
+  it("contains at least 70 VC funds (Sprint 4 expansion target)", () => {
+    expect(VC_PORTFOLIO_SOURCES.length).toBeGreaterThanOrEqual(70);
+  });
+
+  it("every source has a name and a non-empty url", () => {
+    for (const source of VC_PORTFOLIO_SOURCES) {
+      expect(source.name).toBeTruthy();
+      expect(source.url).toBeTruthy();
+      expect(source.url.startsWith("http")).toBe(true);
+    }
+  });
+
+  it("has unique names", () => {
+    const names = VC_PORTFOLIO_SOURCES.map((s) => s.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });

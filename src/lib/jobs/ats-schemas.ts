@@ -243,6 +243,66 @@ export const smartRecruitersJobsResponseSchema = z
   })
   .passthrough();
 
+// ── SmartRecruiters Detail (Tier 2 — Sprint 4 Task 7) ───────────────────────
+// The detail endpoint returns a PostingDetails object with jobAd.sections
+// containing the full job description, qualifications, and company description.
+// Used selectively for jobs where the list endpoint's Tier 1 pseudo-description
+// is too short for a good embedding.
+
+export const smartRecruitersJobAdSectionSchema = z
+  .object({
+    title: z.string().optional(),
+    text: z.string().optional(),
+  })
+  .passthrough();
+
+export const smartRecruitersJobAdSchema = z
+  .object({
+    sections: z
+      .record(z.string(), smartRecruitersJobAdSectionSchema)
+      .optional(),
+  })
+  .passthrough();
+
+export const smartRecruitersJobDetailSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    jobAd: smartRecruitersJobAdSchema.optional(),
+    applyUrl: z.string().optional(),
+    location: z
+      .object({
+        city: z.string().nullable().optional(),
+        region: z.string().nullable().optional(),
+        country: z.string().nullable().optional(),
+        remote: z.boolean().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    department: z
+      .object({
+        id: z.union([z.string(), z.number()]).nullable().optional(),
+        label: z.string().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    typeOfEmployment: z
+      .object({
+        id: z.string().nullable().optional(),
+        label: z.string().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+    experienceLevel: z
+      .object({
+        id: z.string().nullable().optional(),
+        label: z.string().nullable().optional(),
+      })
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
+
 // =============================================================================
 // WORKABLE — Public Widget API v1 (F2)
 // Endpoint: https://apply.workable.com/api/v1/widget/accounts/{slug}?details=true

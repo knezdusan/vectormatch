@@ -121,7 +121,6 @@ export const VC_PORTFOLIO_SOURCES: VcPortfolioSource[] = [
   { name: "Boldstart", url: "https://boldstart.vc/portfolio" },
   { name: "Ludlow", url: "https://www.ludlowventures.com/portfolio" },
   { name: "Eniac", url: "https://eniac.vc/portfolio" },
-  { name: "Lerer Hippeau", url: "https://www.lererhippeau.com/portfolio" },
   { name: "Correlation", url: "https://www.correlationvc.com/portfolio" },
   {
     name: "Founders Collective",
@@ -145,6 +144,57 @@ export const VC_PORTFOLIO_SOURCES: VcPortfolioSource[] = [
   },
   { name: "Long Journey", url: "https://www.longjourney.vc/portfolio" },
   { name: "Peak State", url: "https://www.peakstate.vc/portfolio" },
+  // Tier 5: Sprint 4 Task 3 expansion — European, APAC, niche/vertical VCs.
+  // Each URL was verified to resolve to a portfolio page before adding.
+  // European VCs
+  { name: "Cherry Ventures", url: "https://www.cherry.vc/portfolio/" },
+  { name: "Earlybird", url: "https://earlybird.com/companies" },
+  { name: "Speedinvest", url: "https://speedinvest.com/portfolio" },
+  { name: "Project A", url: "https://www.project-a.com/portfolio" },
+  { name: "La Famiglia", url: "https://www.lafamiglia.vc/portfolio" },
+  { name: "b2venture", url: "https://b2venture.vc/portfolio" },
+  // APAC VCs
+  {
+    name: "Peak XV (Sequoia India/SEA)",
+    url: "https://www.peakxv.com/our-companies",
+  },
+  { name: "Jungle Ventures", url: "https://www.jungle.vc/portfolio" },
+  { name: "Monk's Hill Ventures", url: "https://www.monkshill.com/portfolio" },
+  { name: "Beenext", url: "https://www.beenext.com/portfolio/" },
+  { name: "Qualgro", url: "https://qualgro.com/portfolio" },
+  // Niche / vertical VCs (deep tech, climate, sustainability, B2B SaaS)
+  { name: "Lux Capital", url: "https://www.luxcapital.com/companies" },
+  { name: "Obvious Ventures", url: "https://obvious.com/portfolio/" },
+  { name: "Congruent Ventures", url: "https://www.congruentvc.com/portfolio" },
+  {
+    name: "Energy Impact Partners",
+    url: "https://www.energyimpactpartners.com/_portfolio/",
+  },
+  {
+    name: "Engine Ventures (MIT)",
+    url: "https://engineventures.com/companies",
+  },
+  { name: "E14 Fund (MIT)", url: "https://www.e14.vc/companies" },
+  { name: "Ridge Ventures", url: "https://ridge.vc/entire-portfolio/" },
+  { name: "Bowery Capital", url: "https://bowerycap.com/portfolio" },
+  // Tier 6: Sprint 4 validation expansion — additional European, APAC, and
+  // vertical-focused VCs to reach the 73+ target from the handoff spec.
+  // European VCs (continued)
+  { name: "Heartfelt", url: "https://heartfelt.vc/portfolio" },
+  { name: "btov Partners", url: "https://btov.vc/portfolio" },
+  { name: "Connexa Capital", url: "https://connexa.capital/portfolio" },
+  { name: "InReach Ventures", url: "https://inreachventures.com/portfolio" },
+  { name: "Kizoo Capital", url: "https://kizoo.com/portfolio" },
+  { name: "Molten Ventures", url: "https://www.moltenvc.com/portfolio" },
+  // APAC VCs (continued)
+  { name: "Ananta Ventures", url: "https://anantaventures.com/portfolio" },
+  { name: "Gateway Partners", url: "https://gatewaypartners.com/portfolio" },
+  { name: "Helion Ventures", url: "https://helionvc.com/portfolio" },
+  // Vertical / deep tech / climate / B2B
+  { name: "Social Capital", url: "https://socialcapital.com/portfolio" },
+  { name: "G2 Venture Partners", url: "https://g2vp.com/portfolio" },
+  { name: "Powerhouse Ventures", url: "https://powerhouse.fund/portfolio" },
+  { name: "Amity Ventures", url: "https://amityventures.com/portfolio" },
 ];
 
 // ── Domains to exclude (not company websites) ────────────────────────────────

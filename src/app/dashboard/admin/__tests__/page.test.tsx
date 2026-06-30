@@ -31,6 +31,17 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
+// Mock the admin dashboard components that make DB calls (Sprint 4 Tasks 5, 6, 8)
+vi.mock("@/components/admin/AlertsPanel", () => ({
+  AlertsPanel: () => null,
+}));
+vi.mock("@/components/admin/InfrastructureHealth", () => ({
+  InfrastructureHealth: () => null,
+}));
+vi.mock("@/components/admin/MatchingFunnel", () => ({
+  MatchingFunnel: () => null,
+}));
+
 // --- Helpers ---
 
 const ADMIN_SESSION = {

@@ -77,6 +77,23 @@ export const NEWSLETTER_SOURCES: NewsletterSource[] = [
     archiveUrl: "https://typescriptweekly.com/issues",
   },
   { name: "CSS Weekly", archiveUrl: "https://css-weekly.com/archives/" },
+  // Sprint 4 Task 3 expansion — additional developer newsletters.
+  // Each archive URL was verified to resolve and use the /issues/ or /archives/
+  // link pattern that extractIssueUrls matches.
+  { name: "Frontend Focus", archiveUrl: "https://frontendfoc.us/issues" },
+  { name: "Ruby Weekly", archiveUrl: "https://rubyweekly.com/issues" },
+  { name: "Go Weekly", archiveUrl: "https://golangweekly.com/issues" },
+  { name: "Postgres Weekly", archiveUrl: "https://postgresweekly.com/issues" },
+  { name: "iOS Dev Weekly", archiveUrl: "https://iosdevweekly.com/issues" },
+  // Sprint 4 validation expansion — additional ecosystem newsletters to reach
+  // the 10+ target from the handoff spec. Cooper Press newsletters share the
+  // same /issues HTML structure; others use /archives or /issues patterns.
+  { name: "Python Weekly", archiveUrl: "https://www.pythonweekly.com/archive" },
+  { name: "PyCoder's Weekly", archiveUrl: "https://pycoders.com/issues" },
+  { name: "DevOps Weekly", archiveUrl: "https://www.devopsweekly.com/archive" },
+  { name: "Kubernetes Weekly", archiveUrl: "https://www.cncf.io/kubeweekly" },
+  { name: "Android Weekly", archiveUrl: "https://androidweekly.net/issues" },
+  { name: "TLDR Newsletter", archiveUrl: "https://tldr.tech/tech/archive" },
 ];
 
 /** Default number of recent issues to crawl per newsletter. */

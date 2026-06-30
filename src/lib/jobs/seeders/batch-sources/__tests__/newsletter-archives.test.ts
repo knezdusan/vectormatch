@@ -38,6 +38,7 @@ import {
   classifyLinks,
   extractIssueUrls,
   extractLinksFromIssue,
+  NEWSLETTER_SOURCES,
   type NewsletterLink,
   runNewsletterArchiveSeeder,
 } from "@/lib/jobs/seeders/batch-sources/newsletter-archives";
@@ -453,5 +454,26 @@ describe("runNewsletterArchiveSeeder", () => {
 
     expect(result.issuesCrawled).toBe(0);
     expect(result.totalLinksExtracted).toBe(0);
+  });
+});
+
+// ── Newsletter source list sanity checks (Sprint 4 Task 3) ───────────────────
+
+describe("NEWSLETTER_SOURCES — source list", () => {
+  it("contains at least 10 newsletters (Sprint 4 expansion target)", () => {
+    expect(NEWSLETTER_SOURCES.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it("every source has a name and a non-empty archiveUrl", () => {
+    for (const source of NEWSLETTER_SOURCES) {
+      expect(source.name).toBeTruthy();
+      expect(source.archiveUrl).toBeTruthy();
+      expect(source.archiveUrl.startsWith("http")).toBe(true);
+    }
+  });
+
+  it("has unique names", () => {
+    const names = NEWSLETTER_SOURCES.map((s) => s.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });

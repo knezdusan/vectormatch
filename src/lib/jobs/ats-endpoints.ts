@@ -100,6 +100,12 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     apiHost: "api.smartrecruiters.com",
     jobsList: (slug) =>
       `https://api.smartrecruiters.com/v1/companies/${slug}/postings`,
+    // Tier 2 detail endpoint (Sprint 4 Task 7): returns the full PostingDetails
+    // object including jobAd.sections with the full job description.
+    // Used selectively for jobs where the list endpoint's Tier 1 pseudo-
+    // description is too short for a good embedding.
+    jobDetail: (slug, postingId) =>
+      `https://api.smartrecruiters.com/v1/companies/${slug}/postings/${postingId}`,
     hostedBoard: (slug) => `https://jobs.smartrecruiters.com/${slug}`,
   },
   workable: {

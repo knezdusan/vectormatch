@@ -3064,6 +3064,18 @@ export const batchSourceB1Workable = inngest.createFunction(
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
     }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
+    }
     const { runWorkableMetaSearch } = await import(
       "@/lib/jobs/seeders/batch-sources/workable-meta-search"
     );
@@ -3132,6 +3144,18 @@ export const batchSourceB2BraveSearch = inngest.createFunction(
     });
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
+    }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
     }
     const { runBraveSearchBatch } = await import(
       "@/lib/jobs/seeders/batch-sources/brave-search"
@@ -3221,6 +3245,18 @@ export const batchSourceB3YcDirectory = inngest.createFunction(
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
     }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
+    }
     const { runYcDirectorySeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/yc-directory"
     );
@@ -3288,6 +3324,18 @@ export const batchSourceB4VcPortfolios = inngest.createFunction(
     });
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
+    }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
     }
     const { runVcPortfolioSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/vc-portfolios"
@@ -3357,6 +3405,18 @@ export const batchSourceB5NewsletterArchives = inngest.createFunction(
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
     }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
+    }
     const { runNewsletterArchiveSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/newsletter-archives"
     );
@@ -3424,6 +3484,18 @@ export const batchSourceB7WaybackCdx = inngest.createFunction(
     });
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
+    }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
     }
     const { runWaybackCdxSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/wayback-cdx"
@@ -3588,6 +3660,18 @@ export const batchSourceB9CrossPollination = inngest.createFunction(
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
     }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
+    }
     const { runCrossPollinationSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/cross-pollination"
     );
@@ -3657,6 +3741,18 @@ export const batchSourceB10SitemapProbe = inngest.createFunction(
     if (!enabled) {
       return { skipped: true, reason: "circuit-breaker-open" };
     }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
+    }
     const { runSitemapProbeSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/sitemap-probe"
     );
@@ -3704,5 +3800,120 @@ export const batchSourceB10SitemapProbe = inngest.createFunction(
       });
       throw error;
     }
+  },
+);
+
+/**
+ * B8: crt.sh Certificate Transparency — direct slug extraction from historical
+ * TLS certificates. Restores the coverage lost when Rapid7 FDNS (commercial)
+ * was disabled. Free, no-auth, wildcard queries against CT logs.
+ * Sprint 4 Task 2.
+ */
+export const batchSourceB8CrtSh = inngest.createFunction(
+  {
+    id: "batch-source-crt-sh",
+    name: "Batch Source — crt.sh Certificate Transparency",
+    triggers: [{ event: "batch/crt-sh" }, { cron: "0 0 1 * *" }],
+  },
+  async ({ step }) => {
+    const sourceName = "batch-source-crt-sh";
+    const enabled = await step.run("check-health", async () => {
+      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
+      return isSourceEnabled(sourceName);
+    });
+    if (!enabled) {
+      return { skipped: true, reason: "circuit-breaker-open" };
+    }
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForRefresh } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForRefresh();
+    });
+    if (!storage.safe) {
+      console.warn(
+        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
+      );
+      return { skipped: true, reason: "storage-near-limit", ...storage };
+    }
+    const { runCrtShBatch } = await import(
+      "@/lib/jobs/seeders/batch-sources/crt-sh"
+    );
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    try {
+      const result = await step.run("fetch-and-process", async () => {
+        return runCrtShBatch(fetch);
+      });
+
+      await step.run("record-success", async () => {
+        const { recordSourceSuccess } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceSuccess(sourceName);
+      });
+
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "seed",
+          status: result.error ? "failed" : "success",
+          source: "crt_sh",
+          itemsProcessed: result.totalRows,
+          itemsInserted: result.insertResult.inserted,
+          itemsUpdated: 0,
+          itemsRejected: result.insertResult.rejected.length,
+          itemsSkipped: result.insertResult.skipped,
+          errorMessage: result.error,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+
+      return result;
+    } catch (error) {
+      await step.run("record-failure", async () => {
+        const { recordSourceFailure } = await import(
+          "@/lib/jobs/source-health"
+        );
+        return recordSourceFailure(sourceName, String(error));
+      });
+      throw error;
+    }
+  },
+);
+
+// ── Daily Health Check (Sprint 4 Task 8) ─────────────────────────────────────
+// Runs daily at 06:00 UTC to check storage and schema validation health,
+// creating/resolving alerts as needed. Non-fatal — failures are logged but
+// don't crash the function.
+export const dailyHealthCheck = inngest.createFunction(
+  {
+    id: "daily-health-check",
+    name: "Daily Health Check — Storage & Schema Validation Alerts",
+    triggers: [{ cron: "0 6 * * *" }],
+  },
+  async ({ step, logger }) => {
+    // Step 1: Check storage and create/resolve alerts
+    await step.run("check-storage-alerts", async () => {
+      const { checkStorageAlerts } = await import("@/lib/jobs/alerting");
+      await checkStorageAlerts();
+      return { checked: true };
+    });
+
+    // Step 2: Check schema validation failure rates
+    await step.run("check-schema-validation-alerts", async () => {
+      const { checkSchemaValidationAlerts } = await import(
+        "@/lib/jobs/alerting"
+      );
+      await checkSchemaValidationAlerts();
+      return { checked: true };
+    });
+
+    logger.info("Daily health check completed");
+    return { completed: true };
   },
 );

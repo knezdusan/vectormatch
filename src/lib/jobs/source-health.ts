@@ -75,6 +75,18 @@ export async function isSourceEnabled(sourceName: string): Promise<boolean> {
   if (!health) return true; // first run — no history, allow
   if (health.status === "disabled") return false;
   if (health.consecutiveFailures >= HARD_CIRCUIT_BREAKER_THRESHOLD) {
+    // Sprint 4 Task 8: Create a circuit breaker trip alert (deduplicated by
+    // hasActiveAlert — only one alert per source until resolved)
+    try {
+      const { createCircuitBreakerAlert } = await import("@/lib/jobs/alerting");
+      await createCircuitBreakerAlert(
+        sourceName,
+        health.consecutiveFailures,
+        health.lastError ?? "unknown error",
+      );
+    } catch {
+      // Non-fatal: alert creation failure should not block the circuit breaker
+    }
     return false;
   }
   return true;

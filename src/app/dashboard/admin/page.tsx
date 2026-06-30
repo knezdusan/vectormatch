@@ -1,5 +1,8 @@
 import { ArrowLeft, Users } from "lucide-react";
 import Link from "next/link";
+import { AlertsPanel } from "@/components/admin/AlertsPanel";
+import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
+import { MatchingFunnel } from "@/components/admin/MatchingFunnel";
 import {
   Card,
   CardContent,
@@ -22,6 +25,9 @@ export default async function AdminPage() {
         Back to Home
       </Link>
 
+      <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+
+      {/* Navigation cards for admin areas */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Link href="/dashboard/admin/users">
           <Card className="hover:bg-sidebar-accent/50 transition-colors h-full">
@@ -42,6 +48,15 @@ export default async function AdminPage() {
           </Card>
         </Link>
       </div>
+
+      {/* Sprint 4 Task 8: Active Alerts (only renders if there are alerts) */}
+      <AlertsPanel />
+
+      {/* Sprint 4 Task 5: Infrastructure Health */}
+      <InfrastructureHealth />
+
+      {/* Sprint 4 Task 6: Matching Funnel & Quality */}
+      <MatchingFunnel />
     </main>
   );
 }
