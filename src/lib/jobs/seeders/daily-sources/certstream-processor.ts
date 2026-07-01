@@ -187,7 +187,7 @@ export function deduplicateDomains(domains: string[]): string[] {
  * @param durationMs  How long to listen (milliseconds)
  * @returns           Array of collected CertStream messages
  */
-export async function defaultCollectFromCertStream(
+async function defaultCollectFromCertStream(
   durationMs: number,
 ): Promise<CertStreamMessage[]> {
   const messages: CertStreamMessage[] = [];

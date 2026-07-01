@@ -26,10 +26,10 @@ vi.mock("@/lib/jobs/seeders/slugger", () => ({
 
 import {
   deduplicateCompanyFeedPairs,
-  deduplicateCompanyNames,
   extractCompanyNamesFromRss,
   runWwrRssSeeder,
 } from "@/lib/jobs/seeders/daily-sources/weworkremotely-rss";
+import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
 

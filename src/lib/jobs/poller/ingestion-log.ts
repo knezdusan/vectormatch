@@ -14,6 +14,7 @@ import { ingestionLog } from "@/db/schemas/jobs/ingestionLog";
 export type IngestionLogType =
   | "seed"
   | "poll"
+  | "batch_poll"
   | "tier_recalc"
   | "stale_cleanup";
 

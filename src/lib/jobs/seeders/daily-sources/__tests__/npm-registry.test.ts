@@ -8,10 +8,10 @@ vi.mock("@/db/db", () => ({ db: { select: vi.fn(), insert: vi.fn() } }));
 vi.mock("@/lib/jobs/seeders/slugger", () => ({ resolveSlugger: vi.fn() }));
 
 import {
-  deduplicateOrgNames,
   extractOrgNamesFromPackages,
   runNpmRegistrySeeder,
 } from "@/lib/jobs/seeders/daily-sources/npm-registry";
+import { deduplicateOrgNames } from "@/lib/jobs/seeders/seeder-utils";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
 

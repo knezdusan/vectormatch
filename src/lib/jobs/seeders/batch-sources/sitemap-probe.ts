@@ -26,7 +26,10 @@ import * as cheerio from "cheerio";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { sluggerRetry } from "@/db/schemas/jobs/sluggerRetry";
-import type { AtsSource } from "@/lib/jobs/ats-endpoints";
+import {
+  extractSlugFromAtsUrl,
+  inferAtsSourceFromUrl,
+} from "@/lib/jobs/seeders/batch-sources/ats-url-utils";
 import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
 import type { SeedCompanyInput } from "@/lib/jobs/seeders/schemas";
 import type { FetchFn } from "@/lib/jobs/types";
@@ -38,16 +41,6 @@ const SITEMAP_PATHS = [
   "/sitemap.xml",
   "/jobs/sitemap.xml",
   "/careers/sitemap.xml",
-];
-
-/** ATS domain detection (same as other seeders). */
-const ATS_DOMAIN_MAP: { domain: string; source: AtsSource }[] = [
-  { domain: "boards.greenhouse.io", source: "greenhouse" },
-  { domain: "jobs.lever.co", source: "lever" },
-  { domain: "jobs.ashbyhq.com", source: "ashby" },
-  { domain: "jobs.smartrecruiters.com", source: "smartrecruiters" },
-  { domain: "apply.workable.com", source: "workable" },
-  { domain: "recruitee.com", source: "recruitee" },
 ];
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -90,57 +83,6 @@ export function normalizeWebsite(website: string): string | null {
     } catch {
       return null;
     }
-  }
-}
-
-// ── Pure function: infer ATS source from URL ─────────────────────────────────
-
-function inferAtsSourceFromUrl(url: string): AtsSource | null {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-    for (const { domain, source } of ATS_DOMAIN_MAP) {
-      if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-        return source;
-      }
-    }
-  } catch {
-    // Invalid URL
-  }
-  return null;
-}
-
-// ── Pure function: extract slug from ATS URL ─────────────────────────────────
-
-function extractSlugFromAtsUrl(
-  url: string,
-  atsSource: AtsSource,
-): string | null {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-
-    if (atsSource === "recruitee") {
-      const labels = hostname.split(".");
-      if (
-        labels.length >= 3 &&
-        labels[labels.length - 2] === "recruitee" &&
-        labels[labels.length - 1] === "com"
-      ) {
-        const slug = labels[0];
-        if (["www", "api", "blog"].includes(slug)) return null;
-        return slug;
-      }
-      return null;
-    }
-
-    const pathParts = parsed.pathname.split("/").filter((p) => p.length > 0);
-    if (pathParts.length === 0) return null;
-    const slug = pathParts[0];
-    if (["jobs", "api", "embed", "board"].includes(slug)) return null;
-    return slug;
-  } catch {
-    return null;
   }
 }
 
@@ -210,7 +152,7 @@ export function extractAtsCompanyInputs(
  * Query the slugger_retry table for companies with websites.
  * These are companies where the Slugger failed but we have a website to probe.
  */
-export async function getRetryCompanies(): Promise<RetryCompany[]> {
+async function getRetryCompanies(): Promise<RetryCompany[]> {
   const result = await db
     .select({
       companyName: sluggerRetry.companyName,

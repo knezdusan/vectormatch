@@ -260,7 +260,7 @@ export function cronToTier(cron: string): "active_hot" | "active" | "dormant" {
 }
 
 /** Batch size — companies per batchPollTier function run (G5 TDD §1.2). */
-export const BATCH_SIZE = 100;
+const BATCH_SIZE = 100;
 
 /**
  * Batch Poll Tier — polls N companies in a single Inngest function run.
@@ -277,21 +277,34 @@ export const BATCH_SIZE = 100;
  *   - weekly Mon 3am  → dormant     (dormant tier, companies with no recent activity)
  *
  * Flow:
- *   1. get-batch:     Query up to 100 companies for the tier, ordered by
- *                     lastPolledAt ASC NULLS FIRST (fairest scheduling).
- *   2. poll-batch:    Poll each company sequentially (phalanx-poller already
- *                     enforces 2 req/s per ATS via Bottleneck). Error isolation:
- *                     one company's failure doesn't stop the batch.
- *   3. normalize-N:   Normalize + embed new jobs in sub-batches of 50 (G6).
- *                     Each sub-batch is a separate step.run() for durability.
- *                     G7: writes normalizedText, NULLs rawJson for
- *                     normalized/rejected jobs. Keeps rawJson for
- *                     normalization_failed (retryable).
- *   4. gate-1-2-batch: Run Gate 1+2 SQL router for all new jobs (G6).
- *   5. gate-3-fanout:  Fan out Gate 3 events for surviving candidates (~6%).
+ *   1. get-batch:          Query up to 100 companies for the tier, ordered by
+ *                          lastPolledAt ASC NULLS FIRST (fairest scheduling).
+ *   2. poll-batch:         Poll each company sequentially (phalanx-poller already
+ *                          enforces 2 req/s per ATS via Bottleneck). Error isolation:
+ *                          one company's failure doesn't stop the batch.
+ *   3. find-unnormalized:  Query the DB for unnormalized jobs from the polled
+ *                          companies. This is a DB-based fallback that works
+ *                          even when the poll-batch step timed out and retried
+ *                          (on retry, pollCompany returns newJobIds: [] because
+ *                          the jobs already exist, but the DB query still finds
+ *                          them as unnormalized).
+ *   4. emit-job-ingested:  Emit `job/ingested` events for all unnormalized jobs.
+ *                          The `jobIngestedHandler` handles normalization +
+ *                          embedding + Gate 1+2 + Gate 3 fan-out. This provides:
+ *                          - Automatic retry via Inngest's built-in retry mechanism
+ *                          - Better observability (each job is a separate run)
+ *                          - Consistent normalization path (both manual and
+ *                            batch polls use the same handler)
+ *   5. write-log:          Write an ingestion_log entry for observability.
  *
- * Concurrency: limit 5 (Hobby plan max). Multiple batchPollTier instances can
- * run concurrently if triggered by different crons, but no more than 5 at once.
+ * Sprint 7 change: Previously, this function did inline normalization + Gate
+ * 1+2 + Gate 3 fan-out. This was fragile: if the `poll-batch` step timed out
+ * and retried, `allNewJobIds` was empty (jobs already in DB) → no normalization
+ * → jobs stuck as `active` + `normalized_at IS NULL` forever. The event-driven
+ * approach with a DB query is robust against this failure mode.
+ *
+ * Concurrency: limit 5. Multiple batchPollTier instances can run concurrently
+ * if triggered by different crons, but no more than 5 at once.
  *
  * TDD reference: CORPUS_EXPANSION_TDD §1.2 (replaces TDD §4.4 fan-out pattern)
  */
@@ -304,14 +317,16 @@ export const batchPollTier = inngest.createFunction(
       { cron: "0 */12 * * *" }, // every 12h — standard tier
       { cron: "0 3 * * 1" }, // weekly Monday 3am — dormant tier
     ],
-    concurrency: { limit: 5 }, // Hobby plan: 5 concurrent steps max
+    concurrency: { limit: 5 },
   },
   async ({ event, step }) => {
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
     // Determine tier from the cron string that triggered this run.
-    // Inngest v4 cron triggers expose the cron string at event.data.cron
-    // (event name is "inngest/scheduled.timer"). The type isn't included
-    // in the default Inngest client types, so we cast safely.
     const tier = cronToTier((event.data as { cron?: string }).cron ?? "");
+    const startedAt = new Date();
 
     // Step 1: Get batch of companies for this tier
     const companies = await step.run("get-batch", async () => {
@@ -322,7 +337,21 @@ export const batchPollTier = inngest.createFunction(
     });
 
     if (companies.length === 0) {
-      return { tier, polled: 0, newJobs: 0 };
+      await step.run("write-log-empty", async () => {
+        return writeIngestionLog({
+          type: "batch_poll",
+          status: "success",
+          source: `batch_poll_${tier}`,
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return { tier, polled: 0, newJobs: 0, eventsEmitted: 0 };
     }
 
     // Step 2: Poll all companies in this batch (sequential, rate-limited per ATS)
@@ -358,183 +387,96 @@ export const batchPollTier = inngest.createFunction(
       return results;
     });
 
-    // Collect all new job IDs across the batch (G6 — CORPUS_EXPANSION_TDD §1.3)
+    // Collect new job IDs from the poll (for metrics). This may be empty if
+    // the poll-batch step timed out and retried (jobs already in DB).
     const allNewJobIds = pollResults.flatMap((r) => r.newJobIds);
+    const errorCount = pollResults.filter((r) => r.error).length;
 
-    if (allNewJobIds.length === 0) {
-      return {
-        tier,
-        polled: companies.length,
-        newJobs: 0,
-        errors: pollResults.filter((r) => r.error).length,
-      };
-    }
-
-    // ── G6 Step 3: Normalize + embed new jobs in sub-batches of 50 ──────────
-    // Each sub-batch is a separate step.run() for durability. Sub-batch sizing:
-    // 50 jobs × ~460ms avg (regex + embedding + 10% LLM fallback) = ~23s per
-    // step, well within Inngest's 300s limit.
-    const SUB_BATCH = 50;
-    const normalizeStepCount = Math.ceil(allNewJobIds.length / SUB_BATCH);
-
-    for (let i = 0; i < allNewJobIds.length; i += SUB_BATCH) {
-      const chunk = allNewJobIds.slice(i, i + SUB_BATCH);
-      const stepName = `normalize-${Math.floor(i / SUB_BATCH) + 1}`;
-
-      await step.run(stepName, async () => {
-        const { normalizeJob } = await import("@/lib/jobs/job-normalizer");
-        const { embedJob } = await import("@/lib/jobs/job-embedder");
-        const { db } = await import("@/db/db");
-        const { job } = await import("@/db/schemas/jobs/job");
-        const { eq, inArray } = await import("drizzle-orm");
-
-        // Fetch job rows for this chunk
-        const jobs = await db
-          .select({
-            id: job.id,
-            atsSource: job.atsSource,
-            title: job.title,
-            rawJson: job.rawJson,
-          })
-          .from(job)
-          .where(inArray(job.id, chunk));
-
-        for (const j of jobs) {
-          try {
-            const normalization = await normalizeJob(
-              j.atsSource,
-              j.rawJson,
-              j.title,
-            );
-            let embedding: number[] | null = null;
-            if (normalization.status === "normalized") {
-              embedding = await embedJob(normalization.fullText);
-            }
-
-            // Write results + prune rawJson (G7). Note: normalizedAt is set
-            // ONLY on terminal outcomes (normalized or rejected), NEVER on
-            // normalization_failed (must remain retryable — §4.6). rawJson is
-            // kept for normalization_failed (needed for retry).
-            if (normalization.status === "normalized") {
-              await db
-                .update(job)
-                .set({
-                  extractedTags: normalization.tags,
-                  jobEmbedding: embedding,
-                  normalizedText: normalization.fullText,
-                  rawJson: null, // G7: reclaim storage
-                  normalizedAt: new Date(),
-                  // status stays 'active'
-                })
-                .where(eq(job.id, j.id));
-            } else if (normalization.status === "rejected") {
-              await db
-                .update(job)
-                .set({
-                  status: "rejected",
-                  extractedTags: normalization.tags,
-                  normalizedText: normalization.fullText,
-                  rawJson: null, // G7: reclaim storage from garbage jobs
-                  normalizedAt: new Date(),
-                })
-                .where(eq(job.id, j.id));
-            } else {
-              // normalization_failed — NO normalizedAt, KEEP rawJson (retryable)
-              await db
-                .update(job)
-                .set({
-                  status: "normalization_failed",
-                  extractedTags: normalization.tags,
-                })
-                .where(eq(job.id, j.id));
-            }
-          } catch {
-            // System failure (DB error, unexpected exception) — mark as
-            // normalization_failed without touching rawJson (retryable).
-            await db
-              .update(job)
-              .set({ status: "normalization_failed" })
-              .where(eq(job.id, j.id));
-          }
-        }
-        return { processed: jobs.length };
-      });
-    }
-
-    // ── G6 Step 4: Gate 1+2 for all new jobs in batch ───────────────────────
-    const candidates = await step.run("gate-1-2-batch", async () => {
-      const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
+    // Step 3: Find unnormalized jobs from the polled companies via DB query.
+    // This is the robust fallback: even if allNewJobIds is empty (retry case),
+    // the DB query finds jobs that were inserted but never normalized.
+    // We query by the polled companies' atsSource + atsSlug values.
+    const unnormalizedJobs = await step.run("find-unnormalized", async () => {
+      const { sql, inArray } = await import("drizzle-orm");
       const { db } = await import("@/db/db");
       const { job } = await import("@/db/schemas/jobs/job");
-      const { eq } = await import("drizzle-orm");
 
-      // Run Gate 1+2 for each new job. Only 'active' jobs with embeddings
-      // pass through (rejected/normalization_failed are skipped).
-      const allCandidates: Array<{
-        matchQueueId: string;
-        jobId: string;
-        personaId: string;
-        applicantId: string;
-      }> = [];
+      const polledSlugs = companies.map((c) => c.atsSlug);
+      const polledSources = [...new Set(companies.map((c) => c.atsSource))];
 
-      for (const jobId of allNewJobIds) {
-        const j = await db
-          .select({
-            extractedTags: job.extractedTags,
-            jobEmbedding: job.jobEmbedding,
-            status: job.status,
-          })
-          .from(job)
-          .where(eq(job.id, jobId))
-          .limit(1);
+      // Query unnormalized jobs from the polled companies. A job needs
+      // normalization if:
+      //   - status = 'active' AND normalizedAt IS NULL (never normalized)
+      //   - OR status = 'normalization_failed' (retryable failure)
+      // AND rawJson IS NOT NULL (the normalizer needs it to extract content).
+      // The inArray filters on atsSource and atsSlug are parameterized (safe
+      // from injection). They may match a few cross-source slug collisions,
+      // but the jobIngestedHandler idempotency guard makes this harmless.
+      // Limit to 500 per run to avoid overwhelming the jobIngestedHandler.
+      const result = await db
+        .select({
+          id: job.id,
+          atsSource: job.atsSource,
+          atsSlug: job.atsSlug,
+        })
+        .from(job)
+        .where(
+          sql`(${job.status} = 'normalization_failed'
+               OR (${job.status} = 'active' AND ${job.normalizedAt} IS NULL))
+              AND ${job.rawJson} IS NOT NULL
+              AND ${inArray(job.atsSource, polledSources)}
+              AND ${inArray(job.atsSlug, polledSlugs)}`,
+        )
+        .orderBy(job.detectedAt)
+        .limit(500);
 
-        // Skip jobs that aren't active or don't have an embedding
-        if (j[0]?.status !== "active" || !j[0].jobEmbedding) continue;
-
-        const cands = await runGateSQLRouter(
-          jobId,
-          j[0].extractedTags,
-          j[0].jobEmbedding,
-        );
-        // Augment with jobId (GateRouterCandidate doesn't include it)
-        for (const c of cands) {
-          allCandidates.push({
-            matchQueueId: c.matchQueueId,
-            jobId,
-            personaId: c.personaId,
-            applicantId: c.applicantId,
-          });
-        }
-      }
-      return allCandidates;
+      return result;
     });
 
-    // ── G6 Step 5: Fan out Gate 3 evaluations (small numbers, ~6% of jobs) ──
-    // Gate 3 remains fan-out per TDD §1.3 — only ~20 candidates/day reach
-    // Gate 3, so fan-out is ~100 executions/day = 3K/month (negligible).
-    if (candidates.length > 0) {
+    // Step 4: Emit job/ingested events for all unnormalized jobs.
+    // The jobIngestedHandler handles normalization + embedding + Gate 1+2 +
+    // Gate 3 fan-out. Its idempotency guard (§4.6) ensures already-normalized
+    // jobs are skipped, so duplicate events are safe.
+    if (unnormalizedJobs.length > 0) {
       await step.sendEvent(
-        "gate-3-fanout",
-        candidates.map((c) => ({
-          id: `gate-3-${c.matchQueueId}`,
-          name: "match/gate-3-evaluate",
+        "emit-job-ingested",
+        unnormalizedJobs.map((j) => ({
+          id: `job-ingested-batch-${j.id}-${Date.now()}`,
+          name: "job/ingested",
           data: {
-            matchQueueId: c.matchQueueId,
-            jobId: c.jobId,
-            personaId: c.personaId,
-            applicantId: c.applicantId,
+            jobId: j.id,
+            atsSource: j.atsSource,
+            atsSlug: j.atsSlug,
+            isNew: false,
           },
         })),
       );
     }
 
+    // Step 5: Write ingestion log for observability.
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "batch_poll",
+        status: errorCount > 0 ? "partial" : "success",
+        source: `batch_poll_${tier}`,
+        itemsProcessed: companies.length,
+        itemsInserted: allNewJobIds.length,
+        itemsUpdated: 0,
+        itemsRejected: errorCount,
+        itemsSkipped:
+          companies.length -
+          pollResults.filter((r) => r.newJobIds.length > 0).length,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
     return {
       tier,
       polled: companies.length,
       newJobs: allNewJobIds.length,
-      normalized: normalizeStepCount,
-      gateCandidates: candidates.length,
-      errors: pollResults.filter((r) => r.error).length,
+      eventsEmitted: unnormalizedJobs.length,
+      errors: errorCount,
     };
   },
 );
@@ -1081,23 +1023,37 @@ export const companyRevivalSweep = inngest.createFunction(
 );
 
 /**
- * Normalization Retry Sweep — re-processes jobs with normalization_failed status.
+ * Normalization Retry Sweep — re-processes stuck jobs (normalization_failed OR
+ * active-but-never-normalized).
  *
  * Triggers: cron "0 6 * * *" (daily at 06:00 UTC)
  *
- * Jobs with `status = "normalization_failed"` have no `normalizedAt` (by design
- * — they're retryable). The `jobIngestedHandler` idempotency guard will re-process
- * them if a `job/ingested` event fires again. But there's no scheduled function
- * that re-emits `job/ingested` events for failed jobs — they're stuck forever.
+ * Two categories of stuck jobs are re-processed:
  *
- * This function selects up to 50 `normalization_failed` jobs per run and re-emits
- * `job/ingested` events for them. The `jobIngestedHandler` will re-normalize and
- * re-embed them. If the failure was transient (OpenAI timeout), the retry will
- * succeed. If the failure is persistent (malformed job data), the job will fail
- * again and be retried the next day.
+ * 1. `status = "normalization_failed"` — jobs where the normalizer or LLM
+ *    fallback threw an error (OpenAI timeout, rate limit, malformed data).
+ *    These have no `normalizedAt` (by design — they're retryable).
+ *
+ * 2. `status = "active" AND normalizedAt IS NULL` — jobs that were detected
+ *    and inserted but NEVER entered the normalization loop. This happens when
+ *    `batchPollTier`'s `poll-batch` step times out and retries: on retry,
+ *    `upsertJobs` finds the jobs already exist → `newJobIds = []` → the
+ *    function returns early without normalizing. These jobs remain `active`
+ *    with `normalizedAt IS NULL` indefinitely without this sweep.
+ *
+ * Both categories are re-emitted as `job/ingested` events. The
+ * `jobIngestedHandler` idempotency guard (§4.6) ensures safe re-processing:
+ *   - `normalization_failed` → re-normalizes (retry)
+ *   - `active` + `normalizedAt IS NULL` → normalizes for the first time
+ *   - Already-normalized jobs → skipped (normalizedAt IS NOT NULL)
+ *
+ * Limit: 200 jobs per run (increased from 50 to handle backlog of stuck jobs).
+ * At ~2s per job (LLM fallback + embedding), 200 jobs = ~400s, within the
+ * Inngest step timeout. The `jobIngestedHandler` concurrency cap (10) limits
+ * parallel OpenAI calls.
  *
  * TDD reference: §4.6 (Idempotency Decision Tree) — leverages the retryable
- * nature of normalization_failed jobs.
+ * nature of normalization_failed and unnormalized jobs.
  */
 export const normalizationRetrySweep = inngest.createFunction(
   {
@@ -1115,11 +1071,16 @@ export const normalizationRetrySweep = inngest.createFunction(
 
     const startedAt = new Date();
 
-    const failedJobs = await step.run("get-failed-jobs", async () => {
-      // Select up to 50 normalization_failed jobs, prioritizing the oldest
-      // ones (they've been waiting the longest). The normalizedAt IS NULL
-      // check is technically redundant (normalization_failed implies no
-      // normalizedAt) but is explicit for safety.
+    const stuckJobs = await step.run("get-stuck-jobs", async () => {
+      // Select up to 200 jobs that need (re-)normalization, prioritizing the
+      // oldest ones (they've been waiting the longest). Two categories:
+      //   1. normalization_failed (retryable — LLM/transient error)
+      //   2. active + normalizedAt IS NULL (never normalized — batchPollTier
+      //      poll-batch step timeout/retry left them unprocessed)
+      // Both must have rawJson IS NOT NULL — the normalizer needs it to
+      // extract content. Jobs with rawJson = NULL have already been
+      // normalized (G7 prunes rawJson after normalization) and should have
+      // normalizedAt set, so this filter is a safety net.
       const result = await db
         .select({
           id: job.id,
@@ -1128,18 +1089,18 @@ export const normalizationRetrySweep = inngest.createFunction(
         })
         .from(job)
         .where(
-          sql`${job.status} = 'normalization_failed' AND ${job.normalizedAt} IS NULL`,
+          sql`(${job.status} = 'normalization_failed' OR (${job.status} = 'active' AND ${job.normalizedAt} IS NULL)) AND ${job.rawJson} IS NOT NULL`,
         )
         .orderBy(job.detectedAt)
-        .limit(50);
+        .limit(200);
 
       return result;
     });
 
-    if (failedJobs.length > 0) {
+    if (stuckJobs.length > 0) {
       await step.sendEvent(
         "retry-normalization",
-        failedJobs.map((j) => ({
+        stuckJobs.map((j) => ({
           id: `job-ingested-retry-${j.id}-${Date.now()}`,
           name: "job/ingested",
           data: {
@@ -1157,7 +1118,7 @@ export const normalizationRetrySweep = inngest.createFunction(
         type: "tier_recalc",
         status: "success",
         source: "normalization_retry",
-        itemsProcessed: failedJobs.length,
+        itemsProcessed: stuckJobs.length,
         itemsInserted: 0,
         itemsUpdated: 0,
         itemsRejected: 0,
@@ -1167,7 +1128,7 @@ export const normalizationRetrySweep = inngest.createFunction(
       });
     });
 
-    return { retried: failedJobs.length };
+    return { retried: stuckJobs.length };
   },
 );
 
@@ -1199,10 +1160,11 @@ export const jobIngestedHandler = inngest.createFunction(
     id: "job-ingested-handler",
     name: "Job Ingested — Trigger 3-Gate Funnel",
     triggers: [{ event: "job/ingested" }],
-    // §4.5 — concurrency 5 prevents OpenAI rate limit exhaustion under
-    // Module B's poller fan-out. Originally 15, lowered to 5 to match the
-    // Inngest free plan concurrency cap.
-    concurrency: { limit: 5 },
+    // §4.5 — concurrency 10 balances throughput against Neon pooler
+    // headroom (max: 20). Originally 15, lowered to 5 under the Inngest
+    // free plan concurrency cap; raised to 10 after Sprint 5 self-hosting
+    // migration removed the Cloud concurrency limit.
+    concurrency: { limit: 10 },
   },
   async ({ event, step }) => {
     const { jobId } = event.data;
@@ -1322,6 +1284,14 @@ export const jobIngestedHandler = inngest.createFunction(
         // G7: do NOT null rawJson here — the retry sweep needs it to
         // re-extract content. Storage is reclaimed when the retry succeeds
         // (normalized) or the job is finally rejected.
+        // Sprint 7: Log the error for observability — the previous code
+        // silently swallowed normalization errors, making it impossible to
+        // diagnose why jobs were failing (e.g. OpenAI API key not set,
+        // rate limiting, malformed SmartRecruiters detail data).
+        console.error(
+          `[jobIngestedHandler] Normalization failed for job ${jobId} (atsSource=${decision.job.atsSource}):`,
+          normalization.error ?? "unknown error",
+        );
         await db
           .update(job)
           .set({
@@ -1365,7 +1335,7 @@ export const jobIngestedHandler = inngest.createFunction(
     // ── Step 6: Fan out match/gate-3-evaluate events (§3.1) ───────────────
     // One event per candidate → one gate3Evaluator function instance per
     // candidate (maximum parallelism, maximum failure isolation).
-    // Inngest's per-function concurrency cap (15) naturally limits
+    // Inngest's per-function concurrency cap (10) naturally limits
     // simultaneous LLM calls.
     if (candidates.length > 0) {
       await step.sendEvent(
@@ -1422,13 +1392,15 @@ export const gate3Evaluator = inngest.createFunction(
     id: "match-gate-3-evaluator",
     name: "Gate 3 — LLM Candidate Evaluation",
     triggers: [{ event: "match/gate-3-evaluate" }],
-    // §6.1 — concurrency 5 prevents Neon pooler exhaustion under fan-out.
-    // Originally 15, lowered to 5 to match the Inngest free plan concurrency
-    // cap. At 5 concurrent evaluations, each holding a DB connection for
+    // §6.1 — concurrency 10 balances OpenAI 500 RPM (~8 concurrent
+    // evaluations) against Neon pooler headroom (max: 20). Originally 15,
+    // lowered to 5 under the Inngest free plan concurrency cap; raised to
+    // 10 after Sprint 5 self-hosting migration removed the Cloud concurrency
+    // limit. At 10 concurrent evaluations, each holding a DB connection for
     // ~100ms (read) + ~100ms (write) around a ~3-5s LLM call, the pooler
-    // sees ~10 short-lived acquisitions per second — well within PgBouncer's
+    // sees ~20 short-lived acquisitions per second — within PgBouncer's
     // budget.
-    concurrency: { limit: 5 },
+    concurrency: { limit: 10 },
   },
   async ({ event, step }) => {
     const { matchQueueId, jobId, personaId, applicantId } = event.data;
@@ -3915,5 +3887,93 @@ export const dailyHealthCheck = inngest.createFunction(
 
     logger.info("Daily health check completed");
     return { completed: true };
+  },
+);
+
+// ── Pipeline Health Monitor (Sprint 7 Task 6) ────────────────────────────────
+// Runs every 30 minutes to check critical pipeline parameters and create alerts
+// when thresholds are breached. This is the monitoring guardrail that prevents
+// the silent pipeline failures that caused the Sprint 7 stagnation (2,006 jobs
+// detected but 0 normalized for 32+ hours).
+//
+// Metrics checked:
+//   1. Unnormalized jobs (>1h old, active, normalized_at IS NULL)
+//   2. Unembedded jobs (normalized but no embedding)
+//   3. Stale poller (no companies polled in 4h)
+//   4. Match generation rate (matches in last 24h)
+//   5. Source health coverage (source_health table rows)
+//   6. DB storage usage
+//   7. Pending matches backlog (>30min old)
+//   8. Normalization failed jobs (retryable)
+//
+// Alerts are deduplicated by hasActiveAlert — only one active pipeline_health
+// alert exists at a time. When all metrics return to healthy ranges, the
+// existing alert is auto-resolved.
+export const pipelineHealthMonitor = inngest.createFunction(
+  {
+    id: "pipeline-health-monitor",
+    name: "Pipeline Health Monitor",
+    triggers: [{ cron: "*/30 * * * *" }], // every 30 min
+  },
+  async ({ step, logger }) => {
+    // Step 1: Collect all pipeline health metrics
+    const metrics = await step.run("collect-metrics", async () => {
+      const { getPipelineHealthMetrics } = await import(
+        "@/lib/jobs/pipeline-health"
+      );
+      return getPipelineHealthMetrics();
+    });
+
+    // Step 2: Evaluate thresholds
+    const alerts = await step.run("evaluate-alerts", async () => {
+      const { evaluateAlerts } = await import("@/lib/jobs/pipeline-health");
+      return evaluateAlerts(metrics);
+    });
+
+    // Step 3: Create or resolve alerts
+    await step.run("manage-alerts", async () => {
+      const { createAlert, hasActiveAlert, resolveAlertsByType } = await import(
+        "@/lib/jobs/alerting"
+      );
+
+      if (alerts.length > 0) {
+        // Only create one pipeline_health alert (deduplicated)
+        if (!(await hasActiveAlert("pipeline_health"))) {
+          await createAlert({
+            type: "pipeline_health",
+            severity: "warning",
+            message: alerts.join(" | "),
+            details: JSON.stringify(metrics),
+          });
+          logger.info(
+            `Pipeline health alert created: ${alerts.length} issues detected`,
+          );
+        } else {
+          // Update the existing alert's message by resolving and recreating
+          await resolveAlertsByType("pipeline_health");
+          await createAlert({
+            type: "pipeline_health",
+            severity: "warning",
+            message: alerts.join(" | "),
+            details: JSON.stringify(metrics),
+          });
+        }
+      } else {
+        // All metrics healthy — resolve any existing pipeline_health alert
+        const resolved = await resolveAlertsByType("pipeline_health");
+        if (resolved > 0) {
+          logger.info("Pipeline health recovered — alert resolved");
+        }
+      }
+      return { alertsCreated: alerts.length > 0 ? 1 : 0, alertsResolved: 0 };
+    });
+
+    logger.info("Pipeline health monitor completed", { metrics, alerts });
+
+    return {
+      timestamp: new Date().toISOString(),
+      ...metrics,
+      alerts,
+    };
   },
 );

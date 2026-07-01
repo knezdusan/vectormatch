@@ -193,7 +193,7 @@ export const seniorityLevelsEnum = z.enum([
  * Used by validateAdjacentSeniority to check that selected levels are
  * consecutive (no gaps) and at most 3.
  */
-export const SENIORITY_ORDER: readonly SeniorityLevel[] = [
+const SENIORITY_ORDER: readonly SeniorityLevel[] = [
   "junior",
   "mid",
   "senior",

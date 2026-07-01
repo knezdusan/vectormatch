@@ -36,13 +36,11 @@ export const updatePreferencesSchema = z.object({
     .min(1, "At least 1 seniority level is required"),
 });
 
-export type UpdatePreferencesInput = z.input<typeof updatePreferencesSchema>;
-
 // =============================================================================
 // Work history CRUD
 // =============================================================================
 
-export const workHistoryEntrySchema = z.object({
+const workHistoryEntrySchema = z.object({
   id: z.string().uuid().optional(), // omitted for new entries
   company: z.string().min(1, "Company is required"),
   role: z.string().min(1, "Role is required"),
@@ -65,11 +63,6 @@ export const workHistoryEntrySchema = z.object({
 export const updateWorkHistoryPayloadSchema = z.object({
   entries: z.array(workHistoryEntrySchema),
 });
-
-export type WorkHistoryEntryInput = z.input<typeof workHistoryEntrySchema>;
-export type UpdateWorkHistoryInput = z.input<
-  typeof updateWorkHistoryPayloadSchema
->;
 
 // =============================================================================
 // Persona CRUD
@@ -113,7 +106,6 @@ export const updatePersonasPayloadSchema = z
   );
 
 export type PersonaInput = z.input<typeof personaSchema>;
-export type UpdatePersonasInput = z.input<typeof updatePersonasPayloadSchema>;
 
 // =============================================================================
 // CV re-parse
@@ -122,5 +114,3 @@ export type UpdatePersonasInput = z.input<typeof updatePersonasPayloadSchema>;
 export const reparseCvSchema = z.object({
   cvUploadId: z.string().uuid("Invalid CV upload ID"),
 });
-
-export type ReparseCvInput = z.input<typeof reparseCvSchema>;

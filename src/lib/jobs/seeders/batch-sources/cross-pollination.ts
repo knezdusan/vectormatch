@@ -69,7 +69,7 @@ export function filterNewCompanyNames(
  * Query the job table for distinct company names.
  * Returns an array of company name strings.
  */
-export async function getDistinctCompanyNames(): Promise<string[]> {
+async function getDistinctCompanyNames(): Promise<string[]> {
   const result = await db.execute(
     sql`SELECT DISTINCT company_name FROM job WHERE company_name IS NOT NULL AND company_name != ''`,
   );
@@ -84,7 +84,7 @@ export async function getDistinctCompanyNames(): Promise<string[]> {
  * Query the company table for all existing canonical names.
  * Returns a Set of lowercase names for fast lookup.
  */
-export async function getExistingCompanyNames(): Promise<Set<string>> {
+async function getExistingCompanyNames(): Promise<Set<string>> {
   const result = await db.select({ name: company.canonicalName }).from(company);
 
   return new Set(

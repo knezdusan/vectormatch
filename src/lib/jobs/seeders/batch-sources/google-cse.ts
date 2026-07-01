@@ -1,7 +1,7 @@
 // DEPRECATED: Google CSE API discontinued for new customers (June 2026).
 // Replaced by brave-search.ts. This file is retained because brave-search.ts
 // reuses the pure extraction functions (extractCompaniesFromResults,
-// extractSlugFromUrl, inferAtsSource) defined here. Do NOT register any
+// extractSlugFromAtsUrl, inferAtsSource) defined here. Do NOT register any
 // Inngest functions from this file — use brave-search.ts instead.
 //
 // B2/D1: Google CSE Seeder — Batch + Daily (TDD §2.1, §2.2)
@@ -33,11 +33,21 @@
 // See TDD §2.1 (B2) and §2.2 (D1) for the full specification.
 
 import { z } from "zod";
-import type { AtsSource } from "@/lib/jobs/ats-endpoints";
+import {
+  ATS_DOMAIN_MAP,
+  extractSlugFromAtsUrl as extractSlugFromUrl,
+  inferAtsSourceFromUrl,
+} from "@/lib/jobs/seeders/batch-sources/ats-url-utils";
 import type { InsertResult } from "@/lib/jobs/seeders/company-repository";
 import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
 import type { SeedCompanyInput } from "@/lib/jobs/seeders/schemas";
 import type { FetchFn } from "@/lib/jobs/types";
+
+// Re-export for callers that import these from google-cse (e.g. brave-search.ts)
+export {
+  extractSlugFromAtsUrl as extractSlugFromUrl,
+  inferAtsSourceFromUrl,
+} from "@/lib/jobs/seeders/batch-sources/ats-url-utils";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -50,14 +60,7 @@ const RESULTS_PER_QUERY = 10;
  * ATS domains to search, mapped to their ATS source.
  * These are the `site:` targets for Google CSE queries.
  */
-const ATS_SEARCH_DOMAINS: { domain: string; source: AtsSource }[] = [
-  { domain: "boards.greenhouse.io", source: "greenhouse" },
-  { domain: "jobs.lever.co", source: "lever" },
-  { domain: "jobs.ashbyhq.com", source: "ashby" },
-  { domain: "jobs.smartrecruiters.com", source: "smartrecruiters" },
-  { domain: "apply.workable.com", source: "workable" },
-  { domain: "recruitee.com", source: "recruitee" },
-];
+const ATS_SEARCH_DOMAINS = ATS_DOMAIN_MAP;
 
 // ── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -85,7 +88,7 @@ const cseSearchResponseSchema = z.object({
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type CseSearchResponse = z.infer<typeof cseSearchResponseSchema>;
+type CseSearchResponse = z.infer<typeof cseSearchResponseSchema>;
 
 export interface GoogleCseResult {
   /** Total search results found across all queries. */
@@ -103,82 +106,6 @@ export interface GoogleCseResult {
 export interface GoogleCseConfig {
   apiKey: string;
   cseId: string;
-}
-
-// ── Pure function: extract slug from URL ─────────────────────────────────────
-
-/**
- * Extract the ATS slug from a search result URL.
- *
- * For most ATS platforms, the slug is the first path segment:
- *   boards.greenhouse.io/acme/jobs/123 → "acme"
- *   jobs.lever.co/acme/abc-123         → "acme"
- *   jobs.ashbyhq.com/acme/abc-123      → "acme"
- *   jobs.smartrecruiters.com/acme/...  → "acme"
- *   apply.workable.com/acme/j/ABC123   → "acme"
- *
- * For Recruitee, the slug is the subdomain:
- *   acme.recruitee.com/o/devops        → "acme"
- *
- * @returns  The slug string, or null if it can't be extracted.
- */
-export function extractSlugFromUrl(
-  url: string,
-  atsSource: AtsSource,
-): string | null {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-
-    // Recruitee: slug is the subdomain (e.g. acme.recruitee.com)
-    if (atsSource === "recruitee") {
-      const labels = hostname.split(".");
-      // Expect: {slug}.recruitee.com
-      if (
-        labels.length >= 3 &&
-        labels[labels.length - 2] === "recruitee" &&
-        labels[labels.length - 1] === "com"
-      ) {
-        const slug = labels[0];
-        // Reject common non-slug subdomains
-        if (["www", "api", "blog"].includes(slug)) return null;
-        return slug;
-      }
-      return null;
-    }
-
-    // All other ATS: slug is the first path segment
-    const pathParts = parsed.pathname.split("/").filter((p) => p.length > 0);
-    if (pathParts.length === 0) return null;
-
-    const slug = pathParts[0];
-    // Reject common non-slug path segments
-    if (["jobs", "api", "embed", "board"].includes(slug)) return null;
-    return slug;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Determine the ATS source from a search result URL's hostname.
- *
- * @returns  The AtsSource, or null if the hostname doesn't match any ATS.
- */
-export function inferAtsSourceFromUrl(url: string): AtsSource | null {
-  try {
-    const parsed = new URL(url);
-    const hostname = parsed.hostname.toLowerCase();
-
-    for (const { domain, source } of ATS_SEARCH_DOMAINS) {
-      if (hostname === domain || hostname.endsWith(`.${domain}`)) {
-        return source;
-      }
-    }
-  } catch {
-    // Invalid URL
-  }
-  return null;
 }
 
 // ── Pure function: extract company inputs from search results ────────────────

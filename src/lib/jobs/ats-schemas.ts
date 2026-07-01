@@ -249,14 +249,14 @@ export const smartRecruitersJobsResponseSchema = z
 // Used selectively for jobs where the list endpoint's Tier 1 pseudo-description
 // is too short for a good embedding.
 
-export const smartRecruitersJobAdSectionSchema = z
+const smartRecruitersJobAdSectionSchema = z
   .object({
     title: z.string().optional(),
     text: z.string().optional(),
   })
   .passthrough();
 
-export const smartRecruitersJobAdSchema = z
+const smartRecruitersJobAdSchema = z
   .object({
     sections: z
       .record(z.string(), smartRecruitersJobAdSectionSchema)
@@ -416,10 +416,4 @@ export type LeverJobsResponse = z.infer<typeof leverJobsResponseSchema>;
 export type AshbyJob = z.infer<typeof ashbyJobSchema>;
 export type AshbyJobsResponse = z.infer<typeof ashbyJobsResponseSchema>;
 export type SmartRecruitersJob = z.infer<typeof smartRecruitersJobSchema>;
-export type SmartRecruitersJobsResponse = z.infer<
-  typeof smartRecruitersJobsResponseSchema
->;
 export type WorkableJob = z.infer<typeof workableJobSchema>;
-export type WorkableJobsResponse = z.infer<typeof workableJobsResponseSchema>;
-export type RecruiteeJob = z.infer<typeof recruiteeJobSchema>;
-export type RecruiteeJobsResponse = z.infer<typeof recruiteeJobsResponseSchema>;

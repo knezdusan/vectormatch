@@ -30,10 +30,10 @@ vi.mock("@/lib/jobs/seeders/slugger", () => ({
 }));
 
 import {
-  deduplicateOrgNames,
   extractOrgNamesFromHtml,
   runGithubTrendingSeeder,
 } from "@/lib/jobs/seeders/daily-sources/github-trending";
+import { deduplicateOrgNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";

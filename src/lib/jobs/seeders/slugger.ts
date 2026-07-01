@@ -258,7 +258,7 @@ export async function addToRetryQueue(input: SluggerInput): Promise<void> {
  *
  * @returns  The company UUID if inserted, or null if it was a duplicate.
  */
-export async function insertResolvedCompany(
+async function insertResolvedCompany(
   input: SluggerInput,
   result: { atsSource: AtsSource; atsSlug: string; canonicalName: string },
   initialTier: CompanyTier,

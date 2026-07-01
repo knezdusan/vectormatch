@@ -9,7 +9,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the db module. `select().from().where()` chains return a Promise of an
-// array; `update().set().where()` returns a Promise of a result object.
+// array; `update().set().where()` returns a Promise of a result object;
+// `insert().values().onConflictDoUpdate()` returns a Promise of a result object.
 // We share a single chain instance per operation type so that nested calls
 // (e.g. isSourceEnabled → getSourceHealth → db.select()) use the same chain.
 const selectChain = {
@@ -20,11 +21,16 @@ const updateChain = {
   set: vi.fn().mockReturnThis(),
   where: vi.fn().mockResolvedValue({ rowCount: 1 }),
 };
+const insertChain = {
+  values: vi.fn().mockReturnThis(),
+  onConflictDoUpdate: vi.fn().mockResolvedValue({ rowCount: 1 }),
+};
 
 vi.mock("@/db/db", () => ({
   db: {
     select: vi.fn(() => selectChain),
     update: vi.fn(() => updateChain),
+    insert: vi.fn(() => insertChain),
   },
 }));
 
@@ -46,6 +52,21 @@ function setHealthRow(row: Record<string, unknown> | null) {
 /** Helper: get the set() args from the most recent db.update() call. */
 function lastUpdateSetArgs(): Record<string, unknown> {
   return updateChain.set.mock.calls[0]?.[0] ?? {};
+}
+
+/** Helper: get the values() args from the most recent db.insert() call. */
+function lastInsertValuesArgs(): Record<string, unknown> {
+  return insertChain.values.mock.calls[0]?.[0] ?? {};
+}
+
+/** Helper: get the onConflictDoUpdate() args from the most recent db.insert() call. */
+function lastUpsertArgs(): { target: unknown; set: Record<string, unknown> } {
+  return (
+    insertChain.onConflictDoUpdate.mock.calls[0]?.[0] ?? {
+      target: null,
+      set: {},
+    }
+  );
 }
 
 describe("Source Health — Circuit Breakers", () => {
@@ -134,44 +155,76 @@ describe("Source Health — Circuit Breakers", () => {
 
   // ── recordSourceSuccess ───────────────────────────────────────────────────
   describe("recordSourceSuccess", () => {
-    it("issues an UPDATE that resets consecutiveFailures and sets lastSuccessAt", async () => {
+    it("uses UPSERT (insert + onConflictDoUpdate) to handle first run", async () => {
       await recordSourceSuccess("daily-source-hn-algolia");
-      expect(db.update).toHaveBeenCalledTimes(1);
-      const setArg = lastUpdateSetArgs();
-      expect(setArg.consecutiveFailures).toBe(0);
-      expect(setArg.lastSuccessAt).toBeInstanceOf(Date);
-      // totalRuns is a SQL expression — just verify it's present
-      expect(setArg.totalRuns).toBeDefined();
+      expect(db.insert).toHaveBeenCalledTimes(1);
+      expect(insertChain.onConflictDoUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it("uses a CASE expression for status (manual disable is sticky)", async () => {
+    it("inserts correct initial values for first run", async () => {
+      await recordSourceSuccess("new-source");
+      const valuesArg = lastInsertValuesArgs();
+      expect(valuesArg.sourceName).toBe("new-source");
+      expect(valuesArg.status).toBe("active");
+      expect(valuesArg.consecutiveFailures).toBe(0);
+      expect(valuesArg.lastSuccessAt).toBeInstanceOf(Date);
+      expect(valuesArg.totalRuns).toBe(1);
+    });
+
+    it("onConflict set resets consecutiveFailures and sets lastSuccessAt", async () => {
       await recordSourceSuccess("s");
-      const setArg = lastUpdateSetArgs();
+      const { set } = lastUpsertArgs();
+      expect(set.consecutiveFailures).toBe(0);
+      expect(set.lastSuccessAt).toBeInstanceOf(Date);
+      // totalRuns is a SQL expression — just verify it's present
+      expect(set.totalRuns).toBeDefined();
+    });
+
+    it("uses a CASE expression for status in onConflict (manual disable is sticky)", async () => {
+      await recordSourceSuccess("s");
+      const { set } = lastUpsertArgs();
       // status is a SQL CASE expression — not a plain string
-      expect(typeof setArg.status).not.toBe("string");
-      expect(setArg.status).toBeDefined();
+      expect(typeof set.status).not.toBe("string");
+      expect(set.status).toBeDefined();
     });
   });
 
   // ── recordSourceFailure ───────────────────────────────────────────────────
   describe("recordSourceFailure", () => {
-    it("issues an UPDATE that increments counters and records the error", async () => {
-      await recordSourceFailure("s", "ECONNREFUSED");
-      expect(db.update).toHaveBeenCalledTimes(1);
-      const setArg = lastUpdateSetArgs();
-      expect(setArg.lastError).toBe("ECONNREFUSED");
-      expect(setArg.lastFailureAt).toBeInstanceOf(Date);
-      // consecutiveFailures, totalFailures, totalRuns are SQL expressions
-      expect(setArg.consecutiveFailures).toBeDefined();
-      expect(setArg.totalFailures).toBeDefined();
-      expect(setArg.totalRuns).toBeDefined();
+    it("uses UPSERT (insert + onConflictDoUpdate) to handle first run", async () => {
+      await recordSourceFailure("new-source", "ECONNREFUSED");
+      expect(db.insert).toHaveBeenCalledTimes(1);
+      expect(insertChain.onConflictDoUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it("uses a CASE expression for status (flips to degraded at threshold)", async () => {
+    it("inserts correct initial values for first run failure", async () => {
+      await recordSourceFailure("new-source", "ECONNREFUSED");
+      const valuesArg = lastInsertValuesArgs();
+      expect(valuesArg.sourceName).toBe("new-source");
+      expect(valuesArg.status).toBe("degraded");
+      expect(valuesArg.consecutiveFailures).toBe(1);
+      expect(valuesArg.totalFailures).toBe(1);
+      expect(valuesArg.totalRuns).toBe(1);
+      expect(valuesArg.lastError).toBe("ECONNREFUSED");
+      expect(valuesArg.lastFailureAt).toBeInstanceOf(Date);
+    });
+
+    it("onConflict set increments counters and records the error", async () => {
+      await recordSourceFailure("s", "ECONNREFUSED");
+      const { set } = lastUpsertArgs();
+      expect(set.lastError).toBe("ECONNREFUSED");
+      expect(set.lastFailureAt).toBeInstanceOf(Date);
+      // consecutiveFailures, totalFailures, totalRuns are SQL expressions
+      expect(set.consecutiveFailures).toBeDefined();
+      expect(set.totalFailures).toBeDefined();
+      expect(set.totalRuns).toBeDefined();
+    });
+
+    it("uses a CASE expression for status in onConflict (flips to degraded at threshold)", async () => {
       await recordSourceFailure("s", "err");
-      const setArg = lastUpdateSetArgs();
-      expect(typeof setArg.status).not.toBe("string");
-      expect(setArg.status).toBeDefined();
+      const { set } = lastUpsertArgs();
+      expect(typeof set.status).not.toBe("string");
+      expect(set.status).toBeDefined();
     });
   });
 

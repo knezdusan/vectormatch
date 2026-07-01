@@ -329,7 +329,7 @@ describe("runSitemapProbeSeeder", () => {
   it("deduplicates ATS slugs across sitemaps", async () => {
     mockRetryCompanies([{ companyName: "Acme", website: "https://acme.com" }]);
 
-    const fetchFn = vi.fn(async (url: string) => {
+    const fetchFn = vi.fn(async (_url: string) => {
       // All sitemap paths return the same ATS URLs
       return new Response(SITEMAP_XML, { status: 200 });
     }) as unknown as FetchFn;

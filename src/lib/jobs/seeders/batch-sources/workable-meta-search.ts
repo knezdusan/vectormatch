@@ -98,9 +98,7 @@ const workableSearchResponseSchema = z.object({
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type WorkableJob = z.infer<typeof workableJobSchema>;
-export type WorkableSearchResponse = z.infer<
-  typeof workableSearchResponseSchema
->;
+type WorkableSearchResponse = z.infer<typeof workableSearchResponseSchema>;
 
 export interface WorkableMetaSearchResult {
   /** Total jobs found across all pages and queries. */

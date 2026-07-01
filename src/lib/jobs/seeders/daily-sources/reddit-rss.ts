@@ -36,7 +36,7 @@ import type { FetchFn } from "@/lib/jobs/types";
 // ── Constants ────────────────────────────────────────────────────────────────
 
 /** Reddit hiring subreddits to scan for ATS URLs. */
-export const REDDIT_SUBREDDITS: string[] = [
+const REDDIT_SUBREDDITS: string[] = [
   "reactjs",
   "typescript",
   "nextjs",

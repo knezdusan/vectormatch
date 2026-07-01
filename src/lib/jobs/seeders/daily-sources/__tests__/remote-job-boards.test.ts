@@ -17,13 +17,13 @@ vi.mock("@/inngest/client", () => ({
 
 import { inngest } from "@/inngest/client";
 import {
-  deduplicateCompanyNames,
   extractCompanyNamesFromHimalayas,
   extractCompanyNamesFromRemoteOk,
   extractCompanyNamesFromRemotive,
   REMOTE_JOB_BOARDS,
   runRemoteJobBoardsSeeder,
 } from "@/lib/jobs/seeders/daily-sources/remote-job-boards";
+import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";

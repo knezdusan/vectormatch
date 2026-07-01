@@ -35,6 +35,7 @@ export const alertTypeEnum = pgEnum("alert_type", [
   "storage_critical",
   "schema_validation_spike",
   "circuit_breaker_trip",
+  "pipeline_health", // Sprint 7: pipeline health monitor alerts
 ]);
 
 // ── Table ────────────────────────────────────────────────────────────────────

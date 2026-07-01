@@ -2719,8 +2719,951 @@ After applying any concurrency changes, monitor for 24 hours:
 
 3. **Revoke the Coolify API token** — The write-enabled token (`2|nmtZFrfv7TntZISq75syBA7LWVa6KjkRVFcjEmuz7fe8bf4f`) was used during Sprint 5. Revoke it in Coolify (Profile → API Tokens) if no longer needed.
 
-4. **Save the Inngest Cloud keys** — The rollback keys are at `/tmp/vectormatch-inngest-keys.txt` (mode 600, session-scoped). Copy them to a secure location if you want to keep the rollback option open beyond the session.
+4. **Inngest Cloud rollback keys saved** — The rollback keys have been copied from `/tmp/vectormatch-inngest-keys.txt` to `.secrets/inngest-rollback-keys.txt` (gitignored, mode 600). This file contains the original Inngest Cloud event key, signing key, and the `INNGEST_BASE_URL` env var UUID needed for rollback. The `.secrets/` directory has been added to `.gitignore`.
 
 5. **Delete Inngest Cloud project after 48h** — If self-hosted Inngest runs without issues for 48 hours, the Inngest Cloud project can be deleted. Verify that all daily cron functions (D1-D13) and `dailyHealthCheck` have run successfully first.
 
 6. **Monitor the Inngest Postgres volume** — The Inngest Postgres data volume will grow over time. Check disk usage weekly via `docker exec -it <postgres-container> du -sh /var/lib/postgresql/data`. If it grows too fast, configure Inngest's retention settings (see Inngest docs for `INNGEST_RETENTION_*` env vars).
+
+---
+
+## Sprint 6 — Codebase Cleanup Handoff (Session 8)
+
+> **Purpose:** The IDE Problems tab reports 186 issues across the codebase. This section is the complete analysis and handoff for a dedicated cleanup session. The issues come from three sources: Fallow static analysis (140 dead-code issues + 41 clone instances), Biome (2 warnings), and IDE TypeScript diagnostics (3 recharts-related, already fixed in Sprint 5b validation).
+
+### Issue Breakdown
+
+| Source | Count | Severity | Type |
+|---|---|---|---|
+| Fallow — unused exports | 113 | Warning | Dead code |
+| Fallow — unused types | 16 | Warning | Dead code |
+| Fallow — unused files | 7 | Warning | Dead code |
+| Fallow — duplicate exports | 4 | Warning | Code duplication |
+| Fallow — clone groups | 10 groups (41 instances) | Warning | Code duplication |
+| Biome — lint warnings | 2 | Warning | Style/correctness |
+| **Total** | **~186** | | |
+
+### Initial Prompt for New Session
+
+I am cleaning up 186 code quality issues in the VectorMatch codebase. These are all warnings (not errors) — the build passes, all 1,584 tests pass, and TypeScript is clean. The issues are from Fallow static analysis (dead code + duplication) and Biome (2 lint warnings). This is a **safe cleanup session** — no behavioral changes, no new features, no migrations.
+
+**YOUR ROLE:** Remove dead code, consolidate duplicated logic, and fix Biome warnings. Use Fallow's `--dry-run` and `fix` commands for automated removals. Manual refactoring for duplication consolidation.
+
+**CRITICAL RULES:**
+- Read `AGENTS.md` first — follow the Technology Stack and NEVER run Git rules.
+- **NEVER run Git commands** — leave all version control to the user.
+- **Do NOT change behavior** — only remove unused code and consolidate duplicates.
+- **Run tests after every change** — `npx tsc --noEmit && npx vitest run --reporter=dot` must pass with 1,584 tests after each task.
+- **Use `fallow fix --dry-run` first** to preview automated changes before applying.
+- **Do NOT delete files that are referenced by config** (e.g., `vitest.server-only.ts` is used by `vitest.config.mts` as an alias).
+- **Do NOT remove exports that are used in test files only** — Fallow may flag these as unused, but they're needed for testing. Verify with `grep -r "exportName" src/ --include="*.ts" --include="*.tsx"` before removing.
+
+### Task 1: Remove Unused Files (7 files)
+
+**Safe to delete (5 files):**
+
+| File | Reason | Verification |
+|---|---|---|
+| `src/app/(public)/blog/_posts/ats-vs-linkedin.mdx` | No imports found | `grep -r "ats-vs-linkedin" src/` |
+| `src/app/(public)/blog/_posts/how-greenhouse-works.mdx` | No imports found | `grep -r "how-greenhouse-works" src/` |
+| `src/app/(public)/blog/_posts/react-job-market-2026.mdx` | No imports found | `grep -r "react-job-market-2026" src/` |
+| `src/lib/jobs/poller/schemas.ts` | No imports found — poller event payloads are validated inline | `grep -r "poller/schemas" src/` |
+| `src/lib/jobs/roles.ts` | No imports found — `CANONICAL_ROLES` was never wired to the UI | `grep -r "jobs/roles" src/` |
+
+**Do NOT delete (2 files — false positives):**
+
+| File | Reason |
+|---|---|
+| `src/hooks/use-mobile.ts` | Used by `src/components/ui/sidebar.tsx` (`import { useIsMobile } from "@/hooks/use-mobile"`) — Fallow may miss this because `sidebar.tsx` is a shadcn component |
+| `vitest.server-only.ts` | Used by `vitest.config.mts` as an alias for the `server-only` package stub — already has `@fallow-ignore-next-line` comment |
+
+**Action:** Delete the 5 safe files. Run `npx tsc --noEmit && npx vitest run --reporter=dot` after.
+
+### Task 2: Remove Unused Exports (113 exports across 38 files)
+
+**Strategy:** Use Fallow's automated fix, then manually verify.
+
+```bash
+# Preview the changes
+npx fallow fix --dry-run
+
+# Apply (removes unused exports automatically)
+npx fallow fix --yes
+```
+
+**⚠️ CAUTION — exports used in tests only:**
+
+Fallow may flag exports as "unused" if they're only imported in test files. Before applying `fallow fix`, review the dry-run output and exclude any export that is imported in `__tests__/` files. The following exports are likely test-only and should be kept:
+
+- `src/lib/jobs/alerting.ts`: `createAlert`, `hasActiveAlert` — used in `src/lib/jobs/__tests__/alerting.test.ts`
+- `src/lib/jobs/source-health.ts`: `getSourceHealth` — verify if used in tests
+- `src/lib/jobs/quality/quality-flywheel.ts`: `calculateQualityScore`, `determineTierAction` — verify if used in tests
+- `src/lib/jobs/quality/fusion-score.ts`: `getDiscoverySources`, `hasBeenDiscoveredBy` — verify if used in tests
+- `src/lib/jobs/poller/tier-queries.ts`: `getActiveTierCompanies`, `getDormantTierCompanies` — verify if used in tests
+
+**Manual removals (not auto-fixable):**
+
+- `src/actions/admin.ts`: `resolveAlertsByTypeAction` — this was created in Sprint 4b but the UI uses `resolveAllAlertsAction` instead. Remove the function and its test. Also remove `resolveAlertsByType` from `src/lib/jobs/alerting.ts` if it's only used by this action.
+
+**After applying:** Run `npx tsc --noEmit && npx vitest run --reporter=dot`. All 1,584 tests must pass (minus any tests for removed exports).
+
+### Task 3: Remove Unused Types (16 types across 7 files)
+
+These are type exports that are never imported. Most are response types for ATS APIs that are only used internally (the schema is used, but the inferred type is not).
+
+**Safe to remove (all 16):**
+
+| File | Types |
+|---|---|
+| `src/lib/jobs/ats-schemas.ts` | `SmartRecruitersJob`, `SmartRecruitersJobsResponse`, `WorkableJob`, `WorkableJobsResponse`, `RecruiteeJob`, `RecruiteeJobsResponse` |
+| `src/lib/jobs/seeders/batch-sources/brave-search.ts` | `BraveSearchResponse` |
+| `src/lib/jobs/seeders/batch-sources/google-cse.ts` | `CseSearchResponse` |
+| `src/lib/jobs/seeders/batch-sources/workable-meta-search.ts` | `WorkableSearchResponse` |
+| `src/lib/jobs/seeders/daily-sources/meta-ads.ts` | `MetaAdsResponse` |
+| `src/lib/jobs/stale-job-queries.ts` | `StaleVerificationResult` |
+| `src/lib/onboarding/profile-schemas.ts` | `UpdatePreferencesInput`, `WorkHistoryEntryInput`, `UpdateWorkHistoryInput`, `UpdatePersonasInput`, `ReparseCvInput` |
+
+**Action:** Remove the `export type` declarations. These are inferred types that were exported "just in case" but never imported. The Zod schemas they're derived from are still used.
+
+**After applying:** Run `npx tsc --noEmit && npx vitest run --reporter=dot`.
+
+### Task 4: Fix Duplicate Exports (4 duplicate export groups)
+
+Four helper functions are duplicated across multiple daily source files. They were copy-pasted during Sprint 2 when each daily source was implemented independently.
+
+| Function | Files |
+|---|---|
+| `buildCompanyInputsFromAtsUrls` | `hn-algolia-daily.ts`, `reddit-rss.ts` |
+| `extractAtsUrlsFromText` | `hn-algolia-daily.ts`, `reddit-rss.ts` |
+| `deduplicateCompanyNames` | `meta-ads.ts`, `remote-job-boards.ts`, `weworkremotely-rss.ts` |
+| `deduplicateOrgNames` | `github-trending.ts`, `npm-registry.ts` |
+
+**Fix:** Extract these functions into a shared utility file:
+
+**New file:** `src/lib/jobs/seeders/seeder-utils.ts`
+```typescript
+// Shared utilities for daily/batch source seeders
+// Extracted from duplicate implementations across daily source files.
+
+import type { CompanyInput } from "./company-repository";
+
+/** Extract ATS URLs from a text block (HN posts, Reddit comments, etc.) */
+export function extractAtsUrlsFromText(text: string): string[] { ... }
+
+/** Build CompanyInput objects from a list of ATS URLs */
+export function buildCompanyInputsFromAtsUrls(urls: string[]): CompanyInput[] { ... }
+
+/** Deduplicate company names (case-insensitive) */
+export function deduplicateCompanyNames(names: string[]): string[] { ... }
+
+/** Deduplicate organization names (case-insensitive) */
+export function deduplicateOrgNames(names: string[]): string[] { ... }
+```
+
+Then update each source file to import from `seeder-utils.ts` instead of defining its own copy.
+
+**After applying:** Run `npx tsc --noEmit && npx vitest run --reporter=dot`.
+
+### Task 5: Consolidate Code Duplication (10 clone groups, 41 instances)
+
+**Clone Group 0 (17 lines, 4 instances) — `src/actions/profile.ts`:**
+The same `useActionState` boilerplate is repeated 4 times for different profile actions. Extract a `createProfileAction` helper or use a higher-order function pattern.
+
+**Clone Group 1 (30 lines, 3 instances) — onboarding form components:**
+`ProfilePersonasForm.tsx`, `ProfilePreferencesForm.tsx`, `ProfileWorkHistoryForm.tsx` share 30 lines of form boilerplate. Extract a shared `ProfileFormWrapper` component.
+
+**Clone Groups 2-6 (inngest/functions.ts — 437 lines of duplication):**
+This is the **biggest duplication issue** — 5 clone groups within `inngest/functions.ts` itself. The daily source functions (D1-D13) and batch source functions (B1-B10) share massive amounts of boilerplate:
+- **check-health step** (23 lines, 9 instances) — every source function starts with the same `check-health` step
+- **insertCompanies step** (123 lines, 4 instances) — the company insertion + logging pattern
+- **source function wrapper** (103-108 lines, 3 instances each) — the overall function structure
+
+**Fix:** Create a factory function that generates source functions:
+
+```typescript
+// src/lib/jobs/seeders/source-function-factory.ts
+export function createDailySourceFunction(options: {
+  id: string;
+  name: string;
+  cron: string;
+  sourceName: string;
+  collectFn: () => Promise<CompanyInput[]>;
+}): InngestFunction { ... }
+
+export function createBatchSourceFunction(options: {
+  id: string;
+  name: string;
+  cron: string;
+  sourceName: string;
+  collectFn: () => Promise<CompanyInput[]>;
+}): InngestFunction { ... }
+```
+
+This would reduce ~2,000 lines of boilerplate to ~200 lines of factory + ~400 lines of function definitions.
+
+**⚠️ This is the highest-risk task.** The Inngest function definitions include step names, retry configs, and event payloads that Inngest uses for checkpointing. Changing the function structure could break Inngest's state tracking. **Test thoroughly after this change** — verify that all 45 functions still register correctly with the self-hosted Inngest server.
+
+**Clone Groups 7-9 (batch source seeders — 98 lines of duplication):**
+- Group 7 (7 lines, 5 instances): shared URL extraction pattern across `brave-search.ts`, `crt-sh.ts`, `google-cse.ts`, `sitemap-probe.ts`, `wayback-cdx.ts`
+- Group 8 (80 lines, 4 instances): shared company extraction + insertion pattern across `google-cse.ts`, `newsletter-archives.ts`, `sitemap-probe.ts`, `wayback-cdx.ts`
+- Group 9 (11 lines, 3 instances): shared ATS URL parsing across `sitemap-probe.ts`, `hn-algolia-daily.ts`, `reddit-rss.ts`
+
+**Fix:** Extract shared helpers into `src/lib/jobs/seeders/seeder-utils.ts` (same file as Task 4).
+
+### Task 6: Fix Biome Warnings (2 warnings)
+
+| File | Line | Rule | Fix |
+|---|---|---|---|
+| `src/lib/jobs/seeders/batch-sources/__tests__/rapid7-cname.test.ts` | 196 | `lint/style/useTemplate` | Convert string concatenation to template literal |
+| `src/lib/jobs/seeders/daily-sources/hn-algolia-daily.ts` | 125 | `lint/correctness/noUnusedFunctionParameters` | Remove unused function parameter or prefix with `_` |
+
+**Note:** The `sitemap-probe.test.ts` warning (line 332, `noUnusedFunctionParameters`) that was previously reported appears to have been resolved — only 2 Biome warnings remain.
+
+**Action:** Run `npx biome check --write --unsafe` to auto-fix both. The `--unsafe` flag is required for `noUnusedFunctionParameters` because removing a parameter can change the function signature.
+
+**After applying:** Run `npx biome check` — should show 0 warnings. Then `npx tsc --noEmit && npx vitest run --reporter=dot`.
+
+### Task 7: Delete Deprecated google-cse.ts (optional, after Task 2)
+
+After Task 2 removes the unused exports from `google-cse.ts`, the file may be empty or near-empty. This file was deprecated in Sprint 3 (replaced by `brave-search.ts`). If all remaining exports are unused, delete the entire file.
+
+**Verification before deletion:**
+```bash
+grep -r "google-cse" src/ --include="*.ts" --include="*.tsx" -l
+```
+If only `google-cse.ts` itself and test files reference it, delete the file and its test.
+
+### Implementation Order
+
+1. **Task 1** (unused files) — lowest risk, immediate impact
+2. **Task 6** (Biome warnings) — quick wins, 2 warnings → 0
+3. **Task 3** (unused types) — low risk, just removing type declarations
+4. **Task 2** (unused exports) — medium risk, verify test-only usage first
+5. **Task 4** (duplicate exports) — medium risk, extract shared utilities
+6. **Task 5** (clone groups) — **highest risk**, especially the inngest/functions.ts refactoring. Do this last and test thoroughly.
+7. **Task 7** (delete google-cse.ts) — only after Task 2 confirms all exports are unused
+
+### After All Tasks Complete
+
+1. Run: `npx tsc --noEmit && npx biome check && npx vitest run --reporter=dot`
+2. Run: `npx fallow --format json --quiet 2>/dev/null` — verify issue count is near 0
+3. **DO NOT commit.** The user will review.
+4. Report the final issue count and any remaining issues that couldn't be fixed.
+
+### Expected Outcome
+
+| Metric | Before | After (expected) |
+|---|---|---|
+| Fallow issues | 140 | < 10 (remaining test-only exports, intentional duplicates) |
+| Clone groups | 10 (41 instances) | < 3 (inngest/functions.ts may have some residual) |
+| Biome warnings | 2 | 0 |
+| TypeScript errors | 0 | 0 |
+| Tests | 1,584 pass | 1,584 pass (minus tests for removed `resolveAlertsByTypeAction`) |
+| Lines of code | ~36,000 | ~33,000-34,000 (removing ~2,000-3,000 lines of duplication) |
+
+---
+
+## Campaign Retrospective — Full Session Analysis (June 29-30 2026)
+
+> **Purpose:** This is the orchestrator's comprehensive analysis of the entire Company Corpus Expansion campaign (Sprints 1-5 + Sprint 6 handoff). It evaluates the campaign against its original goals, identifies critical issues in the production state, and recommends the best path forward.
+
+### Campaign Goals vs. Actual Results
+
+The original brainstorming session (June 29 2026) set these targets:
+
+| Goal | Target | Actual (June 30 22:18 UTC) | Status |
+|---|---|---|---|
+| Quality companies in corpus | ~5,000 | **6,685** | ✅ Exceeded |
+| Approved matches per day | 5-10 | **1 total** (initial flush only) | ❌ Not yet achieved |
+| Continuous daily flow | 60-200 new companies/day | **0 new companies since June 30 00:01** | ❌ Not running |
+| $0 infrastructure cost | $0 | **$0** (Hetzner + Neon free + self-hosted Inngest) | ✅ |
+| Infrastructure walls | Stay within limits | **134 MB / 512 MB Neon** (26% used) | ✅ |
+
+### What Worked
+
+1. **Company corpus exceeded target by 34%.** 6,685 companies discovered from batch sources (B1-B10). The flush-and-flow architecture's Phase 1 (flush) executed successfully.
+
+2. **G7 rawJson pruning is working.** 5,555 of 5,556 jobs have `normalized_text` set and `raw_json` NULLed. DB size is 134 MB — well within the 512 MB Neon limit. The storage wall was successfully addressed.
+
+3. **Gate 1+2 pipeline is functional.** 5,043 of 5,556 jobs have embeddings. 62 matches were generated from the initial flush (1 approved, 61 rejected). The 1.6% approval rate is close to the expected 2% initial rate.
+
+4. **Self-hosted Inngest deployed successfully.** 45 functions registered, test event completed in 433ms. The Inngest execution wall was successfully addressed.
+
+5. **Admin dashboard is operational.** Infrastructure health, matching funnel, alert management, and source toggle controls are all in place.
+
+6. **Code quality is high.** 1,584 tests pass, 0 TypeScript errors, 0 new Biome warnings across all sprints.
+
+### Critical Issues (Must Fix)
+
+#### Issue 1 (CRITICAL): The batch poll tier is not running
+
+**Evidence:**
+- Last `type=poll` ingestion log: June 30 00:01 (the initial flush)
+- Only 547 of 6,685 companies have ever been polled (8.2%)
+- All 547 polled companies are in the "active" tier — the 6,130 dormant companies have never been polled
+- The `batchPollTier` function has 3 cron triggers: every 3h (hot), every 12h (standard), weekly (dormant)
+- The 21:00 UTC cron should have fired at 21:00 (it's now 22:18 UTC) — no ingestion log entry
+
+**Impact:** The pipeline is stagnant. No new jobs are being detected. No new matches are being created. The app is running but not producing value.
+
+**Likely cause:** The Inngest migration (June 30 20:43 UTC) may have disrupted the cron schedules. The self-hosted Inngest registered all 45 functions, but the cron triggers may not be firing. Alternatively, the crons were never running on Inngest Cloud either — the last poll was at 00:01, and the batch poll tier crons (0 */3 * * *) should have fired at 03:00, 06:00, 09:00, 12:00, 15:00, 18:00, 21:00 — none of these appear in the ingestion log.
+
+**This means the batch poll tier may have NEVER run on Inngest Cloud either.** The initial flush at 00:01 was likely a manual trigger or the first run of the `batchPollTier` function, and subsequent cron-triggered runs never executed.
+
+**Fix:** Check the Inngest dashboard at `https://inngest.vectormatch.dev` for the `poller-batch-poll-tier` function. Verify that:
+1. The function is registered with 3 cron triggers
+2. The cron schedules are visible in the dashboard
+3. The next scheduled run time is shown
+4. Manually trigger the function and verify it executes
+
+If the crons are not firing, check:
+- The Inngest server's timezone (should be UTC)
+- The cron expression syntax (Inngest uses standard cron with UTC)
+- The function's `triggers` array in the registered function definition
+
+#### Issue 2 (CRITICAL): source_health table is empty
+
+**Evidence:**
+- `SELECT count(*) FROM source_health` returns 0
+- Sprint 3 implemented circuit breakers with `check-health`/`record-success`/`record-failure` steps for all 22 source functions
+- The admin dashboard's InfrastructureHealth component will show no source health data
+
+**Impact:** The circuit breaker system is non-functional. The admin dashboard can't show source health. The alerting system can't detect circuit breaker trips. The `SourceToggleButton` in the admin dashboard will have no data to display.
+
+**Likely cause:** The `check-health` step in each source function may be failing silently, or the `recordSuccess`/`recordFailure` functions may not be writing to the `source_health` table. Alternatively, the source functions may not be running at all (see Issue 1 — if the crons aren't firing, the source functions never execute, so they never record health).
+
+**Fix:** After fixing Issue 1, verify that source functions write to `source_health` after each run. If the table is still empty after a successful source function run, debug the `recordSuccess`/`recordFailure` functions in `src/lib/jobs/source-health.ts`.
+
+#### Issue 3 (HIGH): Only 1 of 13 daily sources is actively running
+
+**Evidence:**
+- Last 10 ingestion logs (type=seed) are all `source=hn_algolia`
+- D2 (HN Algolia) runs hourly but only processes data in the first week of each month
+- D1 (Brave Search), D3-D13 have no recent ingestion log entries
+- The batch sources (B1-B10) each ran once during the initial flush (June 29 21:33 - 22:20) and haven't run since
+
+**Impact:** The "continuous daily flow" of 60-200 new companies/day is not happening. The corpus is static at 6,685 companies.
+
+**Likely cause:** Same as Issue 1 — the cron schedules may not be firing on the self-hosted Inngest. The daily source crons are staggered between 08:00 and 13:00 UTC. If the Inngest server's cron system isn't working, none of these will fire.
+
+**Note:** It's currently 22:18 UTC. The daily source crons (08:00-13:00 UTC) already passed for today. They would have run on Inngest Cloud before the migration (20:43 UTC), but the ingestion log shows no entries from D1, D3-D13 today. This suggests these daily sources may have NEVER run on Inngest Cloud either — only D2 (HN Algolia) has been running consistently.
+
+**Fix:** After fixing Issue 1, verify that all 13 daily source functions fire at their scheduled times. Check the Inngest dashboard for each function's cron schedule and next run time.
+
+#### Issue 4 (MEDIUM): Only 3 personas for 6,685 companies
+
+**Evidence:**
+- 3 personas in the database
+- 62 total matches (1 approved, 61 rejected) from 5,556 jobs
+- 1.6% approval rate
+
+**Impact:** With only 3 personas, the match volume is inherently low. Each job can match at most 3 personas. At 5,556 jobs × 3 personas = 16,668 potential matches, but Gate 1+2 filters most out, leaving 62 candidates for Gate 3. The target of 5-10 approved/day requires either more personas or a higher approval rate.
+
+**Context:** This is a product issue, not a pipeline issue. The pipeline is correctly filtering and evaluating matches. More personas would increase match volume proportionally.
+
+**Fix:** This is expected for a self-use MVP with 2 users. As the user base grows, match volume will increase. The quality flywheel (Q2) should improve the approval rate over time.
+
+### Non-Critical Concerns
+
+1. **186 code quality issues** — 140 Fallow dead-code + 41 clone instances + 2 Biome warnings + 3 IDE diagnostics. All are warnings, not errors. Sprint 6 cleanup handoff is prepared.
+
+2. **Uncommitted changes** — All Sprint 4, 4b, 5, and validation changes are uncommitted. The user needs to commit these to version control.
+
+3. **Inngest Cloud project still active** — Should be deleted after 48h verification. Rollback keys are saved at `.secrets/inngest-rollback-keys.txt`.
+
+4. **Coolify API token still active** — Write-enabled token should be revoked if no longer needed.
+
+5. **Inngest concurrency limits still at 5** — The self-hosting optimization (Sprint 5b analysis) proposes raising these, but this should only be done after the crons are confirmed working.
+
+### Root Cause Analysis: Why the Pipeline is Stagnant
+
+The initial flush (Phase 1) worked perfectly:
+- Batch sources B1-B10 discovered 6,685 companies
+- The poller polled 547 active companies, detecting 5,556 jobs
+- Gate 1+2 generated 62 candidates, Gate 3 approved 1
+- G7 pruned rawJson, DB size is 134 MB
+
+But Phase 2 (steady state) never started:
+- The `batchPollTier` cron (every 3h) has no ingestion logs after the initial flush
+- Only D2 (HN Algolia) has been running — and it only processes data in the first week of each month
+- D1, D3-D13 have no recent runs
+
+**The most likely explanation is that the Inngest Cloud cron system was not reliably triggering the functions.** The initial flush may have been triggered manually or by a one-time event, not by a cron. When the migration to self-hosted Inngest happened, the same issue persisted — the crons are registered but not firing.
+
+**This is the #1 priority to fix.** Without working crons, the entire pipeline is stagnant. The company corpus, job detection, and match generation are all dependent on the cron-triggered functions running.
+
+### Recommended Path Forward
+
+#### Phase 1: Fix the Pipeline (IMMEDIATE — before anything else)
+
+1. **Verify Inngest cron schedules** — Check `https://inngest.vectormatch.dev` dashboard for all 45 functions. Confirm that cron-triggered functions show their schedules and next run times. If crons are not visible, the function registration may not include the cron triggers.
+
+2. **Manually trigger `batchPollTier`** — Use the Inngest dashboard or API to manually trigger the function. Verify it polls companies and writes to `ingestion_log` and `source_health`.
+
+3. **Manually trigger D1 (Brave Search)** — Verify it discovers new companies and writes to `ingestion_log`.
+
+4. **Monitor for 1 hour** — After manual triggers, verify that the next cron-triggered run executes automatically.
+
+5. **If crons are not firing** — Check the Inngest server logs for errors. The issue may be:
+   - Timezone misconfiguration (Inngest expects UTC)
+   - Cron expression parsing (Inngest uses standard 5-field cron)
+   - Function registration missing triggers (check the sync payload)
+
+#### Phase 2: Commit and Clean Up (after pipeline is running)
+
+1. **Commit all changes** — Sprint 4, 4b, 5, and validation changes.
+2. **Run Sprint 6 cleanup** — Remove dead code, consolidate duplication (186 issues → < 10).
+3. **Revoke Coolify API token** — If no longer needed.
+4. **Delete Inngest Cloud project** — After 48h of stable self-hosted operation.
+
+#### Phase 3: Optimize (after pipeline is stable for 24h)
+
+1. **Apply Sprint 5b concurrency changes** — Raise `gate3Evaluator` and `jobIngestedHandler` from 5 → 10. Monitor for 24h.
+2. **Monitor Neon CU-hours** — Verify the pipeline stays within the 100 CU-hour/month limit.
+3. **Monitor match generation** — Verify 5-10 approved matches/day as the poller catches up on the 6,130 unpolled dormant companies.
+
+#### Phase 4: Grow (after optimization is stable)
+
+1. **Add more personas** — The current 3 personas limit match volume. Adding personas for different tech stacks (Python, Go, Rust, DevOps, etc.) would increase match generation.
+2. **Tune Gate 2 threshold** — The current 0.50 threshold may be too strict or too loose. Monitor the approval rate and adjust.
+3. **Quality flywheel feedback** — As more matches are approved/rejected, the Q2 flywheel will improve company scoring and tier assignments.
+4. **Consider Neon Launch** — If storage or compute exceeds free tier limits, the $0.35/month storage upgrade or $10.60/month compute upgrade are cheap escape hatches.
+
+### Expert Assessment
+
+The Company Corpus Expansion campaign is a **technical success but an operational failure**:
+
+- **Technical success:** The architecture is sound. G5 (batch polling), G6 (batch matcher), G7 (rawJson pruning), the 3-Gate funnel, the Slugger, circuit breakers, alerting, admin dashboard, self-hosted Inngest — all implemented, tested (1,584 tests), and deployed. The code quality is high.
+
+- **Operational failure:** The pipeline is not running in steady state. The initial flush worked, but the cron-triggered functions are not executing. Only 1 of 13 daily sources is running. The batch poll tier has never run after the initial flush. The result is 1 approved match instead of the target 5-10/day.
+
+The fix is likely straightforward — verify and fix the Inngest cron configuration. But until this is done, the app is not delivering value to users. **This should be the #1 priority before any further development work.**
+
+The campaign's infrastructure work (Sprints 3-5) was premature optimization — hardening, monitoring, alerting, and self-hosting were implemented before the basic pipeline was confirmed to be running in steady state. In hindsight, the correct order would have been:
+
+1. Sprint 1 (foundation + flush) → verify pipeline runs
+2. **Verify steady state** → confirm crons are firing, matches are being generated
+3. Sprint 2 (quality) → only after steady state is confirmed
+4. Sprint 3 (hardening) → only after quality is confirmed
+5. Sprint 4 (observability) → only after hardening is confirmed
+6. Sprint 5 (self-hosting) → only after observability is confirmed
+
+But this is hindsight. The infrastructure work is not wasted — it will be valuable once the pipeline is running. The immediate priority is to fix the cron issue and get the pipeline into steady state.
+
+---
+
+## Sprint 7 — Pipeline Activation & Monitoring Handoff (Session 9)
+
+> **Purpose:** This is the dedicated handoff for fixing the pipeline stagnation and establishing comprehensive monitoring. The previous retrospective (above) was written with incomplete data — it concluded that crons weren't firing. Deeper investigation revealed that **crons ARE firing** but the **normalization + embedding pipeline is broken**, preventing new jobs from being matched. This handoff supersedes the retrospective's root cause analysis with the corrected findings.
+
+### Corrected Root Cause Analysis (from deeper investigation)
+
+**The previous retrospective was WRONG about crons not firing.** Here's what's actually happening:
+
+#### What IS Working (as of July 1 08:10 UTC)
+
+| Component | Status | Evidence |
+|---|---|---|
+| Inngest cron scheduler | ✅ Working | 38 cron-triggered functions registered, multiple crons firing on schedule |
+| `batchPollTier` (hot tier) | ✅ Working | 72 companies polled at 03:00 and 06:00 UTC (cron `0 */3 * * *`) |
+| `poller-tier-recalc` | ✅ Working | Ran at 05:00-06:00 UTC, promoted 1,641 companies to `active_hot` |
+| `poller-stale-cleanup` | ✅ Working | Ran at 06:00 UTC |
+| `aggressive-cleanup` | ✅ Working | Ran at 02:00 UTC |
+| `poller-normalization-retry` | ✅ Working | Ran at 06:00 UTC (but not fixing the unnormalized jobs — see below) |
+| `poller-company-revival` | ✅ Working | Ran at 05:00 UTC |
+| `seeder-hn-algolia` | ✅ Working | Ran at 00:00 UTC (cron `0 0 * * *`, first-7-days window active) |
+| `daily-source-hn-algolia` | ✅ Working | Ran at 01:00 UTC (cron `0 1,16 * * *`) |
+| `daily-source-brave-search` | ✅ Working | 2 runs at 00:00 UTC (cron `0 0,14 * * *`) |
+| Batch sources (B1-B10) | ✅ Working | All ran at 00:00-00:08 UTC (cron `0 0 1 * * *` — monthly) |
+| Company corpus growth | ✅ Working | 6,685 → 9,664 companies (+2,979 in 24h from batch source refresh) |
+| Job detection | ✅ Working | 5,556 → 7,562 jobs (+2,006 in 24h from batch poll tier) |
+| G7 rawJson pruning | ✅ Working | 5,043 of 7,562 jobs have `normalized_text` + NULLed `raw_json` |
+| DB storage | ✅ Healthy | 136 MB / 512 MB (27%) |
+
+#### What is NOT Working (the REAL critical issues)
+
+**Issue A (CRITICAL): New jobs are not being normalized or embedded**
+
+- 2,006 new jobs detected in last 24h
+- **0 have `normalized_text`** (should be set by the normalization step)
+- **0 have `job_embedding`** (should be set by the embedding step)
+- **0 have `normalized_at` set** (should be set after normalization)
+- 1,906 are `status = 'active'` but unnormalized
+- 100 are `status = 'normalization_failed'` (all SmartRecruiters)
+
+**Impact:** Gate 2 requires `job_embedding` to compute cosine similarity. Without embeddings, no candidates pass Gate 2, no matches are created. The last match was created on June 30 00:10 — 32 hours ago. The pipeline is detecting jobs but cannot match them.
+
+**Root Cause:** The `batchPollTier` function has an inline normalization + embedding step (sub-batches of 50 jobs). This step is either:
+1. **Not executing** — the `allNewJobIds` array is empty because `pollCompany` returns `newJobIds: []` for existing companies (jobs already in DB from previous polls)
+2. **Failing silently** — the `try/catch` in the normalization step swallows errors without logging them
+
+The `poller-normalization-retry` sweep ran at 06:00 UTC but didn't fix the 1,906 unnormalized jobs — it only processes `normalization_failed` jobs, not `active` jobs that were never normalized.
+
+**Fix:**
+1. Check the Inngest dashboard for `poller-batch-poll-tier` run history — look for errors in the `normalize-*` steps
+2. Check if the OpenAI API key is set in the Coolify production environment (it's set in local `.env` but may not be set in production)
+3. Add a `writeIngestionLog` call to the `batchPollTier` function so we can track its runs
+4. Fix the `poller-normalization-retry` sweep to also process `active` jobs with `normalized_at IS NULL` (not just `normalization_failed`)
+5. Consider emitting `job/ingested` events from `batchPollTier` (like `phalanxPoller` does) so the `jobIngestedHandler` can normalize them — this would provide better observability and retry handling
+
+**Issue B (HIGH): source_health table is still empty**
+
+- 0 rows in `source_health` despite 10+ source functions running
+- The circuit breaker system is non-functional
+- The admin dashboard's InfrastructureHealth component has no data
+
+**Root Cause:** The `check-health` step in each source function calls `isSourceEnabled(sourceName)`, which checks the `source_health` table. But `recordSourceSuccess`/`recordSourceFailure` may not be writing to the table correctly, or the functions are skipping the `record-success`/`record-failure` steps.
+
+**Fix:**
+1. Check if `recordSourceSuccess` and `recordSourceFailure` in `src/lib/jobs/source-health.ts` are actually inserting/updating rows
+2. Check the Inngest dashboard for errors in the `record-success`/`record-failure` steps
+3. Add a test that verifies `recordSourceSuccess` writes to `source_health`
+
+**Issue C (MEDIUM): batchPollTier does not write to ingestion_log**
+
+- The `batchPollTier` function polls companies, normalizes jobs, and runs Gate 1+2, but never writes to `ingestion_log`
+- This makes it impossible to track its runs from the database
+- The only way to check if it ran is via `company.last_polled_at` or the Inngest dashboard
+
+**Fix:** Add a `writeIngestionLog` call at the end of the `batchPollTier` function, recording the tier, companies polled, jobs detected, jobs normalized, and candidates generated.
+
+**Issue D (MEDIUM): 100 SmartRecruiters jobs failing normalization**
+
+- All 100 `normalization_failed` jobs are from SmartRecruiters
+- They have `raw_json` but normalization is failing
+- This could be a schema parsing issue (SmartRecruiters API response format changed) or a data quality issue
+
+**Fix:** Check the `normalizeJob` function for SmartRecruiters-specific parsing. The SmartRecruiters detail enrichment (Sprint 4) may have changed the expected `raw_json` format.
+
+**Issue E (LOW): Unexplained hourly HN Algolia runs**
+
+- `seeder-hn-algolia` has cron `0 0 * * *` (midnight only)
+- `daily-source-hn-algolia` has cron `0 1,16 * * *` (01:00 and 16:00)
+- But ingestion logs show hourly runs: 02:00, 03:00, 04:00, 05:00, 06:00, 07:00, 08:00 UTC
+- These don't match either cron
+
+**Possible explanation:** The Inngest Cloud project is still active (48h rollback window). It may still have an older version of the function with an hourly cron. Since the VectorMatch app's `INNGEST_BASE_URL` was changed to self-hosted, Inngest Cloud's cron triggers would fail to reach the app — but the ingestion logs show runs, so something is triggering them. This needs investigation but is not blocking.
+
+**Issue F (LOW): Inngest cron bug (issue #4387) — NOT the root cause**
+
+- GitHub issue #4387 reports that cron functions fail in self-hosted Inngest v1.27.0+ due to `CheckConstraints` rejecting zero `envID`
+- PR #4415 (the actual fix) is still OPEN — not merged
+- PR #4419 (health check resync path fix) was merged June 16, but doesn't fix the core issue
+- **However, our investigation shows crons ARE firing** — so either v1.34.0 includes a partial fix, or the bug only affects certain configurations
+- This should be monitored but is NOT the blocking issue
+
+### Initial Prompt for New Session
+
+I am fixing the VectorMatch pipeline. The company corpus expansion campaign built a 3-gate job matching pipeline: batch sources discover companies → poller fetches jobs from ATS APIs → normalizer + embedder process jobs → Gate 1+2 filter candidates → Gate 3 (LLM) approves matches.
+
+**The pipeline is partially working:**
+- ✅ 9,664 companies discovered (target was 5,000)
+- ✅ 7,562 jobs detected
+- ✅ Crons are firing — batch poll tier, tier recalc, stale cleanup, daily sources all running
+- ✅ 5,043 jobs have been normalized + embedded (from the initial flush)
+- ❌ **2,006 new jobs (last 24h) have NO normalization and NO embeddings**
+- ❌ **0 new matches created in 32 hours** (last match: June 30 00:10)
+- ❌ **source_health table is empty** (circuit breakers non-functional)
+- ❌ **batchPollTier doesn't write to ingestion_log** (no visibility)
+
+**The #1 priority:** Fix the normalization + embedding pipeline so new jobs get processed and matches are generated.
+
+**YOUR ROLE:** Debug why new jobs aren't being normalized, fix the issue, and establish monitoring guardrails so we can detect pipeline failures in the future.
+
+**CRITICAL RULES:**
+- Read `AGENTS.md` first — follow the Technology Stack and NEVER run Git rules.
+- **NEVER run Git commands** — leave all version control to the user.
+- **Do NOT change the matching logic** — only fix the normalization pipeline.
+- **Run tests after every change** — `npx tsc --noEmit && npx vitest run --reporter=dot` must pass with 1,584 tests after each task.
+- **Check the Inngest dashboard** at `https://inngest.vectormatch.dev` for run errors.
+- **Check the Coolify production env vars** — the OpenAI API key may not be set in production.
+
+### Task 1 (CRITICAL): Debug Why New Jobs Aren't Being Normalized
+
+**Step 1:** Check the Inngest dashboard at `https://inngest.vectormatch.dev` for `poller-batch-poll-tier` run history. Look for:
+- Did the `normalize-*` steps execute?
+- Were there errors in the `normalize-*` steps?
+- Was `allNewJobIds` empty?
+
+**Step 2:** Check the Coolify production environment variables. The OpenAI API key (`OPENAI_API_KEY`) must be set for the embedding + normalization pipeline to work. Use the Coolify MCP (`get_application` with UUID `o13urtthlj1q3md70gqeuca2`) to check env vars. If `OPENAI_API_KEY` is not set, that's the root cause.
+
+**Step 3:** If the OpenAI API key IS set, check if the `batchPollTier` function is reaching the normalization step. Add temporary logging:
+```typescript
+console.log(`[batchPollTier] allNewJobIds.length=${allNewJobIds.length}`);
+```
+Then check the Coolify container logs after the next cron fire (every 3h).
+
+**Step 4:** If `allNewJobIds` is empty, the issue is in `pollCompany` — it's not returning new job IDs for existing companies. Check if `upsertResult.newJobIds` is populated correctly.
+
+**Step 5:** If `allNewJobIds` is NOT empty but normalization fails, check the `normalizeJob` and `embedJob` functions for errors. The `try/catch` in the normalization step swallows errors — add logging:
+```typescript
+console.error(`[batchPollTier] Normalization failed for job ${j.id}:`, e);
+```
+
+### Task 2 (CRITICAL): Fix the Normalization Retry Sweep
+
+The `poller-normalization-retry` sweep only processes `status = 'normalization_failed'` jobs. It does NOT process `status = 'active'` jobs with `normalized_at IS NULL`. These 1,906 jobs are stuck in limbo — they're "active" but never normalized.
+
+**Fix:** Update the `poller-normalization-retry` sweep to also pick up `active` jobs with `normalized_at IS NULL`:
+
+```typescript
+// In src/lib/jobs/poller/normalization-retry.ts (or equivalent)
+const stuckJobs = await db.execute(sql`
+  SELECT id, ats_source, title, raw_json
+  FROM job
+  WHERE (status = 'normalization_failed'
+         OR (status = 'active' AND normalized_at IS NULL))
+    AND raw_json IS NOT NULL
+  LIMIT 100
+`);
+```
+
+This will allow the retry sweep to normalize the 1,906 stuck jobs on its next run (cron `0 6 * * *` — daily at 06:00 UTC).
+
+### Task 3 (HIGH): Add ingestion_log to batchPollTier
+
+The `batchPollTier` function is the most critical function in the pipeline, but it doesn't write to `ingestion_log`. This makes it impossible to track its runs from the database.
+
+**Fix:** Add a `writeIngestionLog` call at the end of the `batchPollTier` function:
+
+```typescript
+await step.run("write-log", async () => {
+  const { writeIngestionLog } = await import("@/lib/jobs/poller/ingestion-log");
+  return writeIngestionLog({
+    type: "batch_poll",
+    status: "success",
+    source: `batch_poll_${tier}`,
+    itemsProcessed: companies.length,
+    itemsInserted: allNewJobIds.length,
+    itemsUpdated: 0,
+    itemsRejected: pollResults.filter((r) => r.error).length,
+    itemsSkipped: companies.length - pollResults.filter((r) => r.newJobIds.length > 0).length,
+    errorMessage: undefined,
+    startedAt,
+    finishedAt: new Date(),
+  });
+});
+```
+
+### Task 4 (HIGH): Fix source_health Recording
+
+The `source_health` table is empty despite 10+ source functions running. The circuit breaker system is non-functional.
+
+**Step 1:** Read `src/lib/jobs/source-health.ts` and check if `recordSourceSuccess` and `recordSourceFailure` are correctly inserting/updating rows.
+
+**Step 2:** Check the Inngest dashboard for errors in the `record-success`/`record-failure` steps of source functions.
+
+**Step 3:** If the functions are failing, fix the `recordSourceSuccess`/`recordSourceFailure` implementations. If the functions are succeeding but not writing to the DB, check for transaction issues.
+
+**Step 4:** Add a test that verifies `recordSourceSuccess` writes to `source_health`.
+
+### Task 5 (HIGH): Fix SmartRecruiters Normalization Failures
+
+100 SmartRecruiters jobs are failing normalization. All have `raw_json` but `normalizeJob` is failing.
+
+**Step 1:** Check the `normalizeJob` function for SmartRecruiters-specific parsing. The SmartRecruiters detail enrichment (Sprint 4) may have changed the expected `raw_json` format.
+
+**Step 2:** Pick one failing job and try to normalize it manually:
+```typescript
+import { normalizeJob } from "@/lib/jobs/job-normalizer";
+const result = await normalizeJob("smartrecruiters", rawJson, title);
+console.log(result);
+```
+
+**Step 3:** Fix the parsing issue and verify the fix normalizes all 100 failed jobs.
+
+### Task 6 (HIGH): Establish Monitoring Guardrails
+
+Create a comprehensive monitoring system that tracks all critical pipeline parameters. This should be a new Inngest function (`pipeline-health-monitor`) that runs every 30 minutes and checks:
+
+**6a: Create the monitoring function**
+
+```typescript
+// src/inngest/functions.ts — new function
+export const pipelineHealthMonitor = inngest.createFunction(
+  {
+    id: "pipeline-health-monitor",
+    name: "Pipeline Health Monitor",
+    triggers: [{ cron: "*/30 * * * *" }], // every 30 min
+  },
+  async ({ step }) => {
+    // Check 1: Unnormalized jobs count
+    const unnormalized = await step.run("check-unnormalized", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT count(*) as cnt FROM job
+        WHERE status = 'active' AND normalized_at IS NULL
+          AND detected_at < NOW() - INTERVAL '1 hour'
+      `);
+      return result.rows[0].cnt;
+    });
+
+    // Check 2: Jobs without embeddings
+    const unembedded = await step.run("check-unembedded", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT count(*) as cnt FROM job
+        WHERE status = 'active' AND job_embedding IS NULL
+          AND normalized_at IS NOT NULL
+      `);
+      return result.rows[0].cnt;
+    });
+
+    // Check 3: Stale poller (no polls in 4h)
+    const stalePoller = await step.run("check-stale-poller", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT count(*) as cnt FROM company
+        WHERE last_polled_at > NOW() - INTERVAL '4 hours'
+      `);
+      return result.rows[0].cnt;
+    });
+
+    // Check 4: Match generation rate (matches in last 24h)
+    const matchRate = await step.run("check-match-rate", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT count(*) as cnt FROM match_queue
+        WHERE created_at > NOW() - INTERVAL '24 hours'
+      `);
+      return result.rows[0].cnt;
+    });
+
+    // Check 5: Source health coverage
+    const sourceHealthCoverage = await step.run("check-source-health", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT count(*) as cnt FROM source_health
+      `);
+      return result.rows[0].cnt;
+    });
+
+    // Check 6: DB storage
+    const dbSize = await step.run("check-db-size", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      const result = await db.execute(sql`
+        SELECT pg_database_size(current_database()) as size
+      `);
+      return Number(result.rows[0].size);
+    });
+
+    // Check 7: Inngest event queue depth (via API)
+    const queueDepth = await step.run("check-queue-depth", async () => {
+      // Check if there are stuck runs
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+      // Check for pending matches that haven't been processed
+      const result = await db.execute(sql`
+        SELECT count(*) as cnt FROM match_queue
+        WHERE status = 'pending' AND created_at < NOW() - INTERVAL '30 minutes'
+      `);
+      return result.rows[0].cnt;
+    });
+
+    // Evaluate thresholds and create alerts
+    const alerts: string[] = [];
+    if (Number(unnormalized) > 50) alerts.push(`UNNORMALIZED_JOBS: ${unnormalized} jobs older than 1h without normalization`);
+    if (Number(unembedded) > 50) alerts.push(`UNEMBEDDED_JOBS: ${unembedded} normalized jobs without embeddings`);
+    if (Number(stalePoller) === 0) alerts.push("STALE_POLLER: No companies polled in last 4h");
+    if (Number(matchRate) === 0) alerts.push("NO_MATCHES: No matches generated in 24h");
+    if (Number(sourceHealthCoverage) === 0) alerts.push("SOURCE_HEALTH_EMPTY: source_health table is empty");
+    if (Number(dbSize) > 450 * 1024 * 1024) alerts.push(`DB_STORAGE_HIGH: ${Math.round(dbSize / 1024 / 1024)}MB / 512MB`);
+    if (Number(queueDepth) > 10) alerts.push(`QUEUE_BACKLOG: ${queueDepth} pending matches older than 30min`);
+
+    // Write alerts to the alerts table
+    if (alerts.length > 0) {
+      await step.run("write-alerts", async () => {
+        const { db } = await import("@/db/db");
+        const { sql } = await import("drizzle-orm");
+        for (const message of alerts) {
+          await db.execute(sql`
+            INSERT INTO alerts (type, severity, message, status)
+            VALUES ('pipeline_health', 'warning', ${message}, 'active')
+            ON CONFLICT DO NOTHING
+          `);
+        }
+        return alerts.length;
+      });
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      unnormalized: Number(unnormalized),
+      unembedded: Number(unembedded),
+      companiesPolled4h: Number(stalePoller),
+      matches24h: Number(matchRate),
+      sourceHealthRows: Number(sourceHealthCoverage),
+      dbSizeMB: Math.round(Number(dbSize) / 1024 / 1024),
+      pendingMatches: Number(queueDepth),
+      alerts,
+    };
+  },
+);
+```
+
+**6b: Register the monitoring function in `src/app/api/inngest/route.ts`**
+
+Add `pipelineHealthMonitor` to the function exports array.
+
+**6c: Create an admin dashboard monitoring page**
+
+Add a "Pipeline Health" section to the admin dashboard that shows:
+- Current alert count (from `alerts` table)
+- Unnormalized jobs count
+- Unembedded jobs count
+- Companies polled in last 4h
+- Matches generated in last 24h
+- Source health coverage
+- DB storage usage
+- Pending matches count
+
+This should be a Server Component that queries the DB directly, with a 30-second refresh via `cacheLife`.
+
+### Task 7 (MEDIUM): Emit job/ingested Events from batchPollTier
+
+Currently, `batchPollTier` normalizes jobs inline. This has two problems:
+1. If the normalization step fails, the jobs are stuck (no retry mechanism)
+2. No visibility into which jobs were normalized by which function
+
+**Fix:** Emit `job/ingested` events from `batchPollTier` for all new jobs, and let the `jobIngestedHandler` function handle normalization + Gate 1+2. This provides:
+- Automatic retry via Inngest's built-in retry mechanism
+- Better observability (each job is processed as a separate Inngest run)
+- Consistent normalization path (both manual and batch polls use the same handler)
+
+```typescript
+// In batchPollTier, replace the inline normalization + Gate 1+2 with:
+if (allNewJobIds.length > 0) {
+  await step.sendEvent(
+    "emit-job-ingested",
+    allNewJobIds.map((jobId) => ({
+      id: `job-ingested-${jobId}-${Date.now()}`,
+      name: "job/ingested",
+      data: { jobId },
+    })),
+  );
+}
+```
+
+**⚠️ CAUTION:** This will increase Inngest execution count significantly (1 per job instead of 1 per batch). With 2,006 new jobs/day, that's ~2,006 additional Inngest runs/day. At 30-day month: ~60K runs. The self-hosted Inngest has no execution limit, but monitor the Postgres storage growth.
+
+### Task 8 (LOW): Investigate Hourly HN Algolia Runs
+
+The HN Algolia seeder is running hourly despite its crons being `0 0 * * *` and `0 1,16 * * *`. This may be caused by the Inngest Cloud project still being active.
+
+**Fix:**
+1. Check the Inngest Cloud dashboard (if still accessible) for old cron schedules
+2. Delete the Inngest Cloud project if the 48h rollback window has passed
+3. If the hourly runs stop after deleting the Cloud project, that was the cause
+
+### Monitoring Dashboard — Key Metrics to Track
+
+| Metric | Healthy Range | Alert Threshold | Check Frequency |
+|---|---|---|---|
+| Unnormalized jobs (>1h old) | 0-10 | >50 | 30 min |
+| Unembedded jobs (normalized but no embedding) | 0-5 | >50 | 30 min |
+| Companies polled in last 4h | >50 | =0 | 30 min |
+| Matches generated in 24h | 5-10 | =0 | 30 min |
+| source_health rows | >20 | =0 | 30 min |
+| DB storage | <400 MB | >450 MB | 30 min |
+| Pending matches (>30min old) | 0-5 | >10 | 30 min |
+| Inngest function failures | 0 | >0 | 30 min |
+| New companies/day | 60-200 | <10 | Daily |
+| New jobs/day | 100-500 | <50 | Daily |
+| Approval rate | 2-4% | <1% or >10% | Daily |
+| Neon CU-hours/month | <80 | >90 | Daily |
+| Inngest Postgres storage | <1 GB | >2 GB | Daily |
+
+### Implementation Order
+
+1. **Task 1** (debug normalization) — CRITICAL, blocks everything else
+2. **Task 2** (fix retry sweep) — CRITICAL, fixes the 1,906 stuck jobs
+3. **Task 3** (add ingestion_log to batchPollTier) — HIGH, provides visibility
+4. **Task 4** (fix source_health) — HIGH, enables circuit breakers
+5. **Task 5** (fix SmartRecruiters normalization) — HIGH, fixes 100 failed jobs
+6. **Task 6** (monitoring guardrails) — HIGH, prevents future silent failures
+7. **Task 7** (emit job/ingested events) — MEDIUM, improves retry handling
+8. **Task 8** (investigate hourly HN runs) — LOW, non-blocking
+
+### After All Tasks Complete
+
+1. Run: `npx tsc --noEmit && npx biome check && npx vitest run --reporter=dot`
+2. Verify the monitoring function is running (check Inngest dashboard)
+3. Wait for the next `batchPollTier` cron (every 3h) and verify:
+   - New jobs are being normalized + embedded
+   - Match queue entries are being created
+   - `ingestion_log` has `batch_poll` entries
+   - `source_health` has rows
+4. **DO NOT commit.** The user will review.
+5. Report the final state of all metrics.
+
+### Expected Outcome
+
+| Metric | Before | After (expected) |
+|---|---|---|
+| Unnormalized jobs | 1,906 | 0 |
+| Unembedded jobs | 2,006 | 0 |
+| Matches (24h) | 0 | 5-10 |
+| source_health rows | 0 | >20 |
+| ingestion_log batch_poll entries | 0 | 8/day (every 3h) |
+| Alerts | 0 | Auto-created when thresholds breached |
+| Pipeline health visibility | None | 30-min monitoring + admin dashboard |
+
+### Key Files to Read
+
+| File | Purpose |
+|---|---|
+| `src/inngest/functions.ts` | All 45 Inngest functions (batchPollTier, jobIngestedHandler, etc.) |
+| `src/lib/jobs/poller/phalanx-poller.ts` | `pollCompany` function — polls ATS APIs, returns new job IDs |
+| `src/lib/jobs/job-normalizer.ts` | `normalizeJob` function — normalizes raw JSON to text |
+| `src/lib/jobs/job-embedder.ts` | `embedJob` function — generates embeddings via OpenAI |
+| `src/lib/jobs/source-health.ts` | `isSourceEnabled`, `recordSourceSuccess`, `recordSourceFailure` |
+| `src/lib/jobs/poller/ingestion-log.ts` | `writeIngestionLog` function |
+| `src/lib/jobs/gate-1-2.ts` | `runGateSQLRouter` — Gate 1 (GIN) + Gate 2 (HNSW) |
+| `src/app/api/inngest/route.ts` | Inngest function registration (all 45 functions) |
+| `src/app/dashboard/admin/page.tsx` | Admin dashboard (add monitoring section here) |
+| `src/lib/jobs/poller/tier-queries.ts` | `getBatchForTier`, `recalculateTiers` |
+
+### Production Environment
+
+| Component | Value |
+|---|---|
+| VectorMatch app URL | `https://vectormatch.dev` |
+| VectorMatch app UUID (Coolify) | `o13urtthlj1q3md70gqeuca2` |
+| Inngest server URL | `https://inngest.vectormatch.dev` |
+| Inngest service UUID (Coolify) | `otrzmmwzdh8z6hcg5at9yi03` |
+| Inngest version | `inngest/inngest:v1.34.0` |
+| Inngest signing key | `.secrets/inngest-rollback-keys.txt` |
+| Inngest event key | `.secrets/inngest-rollback-keys.txt` |
+| Coolify API URL | `https://admin.vectormatch.dev/api/v1/` |
+| Neon DB | 136 MB / 512 MB (27%) |
+| Server timezone | UTC |
+
+### Database Current State (July 1 08:10 UTC)
+
+| Metric | Value |
+|---|---|
+| Total companies | 9,664 |
+| active_hot tier | 1,641 |
+| active tier | 572 |
+| dormant tier | 7,451 |
+| Companies polled (ever) | 619 |
+| Companies polled (24h) | 72 |
+| Total jobs | 7,562 |
+| Jobs with normalized_text | 5,043 |
+| Jobs with embeddings | 5,043 |
+| Jobs active but unnormalized | 1,906 |
+| Jobs normalization_failed | 100 |
+| Match queue total | 62 |
+| Approved matches | 1 |
+| Rejected matches | 61 |
+| Pending matches | 0 |
+| Last match created | June 30 00:10 |
+| source_health rows | 0 |
+| Active alerts | 0 |
+| DB size | 136 MB |

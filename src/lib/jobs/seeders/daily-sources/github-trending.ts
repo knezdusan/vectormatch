@@ -27,13 +27,14 @@
 // See TDD §2.10 (D10) for the full specification.
 
 import * as cheerio from "cheerio";
+import { deduplicateOrgNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-export const GITHUB_TRENDING_URL = "https://github.com/trending?since=daily";
+const GITHUB_TRENDING_URL = "https://github.com/trending?since=daily";
 
 /** Raw URL for fetching a repo's CONTRIBUTING.md (default branch fallback). */
 const CONTRIBUTING_URL_TEMPLATE =
@@ -82,7 +83,7 @@ interface RepoPath {
  * @param html  The raw HTML from the GitHub Trending page
  * @returns     Array of { org, repo } pairs (may contain duplicate orgs)
  */
-export function extractRepoPathsFromHtml(html: string): RepoPath[] {
+function extractRepoPathsFromHtml(html: string): RepoPath[] {
   const $ = cheerio.load(html);
   const paths: RepoPath[] = [];
 
@@ -122,28 +123,6 @@ export function extractRepoPathsFromHtml(html: string): RepoPath[] {
  */
 export function extractOrgNamesFromHtml(html: string): string[] {
   return extractRepoPathsFromHtml(html).map((p) => p.org);
-}
-
-// ── Pure function: deduplicate org names ─────────────────────────────────────
-
-/**
- * Deduplicate org names case-insensitively, preserving first-seen order.
- *
- * @param names  Array of org names (possibly with duplicates)
- * @returns      Deduplicated array, first occurrence wins
- */
-export function deduplicateOrgNames(names: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const name of names) {
-    const key = name.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(name);
-  }
-
-  return result;
 }
 
 // ── Helper: fetch CONTRIBUTING.md for a repo (secondary signal) ──────────────

@@ -35,6 +35,7 @@
 //
 // See TDD §2.2 (D13) for the full specification.
 
+import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
@@ -69,7 +70,7 @@ export interface MetaAdEntry {
 }
 
 /** The API response shape. */
-export interface MetaAdsResponse {
+interface MetaAdsResponse {
   data: MetaAdEntry[];
   paging?: {
     cursors?: { before?: string; after?: string };
@@ -109,29 +110,6 @@ export function extractCompanyNamesFromAds(ads: MetaAdEntry[]): string[] {
     }
   }
   return names;
-}
-
-// ── Pure function: deduplicate company names ─────────────────────────────────
-
-/**
- * Deduplicate an array of company names (case-insensitive).
- * Preserves the first occurrence of each name (in original casing).
- *
- * @param names  Array of company names (possibly with duplicates)
- * @returns      Deduplicated array preserving first-occurrence order
- */
-export function deduplicateCompanyNames(names: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const name of names) {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) continue;
-    const key = trimmed.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(trimmed);
-  }
-  return result;
 }
 
 // ── Pure function: build API URL ─────────────────────────────────────────────

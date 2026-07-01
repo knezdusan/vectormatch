@@ -232,6 +232,20 @@
       "when": 1782829100000,
       "tag": "0032_source_health",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1782829200000,
+      "tag": "0033_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782829300000,
+      "tag": "0034_sprint7_enum_additions",
+      "breakpoints": true
     }
   ]
 }

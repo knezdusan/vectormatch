@@ -13,11 +13,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth";
-import {
-  resolveAlert,
-  resolveAlertsByType,
-  resolveAllAlerts,
-} from "@/lib/jobs/alerting";
+import { resolveAlert, resolveAllAlerts } from "@/lib/jobs/alerting";
 import { disableSource, enableSource } from "@/lib/jobs/source-health";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -31,12 +27,6 @@ export type AdminActionState = {
 
 const sourceNameSchema = z.string().min(1).max(100);
 const alertIdSchema = z.string().uuid();
-const alertTypeSchema = z.enum([
-  "storage_near_limit",
-  "storage_critical",
-  "schema_validation_spike",
-  "circuit_breaker_trip",
-]);
 
 // ── Actions ──────────────────────────────────────────────────────────────────
 
@@ -87,24 +77,6 @@ export async function resolveAlertAction(
   }
   try {
     await resolveAlert(parsed.data, `admin:${session.user.email}`);
-    revalidatePath("/dashboard/admin");
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e instanceof Error ? e.message : "Failed" };
-  }
-}
-
-/** Resolve all active alerts of a given type. */
-export async function resolveAlertsByTypeAction(
-  alertType: string,
-): Promise<AdminActionState> {
-  const session = await requireRole("admin");
-  const parsed = alertTypeSchema.safeParse(alertType);
-  if (!parsed.success) {
-    return { success: false, error: "Invalid alert type" };
-  }
-  try {
-    await resolveAlertsByType(parsed.data, `admin:${session.user.email}`);
     revalidatePath("/dashboard/admin");
     return { success: true };
   } catch (e) {

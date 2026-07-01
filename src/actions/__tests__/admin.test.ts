@@ -3,7 +3,7 @@
  *
  * Tests:
  *   - disableSourceAction / enableSourceAction: source toggle
- *   - resolveAlertAction / resolveAlertsByTypeAction: alert resolution
+ *   - resolveAlertAction / resolveAllAlertsAction: alert resolution
  *   - Auth check: requireRole("admin") is called on every action
  *   - Input validation: invalid source names, alert IDs, and alert types
  *   - revalidatePath is called on success
@@ -11,7 +11,7 @@
  * Mock strategy:
  *   - Mock @/lib/auth to control requireRole (resolves for admin, throws for non-admin)
  *   - Mock @/lib/jobs/source-health to capture disableSource/enableSource calls
- *   - Mock @/lib/jobs/alerting to capture resolveAlert/resolveAlertsByType calls
+ *   - Mock @/lib/jobs/alerting to capture resolveAlert/resolveAllAlerts calls
  *   - Mock next/cache to capture revalidatePath calls
  */
 
@@ -24,7 +24,6 @@ const {
   mockDisableSource,
   mockEnableSource,
   mockResolveAlert,
-  mockResolveAlertsByType,
   mockResolveAllAlerts,
   mockRevalidatePath,
 } = vi.hoisted(() => ({
@@ -32,7 +31,6 @@ const {
   mockDisableSource: vi.fn(),
   mockEnableSource: vi.fn(),
   mockResolveAlert: vi.fn(),
-  mockResolveAlertsByType: vi.fn(),
   mockResolveAllAlerts: vi.fn(),
   mockRevalidatePath: vi.fn(),
 }));
@@ -51,8 +49,6 @@ vi.mock("@/lib/jobs/source-health", () => ({
 vi.mock("@/lib/jobs/alerting", () => ({
   resolveAlert: (id: string, resolvedBy?: string) =>
     mockResolveAlert(id, resolvedBy),
-  resolveAlertsByType: (type: string, resolvedBy?: string) =>
-    mockResolveAlertsByType(type, resolvedBy),
   resolveAllAlerts: (resolvedBy?: string) => mockResolveAllAlerts(resolvedBy),
 }));
 
@@ -64,7 +60,6 @@ import {
   disableSourceAction,
   enableSourceAction,
   resolveAlertAction,
-  resolveAlertsByTypeAction,
   resolveAllAlertsAction,
 } from "@/actions/admin";
 
@@ -99,7 +94,6 @@ describe("admin Server Actions", () => {
     mockDisableSource.mockResolvedValue(undefined);
     mockEnableSource.mockResolvedValue(undefined);
     mockResolveAlert.mockResolvedValue(undefined);
-    mockResolveAlertsByType.mockResolvedValue(1);
     mockResolveAllAlerts.mockResolvedValue(3);
   });
 
@@ -220,46 +214,6 @@ describe("admin Server Actions", () => {
       await expect(resolveAlertAction(VALID_ALERT_ID)).rejects.toThrow(
         "NEXT_REDIRECT",
       );
-    });
-  });
-
-  // ── resolveAlertsByTypeAction ─────────────────────────────────────────────
-
-  describe("resolveAlertsByTypeAction", () => {
-    it("calls requireRole with admin", async () => {
-      await resolveAlertsByTypeAction("storage_near_limit");
-      expect(mockRequireRole).toHaveBeenCalledWith("admin", undefined);
-    });
-
-    it("resolves alerts by type and revalidates the admin path", async () => {
-      const result = await resolveAlertsByTypeAction("storage_critical");
-      expect(mockResolveAlertsByType).toHaveBeenCalledWith(
-        "storage_critical",
-        "admin:admin@example.com",
-      );
-      expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/admin");
-      expect(result).toEqual({ success: true });
-    });
-
-    it("returns error for invalid alert type", async () => {
-      const result = await resolveAlertsByTypeAction("invalid_type");
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("Invalid alert type");
-      expect(mockResolveAlertsByType).not.toHaveBeenCalled();
-    });
-
-    it("returns error when resolveAlertsByType throws", async () => {
-      mockResolveAlertsByType.mockRejectedValue(new Error("DB error"));
-      const result = await resolveAlertsByTypeAction("storage_near_limit");
-      expect(result.success).toBe(false);
-      expect(result.error).toBe("DB error");
-    });
-
-    it("throws when user is not admin", async () => {
-      mockNonAdminAuth();
-      await expect(
-        resolveAlertsByTypeAction("storage_near_limit"),
-      ).rejects.toThrow("NEXT_REDIRECT");
     });
   });
 

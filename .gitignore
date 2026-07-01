@@ -76,6 +76,7 @@ Thumbs.db
 
 # Documentation and secrets
 docs/ignored/
+.secrets/
 
 # Playwright
 /e2e/test-results/

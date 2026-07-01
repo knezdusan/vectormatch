@@ -25,6 +25,7 @@
 // See TDD §2.4 (D4) for the full specification.
 
 import { inngest } from "@/inngest/client";
+import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
@@ -138,32 +139,6 @@ export function extractCompanyNamesFromHimalayas(data: unknown): string[] {
   }
 
   return names;
-}
-
-// ── Pure function: deduplicate company names ─────────────────────────────────
-
-/**
- * Deduplicate company names, filtering out empty/whitespace-only strings.
- * Deduplication is case-insensitive (preserves the first-seen casing).
- *
- * @param names  Array of company name strings (may contain duplicates)
- * @returns      Deduplicated array with empty names removed
- */
-export function deduplicateCompanyNames(names: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const name of names) {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) continue;
-
-    const key = trimmed.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(trimmed);
-  }
-
-  return result;
 }
 
 // ── Main seeder function ─────────────────────────────────────────────────────

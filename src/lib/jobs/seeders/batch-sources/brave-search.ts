@@ -4,7 +4,7 @@
 // Replaces Google CSE with the Brave Search API. Brave Search indexes career
 // pages that use Greenhouse, Lever, Ashby, SmartRecruiters, Workable, and
 // Recruitee — same URL patterns as Google CSE. The pure URL extraction
-// functions (extractSlugFromUrl, inferAtsSourceFromUrl,
+// functions (extractSlugFromAtsUrl, inferAtsSourceFromUrl,
 // extractCompaniesFromResults) are reused from google-cse.ts since they
 // operate on URLs, not on the search API response format.
 //
@@ -82,7 +82,7 @@ const braveSearchResponseSchema = z.object({
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type BraveSearchResponse = z.infer<typeof braveSearchResponseSchema>;
+type BraveSearchResponse = z.infer<typeof braveSearchResponseSchema>;
 
 export interface BraveSearchResult {
   /** Total search results found across all queries. */
@@ -101,12 +101,12 @@ export interface BraveSearchConfig {
   apiKey: string;
 }
 
-// Re-export the pure functions for callers that import from brave-search
 export {
-  extractCompaniesFromResults,
-  extractSlugFromUrl,
+  extractSlugFromAtsUrl,
   inferAtsSourceFromUrl,
-} from "@/lib/jobs/seeders/batch-sources/google-cse";
+} from "@/lib/jobs/seeders/batch-sources/ats-url-utils";
+// Re-export the pure functions for callers that import from brave-search
+export { extractCompaniesFromResults } from "@/lib/jobs/seeders/batch-sources/google-cse";
 
 // ── API client: execute a single Brave Search query ──────────────────────────
 

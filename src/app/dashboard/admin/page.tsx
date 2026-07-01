@@ -5,6 +5,7 @@ import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AlertsPanel } from "@/components/admin/AlertsPanel";
 import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
 import { MatchingFunnel } from "@/components/admin/MatchingFunnel";
+import { PipelineHealthMonitor } from "@/components/admin/PipelineHealthMonitor";
 import { PipelineStatus } from "@/components/admin/PipelineStatus";
 import { RecentAlerts } from "@/components/admin/RecentAlerts";
 import {
@@ -90,6 +91,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
           <MatchingFunnel range={range} />
         </TabsContent>
         <TabsContent value="pipeline" className="space-y-4">
+          <PipelineHealthMonitor />
           <PipelineStatus />
         </TabsContent>
         <TabsContent value="activity" className="space-y-4">

@@ -36,7 +36,7 @@ export interface RssFeed {
 }
 
 /** We Work Remotely main + category feeds, plus Jobicy. */
-export const RSS_FEEDS: RssFeed[] = [
+const RSS_FEEDS: RssFeed[] = [
   { name: "wwr-main", url: "https://weworkremotely.com/remote-jobs.rss" },
   {
     name: "wwr-engineering",
@@ -111,33 +111,6 @@ export function extractCompanyNamesFromRss(xml: string): string[] {
   });
 
   return names;
-}
-
-// ── Pure function: deduplicate company names ─────────────────────────────────
-
-/**
- * Deduplicate company names (case-insensitive). Returns unique names preserving
- * the first-seen casing. Empty strings are filtered out.
- *
- * @param names  Array of company names (may contain duplicates)
- * @returns      Deduplicated array preserving first-seen casing
- */
-export function deduplicateCompanyNames(names: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const name of names) {
-    const trimmed = name.trim();
-    if (trimmed.length === 0) continue;
-
-    const key = trimmed.toLowerCase();
-    if (seen.has(key)) continue;
-
-    seen.add(key);
-    result.push(trimmed);
-  }
-
-  return result;
 }
 
 /**

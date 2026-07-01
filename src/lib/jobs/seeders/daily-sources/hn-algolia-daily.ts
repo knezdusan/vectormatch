@@ -122,7 +122,7 @@ export function extractAtsUrlsFromText(
 
 function extractSlugFromAtsUrl(
   url: string,
-  atsSource: AtsSource,
+  _atsSource: AtsSource,
 ): string | null {
   try {
     const parsed = new URL(url);

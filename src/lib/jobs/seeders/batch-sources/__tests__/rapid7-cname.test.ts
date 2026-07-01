@@ -193,7 +193,7 @@ describe("inferCompanyNameFromDomain", () => {
 
 // ── runRapid7CnameSeeder ─────────────────────────────────────────────────────
 
-const TEMP_DIR = join(tmpdir(), "rapid7-test-" + Date.now());
+const TEMP_DIR = join(tmpdir(), `rapid7-test-${Date.now()}`);
 
 describe("runRapid7CnameSeeder", () => {
   beforeEach(() => {

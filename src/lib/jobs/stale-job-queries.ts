@@ -24,12 +24,6 @@ export interface ApprovedMatchForVerification {
   externalJobId: string;
 }
 
-export interface StaleVerificationResult {
-  verified: number;
-  stale: number;
-  errors: number;
-}
-
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 /**

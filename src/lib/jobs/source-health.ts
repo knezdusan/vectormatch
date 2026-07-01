@@ -97,20 +97,33 @@ export async function isSourceEnabled(sourceName: string): Promise<boolean> {
  * `lastSuccessAt`, increments `totalRuns`, and flips `status` back to "active"
  * (unless the source was manually disabled — manual disable is sticky and only
  * `enableSource()` can clear it).
+ *
+ * Uses UPSERT (INSERT ... ON CONFLICT DO UPDATE) so the first run creates the
+ * row. The previous UPDATE-only implementation silently affected 0 rows on
+ * first run (no row existed yet), leaving `source_health` permanently empty.
  */
 export async function recordSourceSuccess(sourceName: string): Promise<void> {
   await db
-    .update(sourceHealth)
-    .set({
+    .insert(sourceHealth)
+    .values({
+      sourceName,
+      status: "active",
       consecutiveFailures: 0,
       lastSuccessAt: new Date(),
-      // Only flip back to "active" if not manually disabled. A manually
-      // disabled source stays disabled even if a stray success sneaks in
-      // (e.g. a manual event trigger while disabled).
-      status: sql`CASE WHEN ${sourceHealth.status} = 'disabled' THEN 'disabled' ELSE 'active' END`,
-      totalRuns: sql`${sourceHealth.totalRuns} + 1`,
+      totalRuns: 1,
     })
-    .where(sql`${sourceHealth.sourceName} = ${sourceName}`);
+    .onConflictDoUpdate({
+      target: sourceHealth.sourceName,
+      set: {
+        consecutiveFailures: 0,
+        lastSuccessAt: new Date(),
+        // Only flip back to "active" if not manually disabled. A manually
+        // disabled source stays disabled even if a stray success sneaks in
+        // (e.g. a manual event trigger while disabled).
+        status: sql`CASE WHEN ${sourceHealth.status} = 'disabled' THEN 'disabled' ELSE 'active' END`,
+        totalRuns: sql`${sourceHealth.totalRuns} + 1`,
+      },
+    });
 }
 
 /**
@@ -121,22 +134,37 @@ export async function recordSourceSuccess(sourceName: string): Promise<void> {
  * is enforced by `isSourceEnabled`, not by mutating status. This keeps the
  * "disabled" status reserved for manual kills, making it easy to see at a
  * glance which sources were manually vs. automatically stopped.
+ *
+ * Uses UPSERT (INSERT ... ON CONFLICT DO UPDATE) so the first run creates the
+ * row. The previous UPDATE-only implementation silently affected 0 rows on
+ * first run (no row existed yet), leaving `source_health` permanently empty.
  */
 export async function recordSourceFailure(
   sourceName: string,
   error: string,
 ): Promise<void> {
   await db
-    .update(sourceHealth)
-    .set({
-      consecutiveFailures: sql`${sourceHealth.consecutiveFailures} + 1`,
-      totalFailures: sql`${sourceHealth.totalFailures} + 1`,
-      totalRuns: sql`${sourceHealth.totalRuns} + 1`,
+    .insert(sourceHealth)
+    .values({
+      sourceName,
+      status: "degraded",
+      consecutiveFailures: 1,
+      totalFailures: 1,
+      totalRuns: 1,
       lastFailureAt: new Date(),
       lastError: error,
-      status: sql`CASE WHEN ${sourceHealth.consecutiveFailures} + 1 >= ${DEGRADED_FAILURE_THRESHOLD} THEN 'degraded' ELSE ${sourceHealth.status} END`,
     })
-    .where(sql`${sourceHealth.sourceName} = ${sourceName}`);
+    .onConflictDoUpdate({
+      target: sourceHealth.sourceName,
+      set: {
+        consecutiveFailures: sql`${sourceHealth.consecutiveFailures} + 1`,
+        totalFailures: sql`${sourceHealth.totalFailures} + 1`,
+        totalRuns: sql`${sourceHealth.totalRuns} + 1`,
+        lastFailureAt: new Date(),
+        lastError: error,
+        status: sql`CASE WHEN ${sourceHealth.consecutiveFailures} + 1 >= ${DEGRADED_FAILURE_THRESHOLD} THEN 'degraded' ELSE ${sourceHealth.status} END`,
+      },
+    });
 }
 
 /**

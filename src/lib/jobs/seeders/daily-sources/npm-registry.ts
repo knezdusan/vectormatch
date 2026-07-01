@@ -23,13 +23,14 @@
 //
 // See TDD §2.12 (D12) for the full specification.
 
+import { deduplicateOrgNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-export const NPM_SEARCH_URL =
+const NPM_SEARCH_URL =
   "https://registry.npmjs.org/-/v1/search?text=not:unstable&size=250&from=0";
 
 /**
@@ -37,7 +38,7 @@ export const NPM_SEARCH_URL =
  * framework teams, or tooling maintainers. These never correspond to a
  * single hiring company, so we skip them to avoid noise in the Slugger.
  */
-export const EXCLUDED_SCOPES: Set<string> = new Set([
+const EXCLUDED_SCOPES: Set<string> = new Set([
   "types",
   "babel",
   "eslint",
@@ -143,28 +144,6 @@ export function extractOrgNamesFromPackages(
   }
 
   return orgNames;
-}
-
-// ── Pure function: deduplicate org names ─────────────────────────────────────
-
-/**
- * Deduplicate org names case-insensitively, preserving first-seen order.
- *
- * @param names  Array of org names (possibly with duplicates)
- * @returns      Deduplicated array, first occurrence wins
- */
-export function deduplicateOrgNames(names: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const name of names) {
-    const key = name.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(name);
-  }
-
-  return result;
 }
 
 // ── Main seeder function ─────────────────────────────────────────────────────

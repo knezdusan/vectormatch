@@ -26,11 +26,11 @@ vi.mock("@/lib/jobs/seeders/slugger", () => ({
 
 import {
   buildAdsApiUrl,
-  deduplicateCompanyNames,
   extractCompanyNamesFromAds,
   type MetaAdEntry,
   runMetaAdsSeeder,
 } from "@/lib/jobs/seeders/daily-sources/meta-ads";
+import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
 

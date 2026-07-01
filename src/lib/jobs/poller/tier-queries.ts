@@ -26,54 +26,6 @@ export interface CompanyToPoll {
 // ── Queries ──────────────────────────────────────────────────────────────────
 
 /**
- * Get all Tier A (active) companies that are due for polling.
- * Tier A companies are polled every 12 hours.
- *
- * A company is "due" if:
- *   - tier = "active"
- *   - pollingEnabled = true
- *   - lastPolledAt is null OR lastPolledAt < 12 hours ago
- */
-export async function getActiveTierCompanies(): Promise<CompanyToPoll[]> {
-  const rows = await db
-    .select({
-      id: company.id,
-      atsSource: company.atsSource,
-      atsSlug: company.atsSlug,
-      companyName: company.companyName,
-    })
-    .from(company)
-    .where(
-      sql`${company.tier} = 'active' AND ${company.pollingEnabled} = true AND (${company.lastPolledAt} IS NULL OR ${company.lastPolledAt} < NOW() - INTERVAL '12 hours')`,
-    );
-  return rows;
-}
-
-/**
- * Get all Tier B (dormant) companies that are due for polling.
- * Tier B companies are polled weekly.
- *
- * A company is "due" if:
- *   - tier = "dormant"
- *   - pollingEnabled = true
- *   - lastPolledAt is null OR lastPolledAt < 7 days ago
- */
-export async function getDormantTierCompanies(): Promise<CompanyToPoll[]> {
-  const rows = await db
-    .select({
-      id: company.id,
-      atsSource: company.atsSource,
-      atsSlug: company.atsSlug,
-      companyName: company.companyName,
-    })
-    .from(company)
-    .where(
-      sql`${company.tier} = 'dormant' AND ${company.pollingEnabled} = true AND (${company.lastPolledAt} IS NULL OR ${company.lastPolledAt} < NOW() - INTERVAL '7 days')`,
-    );
-  return rows;
-}
-
-/**
  * Get a single company by ID (for manual single-company polls).
  */
 export async function getCompanyById(
@@ -98,7 +50,7 @@ export async function getCompanyById(
  *
  * Returns up to `limit` companies ordered by lastPolledAt ASC NULLS FIRST —
  * companies that haven't been polled recently (or ever) get priority. This
- * replaces the old fan-out pattern (getActiveTierCompanies → emit per-company
+ * replaces the old fan-out pattern (per-company emit
  * events) with a single batch query consumed by the batchPollTier function.
  *
  * @param tier   The company tier ("active_hot" | "active" | "dormant")

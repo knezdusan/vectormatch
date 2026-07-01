@@ -124,11 +124,13 @@ export const discoverySourceEnum = pgEnum("discovery_source", [
   "sitemap_probe", // B10: Sitemap.xml probing
 ]);
 
-// Type of ingestion log entry — distinguishes seeder runs, poller runs, and
-// the two daily maintenance jobs (tier recalculation, stale cleanup).
+// Type of ingestion log entry — distinguishes seeder runs, poller runs, batch
+// poll tier runs, and the two daily maintenance jobs (tier recalculation,
+// stale cleanup).
 export const ingestionLogTypeEnum = pgEnum("ingestion_log_type", [
   "seed", // Seeder ran (HN, BigQuery, crt.sh)
   "poll", // Poller polled a company
+  "batch_poll", // Batch poll tier ran (G5 — polls N companies per run)
   "tier_recalc", // Tier recalculation ran
   "stale_cleanup", // Stale job cleanup ran
 ]);
