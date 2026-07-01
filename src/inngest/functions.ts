@@ -1900,11 +1900,11 @@ export const matchBulkReprocess = inngest.createFunction(
     const personaId: string | null = event.data.personaId ?? null;
     const includeRejected: boolean = event.data.includeRejected ?? false;
 
-    // Step 1: Get all active+embedded job IDs that are NOT in match_queue
-    // (or are rejected, if includeRejected is true) for the target persona(s).
-    // We fetch ONLY job IDs here — not embeddings — to keep the step response
-    // body tiny. Each job's embedding is 1536-dim text; 5000 of them would be
-    // ~60MB, far exceeding Inngest's response size limit.
+    // Step 1: Get active+embedded job IDs that are NOT in match_queue for the
+    // target persona(s). We fetch ONLY job IDs here — not embeddings — to keep
+    // the step response body small. Even job IDs add up: 5000 UUIDs is ~180KB,
+    // and the whole function response body must stay under Inngest's 1MB limit.
+    // 1000 IDs (~36KB) is safe. The function can be re-run to process the rest.
     const jobIds = await step.run("get-unmatched-jobs", async () => {
       const { db } = await import("@/db/db");
       const { sql } = await import("drizzle-orm");
@@ -1924,7 +1924,7 @@ export const matchBulkReprocess = inngest.createFunction(
             ${includeRejected ? sql`AND mq.status = 'approved'` : sql``}
           )
         ORDER BY j.detected_at DESC
-        LIMIT 5000
+        LIMIT 1000
       `);
 
       return result.rows.map((row) => row.id as string);
