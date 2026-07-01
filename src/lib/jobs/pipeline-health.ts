@@ -36,6 +36,15 @@ export interface PipelineHealthMetrics {
   pendingMatchesStale: number;
   /** Jobs with status='normalization_failed' (retryable failures). */
   normalizationFailed: number;
+  // ── Sprint 8: Match-specific metrics ──────────────────────────────────────
+  /** Approved matches in the last 24 hours. */
+  approvedMatches24h: number;
+  /** Gate 3 approval rate (approved / total evaluated, last 7 days). */
+  gate3ApprovalRate7d: number;
+  /** Jobs with embeddings but no match_queue entries (missed by matching). */
+  unmatchedEmbeddedJobs: number;
+  /** Average Gate 3 LLM confidence for recent evaluations (last 7 days). */
+  avgGate3Confidence: number;
 }
 
 // ── Thresholds ───────────────────────────────────────────────────────────────
@@ -48,6 +57,10 @@ export const ALERT_THRESHOLDS = {
   SOURCE_HEALTH_EMPTY: 0, // alert if 0 source_health rows
   DB_STORAGE_MB: 450, // alert if DB > 450 MB (512 MB limit)
   PENDING_MATCHES_STALE: 10, // alert if > 10 pending matches older than 30min
+  // ── Sprint 8: Match-specific thresholds ───────────────────────────────────
+  APPROVED_MATCHES_24H: 3, // alert if < 3 approved matches in 24h
+  GATE3_APPROVAL_RATE_7D: 0.01, // alert if < 1% approval rate over 7 days
+  UNMATCHED_EMBEDDED_JOBS: 100, // alert if > 100 embedded jobs have no match_queue entry
 } as const;
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -66,6 +79,10 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     dbSizeMb,
     pendingMatchesStale,
     normalizationFailed,
+    approvedMatches24h,
+    gate3ApprovalRate7d,
+    unmatchedEmbeddedJobs,
+    avgGate3Confidence,
   ] = await Promise.all([
     countUnnormalizedJobs(),
     countUnembeddedJobs(),
@@ -75,6 +92,10 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     getDatabaseSizeMb(),
     countStalePendingMatches(),
     countNormalizationFailed(),
+    countApprovedMatches24h(),
+    calcGate3ApprovalRate7d(),
+    countUnmatchedEmbeddedJobs(),
+    calcAvgGate3Confidence7d(),
   ]);
 
   return {
@@ -86,6 +107,10 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     dbSizeMb,
     pendingMatchesStale,
     normalizationFailed,
+    approvedMatches24h,
+    gate3ApprovalRate7d,
+    unmatchedEmbeddedJobs,
+    avgGate3Confidence,
   };
 }
 
@@ -121,6 +146,24 @@ export function evaluateAlerts(metrics: PipelineHealthMetrics): string[] {
   if (metrics.pendingMatchesStale > ALERT_THRESHOLDS.PENDING_MATCHES_STALE) {
     alerts.push(
       `QUEUE_BACKLOG: ${metrics.pendingMatchesStale} pending matches older than 30min`,
+    );
+  }
+  // Sprint 8: match-specific alerts
+  if (metrics.approvedMatches24h < ALERT_THRESHOLDS.APPROVED_MATCHES_24H) {
+    alerts.push(
+      `LOW_APPROVAL_RATE: only ${metrics.approvedMatches24h} approved matches in 24h (target: 5-10)`,
+    );
+  }
+  if (metrics.gate3ApprovalRate7d < ALERT_THRESHOLDS.GATE3_APPROVAL_RATE_7D) {
+    alerts.push(
+      `GATE3_APPROVAL_RATE_LOW: ${(metrics.gate3ApprovalRate7d * 100).toFixed(1)}% Gate 3 approval rate over 7 days (target: 2-4%)`,
+    );
+  }
+  if (
+    metrics.unmatchedEmbeddedJobs > ALERT_THRESHOLDS.UNMATCHED_EMBEDDED_JOBS
+  ) {
+    alerts.push(
+      `UNMATCHED_EMBEDDED: ${metrics.unmatchedEmbeddedJobs} embedded jobs with no match_queue entry`,
     );
   }
 
@@ -185,4 +228,57 @@ async function countNormalizationFailed(): Promise<number> {
     WHERE status = 'normalization_failed' AND normalized_at IS NULL
   `);
   return Number(result.rows[0]?.cnt ?? 0);
+}
+
+// ── Sprint 8: Match-Specific Metric Queries ──────────────────────────────────
+
+async function countApprovedMatches24h(): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT count(*)::int AS cnt FROM match_queue
+    WHERE status = 'approved'
+      AND evaluated_at > NOW() - INTERVAL '24 hours'
+  `);
+  return Number(result.rows[0]?.cnt ?? 0);
+}
+
+async function calcGate3ApprovalRate7d(): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT
+      count(*) FILTER (WHERE status = 'approved')::float
+      / NULLIF(count(*) FILTER (WHERE status IN ('approved', 'rejected')), 0)
+      AS rate
+    FROM match_queue
+    WHERE evaluated_at > NOW() - INTERVAL '7 days'
+  `);
+  return Number(result.rows[0]?.rate ?? 0);
+}
+
+async function countUnmatchedEmbeddedJobs(): Promise<number> {
+  // Jobs with embeddings that have tag overlap with any persona but no
+  // match_queue entry for that persona. These were missed by the matching
+  // pipeline and should be caught by the retry sweep.
+  const result = await db.execute(sql`
+    SELECT count(DISTINCT j.id)::int AS cnt
+    FROM job j
+    JOIN persona p ON (j.extracted_tags && p.must_have_tags)
+    WHERE j.status = 'active'
+      AND j.job_embedding IS NOT NULL
+      AND j.extracted_tags IS NOT NULL
+      AND cardinality(j.extracted_tags) > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM match_queue mq
+        WHERE mq.job_id = j.id AND mq.persona_id = p.id
+      )
+  `);
+  return Number(result.rows[0]?.cnt ?? 0);
+}
+
+async function calcAvgGate3Confidence7d(): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT COALESCE(avg(llm_confidence), 0)::float AS avg_conf
+    FROM match_queue
+    WHERE evaluated_at > NOW() - INTERVAL '7 days'
+      AND llm_confidence IS NOT NULL
+  `);
+  return Number(result.rows[0]?.avg_conf ?? 0);
 }

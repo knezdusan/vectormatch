@@ -161,6 +161,24 @@ export async function PipelineHealthMonitor() {
     true,
   );
   const failedStatus = metricStatus(metrics.normalizationFailed, 50, true);
+  // Sprint 8: match-specific metrics
+  const approvedStatus: Status =
+    metrics.approvedMatches24h < ALERT_THRESHOLDS.APPROVED_MATCHES_24H
+      ? "critical"
+      : metrics.approvedMatches24h < 5
+        ? "warning"
+        : "healthy";
+  const gate3RateStatus: Status =
+    metrics.gate3ApprovalRate7d < ALERT_THRESHOLDS.GATE3_APPROVAL_RATE_7D
+      ? "critical"
+      : metrics.gate3ApprovalRate7d < 0.02
+        ? "warning"
+        : "healthy";
+  const unmatchedStatus = metricStatus(
+    metrics.unmatchedEmbeddedJobs,
+    ALERT_THRESHOLDS.UNMATCHED_EMBEDDED_JOBS,
+    true,
+  );
 
   const hasIssues =
     unnormalizedStatus !== "healthy" ||
@@ -170,7 +188,10 @@ export async function PipelineHealthMonitor() {
     sourceHealthStatus !== "healthy" ||
     dbStatus !== "healthy" ||
     pendingStatus !== "healthy" ||
-    failedStatus !== "healthy";
+    failedStatus !== "healthy" ||
+    approvedStatus !== "healthy" ||
+    gate3RateStatus !== "healthy" ||
+    unmatchedStatus !== "healthy";
 
   return (
     <Card>
@@ -235,6 +256,33 @@ export async function PipelineHealthMonitor() {
             unit="/ 512 MB"
             status={dbStatus}
             description="Neon storage usage"
+          />
+          {/* Sprint 8: Match-specific metrics */}
+          <MetricCard
+            label="Approved Matches (24h)"
+            value={metrics.approvedMatches24h}
+            status={approvedStatus}
+            description="Target: 5-10 approved per day"
+          />
+          <MetricCard
+            label="Gate 3 Approval Rate (7d)"
+            value={metrics.gate3ApprovalRate7d * 100}
+            unit="%"
+            status={gate3RateStatus}
+            description="Target: 2-4% approval rate"
+          />
+          <MetricCard
+            label="Unmatched Embedded Jobs"
+            value={metrics.unmatchedEmbeddedJobs}
+            status={unmatchedStatus}
+            description="Embedded jobs missed by matching"
+          />
+          <MetricCard
+            label="Avg Gate 3 Confidence (7d)"
+            value={metrics.avgGate3Confidence * 100}
+            unit="%"
+            status={metrics.avgGate3Confidence > 0.5 ? "healthy" : "warning"}
+            description="LLM certainty for recent evaluations"
           />
         </div>
       </CardContent>

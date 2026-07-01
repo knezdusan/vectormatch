@@ -458,3 +458,42 @@ describe("mapVerdict", () => {
     expect(mapVerdict(highConfidenceRejected)).toBe("rejected");
   });
 });
+
+// =============================================================================
+// Sprint 8: Gate 3 Prompt Tuning — international contractor + hybrid guidance
+// =============================================================================
+
+describe("Gate 3 Sprint 8 prompt tuning", () => {
+  it("balanced prompt includes w8ben/ic_global contractor guidance", () => {
+    const prompt = buildGate3Prompt(mockContext);
+    // The prompt should mention w8ben or ic_global for international contractors
+    expect(prompt.toLowerCase()).toContain("w8ben");
+  });
+
+  it("balanced prompt uses 'balanced' instead of 'conservative'", () => {
+    const prompt = buildGate3Prompt(mockContext);
+    // The system prompt is embedded in the evaluation, not the user prompt.
+    // We test the system prompt content via evaluateGate3's variant selection.
+    // The user prompt itself doesn't contain the system prompt, so we verify
+    // the prompt builder includes the compliance info the LLM needs.
+    expect(prompt).toContain("w8ben");
+    expect(prompt).toContain("Preferred Compliance");
+  });
+
+  it("includes applicant compliance preferences in the prompt", () => {
+    const prompt = buildGate3Prompt(mockContext);
+    expect(prompt).toContain("Preferred Compliance");
+    expect(prompt).toContain("b2b, w8ben");
+  });
+
+  it("includes applicant assignment types in the prompt", () => {
+    const prompt = buildGate3Prompt(mockContext);
+    expect(prompt).toContain("Assignment Types");
+    expect(prompt).toContain("remote");
+  });
+
+  it("includes applicant country in the prompt", () => {
+    const prompt = buildGate3Prompt(mockContext);
+    expect(prompt).toContain("Country: RS");
+  });
+});

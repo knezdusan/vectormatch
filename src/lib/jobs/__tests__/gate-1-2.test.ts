@@ -175,6 +175,48 @@ describe("Gate 1+2 SQL shape validation", () => {
     const sqlText = getLastQuerySQL().toLowerCase();
     expect(sqlText).toContain("persona_embedding is not null");
   });
+
+  // ── Sprint 8: dedup relaxation + workplace filter removal ─────────────────
+
+  it("cross-posting dedup only blocks approved matches (Sprint 8)", async () => {
+    mockExecuteReturns([]);
+    await runGateSQLRouter("job-1", ["react"], [0.1, 0.2, 0.3]);
+
+    const sqlText = getLastQuerySQL().toLowerCase();
+    // The NOT EXISTS dedup clause must include "status = 'approved'"
+    expect(sqlText).toContain("not exists");
+    expect(sqlText).toContain("match_queue");
+    expect(sqlText).toContain("approved");
+  });
+
+  it("does NOT include workplace_type pre-filter (Sprint 8 removal)", async () => {
+    mockExecuteReturns([]);
+    await runGateSQLRouter("job-1", ["react"], [0.1, 0.2, 0.3]);
+
+    const sqlText = getLastQuerySQL().toLowerCase();
+    // The workplace_type pre-filter was removed — the query should NOT
+    // contain the applicant assignment_types check
+    expect(sqlText).not.toContain("workplace_type = 'remote'");
+    expect(sqlText).not.toContain("workplace_type = 'hybrid'");
+    expect(sqlText).not.toContain("workplace_type = 'on-site'");
+    expect(sqlText).not.toContain("assignment_types");
+  });
+
+  it("job_meta CTE does not fetch workplace_type (Sprint 8 cleanup)", async () => {
+    mockExecuteReturns([]);
+    await runGateSQLRouter("job-1", ["react"], [0.1, 0.2, 0.3]);
+
+    const sqlText = getLastQuerySQL().toLowerCase();
+    // job_meta should only fetch ats_slug and title (not workplace_type)
+    expect(sqlText).toContain("job_meta");
+    expect(sqlText).toContain("ats_slug");
+    expect(sqlText).toContain("title");
+    // workplace_type should not appear in the CTE select
+    const cteMatch = sqlText.match(/job_meta as\s*\(([^)]+)\)/);
+    if (cteMatch) {
+      expect(cteMatch[1]).not.toContain("workplace_type");
+    }
+  });
 });
 
 // =============================================================================

@@ -811,6 +811,7 @@ Without observability, the pipeline is a black box. Every seeder and poller run 
 export const ingestionLogTypeEnum = pgEnum("ingestion_log_type", [
   "seed",         // Seeder ran (HN, BigQuery, crt.sh)
   "poll",         // Poller polled a company
+  "batch_poll",   // Batch poll tier ran (G5 — polls N companies per run) [Sprint 7]
   "tier_recalc",  // Tier recalculation ran
   "stale_cleanup",// Stale job cleanup ran
 ]);
@@ -1392,7 +1393,7 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 
 | File | Role |
 |------|------|
-| `ats-adapters.ts` | Fetch + Zod validate + normalize per ATS platform. Returns unified `NormalizedJob[]`. Uses original JSON for `rawJson` to preserve all fields. Injectable `FetchFn`. |
+| `ats-adapters.ts` | Fetch + Zod validate + normalize per ATS platform. Returns unified `NormalizedJob[]`. Uses original JSON for `rawJson` to preserve all fields. Injectable `FetchFn`. **[Sprint 7]** Uses `fetchWithTimeout` for the jobs-list fetch (10s timeout). |
 | `job-repository.ts` | Job table upserts (`onConflictDoUpdate`), new job detection (for B→C handoff), stale cleanup (Phase 2: 7d→stale, 30d→gone), active job count. |
 | `company-state.ts` | Company polling state updates (lastPolledAt, health, consecutiveFailures). Auto-disables polling after 3 consecutive failures. HTTP status → health mapping (429→rate_limited, 403→blocked, 404→dead, 500+→error). |
 | `tier-queries.ts` | Tier-based company queries for batch polling (active_hot every 3h, active every 12h, dormant weekly). Daily tier recalculation SQL (uses `::company_tier` enum cast for PostgreSQL compatibility). Single-company lookup by ID. |
@@ -1400,20 +1401,22 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 | `batch-poll.ts` | G5/G6 batch polling: polls up to 100 companies per function run. Per-company error isolation. Used by `batchPollActiveHot`, `batchPollActive`, `batchPollDormant` Inngest functions. |
 | `rate-limiter.ts` | Per-ATS Bottleneck limiters (2 req/s, 1 concurrent per platform). |
 | `schemas.ts` | Zod schemas for Inngest event payloads (`pollCompanyEventSchema`, `pollerRunEventSchema`, `jobIngestedEventSchema`). |
+| `fetch-with-timeout.ts` | **[Sprint 7]** Wraps injectable `FetchFn` with `AbortController`-based 10s timeout. Prevents indefinite hangs on unresponsive ATS endpoints. Used by `ats-adapters.ts` and `smartrecruiters-detail.ts`. |
+| `ingestion-log.ts` | **[Sprint 7]** `writeIngestionLog()` helper — fire-and-forget insert into `ingestionLog` table. Used by `batchPollTier` and `normalizationRetrySweep`. |
 
 **Inngest function map (in `src/inngest/functions.ts`):**
 
 | Function | Trigger | Role |
 |----------|---------|------|
 | `pollCompanyFn` | `poller/poll-company` event | Per-company fan-out target (bootstrap polls). Concurrency cap 50. Fetches → Gate 0 → upsert → emits `job/ingested`. |
-| `batchPollActiveHot` | cron `0 */3 * * *` (every 3h) | G5/G6 batch poll for `active_hot` tier companies (recent approved matches). |
-| `batchPollActive` | cron `0 */12 * * *` (every 12h) | G5/G6 batch poll for `active` tier companies. |
-| `batchPollDormant` | cron `0 3 * * 1` (weekly Monday 3am) | G5/G6 batch poll for `dormant` tier companies. |
+| `batchPollTier` | cron `0 */3 * * *`, `0 */12 * * *`, `0 3 * * 1` | **[Sprint 7 refactor]** G5/G6 batch poll for all three tiers. Polls 100 companies per run in `POLL_CHUNK_SIZE` (10) chunks — each chunk is a separate `step.run()` so progress is checkpointed. After polling, queries DB for unnormalized jobs and emits `job/ingested` events (robust fallback for timeout/retry). Writes `batch_poll` ingestion log entries. Concurrency cap 5. |
 | `phalanxPoller` | `poller/run` event (manual) | Single-company poll by companyId (admin/testing). |
 | `tierRecalc` | cron `0 4 * * *` (daily 04:00 UTC) | Recalculates all company tiers based on activity. |
 | `staleCleanup` | cron `0 3 * * *` (daily 03:00 UTC) | Marks stale (7d) and gone (30d) jobs. |
+| `normalizationRetrySweep` | cron `0 6 * * *` (daily 06:00 UTC) | **[Sprint 7]** Re-emits `job/ingested` for stuck jobs: `normalization_failed` OR `active + normalizedAt IS NULL`. Limit 200/run. |
+| `pipelineHealthMonitor` | cron `*/30 * * * *` (every 30 min) | **[Sprint 7]** Collects 8 pipeline metrics, evaluates thresholds, creates/resolves `pipeline_health` alerts. See §4.7.10. |
 
-**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 1,324 project tests pass. Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
+**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 1,594 project tests pass (84 files). Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
 
 ### 4.5 The B→C Handoff Contract `[Status: Implemented — G7 rawJson Pruning, June 29 2026]`
 
@@ -1453,6 +1456,8 @@ Module B (Poller)                          Module C (Router)
 - **Testability:** Module B is tested by asserting `job` rows with `extractedTags = []` and `jobEmbedding = null`. Module C is tested by feeding it a job row and asserting tags/embedding are populated.
 - **Failure isolation:** If the embedding service is down, Module B still inserts raw jobs. Module C catches up when it recovers.
 - **Cost control:** Embedding every job costs money. By separating insertion from embedding, only jobs that passed Gate 0 (relevant titles) get embedded.
+
+**Sprint 7 enhancement (July 1 2026):** `batchPollTier` now emits `job/ingested` events for unnormalized jobs found via DB query AFTER polling — not just for genuinely new jobs. This is a robust fallback for the timeout/retry failure mode: when the `poll-batch` (now `poll-chunk-N`) step times out and retries, `upsertJobs` finds the jobs already exist → `newJobIds = []`, but the DB query (`status = 'active' AND normalizedAt IS NULL`) still finds them as unnormalized. The `jobIngestedHandler` idempotency guard (§4.6) ensures already-normalized jobs are skipped, so duplicate events are safe. The `normalizationRetrySweep` daily cron (06:00 UTC) catches any remaining stuck jobs across the entire `job` table (not just polled companies). See §4.7.10 for full details.
 
 ### 4.6 ATS Platform Coverage
 
@@ -1641,7 +1646,7 @@ Eight tasks implemented across two sub-sessions (Sprint 4 + Sprint 4b). See `COR
 
 **SmartRecruiters Tier 2 Selective Detail Fetch:** New `src/lib/jobs/poller/smartrecruiters-detail.ts` — `enrichSmartRecruitersJobs()` fetches the detail endpoint (`/v1/companies/{slug}/postings/{postingId}`) only for jobs where the Tier 1 pseudo-description is < 100 chars, capped at 10 fetches per poll cycle. Best-effort — failures are non-fatal (Tier 1 data is kept). Integrated into `phalanx-poller.ts` AFTER Gate 0 filtering to avoid wasting API calls on rejected jobs. `smartRecruitersJobDetailSchema` added to `ats-schemas.ts`. `job-normalizer.ts` SmartRecruiters case updated to extract full description from `jobAd.sections` when present (Tier 2), falling back to Tier 1 synthesis.
 
-**Alerting System:** New `alerts` table (migration `0033_alerts.sql`) with `alert_type` enum (`storage_near_limit`, `storage_critical`, `schema_validation_spike`, `circuit_breaker_trip`) and `alert_severity` enum (`info`, `warning`, `critical`). `src/lib/jobs/alerting.ts` module with `createAlert`, `hasActiveAlert`, `resolveAlert`, `resolveAlertsByType`, `getActiveAlerts`, `getRecentAlerts`, `checkStorageAlerts`, `checkSchemaValidationAlerts`, `createCircuitBreakerAlert` — all with deduplication via `hasActiveAlert`. `dailyHealthCheck` Inngest function (cron `0 6 * * *`) runs storage + schema validation checks. Circuit breaker integration in `source-health.ts` auto-creates `circuit_breaker_trip` alerts on source disable. Schema validation monitoring queries `ingestion_log` for `error_message LIKE '%Zod validation failed%'` and alerts on failure rate > 20% over 60 minutes.
+**Alerting System:** New `alerts` table (migration `0033_alerts.sql`) with `alert_type` enum (`storage_near_limit`, `storage_critical`, `schema_validation_spike`, `circuit_breaker_trip`, `pipeline_health` [Sprint 7]) and `alert_severity` enum (`info`, `warning`, `critical`). `src/lib/jobs/alerting.ts` module with `createAlert`, `hasActiveAlert`, `resolveAlert`, `resolveAlertsByType`, `getActiveAlerts`, `getRecentAlerts`, `checkStorageAlerts`, `checkSchemaValidationAlerts`, `createCircuitBreakerAlert` — all with deduplication via `hasActiveAlert`. `dailyHealthCheck` Inngest function (cron `0 6 * * *`) runs storage + schema validation checks. Circuit breaker integration in `source-health.ts` auto-creates `circuit_breaker_trip` alerts on source disable. Schema validation monitoring queries `ingestion_log` for `error_message LIKE '%Zod validation failed%'` and alerts on failure rate > 20% over 60 minutes. **Sprint 7 addition:** `pipeline_health` alert type added (migration `0034`) for the `pipelineHealthMonitor` function — see §4.7.10.
 
 **Admin Interactivity (Sprint 4b):** New `src/actions/admin.ts` Server Actions — `disableSourceAction`, `enableSourceAction`, `resolveAlertAction`, `resolveAlertsByTypeAction` with `requireRole("admin")` auth checks, Zod input validation, `revalidatePath("/dashboard/admin")` on success, and `resolvedBy` audit trail (`admin:{email}`). New `src/components/admin/AlertResolveButton.tsx` client component using `useTransition` — renders "Resolve" button per alert with loading state. New `src/components/admin/SourceToggleButton.tsx` client component — shows "Enable" for disabled sources, "Disable" for active/degraded, with loading state. Admin sidebar navigation fixed in `DashboardSidebarNav.tsx` — "Admin" now links to `/dashboard/admin` with "Dashboard" and "Users" sub-items.
 
@@ -1680,6 +1685,70 @@ This ensures the auto-sync works in production even if `INNGEST_SERVE_ORIGIN` is
 
 **Verification:** App registered in Inngest dashboard (functionCount=45, SDK v4.8.0, framework nextjs, sync URL `https://vectormatch.dev/api/inngest`). All 45 functions visible via `GET /v2/apps/vectormatch/functions?limit=100` (40 cron triggers, 16 event triggers). Test event `poller/run` accepted via `POST /e/{EVENT_KEY}` (ID `01KWD5GYBTM25S3F1BNRJ7SZ63`), triggered function run `01KWD5GYJ4RCS6N0FTCTC6M8JY` → status `Completed` in 433ms. VectorMatch app `running:healthy`. 1,584 tests pass (83 files), 0 TS errors in changed file, 0 new migrations. Inngest Cloud project kept active for 48h rollback window.
 
+#### 4.7.10 Sprint 7 — Pipeline Activation & Monitoring `[Status: Implemented — July 1 2026]`
+
+Eight tasks implemented to fix a critical production issue (2,006 new jobs detected but not normalized/embedded, zero new matches for 32 hours) and establish comprehensive pipeline monitoring. The root cause was a combination of three bugs: (1) `batchPollTier`'s monolithic `poll-batch` step polled 100 companies sequentially with no fetch timeout — one hanging ATS endpoint stalled the entire batch, and Inngest retries reset progress to zero; (2) `source_health` recording used UPDATE-only instead of UPSERT, leaving the table permanently empty; (3) `normalizationRetrySweep` only processed `normalization_failed` jobs, missing jobs that were never normalized at all.
+
+**Task 1+7+3 (CRITICAL — batchPollTier refactor):** The `batchPollTier` function (`src/inngest/functions.ts`) no longer performs inline normalization. New flow:
+1. `get-batch` step: Query up to 100 companies for the tier (unchanged).
+2. `poll-chunk-N` steps: Poll companies in `POLL_CHUNK_SIZE` (10) sub-batches, each its own `step.run()`. Inngest checkpoints each completed chunk — if a later chunk times out and the function retries, already-completed chunks are NOT re-run, so progress accumulates monotonically instead of resetting to zero.
+3. `find-unnormalized` step: Query the DB for unnormalized jobs from the polled companies (`status = 'active' AND normalizedAt IS NULL` OR `status = 'normalization_failed'`, filtered by `inArray(atsSource, ...)` and `inArray(atsSlug, ...)`). This is a robust fallback that works even when the poll step timed out and retried (jobs already in DB → `newJobIds: []`, but the DB query still finds them as unnormalized). Limited to 500 jobs per run.
+4. `emit-job-ingested` step: Emit `job/ingested` Inngest events for all unnormalized jobs. The `jobIngestedHandler` handles normalization + embedding + Gate 1+2 + Gate 3 fan-out. Its idempotency guard (§4.6) ensures already-normalized jobs are skipped, so duplicate events are safe.
+5. `write-log` step: Write a `batch_poll` entry to `ingestion_log` for observability (status: `success` or `partial` based on error count).
+
+**Task 2 (CRITICAL — normalizationRetrySweep):** The `normalizationRetrySweep` Inngest function (`src/inngest/functions.ts`, cron `0 6 * * *`) now processes two categories of stuck jobs:
+1. `status = 'normalization_failed'` — jobs where the normalizer or LLM fallback threw an error (retryable).
+2. `status = 'active' AND normalizedAt IS NULL` — jobs that were detected and inserted but NEVER entered the normalization loop (the batchPollTier timeout/retry failure mode).
+
+Both categories are re-emitted as `job/ingested` events. Limit raised from 50 to 200 jobs per run to handle the backlog. The `jobIngestedHandler` idempotency guard ensures safe re-processing. Files: `src/inngest/functions.ts`.
+
+**Task 4 (HIGH — source_health UPSERT):** `recordSourceSuccess` and `recordSourceFailure` in `src/lib/jobs/source-health.ts` converted from UPDATE-only to UPSERT (`INSERT ... ON CONFLICT (source_name) DO UPDATE`). The previous UPDATE-only implementation silently affected 0 rows on first run (no row existed yet for a new source), leaving the `source_health` table permanently empty — circuit breakers never tripped because there was no row to check. The UPSERT creates the row on first run and updates it on subsequent runs. The `status` field in the ON CONFLICT SET clause uses a `CASE WHEN` to preserve manual disables: `CASE WHEN status = 'disabled' THEN 'disabled' ELSE 'active' END`. Files: `src/lib/jobs/source-health.ts`, `src/lib/jobs/__tests__/source-health.test.ts`.
+
+**Task 5 (HIGH — normalization error logging):** The `jobIngestedHandler` in `src/inngest/functions.ts` now logs normalization failures with `console.error`:
+```typescript
+console.error(
+  `[jobIngestedHandler] Normalization failed for job ${jobId} (atsSource=${decision.job.atsSource}):`,
+  normalization.error ?? "unknown error",
+);
+```
+Previously, normalization errors were silently swallowed — making it impossible to diagnose why jobs were failing (e.g. OpenAI API key not set, rate limiting, malformed SmartRecruiters detail data). The error is logged but does NOT change the control flow (the job is still marked `normalization_failed` and remains retryable).
+
+**Task 6 (HIGH — pipeline health monitor):** New `pipelineHealthMonitor` Inngest function (cron `*/30 * * * *` — every 30 min) and admin dashboard component for real-time pipeline monitoring.
+
+*Pipeline Health Metrics* (`src/lib/jobs/pipeline-health.ts`): `getPipelineHealthMetrics()` collects 8 metrics in parallel via `Promise.all`:
+| Metric | Query | Alert Threshold |
+|---|---|---|
+| `unnormalizedJobs` | `count(*) FROM job WHERE status='active' AND normalized_at IS NULL AND detected_at < NOW() - 1h` | > 50 |
+| `unembeddedJobs` | `count(*) FROM job WHERE status='active' AND job_embedding IS NULL AND normalized_at IS NOT NULL` | > 50 |
+| `companiesPolled4h` | `count(*) FROM company WHERE last_polled_at > NOW() - 4h` | = 0 (stale poller) |
+| `matches24h` | `count(*) FROM match_queue WHERE created_at > NOW() - 24h` | = 0 (no matches) |
+| `sourceHealthRows` | `count(*) FROM source_health` | = 0 (empty) |
+| `dbSizeMb` | `pg_database_size()` via `getDatabaseSizeMb()` | > 450 MB |
+| `pendingMatchesStale` | `count(*) FROM match_queue WHERE status='pending' AND created_at < NOW() - 30min` | > 10 |
+| `normalizationFailed` | `count(*) FROM job WHERE status='normalization_failed' AND normalized_at IS NULL` | (informational) |
+
+`evaluateAlerts(metrics)` returns an array of alert message strings for any metrics that breach their thresholds. The `pipelineHealthMonitor` function creates a deduplicated `pipeline_health` alert (severity: `warning`) when any alerts are present, and auto-resolves it when all metrics return to healthy ranges. Uses `resolveAlertsByType("pipeline_health")` + `createAlert()` to update the existing alert's message on each run.
+
+*Admin Dashboard Component* (`src/components/admin/PipelineHealthMonitor.tsx`): Server Component that calls `getPipelineHealthMetrics()` directly and renders a grid of metric cards with color-coded status indicators (healthy/warning/critical). Integrated into the admin dashboard page (`src/app/dashboard/admin/page.tsx`) alongside `InfrastructureHealth` and `MatchingFunnel`.
+
+**HTTP Fetch Timeout:** New `src/lib/jobs/poller/fetch-with-timeout.ts` utility — wraps any injectable `FetchFn` call with an `AbortController`-based timeout (default 10s). A timeout surfaces as a normal `AbortError`, which the existing try/catch blocks in `ats-adapters.ts` and `smartrecruiters-detail.ts` already treat as a recoverable ("network"/failed) result. Integrated into:
+- `ats-adapters.ts` — `fetchJobsFromAts` uses `fetchWithTimeout(fetchFn, url)` for the jobs-list fetch.
+- `smartrecruiters-detail.ts` — detail fetches use `fetchWithTimeout(fetchFn, url)` for the per-posting detail endpoint.
+
+This prevents a single unresponsive ATS endpoint from blocking the entire `batchPollTier` sequential poll loop indefinitely.
+
+**Ingestion Log Helper** (`src/lib/jobs/poller/ingestion-log.ts`): New `writeIngestionLog()` function — fire-and-forget insert into the `ingestionLog` table. Used by `batchPollTier` and `normalizationRetrySweep` for observability. Types: `IngestionLogType` (`seed | poll | batch_poll | tier_recalc | stale_cleanup`), `IngestionLogStatus` (`success | partial | failed`). Log write failures are swallowed (observability is best-effort — never crashes the pipeline).
+
+**Migration 0034** (`src/db/migrations/0034_sprint7_enum_additions.sql`): Adds two enum values:
+- `batch_poll` to `ingestion_log_type` — for `batchPollTier` ingestion log entries.
+- `pipeline_health` to `alert_type` — for pipeline health monitor alerts.
+
+Both are additive `ALTER TYPE ... ADD VALUE IF NOT EXISTS` — no data loss, no downtime.
+
+**Verification:** 1,594 tests pass (84 files), 0 TS errors, 1 new migration (0034). 30 new tests across 3 new test files (`pipeline-health.test.ts`, updated `source-health.test.ts`, `fetch-with-timeout` tests). Biome clean. Production health check confirmed: app `running:healthy`, Inngest server `running:healthy`, `source_health` UPSERT fix verified (1 row now exists that wouldn't have under old code), DB storage stable at 136MB/512MB.
+
+**Production deployment note:** The `batchPollTier` chunking fix and `fetchWithTimeout` are the critical changes — without them, the pipeline makes near-zero progress per cron cycle (observed: ~3-6 companies polled per 3h cycle vs. 100 target). After deploying these fixes, the next `batchPollTier` cron fire should make real progress, and `SELECT count(*) FROM ingestion_log WHERE type='batch_poll'` should be non-zero.
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
@@ -1709,6 +1778,8 @@ This ensures the auto-sync works in production even if `INNGEST_SERVE_ORIGIN` is
     *   `decideNormalizationAction` — handles rejection (garbage job → `status = 'rejected'`, tombstone) vs. system failure (`status = 'normalization_failed'`, retryable).
 *   **Embedding** (`src/lib/jobs/job-embedder.ts`): The job description is embedded using `text-embedding-3-small` (1536 dimensions).
 *   `normalizedAt` is set ONLY on terminal outcomes (successful normalization OR rejection). Never set on `normalization_failed` — that would turn it into a permanent tombstone, defeating the two-status split.
+*   **Error logging (Sprint 7, July 1 2026):** Normalization failures are now logged with `console.error` including `jobId`, `atsSource`, and the error message. Previously silently swallowed — making it impossible to diagnose OpenAI API key issues, rate limiting, or malformed SmartRecruiters detail data. The error is logged but does NOT change control flow (the job is still marked `normalization_failed` and remains retryable).
+*   **Retry sweep (Sprint 7, July 1 2026):** The `normalizationRetrySweep` Inngest function (cron `0 6 * * *`) now processes TWO categories of stuck jobs: (1) `status = 'normalization_failed'` (retryable failures), AND (2) `status = 'active' AND normalizedAt IS NULL` (never normalized — the batchPollTier timeout/retry failure mode). Limit raised from 50 to 200 jobs per run. Both categories are re-emitted as `job/ingested` events; the idempotency guard ensures safe re-processing. See §4.7.10 for full details.
 
 ### 5.2 Step 2: Gate 1 & 2 (The SQL Router) `[Status: Implemented]`
 Run a single SQL query (`src/lib/jobs/gate-1-2.ts`, `runGateSQLRouter`) to narrow all personas down to ~8 candidates in under 20ms.

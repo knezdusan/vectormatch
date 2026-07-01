@@ -3667,3 +3667,689 @@ The HN Algolia seeder is running hourly despite its crons being `0 0 * * *` and 
 | source_health rows | 0 |
 | Active alerts | 0 |
 | DB size | 136 MB |
+
+---
+
+## Sprint 8 — Match Delivery Fix & Bulk Reprocessing Handoff (Session 10)
+
+> **Purpose:** The Company Corpus Expansion campaign's ultimate goal was to deliver 5-10 fully qualified and approved job matches to the user's dashboard every day. Despite successfully ingesting 9,637 companies and 9,126 active jobs, the match count is stuck at 62 (1 approved, 61 rejected) — exactly the same as before the campaign started. This handoff diagnoses why the matching pipeline is broken and provides a detailed plan to fix it and deliver on the campaign's promise.
+
+### The Problem — Detailed Diagnosis
+
+#### Current State (July 1 09:40 UTC)
+
+| Metric | Value | Target |
+|---|---|---|
+| Total companies | 9,637 | 5,000+ ✅ |
+| Active jobs | 9,126 | — |
+| Jobs with embeddings | 5,043 | 9,126 |
+| Jobs without embeddings (CAN'T match) | 4,083 | 0 |
+| Personas | 3 | 3 ✅ |
+| Match queue total | 62 | 50-100/day |
+| Approved matches | 1 | 5-10/day |
+| Rejected matches | 61 | — |
+| Last match created | June 30 00:10 | <24h ago |
+| Matches in last 24h | 0 | 5-10 |
+
+#### The Matching Funnel — Where It Breaks
+
+The 3-gate funnel was traced end-to-end with live database queries. Here's the complete funnel:
+
+```
+9,126 active jobs
+    │
+    │  4,083 have NO embedding (normalization broken — Sprint 7 issue)
+    │  → These can NEVER be matched (Gate 2 requires embeddings)
+    ▼
+5,043 active + embedded jobs
+    │
+    │  3,543 have NO tag overlap with any persona (Gate 1 filters them out)
+    │  → Persona tags: typescript, nextjs, react, nodejs, prompt-engineering,
+    │    graphql, tailwindcss, php, laravel, mysql, wordpress, javascript
+    │  → Many jobs have tags like: csharp, python, go, c, cpp, ruby, swift, kotlin
+    ▼
+1,500 jobs with ≥1 tag overlap (Gate 1 passes)
+    │
+    │  Gate 2: cosine distance < 0.5 (configurable via GATE2_MAX_COSINE_DISTANCE)
+    │  198 job-persona pairs pass BOTH Gate 1 AND Gate 2
+    ▼
+198 candidate pairs (pass both gates)
+    │
+    │  Workplace type pre-filter: applicant has assignment_types = {remote} only
+    │  → 113 pairs BLOCKED (74 on-site + 39 hybrid, applicant is remote-only)
+    │  → 85 pairs have remote or NULL workplace_type
+    ▼
+85 remote/NULL pairs
+    │
+    │  Cross-posting dedup: blocks if same (ats_slug, title) already in match_queue
+    │  → 12 pairs BLOCKED by dedup
+    ▼
+73 evaluable remote/NULL pairs (not dedup-blocked)
+    │
+    │  Only 62 are in match_queue (were evaluated by Gate 3)
+    │  → 23 pairs SHOULD be matched but were NEVER EVALUATED
+    │  → 12 blocked by dedup (may be valid)
+    ▼
+62 evaluated by Gate 3 (LLM)
+    │
+    │  61 rejected, 1 approved (1.6% approval rate, target: 2-4%)
+    │  Top rejection reasons:
+    │    - Geographic restrictions: "remote restricted to US/UK/Poland/France"
+    │    - Workplace mismatch: "requires on-site in SF"
+    │    - Missing skills: "nextjs not mentioned"
+    │    - Travel requirements: "requires significant travel"
+    ▼
+1 approved match (in user's dashboard)
+```
+
+#### Root Cause Analysis — 6 Distinct Issues
+
+**Issue 1 (CRITICAL): No Bulk Reprocessing Mechanism**
+
+When personas are created or updated, there's no way to retroactively match them against existing jobs. The `personaUpdatedHandler` function only re-evaluates REJECTED matches (up to 50) — it does NOT evaluate jobs that were never matched.
+
+Evidence:
+- 49 matches created at June 28 20:39:43 (exactly when personas were created) — this was a one-time initial flush
+- 13 matches created at June 30 00:09-00:10 (from HN Algolia seeder — new jobs)
+- **23 candidate pairs pass ALL filters but were NEVER evaluated** by Gate 3
+- These 23 pairs are jobs that existed before the personas, were never matched in the initial flush (possibly due to the cross-posting dedup or timing), and have no mechanism to be re-evaluated
+
+**Issue 2 (CRITICAL): 4,083 Active Jobs Without Embeddings**
+
+4,083 of 9,126 active jobs have no `job_embedding` and no `normalized_text`. Gate 2 requires embeddings to compute cosine similarity. These jobs can NEVER be matched.
+
+This is the Sprint 7 normalization issue — the `batchPollTier` inline normalization was broken. Sprint 7's fix (emitting `job/ingested` events) should address new jobs going forward, but the 4,083 existing jobs need bulk reprocessing.
+
+**Issue 3 (HIGH): Cross-Posting Dedup Too Aggressive**
+
+The Gate 1+2 SQL router has a cross-posting dedup clause:
+```sql
+AND NOT EXISTS (
+  SELECT 1 FROM match_queue mq
+  JOIN job j2 ON mq.job_id = j2.id
+  WHERE j2.ats_slug = jm.ats_slug
+    AND j2.title = jm.title
+    AND mq.persona_id = p.id
+)
+```
+
+This blocks ANY job with the same (ats_slug, title) as an already-matched job, even if:
+- The existing match was REJECTED (the job might be a better fit for a different persona)
+- The jobs are actually different postings with the same title (common for large companies)
+- The persona was updated since the original match
+
+12 valid remote/NULL pairs are blocked by this dedup.
+
+**Issue 4 (HIGH): Workplace Type Pre-Filter Too Restrictive**
+
+The Gate 1+2 SQL router pre-filters by workplace_type vs. applicant's assignment_types. The applicant has `assignment_types = {remote}` only. This blocks:
+- 74 on-site pairs
+- 39 hybrid pairs
+- Total: 113 pairs blocked before Gate 3 can evaluate them
+
+The applicant might want to see some hybrid roles (they can reject in Gate 3). The pre-filter is overly aggressive — it should let Gate 3 (the LLM) make the final determination, especially for hybrid roles that might offer remote options.
+
+**Issue 5 (HIGH): Gate 3 Approval Rate Too Low (1.6%)**
+
+The Gate 3 LLM (gpt-4o-mini) is rejecting 98.4% of candidates. The target is 2-4% approval. The top rejection reasons are:
+- **Geographic restrictions** (30+ rejections): "remote restricted to US/UK/Poland/France, applicant is in Serbia (RS)"
+- **Workplace mismatches** (10+ rejections): "requires on-site in SF/Austin"
+- **Missing key skills** (10+ rejections): "nextjs not mentioned", "requires Angular and jQuery"
+
+The geographic rejections are largely CORRECT — many remote jobs restrict to US/EU/UK only, and the applicant is in Serbia. However:
+1. Some "US only" remote jobs actually accept international contractors with w8ben compliance (the applicant has `preferred_compliance = {w8ben, ic_global}`)
+2. The LLM may be too conservative about inferring geographic restrictions from job descriptions
+3. The prompt says "Be conservative: only approve if you are confident" — this biases toward rejection
+
+**Issue 6 (MEDIUM): No Periodic Re-Matching**
+
+There's no periodic function that re-evaluates unmatched jobs. The matching only happens:
+1. When a new job is inserted → `jobIngestedHandler` runs Gate 1+2
+2. When a persona is updated → `personaUpdatedHandler` re-evaluates rejected matches (limit 50)
+
+There's no "sweep" that catches jobs that were missed (e.g., due to timing, errors, or filter changes).
+
+### Initial Prompt for New Session
+
+I am fixing the VectorMatch matching pipeline to deliver 5-10 approved job matches to the user's dashboard every day. The Company Corpus Expansion campaign successfully ingested 9,637 companies and 9,126 active jobs, but only 62 matches have been created (1 approved, 61 rejected) — the same as before the campaign. The matching pipeline is broken at multiple points.
+
+**The user's profile:**
+- Location: Serbia (RS)
+- Assignment types: remote only
+- Compliance: w8ben, ic_global
+- Modalities: full-time, part-time, contract
+- Seniority: senior, lead
+- 3 personas: Next.js/AI Full-Stack, Senior React/GraphQL Frontend, PHP/Laravel Full-Stack
+
+**The funnel diagnosis (from live DB queries):**
+- 5,043 of 9,126 active jobs have embeddings (4,083 don't — can't match)
+- 1,500 jobs have tag overlap with personas (Gate 1)
+- 198 pairs pass both Gate 1 AND Gate 2 (distance < 0.5)
+- 113 pairs blocked by workplace_type pre-filter (applicant is remote-only)
+- 12 pairs blocked by cross-posting dedup
+- **23 pairs pass ALL filters but were NEVER evaluated by Gate 3**
+- 62 evaluated by Gate 3 → 1 approved (1.6% approval rate)
+
+**YOUR ROLE:** Fix the matching pipeline to deliver 5-10 approved matches daily. Create a bulk reprocessing mechanism to evaluate all existing jobs against all personas. Tune the filters and Gate 3 prompt to improve the approval rate. Add monitoring and verification.
+
+**CRITICAL RULES:**
+- Read `AGENTS.md` first — follow the Technology Stack and NEVER run Git rules.
+- **NEVER run Git commands** — leave all version control to the user.
+- **Do NOT change the matching algorithm** (Gate 1 GIN + Gate 2 HNSW + Gate 3 LLM) — only fix the pipeline, filters, and prompt.
+- **Run tests after every change** — `npx tsc --noEmit && npx vitest run --reporter=dot` must pass.
+- **Check the OpenAI API key in Coolify production** — if missing, Gate 3 and embedding will fail.
+- **The applicant is in Serbia with remote-only assignment** — do not change the applicant's profile. Instead, fix the filters and prompt to handle this profile correctly.
+
+### Task 1 (CRITICAL): Create Bulk Reprocessing Function
+
+Create a new Inngest function `matchBulkReprocess` that re-evaluates ALL active+embedded jobs against ALL personas. This is the key missing piece — there's currently no way to retroactively match existing jobs.
+
+**Design:**
+```typescript
+// src/inngest/functions.ts — new function
+export const matchBulkReprocess = inngest.createFunction(
+  {
+    id: "match-bulk-reprocess",
+    name: "Match Bulk Reprocess",
+    triggers: [{ event: "match/bulk-reprocess" }], // manual trigger only
+    concurrency: { limit: 1 }, // only one bulk reprocess at a time
+  },
+  async ({ event, step }) => {
+    const { personaId } = event.data; // optional — if null, process all personas
+
+    // Step 1: Get all active+embedded jobs that are NOT in match_queue
+    // (or are in match_queue but rejected, if event.data.includeRejected is true)
+    const jobs = await step.run("get-unmatched-jobs", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+
+      // Get all active+embedded jobs not already in match_queue for the given persona(s)
+      // Bypass the cross-posting dedup — we want to evaluate ALL jobs
+      const result = await db.execute(sql`
+        SELECT j.id, j.extracted_tags, j.job_embedding
+        FROM job j
+        WHERE j.status = 'active'
+          AND j.job_embedding IS NOT NULL
+          AND j.extracted_tags IS NOT NULL
+          AND cardinality(j.extracted_tags) > 0
+          ${personaId ? sql`AND EXISTS (SELECT 1 FROM persona p WHERE p.id = ${personaId}::uuid AND j.extracted_tags && p.must_have_tags)` : sql``}
+          AND NOT EXISTS (
+            SELECT 1 FROM match_queue mq
+            WHERE mq.job_id = j.id
+            ${personaId ? sql`AND mq.persona_id = ${personaId}::uuid` : sql``}
+          )
+        ORDER BY j.detected_at DESC
+        LIMIT 5000
+      `);
+      return result.rows;
+    });
+
+    if (jobs.length === 0) {
+      return { reprocessed: 0, reason: "No unmatched jobs found" };
+    }
+
+    // Step 2: For each job, run Gate 1+2 (bypassing cross-posting dedup)
+    // Process in batches of 50 to control DB load
+    const BATCH = 50;
+    let totalCandidates = 0;
+
+    for (let i = 0; i < jobs.length; i += BATCH) {
+      const batch = jobs.slice(i, i + BATCH);
+      const stepName = `reprocess-batch-${Math.floor(i / BATCH) + 1}`;
+
+      const batchCandidates = await step.run(stepName, async () => {
+        const { runGateSQLRouterNoDedup } = await import("@/lib/jobs/gate-1-2");
+        const candidates = [];
+
+        for (const j of batch) {
+          // Use a new variant of runGateSQLRouter that skips the cross-posting dedup
+          const jobCandidates = await runGateSQLRouterNoDedup(
+            j.id,
+            j.extracted_tags,
+            j.job_embedding,
+          );
+          candidates.push(...jobCandidates);
+        }
+        return candidates;
+      });
+
+      totalCandidates += batchCandidates.length;
+
+      // Fan out Gate 3 events for each candidate
+      if (batchCandidates.length > 0) {
+        await step.sendEvent(
+          `fan-out-gate-3-batch-${i / BATCH}`,
+          batchCandidates.map((c) => ({
+            id: `gate-3-bulk-${c.matchQueueId}`,
+            name: "match/gate-3-evaluate",
+            data: {
+              matchQueueId: c.matchQueueId,
+              jobId: c.jobId,
+              personaId: c.personaId,
+              applicantId: c.applicantId,
+            },
+          })),
+        );
+      }
+    }
+
+    return { reprocessed: jobs.length, candidates: totalCandidates };
+  },
+);
+```
+
+**1a: Create `runGateSQLRouterNoDedup` in `gate-1-2.ts`**
+
+Add a variant of `runGateSQLRouter` that skips the cross-posting dedup clause. This is used by the bulk reprocess function to evaluate ALL jobs, including those that were previously dedup-blocked.
+
+```typescript
+export async function runGateSQLRouterNoDedup(
+  jobId: string,
+  jobTags: string[],
+  jobEmbedding: number[],
+): Promise<GateRouterCandidate[]> {
+  // Same as runGateSQLRouter but WITHOUT the cross-posting dedup clause
+  // (the NOT EXISTS subquery on match_queue JOIN job j2)
+  // ... implementation ...
+}
+```
+
+**1b: Register `matchBulkReprocess` in `route.ts`**
+
+**1c: Add an admin dashboard trigger button** to manually invoke the bulk reprocess. This should be a Server Action that sends the `match/bulk-reprocess` event via Inngest.
+
+### Task 2 (CRITICAL): Fix Normalization Backlog (4,083 Jobs)
+
+The Sprint 7 fix (emitting `job/ingested` events from `batchPollTier`) should handle new jobs going forward. But the 4,083 existing jobs without embeddings need bulk reprocessing.
+
+**2a: Increase the `normalizationRetrySweep` limit**
+
+The current limit is 200 jobs per run (daily at 06:00 UTC). At this rate, it would take 20 days to process the 4,083 backlog. Increase the limit to 500 for the next few runs, or create a one-time bulk normalization function.
+
+**2b: Create a one-time bulk normalization function (optional)**
+
+If the user wants faster backlog processing, create a `normalizationBulkProcess` function that processes all unnormalized jobs in batches of 200, with a 5-second delay between batches to avoid overwhelming the OpenAI API.
+
+**2c: Verify the OpenAI API key is set in Coolify production**
+
+If `OPENAI_API_KEY` is not set in the production environment, ALL normalization and Gate 3 evaluation will fail. This is the #1 thing to check before deploying.
+
+### Task 3 (HIGH): Relax Cross-Posting Dedup
+
+The cross-posting dedup in `runGateSQLRouter` blocks 12 valid pairs. The dedup should be relaxed:
+
+**Option A (recommended): Only dedup against APPROVED matches**
+
+Change the dedup clause to only block if the existing match is `approved`:
+```sql
+AND NOT EXISTS (
+  SELECT 1 FROM match_queue mq
+  JOIN job j2 ON mq.job_id = j2.id
+  WHERE j2.ats_slug = jm.ats_slug
+    AND j2.title = jm.title
+    AND mq.persona_id = p.id
+    AND mq.status = 'approved'  -- Only block if already approved
+)
+```
+
+This allows re-evaluation of jobs that were previously rejected for a different persona.
+
+**Option B: Remove dedup entirely**
+
+The dedup was originally added to prevent the same job from appearing multiple times for the same persona. But with the `ON CONFLICT (job_id, persona_id) DO NOTHING` clause, duplicate entries are already prevented at the match_queue level. The cross-posting dedup is redundant.
+
+**Recommendation:** Option A — keep the dedup but only for approved matches. This prevents the user from seeing the same job approved twice while allowing re-evaluation of rejected jobs.
+
+### Task 4 (HIGH): Relax Workplace Type Pre-Filter
+
+The workplace_type pre-filter in `runGateSQLRouter` blocks 113 pairs (74 on-site + 39 hybrid) before Gate 3 can evaluate them. The applicant is remote-only, but:
+
+1. Some "hybrid" jobs may offer remote options for the right candidate
+2. Some "on-site" jobs may have been misclassified
+3. Gate 3 (the LLM) is perfectly capable of evaluating workplace fit
+
+**Fix:** Remove the workplace_type pre-filter from Gate 1+2 entirely. Let Gate 3 (the LLM) make the final determination. The LLM already has the applicant's `assignment_types` and the job's `workplace_type` in its prompt — it will correctly reject true mismatches.
+
+This will increase the candidate pool from 85 to 198 pairs (a 2.3x increase), which will increase Gate 3 LLM costs but also increase the number of approved matches.
+
+**Alternative (if cost is a concern):** Only filter out on-site jobs (keep hybrid). This increases the pool from 85 to 124 pairs.
+
+### Task 5 (HIGH): Tune Gate 3 Prompt for Better Approval Rate
+
+The current approval rate is 1.6% (1/62). The target is 2-4%. The LLM is correctly identifying geographic restrictions, but it may be too conservative.
+
+**5a: Update the Gate 3 system prompt**
+
+Add guidance about international contractors:
+```
+7. **International contractor compatibility**: If the job is remote and the applicant's
+   compliance preferences include "w8ben" or "ic_global", do NOT reject solely because
+   the job description says "US only" or "must be located in the US" — many companies
+   hire international contractors via w8ben/EOR even when their job posting says "US only".
+   Instead, note the geographic restriction as a SOFT concern (not a hard blocker) and
+   approve if the tech stack and seniority align well. The user can filter by location
+   in their dashboard.
+```
+
+**5b: Adjust the "Be conservative" guidance**
+
+Change:
+```
+- Be conservative: only approve if you are confident this is a strong match.
+```
+To:
+```
+- Be balanced: approve if the tech stack and seniority align well, even if there are
+  soft concerns (location, compliance). Only reject for HARD blockers (completely wrong
+  tech stack, on-site when applicant is remote-only with no hybrid flexibility, blocklist
+  tags). Soft concerns should be noted in the reasoning but should NOT cause rejection.
+```
+
+**5c: Test the new prompt against the 61 rejected matches**
+
+Before deploying, manually re-evaluate a sample of 10 rejected matches with the new prompt to verify it produces more approvals without false positives.
+
+### Task 6 (HIGH): Add Periodic Re-Matching Sweep
+
+Create a new Inngest function `matchRetrySweep` that runs daily and catches any jobs that were missed by the normal matching pipeline.
+
+```typescript
+export const matchRetrySweep = inngest.createFunction(
+  {
+    id: "match-retry-sweep",
+    name: "Match Retry Sweep",
+    triggers: [{ cron: "0 7 * * *" }], // daily at 07:00 UTC (after normalization retry at 06:00)
+  },
+  async ({ step }) => {
+    // Find active+embedded jobs that:
+    //   - Have tag overlap with any persona
+    //   - Are NOT in match_queue for any persona
+    //   - Were detected more than 1 hour ago (not freshly inserted)
+    // Emit job/ingested events for them so jobIngestedHandler runs Gate 1+2
+    const unmatchedJobs = await step.run("find-unmatched", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+
+      const result = await db.execute(sql`
+        SELECT DISTINCT j.id, j.ats_source, j.ats_slug
+        FROM job j
+        JOIN persona p ON (j.extracted_tags && p.must_have_tags)
+        WHERE j.status = 'active'
+          AND j.job_embedding IS NOT NULL
+          AND j.extracted_tags IS NOT NULL
+          AND cardinality(j.extracted_tags) > 0
+          AND j.detected_at < NOW() - INTERVAL '1 hour'
+          AND NOT EXISTS (
+            SELECT 1 FROM match_queue mq
+            WHERE mq.job_id = j.id AND mq.persona_id = p.id
+          )
+        ORDER BY j.detected_at DESC
+        LIMIT 500
+      `);
+      return result.rows;
+    });
+
+    if (unmatchedJobs.length > 0) {
+      await step.sendEvent(
+        "retry-match-events",
+        unmatchedJobs.map((j) => ({
+          id: `job-ingested-retry-match-${j.id}-${Date.now()}`,
+          name: "job/ingested",
+          data: {
+            jobId: j.id,
+            atsSource: j.ats_source,
+            atsSlug: j.ats_slug,
+            isNew: false,
+          },
+        })),
+      );
+    }
+
+    // Write ingestion log
+    await step.run("write-log", async () => {
+      const { writeIngestionLog } = await import("@/lib/jobs/poller/ingestion-log");
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: "success",
+        source: "match_retry_sweep",
+        itemsProcessed: unmatchedJobs.length,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      });
+    });
+
+    return { retried: unmatchedJobs.length };
+  },
+);
+```
+
+Register in `route.ts`.
+
+### Task 7 (HIGH): Add Match Generation Monitoring
+
+Extend the `pipelineHealthMonitor` (from Sprint 7) with match-specific metrics:
+
+**7a: Add new metrics to `pipeline-health.ts`**
+
+```typescript
+// Add to PipelineHealthMetrics interface:
+/** Match queue entries created in the last 24 hours. */
+matches24h: number;  // already exists
+/** Approved matches in the last 24 hours. */
+approvedMatches24h: number;
+/** Gate 3 approval rate (approved / total evaluated, last 7 days). */
+gate3ApprovalRate7d: number;
+/** Jobs with embeddings but no match_queue entries (missed by matching). */
+unmatchedEmbeddedJobs: number;
+/** Average Gate 3 LLM confidence for recent evaluations. */
+avgGate3Confidence: number;
+```
+
+**7b: Add alert thresholds**
+
+```typescript
+// Add to ALERT_THRESHOLDS:
+APPROVED_MATCHES_24H: 3,  // alert if < 3 approved matches in 24h
+GATE3_APPROVAL_RATE_7D: 0.01,  // alert if < 1% approval rate over 7 days
+UNMATCHED_EMBEDDED_JOBS: 100,  // alert if > 100 embedded jobs have no match_queue entry
+```
+
+**7c: Add match metrics to `PipelineHealthMonitor.tsx`**
+
+Add new metric cards:
+- "Approved Matches (24h)" — target: 5-10
+- "Gate 3 Approval Rate (7d)" — target: 2-4%
+- "Unmatched Embedded Jobs" — target: < 100
+
+### Task 8 (MEDIUM): Add Verification Protocol
+
+Create a verification script that simulates the full matching pipeline end-to-end:
+
+**8a: Create `src/lib/jobs/__tests__/match-pipeline-verification.test.ts`**
+
+```typescript
+/**
+ * End-to-end verification that the matching pipeline produces candidates.
+ * This is NOT a unit test — it queries the real database to verify that:
+ *   1. There are active+embedded jobs with tag overlap
+ *   2. Gate 1+2 produces candidates for those jobs
+ *   3. The candidates are in match_queue
+ *   4. Gate 3 events are being sent
+ *
+ * Run manually: npx vitest run src/lib/jobs/__tests__/match-pipeline-verification.test.ts
+ * DO NOT run in CI — it requires a real database connection.
+ */
+```
+
+**8b: Create an admin dashboard "Match Pipeline Health" section**
+
+Show:
+- Total active+embedded jobs
+- Jobs with tag overlap (Gate 1 eligible)
+- Pairs passing Gate 1+2
+- Pairs in match_queue
+- Pairs evaluated by Gate 3
+- Approval rate
+- Last match created timestamp
+- "Run Bulk Reprocess" button (triggers Task 1 function)
+
+### Task 9 (MEDIUM): Improve `personaUpdatedHandler` to Match New Jobs
+
+The current `personaUpdatedHandler` only re-evaluates REJECTED matches (limit 50). It should also match NEW jobs that were never evaluated.
+
+**Fix:** When a persona is created or updated, emit `job/ingested` events for ALL active+embedded jobs that have tag overlap with the persona but are NOT in match_queue.
+
+```typescript
+// In personaUpdatedHandler, after the "find-rejected" step:
+const newJobs = await step.run("find-new-jobs", async () => {
+  const { db } = await import("@/db/db");
+  const { sql } = await import("drizzle-orm");
+
+  // Find jobs that have tag overlap with this persona but no match_queue entry
+  const result = await db.execute(sql`
+    SELECT j.id, j.ats_source, j.ats_slug
+    FROM job j, persona p
+    WHERE p.id = ${personaId}::uuid
+      AND j.status = 'active'
+      AND j.job_embedding IS NOT NULL
+      AND j.extracted_tags && p.must_have_tags
+      AND NOT EXISTS (
+        SELECT 1 FROM match_queue mq
+        WHERE mq.job_id = j.id AND mq.persona_id = p.id
+      )
+    LIMIT 500
+  `);
+  return result.rows;
+});
+
+if (newJobs.length > 0) {
+  await step.sendEvent(
+    "new-jobs-match",
+    newJobs.map((j) => ({
+      id: `job-ingested-persona-update-${j.id}-${Date.now()}`,
+      name: "job/ingested",
+      data: { jobId: j.id, atsSource: j.ats_source, atsSlug: j.ats_slug, isNew: false },
+    })),
+  );
+}
+```
+
+### Task 10 (LOW): Analyze Gate 3 Rejection Patterns
+
+Create an admin dashboard view that shows:
+- Gate 3 rejection reasons grouped by category (geographic, workplace, skills, domain)
+- Approval rate by prompt variant (balanced, strict, thorough)
+- Approval rate by persona
+- Approval rate by ATS source
+
+This will help identify systematic issues (e.g., if one persona has 0% approval, its tags may need adjustment).
+
+### Implementation Order
+
+1. **Task 2c** — Verify OpenAI API key in Coolify (BLOCKING — nothing works without it)
+2. **Task 2a** — Increase normalization retry limit (fixes the 4,083 backlog)
+3. **Task 1** — Create bulk reprocessing function (fixes the 23 unmatched candidates)
+4. **Task 3** — Relax cross-posting dedup (unblocks 12 valid pairs)
+5. **Task 4** — Relax workplace type pre-filter (unblocks 113 pairs for Gate 3)
+6. **Task 5** — Tune Gate 3 prompt (improves approval rate from 1.6% toward 2-4%)
+7. **Task 6** — Add periodic re-matching sweep (prevents future misses)
+8. **Task 7** — Add match monitoring (detects future issues)
+9. **Task 9** — Improve personaUpdatedHandler (matches new jobs on persona update)
+10. **Task 8** — Add verification protocol (ensures pipeline works)
+11. **Task 10** — Analyze rejection patterns (identifies systematic issues)
+
+### After All Tasks Complete
+
+1. Run: `npx tsc --noEmit && npx biome check && npx vitest run --reporter=dot`
+2. Apply any required database migrations
+3. Deploy to Coolify
+4. **Run the bulk reprocess** via the admin dashboard button
+5. Wait for the `matchBulkReprocess` function to complete (check Inngest dashboard)
+6. Verify that new match_queue entries are being created
+7. Verify that Gate 3 is evaluating the new candidates
+8. Check the admin dashboard — verify "Approved Matches (24h)" is increasing
+9. **DO NOT commit.** The user will review.
+10. Report the final state: how many new matches, how many approved, expected daily rate.
+
+### Expected Outcome
+
+| Metric | Before | After (expected) |
+|---|---|---|
+| Active+embedded jobs | 5,043 | 9,126 (after backlog fix) |
+| Pairs passing Gate 1+2 | 198 | 500+ (after relaxing filters) |
+| Match queue entries | 62 | 300+ (after bulk reprocess) |
+| Approved matches | 1 | 10-30 (after Gate 3 prompt tuning) |
+| Daily approved matches | 0 | 5-10 (after all fixes) |
+| Unmatched embedded jobs | 23+ | < 100 (after re-matching sweep) |
+| Gate 3 approval rate | 1.6% | 2-4% (after prompt tuning) |
+
+### Key Files to Read
+
+| File | Purpose |
+|---|---|
+| `src/inngest/functions.ts` | All Inngest functions (jobIngestedHandler, personaUpdatedHandler, gate3Evaluator) |
+| `src/lib/jobs/gate-1-2.ts` | Gate 1+2 SQL router (cross-posting dedup, workplace filter) |
+| `src/lib/jobs/gate-3.ts` | Gate 3 LLM evaluator (system prompt, A/B variants) |
+| `src/lib/jobs/matching-config.ts` | All matching thresholds (GATE2_MAX_COSINE_DISTANCE, weights) |
+| `src/lib/jobs/pipeline-health.ts` | Pipeline health metrics (add match metrics here) |
+| `src/components/admin/PipelineHealthMonitor.tsx` | Admin dashboard (add match cards here) |
+| `src/app/dashboard/admin/page.tsx` | Admin dashboard page |
+| `src/app/api/inngest/route.ts` | Inngest function registration |
+
+### Database Current State (July 1 09:40 UTC)
+
+| Metric | Value |
+|---|---|
+| Total companies | 9,637 |
+| Total jobs | 9,448 |
+| Active jobs | 9,126 |
+| Jobs with embeddings | 5,043 |
+| Jobs without embeddings | 4,083 |
+| Jobs with extracted_tags | 5,064 |
+| Personas | 3 |
+| Match queue total | 62 |
+| Approved matches | 1 |
+| Rejected matches | 61 |
+| Pending matches | 0 |
+| Last match created | June 30 00:10:39 |
+| Pairs passing Gate 1+2 | 198 |
+| Pairs passing all filters but unmatched | 23 |
+| Pairs blocked by workplace filter | 113 |
+| Pairs blocked by cross-posting dedup | 12 |
+| Gate 3 approval rate | 1.6% (1/62) |
+| Applicant location | Serbia (RS) |
+| Applicant assignment_types | {remote} |
+| Applicant compliance | {w8ben, ic_global} |
+
+### Persona Details
+
+| Persona | must_have_tags | seniority_levels |
+|---|---|---|
+| Next.js / AI Full-Stack Engineer | typescript, nextjs, react, nodejs, prompt-engineering | senior, lead |
+| Senior React / GraphQL Frontend Engineer | typescript, react, nextjs, graphql, tailwindcss | senior, lead |
+| PHP/Laravel Full-Stack Developer | php, laravel, mysql, wordpress, javascript | senior, lead |
+
+### Gate 3 Rejection Analysis (61 rejections)
+
+| Category | Count | Example |
+|---|---|---|
+| Geographic restrictions | ~30 | "remote restricted to US, applicant is in RS" |
+| Workplace mismatch | ~10 | "requires on-site in SF" |
+| Missing key skills | ~10 | "nextjs not mentioned" |
+| Domain mismatch | ~5 | "requires Angular and jQuery" |
+| Travel requirements | ~3 | "requires significant travel" |
+| Other | ~3 | "web3 experience required" |
+
+### The Approved Match (for reference)
+
+- **Job**: Frontend Engineer at Taylor (Japan)
+- **Persona**: Senior React / GraphQL Frontend Engineer
+- **Overlap**: 3 tags (typescript, react, nextjs)
+- **Cosine distance**: 0.4746
+- **LLM verdict**: approved (confidence 0.85)
+- **Prompt variant**: thorough
+- **Note**: The job description is in Japanese but mentions React, TypeScript, and Next.js

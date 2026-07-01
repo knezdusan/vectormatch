@@ -25,6 +25,10 @@ function healthyMetrics(): PipelineHealthMetrics {
     dbSizeMb: 136,
     pendingMatchesStale: 0,
     normalizationFailed: 0,
+    approvedMatches24h: 7,
+    gate3ApprovalRate7d: 0.03,
+    unmatchedEmbeddedJobs: 50,
+    avgGate3Confidence: 0.75,
   };
 }
 
@@ -119,5 +123,59 @@ describe("Pipeline Health — evaluateAlerts", () => {
     expect(alerts.some((a) => a.startsWith("STALE_POLLER"))).toBe(true);
     expect(alerts.some((a) => a.startsWith("NO_MATCHES"))).toBe(true);
     expect(alerts.some((a) => a.startsWith("SOURCE_HEALTH_EMPTY"))).toBe(true);
+  });
+
+  // ── Sprint 8: Match-specific alert tests ──────────────────────────────────
+
+  it("alerts when approved matches in 24h are below threshold", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      approvedMatches24h: ALERT_THRESHOLDS.APPROVED_MATCHES_24H - 1,
+    });
+    expect(alerts.some((a) => a.startsWith("LOW_APPROVAL_RATE"))).toBe(true);
+  });
+
+  it("does not alert when approved matches meet threshold", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      approvedMatches24h: ALERT_THRESHOLDS.APPROVED_MATCHES_24H,
+    });
+    expect(alerts.some((a) => a.startsWith("LOW_APPROVAL_RATE"))).toBe(false);
+  });
+
+  it("alerts when Gate 3 approval rate over 7d is below threshold", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      gate3ApprovalRate7d: 0.005,
+    });
+    expect(alerts.some((a) => a.startsWith("GATE3_APPROVAL_RATE_LOW"))).toBe(
+      true,
+    );
+  });
+
+  it("does not alert when Gate 3 approval rate is healthy", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      gate3ApprovalRate7d: 0.03,
+    });
+    expect(alerts.some((a) => a.startsWith("GATE3_APPROVAL_RATE_LOW"))).toBe(
+      false,
+    );
+  });
+
+  it("alerts when unmatched embedded jobs exceed threshold", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      unmatchedEmbeddedJobs: ALERT_THRESHOLDS.UNMATCHED_EMBEDDED_JOBS + 1,
+    });
+    expect(alerts.some((a) => a.startsWith("UNMATCHED_EMBEDDED"))).toBe(true);
+  });
+
+  it("does not alert when unmatched embedded jobs are at threshold", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      unmatchedEmbeddedJobs: ALERT_THRESHOLDS.UNMATCHED_EMBEDDED_JOBS,
+    });
+    expect(alerts.some((a) => a.startsWith("UNMATCHED_EMBEDDED"))).toBe(false);
   });
 });

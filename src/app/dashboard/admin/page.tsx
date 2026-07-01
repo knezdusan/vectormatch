@@ -3,11 +3,13 @@ import Link from "next/link";
 import { AdminDashboardTabs } from "@/components/admin/AdminDashboardTabs";
 import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AlertsPanel } from "@/components/admin/AlertsPanel";
+import { BulkReprocessButton } from "@/components/admin/BulkReprocessButton";
 import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
 import { MatchingFunnel } from "@/components/admin/MatchingFunnel";
 import { PipelineHealthMonitor } from "@/components/admin/PipelineHealthMonitor";
 import { PipelineStatus } from "@/components/admin/PipelineStatus";
 import { RecentAlerts } from "@/components/admin/RecentAlerts";
+import { RejectionPatternAnalysis } from "@/components/admin/RejectionPatternAnalysis";
 import {
   Card,
   CardContent,
@@ -88,7 +90,23 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
           <InfrastructureHealth />
         </TabsContent>
         <TabsContent value="matching" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                Match Pipeline Controls
+              </CardTitle>
+              <CardDescription>
+                Manually trigger a bulk reprocess to re-evaluate all active
+                embedded jobs against all personas. Use after filter or prompt
+                changes to retroactively match existing jobs.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BulkReprocessButton />
+            </CardContent>
+          </Card>
           <MatchingFunnel range={range} />
+          <RejectionPatternAnalysis />
         </TabsContent>
         <TabsContent value="pipeline" className="space-y-4">
           <PipelineHealthMonitor />

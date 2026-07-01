@@ -394,3 +394,166 @@ export async function getMatchQueueStatusDistribution(): Promise<
     .orderBy(matchQueue.status);
   return rows.map((r) => ({ status: r.status, count: r.count }));
 }
+
+// =============================================================================
+// Sprint 8: Gate 3 Rejection Pattern Analysis
+// =============================================================================
+
+export interface RejectionCategoryRow {
+  category: string;
+  count: number;
+}
+
+export interface PromptVariantRow {
+  variant: string;
+  total: number;
+  approved: number;
+  approvalRate: number;
+}
+
+export interface PersonaApprovalRow {
+  personaId: string;
+  personaLabel: string;
+  total: number;
+  approved: number;
+  approvalRate: number;
+}
+
+export interface AtsSourceApprovalRow {
+  atsSource: string;
+  total: number;
+  approved: number;
+  approvalRate: number;
+}
+
+/**
+ * Get Gate 3 rejection reasons grouped by category. The llm_blockers array
+ * is unnested and categorized by keyword matching. Categories:
+ *   - geographic: "remote restricted", "US only", "must be located"
+ *   - workplace: "on-site", "hybrid", "requires on-site"
+ *   - skills: "not mentioned", "missing", "requires"
+ *   - domain: "Angular", "jQuery", "web3", "React Native"
+ *   - travel: "travel"
+ *   - other: everything else
+ */
+export async function getRejectionCategories(): Promise<
+  RejectionCategoryRow[]
+> {
+  const result = await db.execute(sql`
+    WITH blockers AS (
+      SELECT unnest(llm_blockers) AS blocker
+      FROM match_queue
+      WHERE status = 'rejected'
+        AND llm_blockers IS NOT NULL
+        AND evaluated_at > NOW() - INTERVAL '30 days'
+    )
+    SELECT
+      CASE
+        WHEN blocker ~* 'remote.*(restrict|US only|must be located|must reside|region|country)' THEN 'geographic'
+        WHEN blocker ~* '(on-site|onsite|hybrid|workplace)' THEN 'workplace'
+        WHEN blocker ~* '(not mentioned|missing|requires.*skill|skill)' THEN 'skills'
+        WHEN blocker ~* '(travel|relocation)' THEN 'travel'
+        WHEN blocker ~* '(Angular|jQuery|web3|React Native|Vue|Ember|Backbone)' THEN 'domain'
+        ELSE 'other'
+      END AS category,
+      count(*) AS cnt
+    FROM blockers
+    GROUP BY category
+    ORDER BY cnt DESC
+  `);
+  return result.rows.map((r) => ({
+    category: r.category as string,
+    count: Number(r.cnt),
+  }));
+}
+
+/**
+ * Get Gate 3 approval rate by prompt variant (A/B test analysis).
+ */
+export async function getApprovalByPromptVariant(): Promise<
+  PromptVariantRow[]
+> {
+  const result = await db.execute(sql`
+    SELECT
+      COALESCE(prompt_variant, 'unknown') AS variant,
+      count(*) AS total,
+      count(*) FILTER (WHERE status = 'approved') AS approved,
+      ROUND(
+        count(*) FILTER (WHERE status = 'approved')::numeric
+        / NULLIF(count(*), 0) * 100, 1
+      ) AS approval_rate
+    FROM match_queue
+    WHERE evaluated_at > NOW() - INTERVAL '30 days'
+      AND status IN ('approved', 'rejected')
+    GROUP BY prompt_variant
+    ORDER BY approval_rate DESC
+  `);
+  return result.rows.map((r) => ({
+    variant: r.variant as string,
+    total: Number(r.total),
+    approved: Number(r.approved),
+    approvalRate: Number(r.approval_rate ?? 0),
+  }));
+}
+
+/**
+ * Get Gate 3 approval rate by persona. Helps identify if one persona has
+ * 0% approval (its tags may need adjustment).
+ */
+export async function getApprovalByPersona(): Promise<PersonaApprovalRow[]> {
+  const result = await db.execute(sql`
+    SELECT
+      mq.persona_id,
+      p.persona_label,
+      count(*) AS total,
+      count(*) FILTER (WHERE mq.status = 'approved') AS approved,
+      ROUND(
+        count(*) FILTER (WHERE mq.status = 'approved')::numeric
+        / NULLIF(count(*), 0) * 100, 1
+      ) AS approval_rate
+    FROM match_queue mq
+    JOIN persona p ON mq.persona_id = p.id
+    WHERE mq.evaluated_at > NOW() - INTERVAL '30 days'
+      AND mq.status IN ('approved', 'rejected')
+    GROUP BY mq.persona_id, p.persona_label
+    ORDER BY approval_rate DESC
+  `);
+  return result.rows.map((r) => ({
+    personaId: r.persona_id as string,
+    personaLabel: r.persona_label as string,
+    total: Number(r.total),
+    approved: Number(r.approved),
+    approvalRate: Number(r.approval_rate ?? 0),
+  }));
+}
+
+/**
+ * Get Gate 3 approval rate by ATS source. Helps identify if one ATS has
+ * systematically lower approval rates (e.g., different job description format).
+ */
+export async function getApprovalByAtsSource(): Promise<
+  AtsSourceApprovalRow[]
+> {
+  const result = await db.execute(sql`
+    SELECT
+      j.ats_source,
+      count(*) AS total,
+      count(*) FILTER (WHERE mq.status = 'approved') AS approved,
+      ROUND(
+        count(*) FILTER (WHERE mq.status = 'approved')::numeric
+        / NULLIF(count(*), 0) * 100, 1
+      ) AS approval_rate
+    FROM match_queue mq
+    JOIN job j ON mq.job_id = j.id
+    WHERE mq.evaluated_at > NOW() - INTERVAL '30 days'
+      AND mq.status IN ('approved', 'rejected')
+    GROUP BY j.ats_source
+    ORDER BY approval_rate DESC
+  `);
+  return result.rows.map((r) => ({
+    atsSource: r.ats_source as string,
+    total: Number(r.total),
+    approved: Number(r.approved),
+    approvalRate: Number(r.approval_rate ?? 0),
+  }));
+}

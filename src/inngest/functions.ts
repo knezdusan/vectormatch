@@ -1114,7 +1114,7 @@ export const normalizationRetrySweep = inngest.createFunction(
     const startedAt = new Date();
 
     const stuckJobs = await step.run("get-stuck-jobs", async () => {
-      // Select up to 200 jobs that need (re-)normalization, prioritizing the
+      // Select up to 500 jobs that need (re-)normalization, prioritizing the
       // oldest ones (they've been waiting the longest). Two categories:
       //   1. normalization_failed (retryable — LLM/transient error)
       //   2. active + normalizedAt IS NULL (never normalized — batchPollTier
@@ -1134,7 +1134,7 @@ export const normalizationRetrySweep = inngest.createFunction(
           sql`(${job.status} = 'normalization_failed' OR (${job.status} = 'active' AND ${job.normalizedAt} IS NULL)) AND ${job.rawJson} IS NOT NULL`,
         )
         .orderBy(job.detectedAt)
-        .limit(200);
+        .limit(500);
 
       return result;
     });
@@ -1744,6 +1744,7 @@ export const personaUpdatedHandler = inngest.createFunction(
   async ({ event, step }) => {
     const { personaId } = event.data;
 
+    // ── Step 1: Re-evaluate rejected matches (existing behavior) ───────────
     const result = await step.run("find-rejected", async () => {
       const { db } = await import("@/db/db");
       const { matchQueue, job } = await import("@/db/schemas");
@@ -1798,26 +1799,349 @@ export const personaUpdatedHandler = inngest.createFunction(
       return { count: rejectedRows.length, rows: rejectedRows };
     });
 
-    if (result.count === 0) {
-      return { personaId, reEvaluated: 0 };
+    // Emit Gate 3 events for each re-evaluated rejected row.
+    if (result.count > 0) {
+      await step.sendEvent(
+        "feedback-fan-out",
+        result.rows.map((row) => ({
+          id: `gate-3-feedback-${row.id}`,
+          name: "match/gate-3-evaluate" as const,
+          data: {
+            matchQueueId: row.id,
+            jobId: row.jobId,
+            personaId: row.personaId,
+            applicantId: row.applicantId,
+          },
+        })),
+      );
     }
 
-    // Emit Gate 3 events for each re-evaluated row.
-    await step.sendEvent(
-      "feedback-fan-out",
-      result.rows.map((row) => ({
-        id: `gate-3-feedback-${row.id}`,
-        name: "match/gate-3-evaluate" as const,
-        data: {
-          matchQueueId: row.id,
-          jobId: row.jobId,
-          personaId: row.personaId,
-          applicantId: row.applicantId,
-        },
-      })),
-    );
+    // ── Step 2 (Sprint 8): Match NEW jobs that were never evaluated ────────
+    // When a persona is created or updated, find active+embedded jobs that
+    // have tag overlap with this persona but are NOT in match_queue. These
+    // jobs were never matched (e.g., they existed before the persona was
+    // created, or were missed by the matching pipeline). Trigger bulk
+    // reprocess for this persona to evaluate them.
+    const newJobsCount = await step.run("find-new-jobs-count", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
 
-    return { personaId, reEvaluated: result.count };
+      const result = await db.execute(sql`
+        SELECT count(*)::int AS cnt
+        FROM job j, persona p
+        WHERE p.id = ${personaId}::uuid
+          AND j.status = 'active'
+          AND j.job_embedding IS NOT NULL
+          AND j.extracted_tags && p.must_have_tags
+          AND NOT EXISTS (
+            SELECT 1 FROM match_queue mq
+            WHERE mq.job_id = j.id AND mq.persona_id = p.id
+          )
+      `);
+      return Number(result.rows[0]?.cnt ?? 0);
+    });
+
+    // If there are unmatched jobs, trigger bulk reprocess for this persona
+    if (newJobsCount > 0) {
+      await step.sendEvent(
+        `match-bulk-reprocess-persona-${personaId}-${Date.now()}`,
+        {
+          name: "match/bulk-reprocess",
+          data: {
+            personaId,
+            includeRejected: false,
+          },
+        },
+      );
+    }
+
+    return {
+      personaId,
+      reEvaluated: result.count,
+      newJobsTriggered: newJobsCount,
+    };
+  },
+);
+
+// ── Sprint 8: Bulk Reprocessing ──────────────────────────────────────────────
+
+/**
+ * Match Bulk Reprocess — re-evaluates ALL active+embedded jobs against ALL
+ * personas (or a specific persona). This is the key mechanism for retroactively
+ * matching existing jobs when personas are created/updated, when filters are
+ * relaxed, or when jobs were missed by the normal matching pipeline.
+ *
+ * Triggered by: `match/bulk-reprocess` event (manual trigger from admin dashboard)
+ *
+ * This function bypasses the `jobIngestedHandler` idempotency check (which skips
+ * already-normalized jobs) and runs Gate 1+2 directly on jobs that are already
+ * normalized+embedded but NOT in match_queue for the target persona(s).
+ *
+ * The cross-posting dedup and workplace pre-filter have been relaxed in Sprint 8,
+ * so `runGateSQLRouter` now allows re-evaluation of jobs whose siblings were
+ * rejected and lets Gate 3 decide on hybrid/on-site workplace fit.
+ *
+ * Processing is batched (50 jobs per step) to control DB load and OpenAI API
+ * rate limits. Each batch runs Gate 1+2 for all jobs, then fans out Gate 3
+ * events for the resulting candidates.
+ */
+export const matchBulkReprocess = inngest.createFunction(
+  {
+    id: "match-bulk-reprocess",
+    name: "Match Bulk Reprocess",
+    triggers: [{ event: "match/bulk-reprocess" }],
+    // Only one bulk reprocess at a time — this is a heavy operation
+    concurrency: { limit: 1 },
+  },
+  async ({ event, step }) => {
+    const personaId: string | null = event.data.personaId ?? null;
+    const includeRejected: boolean = event.data.includeRejected ?? false;
+
+    // Step 1: Get all active+embedded jobs that are NOT in match_queue
+    // (or are rejected, if includeRejected is true) for the target persona(s)
+    const jobs = await step.run("get-unmatched-jobs", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+
+      // Fetch jobs with embeddings and tags that don't have a match_queue
+      // entry for the target persona(s). The embedding is returned as a
+      // pgvector text string like "[0.1,0.2,...]" — parsed below.
+      const result = await db.execute(sql`
+        SELECT
+          j.id,
+          j.extracted_tags,
+          j.job_embedding::text AS job_embedding_str
+        FROM job j
+        WHERE j.status = 'active'
+          AND j.job_embedding IS NOT NULL
+          AND j.extracted_tags IS NOT NULL
+          AND cardinality(j.extracted_tags) > 0
+          ${personaId ? sql`AND EXISTS (SELECT 1 FROM persona p WHERE p.id = ${personaId}::uuid AND j.extracted_tags && p.must_have_tags)` : sql``}
+          AND NOT EXISTS (
+            SELECT 1 FROM match_queue mq
+            WHERE mq.job_id = j.id
+            ${personaId ? sql`AND mq.persona_id = ${personaId}::uuid` : sql``}
+            ${includeRejected ? sql`AND mq.status = 'approved'` : sql``}
+          )
+        ORDER BY j.detected_at DESC
+        LIMIT 5000
+      `);
+
+      // Parse the embedding string "[0.1,0.2,...]" into number[]
+      return result.rows.map((row) => ({
+        id: row.id as string,
+        extractedTags: (row.extracted_tags as string[]) ?? [],
+        jobEmbedding: parseVectorString(row.job_embedding_str as string),
+      }));
+    });
+
+    if (jobs.length === 0) {
+      return {
+        reprocessed: 0,
+        candidates: 0,
+        reason: "No unmatched jobs found",
+      };
+    }
+
+    // Step 2: Process jobs in batches of 50, running Gate 1+2 for each
+    const BATCH = 50;
+    let totalCandidates = 0;
+    const allCandidates: {
+      matchQueueId: string;
+      jobId: string;
+      personaId: string;
+      applicantId: string;
+    }[] = [];
+
+    for (let i = 0; i < jobs.length; i += BATCH) {
+      const batch = jobs.slice(i, i + BATCH);
+      const batchNum = Math.floor(i / BATCH) + 1;
+      const stepName = `reprocess-batch-${batchNum}`;
+
+      const batchCandidates = await step.run(stepName, async () => {
+        const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
+        const candidates: {
+          matchQueueId: string;
+          jobId: string;
+          personaId: string;
+          applicantId: string;
+        }[] = [];
+
+        for (const j of batch) {
+          // runGateSQLRouter inserts candidates into match_queue and returns
+          // them for Gate 3 fan-out. The relaxed dedup (only blocks approved
+          // siblings) and removed workplace pre-filter allow more jobs through.
+          const jobCandidates = await runGateSQLRouter(
+            j.id,
+            j.extractedTags,
+            j.jobEmbedding,
+          );
+          for (const c of jobCandidates) {
+            candidates.push({
+              matchQueueId: c.matchQueueId,
+              jobId: j.id,
+              personaId: c.personaId,
+              applicantId: c.applicantId,
+            });
+          }
+        }
+        return candidates;
+      });
+
+      totalCandidates += batchCandidates.length;
+      allCandidates.push(...batchCandidates);
+
+      // Fan out Gate 3 events for each candidate in this batch
+      if (batchCandidates.length > 0) {
+        await step.sendEvent(
+          `fan-out-gate-3-bulk-batch-${batchNum}`,
+          batchCandidates.map((c) => ({
+            id: `gate-3-bulk-${c.matchQueueId}`,
+            name: "match/gate-3-evaluate",
+            data: {
+              matchQueueId: c.matchQueueId,
+              jobId: c.jobId,
+              personaId: c.personaId,
+              applicantId: c.applicantId,
+            },
+          })),
+        );
+      }
+    }
+
+    return {
+      reprocessed: jobs.length,
+      candidates: totalCandidates,
+      personaId,
+      includeRejected,
+    };
+  },
+);
+
+/**
+ * Parse a pgvector text string "[0.1,0.2,...]" into a number[].
+ * Returns empty array if the input is null/empty/malformed.
+ */
+export function parseVectorString(str: string | null | undefined): number[] {
+  if (!str || typeof str !== "string") return [];
+  // pgvector format: [0.1,0.2,...]
+  const trimmed = str.trim();
+  if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) return [];
+  const inner = trimmed.slice(1, -1);
+  if (!inner) return [];
+  return inner.split(",").map((n) => Number.parseFloat(n.trim()));
+}
+
+// ── Sprint 8: Periodic Re-Matching Sweep ─────────────────────────────────────
+
+/**
+ * Match Retry Sweep — daily sweep that catches any jobs missed by the normal
+ * matching pipeline. Runs at 07:00 UTC (after the normalization retry sweep
+ * at 06:00 UTC, so newly-normalized jobs are included).
+ *
+ * Triggered by: cron "0 7 * * *"
+ *
+ * Finds active+embedded jobs that:
+ *   - Have tag overlap with any persona (Gate 1 eligible)
+ *   - Are NOT in match_queue for any persona
+ *   - Were detected more than 1 hour ago (not freshly inserted — those are
+ *     handled by jobIngestedHandler)
+ *
+ * Emits `job/ingested` events with `isNew: false` for these jobs. The
+ * `jobIngestedHandler` will skip normalization (already normalized) but...
+ * wait — jobIngestedHandler skips already-normalized jobs entirely. So instead
+ * we emit `match/bulk-reprocess` events for each missed job, which triggers
+ * the bulk reprocess function to run Gate 1+2 directly.
+ *
+ * Actually, to avoid the idempotency skip in jobIngestedHandler, this sweep
+ * directly emits `match/gate-3-evaluate` is NOT what we want either — we need
+ * Gate 1+2 to run first. The cleanest approach: emit a `match/bulk-reprocess`
+ * event that triggers the bulk reprocess function for all unmatched jobs.
+ */
+export const matchRetrySweep = inngest.createFunction(
+  {
+    id: "match-retry-sweep",
+    name: "Match Retry Sweep",
+    triggers: [{ cron: "0 7 * * *" }],
+  },
+  async ({ step }) => {
+    // Step 1: Find unmatched active+embedded jobs with tag overlap
+    const unmatchedJobs = await step.run("find-unmatched", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+
+      const result = await db.execute(sql`
+        SELECT DISTINCT j.id
+        FROM job j
+        JOIN persona p ON (j.extracted_tags && p.must_have_tags)
+        WHERE j.status = 'active'
+          AND j.job_embedding IS NOT NULL
+          AND j.extracted_tags IS NOT NULL
+          AND cardinality(j.extracted_tags) > 0
+          AND j.detected_at < NOW() - INTERVAL '1 hour'
+          AND NOT EXISTS (
+            SELECT 1 FROM match_queue mq
+            WHERE mq.job_id = j.id AND mq.persona_id = p.id
+          )
+        ORDER BY j.detected_at DESC
+        LIMIT 500
+      `);
+      return result.rows as { id: string }[];
+    });
+
+    if (unmatchedJobs.length === 0) {
+      // Write ingestion log even when nothing to do
+      await step.run("write-log-empty", async () => {
+        const { writeIngestionLog } = await import(
+          "@/lib/jobs/poller/ingestion-log"
+        );
+        return writeIngestionLog({
+          type: "tier_recalc",
+          status: "success",
+          source: "match_retry_sweep",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt: new Date(),
+          finishedAt: new Date(),
+        });
+      });
+      return { retried: 0 };
+    }
+
+    // Step 2: Trigger bulk reprocess for these jobs
+    // We send a match/bulk-reprocess event that triggers the bulk reprocess
+    // function, which handles Gate 1+2 + Gate 3 fan-out.
+    await step.sendEvent(`match-bulk-reprocess-sweep-${Date.now()}`, {
+      name: "match/bulk-reprocess",
+      data: {
+        personaId: null,
+        includeRejected: false,
+      },
+    });
+
+    // Step 3: Write ingestion log
+    await step.run("write-log", async () => {
+      const { writeIngestionLog } = await import(
+        "@/lib/jobs/poller/ingestion-log"
+      );
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: "success",
+        source: "match_retry_sweep",
+        itemsProcessed: unmatchedJobs.length,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      });
+    });
+
+    return { retried: unmatchedJobs.length };
   },
 );
 
