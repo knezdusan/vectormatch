@@ -36,6 +36,7 @@ import {
   type JobMetadata,
 } from "@/lib/jobs/job-normalizer";
 import type { FetchFn } from "@/lib/jobs/types";
+import { fetchWithTimeout } from "./fetch-with-timeout";
 import { getLimiter } from "./rate-limiter";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -81,7 +82,11 @@ export async function fetchJobsFromAts(
 
   try {
     // Rate-limit the request via bottleneck (2 req/s per ATS platform).
-    const response = await limiter.schedule(() => fetchFn(url));
+    // Sprint 7 healthcheck: wrapped in fetchWithTimeout — a single hanging
+    // ATS endpoint must not stall the entire batchPollTier sequential loop.
+    const response = await limiter.schedule(() =>
+      fetchWithTimeout(fetchFn, url),
+    );
 
     if (!response.ok) {
       return {

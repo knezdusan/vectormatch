@@ -263,6 +263,18 @@ export function cronToTier(cron: string): "active_hot" | "active" | "dormant" {
 const BATCH_SIZE = 100;
 
 /**
+ * Poll chunk size — companies per step.run() call within a batchPollTier run
+ * (Sprint 7 healthcheck fix). Each chunk is a separate Inngest step so
+ * progress is checkpointed: if a chunk stalls (e.g. a hanging ATS endpoint)
+ * and the step times out, only that chunk is retried — previously completed
+ * chunks are not redone. 10 companies/chunk × up to ~10s per request
+ * (fetchWithTimeout) keeps a single chunk's worst case well under Inngest's
+ * step/function time budget even for SmartRecruiters companies that trigger
+ * multiple detail fetches.
+ */
+const POLL_CHUNK_SIZE = 10;
+
+/**
  * Batch Poll Tier — polls N companies in a single Inngest function run.
  * (G5 — CORPUS_EXPANSION_TDD §1.2: Batch Polling Architecture)
  *
@@ -354,41 +366,71 @@ export const batchPollTier = inngest.createFunction(
       return { tier, polled: 0, newJobs: 0, eventsEmitted: 0 };
     }
 
-    // Step 2: Poll all companies in this batch (sequential, rate-limited per ATS)
-    const pollResults = await step.run("poll-batch", async () => {
-      const { pollCompany } = await import("@/lib/jobs/poller/phalanx-poller");
-      const results: Array<{
-        companyId: string;
-        atsSource: string;
-        atsSlug: string;
-        newJobIds: string[];
-        error?: string;
-      }> = [];
-      for (const c of companies) {
-        try {
-          const result = await pollCompany(c.id, c.atsSource, c.atsSlug, fetch);
-          results.push({
-            companyId: c.id,
-            atsSource: c.atsSource,
-            atsSlug: c.atsSlug,
-            newJobIds: result.newJobIds,
-          });
-        } catch (e) {
-          // Log failure, continue with next company (error isolation)
-          results.push({
-            companyId: c.id,
-            atsSource: c.atsSource,
-            atsSlug: c.atsSlug,
-            newJobIds: [],
-            error: e instanceof Error ? e.message : String(e),
-          });
+    // Step 2: Poll companies in small chunks (rate-limited per ATS).
+    //
+    // Sprint 7 healthcheck finding: this was previously ONE monolithic
+    // step.run() looping over all 100 companies sequentially. Production
+    // evidence showed only ~3-6 companies were actually being polled per 3h
+    // cron cycle (vs. the 100 target) — the step was stalling (likely on a
+    // slow/hanging ATS endpoint, see fetchWithTimeout fix) and never
+    // completing, so Inngest kept retrying the ENTIRE step from scratch,
+    // making near-zero net progress.
+    //
+    // Fix: split into POLL_CHUNK_SIZE-sized sub-batches, each its own
+    // step.run() call (same pattern as the normalize-N sub-batching below).
+    // Inngest checkpoints each completed step — if a later chunk times out
+    // and the function retries, already-completed chunks are NOT re-run,
+    // so progress accumulates monotonically instead of resetting to zero.
+    const pollResults: Array<{
+      companyId: string;
+      atsSource: string;
+      atsSlug: string;
+      newJobIds: string[];
+      error?: string;
+    }> = [];
+
+    for (let i = 0; i < companies.length; i += POLL_CHUNK_SIZE) {
+      const chunk = companies.slice(i, i + POLL_CHUNK_SIZE);
+      const stepName = `poll-chunk-${Math.floor(i / POLL_CHUNK_SIZE) + 1}`;
+
+      const chunkResults = await step.run(stepName, async () => {
+        const { pollCompany } = await import(
+          "@/lib/jobs/poller/phalanx-poller"
+        );
+        const results: typeof pollResults = [];
+        for (const c of chunk) {
+          try {
+            const result = await pollCompany(
+              c.id,
+              c.atsSource,
+              c.atsSlug,
+              fetch,
+            );
+            results.push({
+              companyId: c.id,
+              atsSource: c.atsSource,
+              atsSlug: c.atsSlug,
+              newJobIds: result.newJobIds,
+            });
+          } catch (e) {
+            // Log failure, continue with next company (error isolation)
+            results.push({
+              companyId: c.id,
+              atsSource: c.atsSource,
+              atsSlug: c.atsSlug,
+              newJobIds: [],
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
         }
-      }
-      return results;
-    });
+        return results;
+      });
+
+      pollResults.push(...chunkResults);
+    }
 
     // Collect new job IDs from the poll (for metrics). This may be empty if
-    // the poll-batch step timed out and retried (jobs already in DB).
+    // a chunk timed out and retried (jobs already in DB).
     const allNewJobIds = pollResults.flatMap((r) => r.newJobIds);
     const errorCount = pollResults.filter((r) => r.error).length;
 

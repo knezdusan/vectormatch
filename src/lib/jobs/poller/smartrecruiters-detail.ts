@@ -25,6 +25,7 @@ import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import { smartRecruitersJobDetailSchema } from "@/lib/jobs/ats-schemas";
 import { extractJobContent } from "@/lib/jobs/job-normalizer";
 import type { NormalizedJob } from "@/lib/jobs/poller/ats-adapters";
+import { fetchWithTimeout } from "@/lib/jobs/poller/fetch-with-timeout";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -110,7 +111,9 @@ export async function enrichSmartRecruitersJobs(
         continue;
       }
       const detailUrl = detailUrlBuilder(slug, job.externalJobId);
-      const response = await fetchFn(detailUrl);
+      // Sprint 7 healthcheck: timeout guard — a hanging detail endpoint must
+      // not stall the whole batch (up to MAX_DETAIL_FETCHES per company).
+      const response = await fetchWithTimeout(fetchFn, detailUrl);
       if (!response.ok) {
         fetchesFailed++;
         unchanged.push(job);
