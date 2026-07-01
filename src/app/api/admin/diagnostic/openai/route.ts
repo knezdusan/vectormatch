@@ -8,8 +8,6 @@ import { embedMany } from "ai";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
-
 export type OpenAIDiagnosticResponse = {
   present: boolean;
   prefix: string;
