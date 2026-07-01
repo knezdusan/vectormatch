@@ -1988,23 +1988,25 @@ export const matchBulkReprocess = inngest.createFunction(
           applicantId: string;
         }[] = [];
 
-        for (const j of jobs) {
-          // runGateSQLRouter inserts candidates into match_queue and returns
-          // them for Gate 3 fan-out. The relaxed dedup (only blocks approved
-          // siblings) and removed workplace pre-filter allow more jobs through.
-          const jobCandidates = await runGateSQLRouter(
-            j.id,
-            j.extractedTags,
-            j.jobEmbedding,
-          );
-          for (const c of jobCandidates) {
-            candidates.push({
-              matchQueueId: c.matchQueueId,
-              jobId: j.id,
-              personaId: c.personaId,
-              applicantId: c.applicantId,
-            });
-          }
+        // Run Gate 1+2 for all jobs in the batch in parallel.
+        // Sequential processing (25 jobs × ~3s each = 75s per batch) was the
+        // bottleneck causing 41+ minute runs. Parallelizing with Promise.all
+        // cuts each batch to ~3-5s (limited by DB connection pool concurrency).
+        const batchResults = await Promise.all(
+          jobs.map((j) =>
+            runGateSQLRouter(j.id, j.extractedTags, j.jobEmbedding).then(
+              (jobCandidates) =>
+                jobCandidates.map((c) => ({
+                  matchQueueId: c.matchQueueId,
+                  jobId: j.id,
+                  personaId: c.personaId,
+                  applicantId: c.applicantId,
+                })),
+            ),
+          ),
+        );
+        for (const jobCandidates of batchResults) {
+          candidates.push(...jobCandidates);
         }
 
         // Fan out Gate 3 events inside the step — avoid returning the full
