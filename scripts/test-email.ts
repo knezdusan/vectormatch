@@ -6,6 +6,8 @@ config();
 
 // Load environment variables
 const resendApiKey = process.env.RESEND_API_KEY;
+const fromEmail =
+  process.env.RESEND_FROM_EMAIL ?? "VectorMatch <onboarding@resend.dev>";
 
 console.log("=== Email Configuration Diagnostic ===");
 console.log("");
@@ -64,15 +66,18 @@ async function testEmailConfig() {
 async function testSendEmail() {
   console.log("=== Testing Email Send ===");
 
-  // Use your verified email address from Resend
-  const testEmail = "stacionari@gmail.com";
+  const testEmail =
+    process.argv[2] ??
+    process.env.TEST_EMAIL_RECIPIENT ??
+    "stacionari@gmail.com";
 
-  console.log(`Sending test email to: ${testEmail}`);
+  console.log(`Sending test email from: ${fromEmail}`);
+  console.log(`Sending test email to:   ${testEmail}`);
   console.log("");
 
   try {
     const { data, error } = await resend.emails.send({
-      from: "VectorMatch <onboarding@resend.dev>",
+      from: fromEmail,
       to: testEmail,
       subject: "Test Email - VectorMatch",
       html: "<p>This is a test email from VectorMatch. If you receive this, email sending is working correctly!</p>",
@@ -111,9 +116,11 @@ async function runDiagnostics() {
   console.log(
     "2. If email send failed, check Resend dashboard for rate limits/domain issues",
   );
-  console.log("3. For production, configure your own sending domain in Resend");
   console.log(
-    "4. Check server logs for '[test] skip' messages if using @example.com",
+    "3. Check the recipient inbox: sender should be the RESEND_FROM_EMAIL address",
+  );
+  console.log(
+    "4. In Gmail, use 'Show original' to confirm SPF, DKIM, and DMARC all pass",
   );
 }
 

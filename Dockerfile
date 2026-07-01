@@ -41,6 +41,9 @@ COPY . .
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Increase the Node.js heap for the TypeScript type-check step. Without this,
+# large builds can be OOM-killed inside the Docker build container.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Build Next.js with standalone output (next.config.ts → output: "standalone").
 # --mount cache for .next/cache speeds up rebuilds without leaking fetch-cache
