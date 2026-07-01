@@ -1910,7 +1910,7 @@ export const matchBulkReprocess = inngest.createFunction(
       const { sql } = await import("drizzle-orm");
 
       const result = await db.execute(sql`
-        SELECT DISTINCT j.id
+        SELECT j.id
         FROM job j
         WHERE j.status = 'active'
           AND j.job_embedding IS NOT NULL
@@ -2089,7 +2089,7 @@ export const matchRetrySweep = inngest.createFunction(
       const { sql } = await import("drizzle-orm");
 
       const result = await db.execute(sql`
-        SELECT DISTINCT j.id
+        SELECT DISTINCT j.id, j.detected_at
         FROM job j
         JOIN persona p ON (j.extracted_tags && p.must_have_tags)
         WHERE j.status = 'active'
@@ -2104,7 +2104,7 @@ export const matchRetrySweep = inngest.createFunction(
         ORDER BY j.detected_at DESC
         LIMIT 500
       `);
-      return result.rows as { id: string }[];
+      return result.rows as { id: string; detected_at: Date }[];
     });
 
     if (unmatchedJobs.length === 0) {
