@@ -48,7 +48,7 @@ export function BulkReprocessButton() {
           className={`text-xs ${result.success ? "text-emerald-500" : "text-red-500"}`}
         >
           {result.success
-            ? "Bulk reprocess triggered — check Inngest dashboard for progress."
+            ? `Bulk reprocess triggered — check <a href="https://inngest.vectormatch.dev/runs" target="_blank" rel="noopener noreferrer">Inngest dashboard</a> for progress.`
             : `Error: ${result.error}`}
         </p>
       )}

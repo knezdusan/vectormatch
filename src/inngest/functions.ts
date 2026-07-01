@@ -245,7 +245,10 @@ export const bigQuerySeeder = inngest.createFunction(
  *
  * Inngest v4 cron triggers expose the cron string at event.data.cron
  * (event name is "inngest/scheduled.timer").
+ * Used at line 340 and tested in src/lib/jobs/poller/__tests__/batch-poll.test.ts.
+ * fallow reports it as unused because it is used in the same module and tests.
  */
+// fallow-ignore-next-line unused-export
 export function cronToTier(cron: string): "active_hot" | "active" | "dormant" {
   switch (cron) {
     case "0 */3 * * *":
@@ -1897,20 +1900,17 @@ export const matchBulkReprocess = inngest.createFunction(
     const personaId: string | null = event.data.personaId ?? null;
     const includeRejected: boolean = event.data.includeRejected ?? false;
 
-    // Step 1: Get all active+embedded jobs that are NOT in match_queue
-    // (or are rejected, if includeRejected is true) for the target persona(s)
-    const jobs = await step.run("get-unmatched-jobs", async () => {
+    // Step 1: Get all active+embedded job IDs that are NOT in match_queue
+    // (or are rejected, if includeRejected is true) for the target persona(s).
+    // We fetch ONLY job IDs here — not embeddings — to keep the step response
+    // body tiny. Each job's embedding is 1536-dim text; 5000 of them would be
+    // ~60MB, far exceeding Inngest's response size limit.
+    const jobIds = await step.run("get-unmatched-jobs", async () => {
       const { db } = await import("@/db/db");
       const { sql } = await import("drizzle-orm");
 
-      // Fetch jobs with embeddings and tags that don't have a match_queue
-      // entry for the target persona(s). The embedding is returned as a
-      // pgvector text string like "[0.1,0.2,...]" — parsed below.
       const result = await db.execute(sql`
-        SELECT
-          j.id,
-          j.extracted_tags,
-          j.job_embedding::text AS job_embedding_str
+        SELECT DISTINCT j.id
         FROM job j
         WHERE j.status = 'active'
           AND j.job_embedding IS NOT NULL
@@ -1927,15 +1927,10 @@ export const matchBulkReprocess = inngest.createFunction(
         LIMIT 5000
       `);
 
-      // Parse the embedding string "[0.1,0.2,...]" into number[]
-      return result.rows.map((row) => ({
-        id: row.id as string,
-        extractedTags: (row.extracted_tags as string[]) ?? [],
-        jobEmbedding: parseVectorString(row.job_embedding_str as string),
-      }));
+      return result.rows.map((row) => row.id as string);
     });
 
-    if (jobs.length === 0) {
+    if (jobIds.length === 0) {
       return {
         reprocessed: 0,
         candidates: 0,
@@ -1943,23 +1938,41 @@ export const matchBulkReprocess = inngest.createFunction(
       };
     }
 
-    // Step 2: Process jobs in batches of 50, running Gate 1+2 for each
-    const BATCH = 50;
+    // Step 2: Process jobs in batches of 25, loading tags + embeddings per
+    // batch and running Gate 1+2 + Gate 3 fan-out INSIDE the step. Keeping
+    // batches small avoids Inngest's response size limit:
+    //   - Each batch step returns only { count } (tiny response)
+    //   - Each batch loads at most 25 embeddings (~25 × 12KB = 300KB), well
+    //     under the 1MB response size limit
+    const BATCH = 25;
     let totalCandidates = 0;
-    const allCandidates: {
-      matchQueueId: string;
-      jobId: string;
-      personaId: string;
-      applicantId: string;
-    }[] = [];
 
-    for (let i = 0; i < jobs.length; i += BATCH) {
-      const batch = jobs.slice(i, i + BATCH);
+    for (let i = 0; i < jobIds.length; i += BATCH) {
+      const batchIds = jobIds.slice(i, i + BATCH);
       const batchNum = Math.floor(i / BATCH) + 1;
       const stepName = `reprocess-batch-${batchNum}`;
 
-      const batchCandidates = await step.run(stepName, async () => {
+      const batchResult = await step.run(stepName, async () => {
+        const { db } = await import("@/db/db");
+        const { sql } = await import("drizzle-orm");
         const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
+
+        // Load tags + embeddings for this batch only
+        const result = await db.execute(sql`
+          SELECT
+            j.id,
+            j.extracted_tags,
+            j.job_embedding::text AS job_embedding_str
+          FROM job j
+          WHERE j.id = ANY(${batchIds}::uuid[])
+        `);
+
+        const jobs = result.rows.map((row) => ({
+          id: row.id as string,
+          extractedTags: (row.extracted_tags as string[]) ?? [],
+          jobEmbedding: parseVectorString(row.job_embedding_str as string),
+        }));
+
         const candidates: {
           matchQueueId: string;
           jobId: string;
@@ -1967,7 +1980,7 @@ export const matchBulkReprocess = inngest.createFunction(
           applicantId: string;
         }[] = [];
 
-        for (const j of batch) {
+        for (const j of jobs) {
           // runGateSQLRouter inserts candidates into match_queue and returns
           // them for Gate 3 fan-out. The relaxed dedup (only blocks approved
           // siblings) and removed workplace pre-filter allow more jobs through.
@@ -1985,32 +1998,33 @@ export const matchBulkReprocess = inngest.createFunction(
             });
           }
         }
-        return candidates;
+
+        // Fan out Gate 3 events inside the step — avoid returning the full
+        // candidate array in the step response body.
+        if (candidates.length > 0) {
+          await step.sendEvent(
+            `fan-out-gate-3-bulk-batch-${batchNum}`,
+            candidates.map((c) => ({
+              id: `gate-3-bulk-${c.matchQueueId}`,
+              name: "match/gate-3-evaluate",
+              data: {
+                matchQueueId: c.matchQueueId,
+                jobId: c.jobId,
+                personaId: c.personaId,
+                applicantId: c.applicantId,
+              },
+            })),
+          );
+        }
+
+        return { count: candidates.length };
       });
 
-      totalCandidates += batchCandidates.length;
-      allCandidates.push(...batchCandidates);
-
-      // Fan out Gate 3 events for each candidate in this batch
-      if (batchCandidates.length > 0) {
-        await step.sendEvent(
-          `fan-out-gate-3-bulk-batch-${batchNum}`,
-          batchCandidates.map((c) => ({
-            id: `gate-3-bulk-${c.matchQueueId}`,
-            name: "match/gate-3-evaluate",
-            data: {
-              matchQueueId: c.matchQueueId,
-              jobId: c.jobId,
-              personaId: c.personaId,
-              applicantId: c.applicantId,
-            },
-          })),
-        );
-      }
+      totalCandidates += batchResult.count;
     }
 
     return {
-      reprocessed: jobs.length,
+      reprocessed: jobIds.length,
       candidates: totalCandidates,
       personaId,
       includeRejected,
@@ -2021,7 +2035,11 @@ export const matchBulkReprocess = inngest.createFunction(
 /**
  * Parse a pgvector text string "[0.1,0.2,...]" into a number[].
  * Returns empty array if the input is null/empty/malformed.
+ *
+ * Exported for unit tests (src/inngest/__tests__/parse-vector.test.ts).
+ * fallow sees it as unused because it is only imported by tests.
  */
+// fallow-ignore-next-line unused-export
 export function parseVectorString(str: string | null | undefined): number[] {
   if (!str || typeof str !== "string") return [];
   // pgvector format: [0.1,0.2,...]

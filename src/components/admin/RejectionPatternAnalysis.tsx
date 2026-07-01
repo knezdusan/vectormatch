@@ -27,11 +27,74 @@ import {
   getRejectionCategories,
 } from "@/lib/jobs/admin-queries";
 
+interface ApprovalRow {
+  key: string;
+  label: React.ReactNode;
+  total: number;
+  approved: number;
+  approvalRate: number;
+}
+
 function approvalRateColor(rate: number): string {
   if (rate >= 2)
     return "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400";
   if (rate >= 1) return "bg-amber-500/20 text-amber-700 dark:text-amber-400";
   return "bg-red-500/20 text-red-700 dark:text-red-400";
+}
+
+/**
+ * Reusable approval-rate table used by the three breakdown sections (variant,
+ * persona, ATS source). Extracted to avoid the 3× duplicated 13-line table
+ * blocks flagged by fallow.
+ */
+function ApprovalRateTable({
+  label,
+  rows,
+  emptyMessage,
+}: {
+  label: string;
+  rows: ApprovalRow[];
+  emptyMessage: string;
+}) {
+  const labelShort = label.replace("Approval Rate by ", "");
+
+  return (
+    <div>
+      <h4 className="text-sm font-medium mb-2">{label}</h4>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{labelShort}</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead className="text-right">Approved</TableHead>
+              <TableHead className="text-right">Approval %</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <TableRow key={r.key}>
+                <TableCell className="font-medium">{r.label}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.total}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {r.approved}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Badge className={approvalRateColor(r.approvalRate)}>
+                    {r.approvalRate}%
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
 }
 
 export async function RejectionPatternAnalysis() {
@@ -81,6 +144,30 @@ export async function RejectionPatternAnalysis() {
   }
 
   const totalRejections = categories.reduce((sum, c) => sum + c.count, 0);
+
+  const variantRows: ApprovalRow[] = variants.map((v) => ({
+    key: v.variant,
+    label: <span className="capitalize">{v.variant}</span>,
+    total: v.total,
+    approved: v.approved,
+    approvalRate: v.approvalRate,
+  }));
+
+  const personaRows: ApprovalRow[] = personas.map((p) => ({
+    key: p.personaId,
+    label: p.personaLabel,
+    total: p.total,
+    approved: p.approved,
+    approvalRate: p.approvalRate,
+  }));
+
+  const atsRows: ApprovalRow[] = atsSources.map((a) => ({
+    key: a.atsSource,
+    label: <span className="font-mono text-xs">{a.atsSource}</span>,
+    total: a.total,
+    approved: a.approved,
+    approvalRate: a.approvalRate,
+  }));
 
   return (
     <Card>
@@ -132,126 +219,21 @@ export async function RejectionPatternAnalysis() {
           )}
         </div>
 
-        {/* Approval rate by prompt variant */}
-        <div>
-          <h4 className="text-sm font-medium mb-2">
-            Approval Rate by Prompt Variant
-          </h4>
-          {variants.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No data available</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Variant</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Approved</TableHead>
-                  <TableHead className="text-right">Approval %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {variants.map((v) => (
-                  <TableRow key={v.variant}>
-                    <TableCell className="font-medium capitalize">
-                      {v.variant}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {v.total}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {v.approved}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge className={approvalRateColor(v.approvalRate)}>
-                        {v.approvalRate}%
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-
-        {/* Approval rate by persona */}
-        <div>
-          <h4 className="text-sm font-medium mb-2">Approval Rate by Persona</h4>
-          {personas.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No data available</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Persona</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Approved</TableHead>
-                  <TableHead className="text-right">Approval %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {personas.map((p) => (
-                  <TableRow key={p.personaId}>
-                    <TableCell className="font-medium">
-                      {p.personaLabel}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {p.total}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {p.approved}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge className={approvalRateColor(p.approvalRate)}>
-                        {p.approvalRate}%
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-
-        {/* Approval rate by ATS source */}
-        <div>
-          <h4 className="text-sm font-medium mb-2">
-            Approval Rate by ATS Source
-          </h4>
-          {atsSources.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No data available</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ATS Source</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Approved</TableHead>
-                  <TableHead className="text-right">Approval %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {atsSources.map((a) => (
-                  <TableRow key={a.atsSource}>
-                    <TableCell className="font-mono text-xs">
-                      {a.atsSource}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {a.total}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {a.approved}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Badge className={approvalRateColor(a.approvalRate)}>
-                        {a.approvalRate}%
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+        <ApprovalRateTable
+          label="Approval Rate by Prompt Variant"
+          rows={variantRows}
+          emptyMessage="No prompt variant data available"
+        />
+        <ApprovalRateTable
+          label="Approval Rate by Persona"
+          rows={personaRows}
+          emptyMessage="No persona data available"
+        />
+        <ApprovalRateTable
+          label="Approval Rate by ATS Source"
+          rows={atsRows}
+          emptyMessage="No ATS source data available"
+        />
       </CardContent>
     </Card>
   );
