@@ -12,6 +12,7 @@
 
 import type { Gate3Context } from "@/lib/jobs/gate-3";
 import { inngest } from "./client";
+import { runSourceFunction } from "./source-helpers";
 
 // ── Seeder Functions ──────────────────────────────────────────────────────────
 
@@ -1957,6 +1958,13 @@ export const matchBulkReprocess = inngest.createFunction(
         const { sql } = await import("drizzle-orm");
         const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
 
+        // Build a UUID array literal for the WHERE clause.
+        // Drizzle's parameterized array binding doesn't work with ANY() —
+        // it expands to ($1, $2, ...) which Postgres treats as a record,
+        // not an array. Using a raw array literal avoids this issue.
+        // UUIDs are safe to interpolate (validated by the DB in the prior query).
+        const uuidArraySql = `ARRAY[${batchIds.map((id) => `'${id}'`).join(",")}]::uuid[]`;
+
         // Load tags + embeddings for this batch only
         const result = await db.execute(sql`
           SELECT
@@ -1964,7 +1972,7 @@ export const matchBulkReprocess = inngest.createFunction(
             j.extracted_tags,
             j.job_embedding::text AS job_embedding_str
           FROM job j
-          WHERE j.id = ANY(${batchIds}::uuid[])
+          WHERE j.id = ANY(${sql.raw(uuidArraySql)})
         `);
 
         const jobs = result.rows.map((row) => ({
@@ -2490,25 +2498,11 @@ export const dailySourceD1BraveSearch = inngest.createFunction(
     triggers: [{ cron: "0 0,14 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-brave-search";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const { runBraveSearchDaily } = await import(
-      "@/lib/jobs/seeders/batch-sources/brave-search"
-    );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
     const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-
     if (!apiKey) {
+      const { writeIngestionLog } = await import(
+        "@/lib/jobs/poller/ingestion-log"
+      );
       await step.run("write-log", async () => {
         return writeIngestionLog({
           type: "seed",
@@ -2520,51 +2514,30 @@ export const dailySourceD1BraveSearch = inngest.createFunction(
           itemsRejected: 0,
           itemsSkipped: 0,
           errorMessage: "BRAVE_SEARCH_API_KEY not configured",
-          startedAt,
+          startedAt: new Date(),
           finishedAt: new Date(),
         });
       });
       return { skipped: true, reason: "credentials-not-configured" };
     }
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runBraveSearchDaily({ apiKey }, fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "brave_search",
-          itemsProcessed: result.totalResultsFound,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    const { runBraveSearchDaily } = await import(
+      "@/lib/jobs/seeders/batch-sources/brave-search"
+    );
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-brave-search",
+      logSource: "brave_search",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runBraveSearchDaily({ apiKey }, fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalResultsFound,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
@@ -2579,61 +2552,24 @@ export const dailySourceD2HnAlgolia = inngest.createFunction(
     triggers: [{ cron: "0 1,16 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-hn-algolia";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runHnAlgoliaDailySeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/hn-algolia-daily"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runHnAlgoliaDailySeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalComments,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-hn-algolia",
+      logSource: "hn_algolia",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runHnAlgoliaDailySeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalComments,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
@@ -2648,61 +2584,22 @@ export const dailySourceD3RedditRss = inngest.createFunction(
     triggers: [{ cron: "0 2,18 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-reddit-rss";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runRedditRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/reddit-rss"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runRedditRssSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalPosts,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-reddit-rss",
+      logSource: "reddit_rss",
+      execute: () =>
+        step.run("fetch-and-process", async () => runRedditRssSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalPosts,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
@@ -2717,61 +2614,24 @@ export const dailySourceD4RemoteJobBoards = inngest.createFunction(
     triggers: [{ cron: "0 3 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-remote-job-boards";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runRemoteJobBoardsSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/remote-job-boards"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runRemoteJobBoardsSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalJobs,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-remote-job-boards",
+      logSource: "remote_job_boards",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runRemoteJobBoardsSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalJobs,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -2786,61 +2646,22 @@ export const dailySourceD5WwrRss = inngest.createFunction(
     triggers: [{ cron: "0 4 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-wwr-rss";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runWwrRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/weworkremotely-rss"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runWwrRssSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalPosts,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-wwr-rss",
+      logSource: "wwr_rss",
+      execute: () =>
+        step.run("fetch-and-process", async () => runWwrRssSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalPosts,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -2855,61 +2676,24 @@ export const dailySourceD6CertStream = inngest.createFunction(
     triggers: [{ cron: "0 10 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-certstream";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runCertStreamProcessor } = await import(
       "@/lib/jobs/seeders/daily-sources/certstream-processor"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("collect-and-process", async () => {
-        return runCertStreamProcessor(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalCertificates,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-certstream",
+      logSource: "certstream",
+      execute: () =>
+        step.run("collect-and-process", async () =>
+          runCertStreamProcessor(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalCertificates,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -2924,61 +2708,24 @@ export const dailySourceD7FundingSignal = inngest.createFunction(
     triggers: [{ cron: "0 11 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-funding-signal";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runFundingSignalSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/funding-signal"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("process-retry-queue", async () => {
-        return runFundingSignalSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalRetried,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-funding-signal",
+      logSource: "funding_signal",
+      execute: () =>
+        step.run("process-retry-queue", async () =>
+          runFundingSignalSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalRetried,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -2993,61 +2740,24 @@ export const dailySourceD8ProductHunt = inngest.createFunction(
     triggers: [{ cron: "0 5 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-producthunt";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runProductHuntDailySeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/producthunt-daily"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runProductHuntDailySeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalProducts,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-producthunt",
+      logSource: "product_hunt",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runProductHuntDailySeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalProducts,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3062,61 +2772,24 @@ export const dailySourceD9EngineeringBlogs = inngest.createFunction(
     triggers: [{ cron: "0 6 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-engineering-blogs";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runEngineeringBlogsRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/engineering-blogs-rss"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runEngineeringBlogsRssSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalPosts,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-engineering-blogs",
+      logSource: "engineering_blogs",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runEngineeringBlogsRssSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalPosts,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3131,61 +2804,24 @@ export const dailySourceD10GithubTrending = inngest.createFunction(
     triggers: [{ cron: "0 7 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-github-trending";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runGithubTrendingSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/github-trending"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runGithubTrendingSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalRepos,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-github-trending",
+      logSource: "github_trending",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runGithubTrendingSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalRepos,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3200,61 +2836,22 @@ export const dailySourceD11TechNewsRss = inngest.createFunction(
     triggers: [{ cron: "0 8 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-tech-news-rss";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runTechNewsRssSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/tech-news-rss"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runTechNewsRssSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalArticles,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-tech-news-rss",
+      logSource: "tech_news_rss",
+      execute: () =>
+        step.run("fetch-and-process", async () => runTechNewsRssSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalArticles,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3269,61 +2866,22 @@ export const dailySourceD12NpmRegistry = inngest.createFunction(
     triggers: [{ cron: "0 9 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-npm-registry";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runNpmRegistrySeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/npm-registry"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runNpmRegistrySeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalPackages,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-npm-registry",
+      logSource: "npm_registry",
+      execute: () =>
+        step.run("fetch-and-process", async () => runNpmRegistrySeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalPackages,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3338,61 +2896,22 @@ export const dailySourceD13MetaAds = inngest.createFunction(
     triggers: [{ cron: "0 12 * * *" }],
   },
   async ({ step }) => {
-    const sourceName = "daily-source-meta-ads";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
     const { runMetaAdsSeeder } = await import(
       "@/lib/jobs/seeders/daily-sources/meta-ads"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runMetaAdsSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "hn_algolia",
-          itemsProcessed: result.totalAds,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "daily-source-meta-ads",
+      logSource: "meta_ads",
+      execute: () =>
+        step.run("fetch-and-process", async () => runMetaAdsSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalAds,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3412,73 +2931,23 @@ export const batchSourceB1Workable = inngest.createFunction(
     triggers: [{ event: "batch/workable-meta-search" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-workable-meta-search";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runWorkableMetaSearch } = await import(
       "@/lib/jobs/seeders/batch-sources/workable-meta-search"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runWorkableMetaSearch(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "workable_meta_search",
-          itemsProcessed: result.totalJobsFound,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-workable-meta-search",
+      logSource: "workable_meta_search",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () => runWorkableMetaSearch(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalJobsFound,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
@@ -3493,37 +2962,11 @@ export const batchSourceB2BraveSearch = inngest.createFunction(
     triggers: [{ event: "batch/brave-search" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-brave-search";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
-    const { runBraveSearchBatch } = await import(
-      "@/lib/jobs/seeders/batch-sources/brave-search"
-    );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
     const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-
     if (!apiKey) {
+      const { writeIngestionLog } = await import(
+        "@/lib/jobs/poller/ingestion-log"
+      );
       await step.run("write-log", async () => {
         return writeIngestionLog({
           type: "seed",
@@ -3535,51 +2978,31 @@ export const batchSourceB2BraveSearch = inngest.createFunction(
           itemsRejected: 0,
           itemsSkipped: 0,
           errorMessage: "BRAVE_SEARCH_API_KEY not configured",
-          startedAt,
+          startedAt: new Date(),
           finishedAt: new Date(),
         });
       });
       return { skipped: true, reason: "credentials-not-configured" };
     }
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runBraveSearchBatch({ apiKey }, fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "brave_search",
-          itemsProcessed: result.totalResultsFound,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    const { runBraveSearchBatch } = await import(
+      "@/lib/jobs/seeders/batch-sources/brave-search"
+    );
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-brave-search",
+      logSource: "brave_search",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runBraveSearchBatch({ apiKey }, fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalResultsFound,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
@@ -3593,73 +3016,23 @@ export const batchSourceB3YcDirectory = inngest.createFunction(
     triggers: [{ event: "batch/yc-directory" }, { cron: "0 0 1 */3 *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-yc-directory";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runYcDirectorySeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/yc-directory"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runYcDirectorySeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "yc_directory",
-          itemsProcessed: result.totalHiringCompanies,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-yc-directory",
+      logSource: "yc_directory",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () => runYcDirectorySeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalHiringCompanies,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3673,73 +3046,23 @@ export const batchSourceB4VcPortfolios = inngest.createFunction(
     triggers: [{ event: "batch/vc-portfolios" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-vc-portfolios";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runVcPortfolioSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/vc-portfolios"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runVcPortfolioSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "vc_portfolio",
-          itemsProcessed: result.totalCompaniesExtracted,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-vc-portfolios",
+      logSource: "vc_portfolio",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () => runVcPortfolioSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalCompaniesExtracted,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -3753,73 +3076,25 @@ export const batchSourceB5NewsletterArchives = inngest.createFunction(
     triggers: [{ event: "batch/newsletter-archives" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-newsletter-archives";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runNewsletterArchiveSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/newsletter-archives"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runNewsletterArchiveSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "newsletter_archive",
-          itemsProcessed: result.issuesCrawled,
-          itemsInserted: result.directSlugInserts + result.sluggerResolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.sluggerUnresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-newsletter-archives",
+      logSource: "newsletter_archive",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runNewsletterArchiveSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.issuesCrawled,
+        itemsInserted: r.directSlugInserts + r.sluggerResolved,
+        itemsRejected: 0,
+        itemsSkipped: r.sluggerUnresolved,
+      }),
+    });
   },
 );
 
@@ -3833,73 +3108,23 @@ export const batchSourceB7WaybackCdx = inngest.createFunction(
     triggers: [{ event: "batch/wayback-cdx" }, { cron: "0 0 1 */3 *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-wayback-cdx";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runWaybackCdxSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/wayback-cdx"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runWaybackCdxSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "wayback_cdx",
-          itemsProcessed: result.totalRows,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-wayback-cdx",
+      logSource: "wayback_cdx",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () => runWaybackCdxSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalRows,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
@@ -3916,27 +3141,13 @@ export const batchSourceB8Rapid7Fdns = inngest.createFunction(
     triggers: [{ event: "batch/rapid7-fdns" }],
   },
   async ({ event, step }) => {
-    const sourceName = "batch-source-rapid7-fdns";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const { runRapid7CnameSeeder } = await import(
-      "@/lib/jobs/seeders/batch-sources/rapid7-cname"
-    );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
     const filePath =
       (event.data as { filePath?: string })?.filePath ??
       process.env.RAPID7_FDNS_FILE_PATH;
-
     if (!filePath) {
+      const { writeIngestionLog } = await import(
+        "@/lib/jobs/poller/ingestion-log"
+      );
       await step.run("write-log", async () => {
         return writeIngestionLog({
           type: "seed",
@@ -3949,51 +3160,30 @@ export const batchSourceB8Rapid7Fdns = inngest.createFunction(
           itemsSkipped: 0,
           errorMessage:
             "RAPID7_FDNS_FILE_PATH not configured and no filePath in event data",
-          startedAt,
+          startedAt: new Date(),
           finishedAt: new Date(),
         });
       });
       return { skipped: true, reason: "credentials-not-configured" };
     }
-
-    try {
-      const result = await step.run("stream-and-process", async () => {
-        return runRapid7CnameSeeder(filePath, fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "rapid7_fdns",
-          itemsProcessed: result.totalRecords,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    const { runRapid7CnameSeeder } = await import(
+      "@/lib/jobs/seeders/batch-sources/rapid7-cname"
+    );
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-rapid7-fdns",
+      logSource: "rapid7_fdns",
+      execute: () =>
+        step.run("stream-and-process", async () =>
+          runRapid7CnameSeeder(filePath, fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalRecords,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -4008,73 +3198,25 @@ export const batchSourceB9CrossPollination = inngest.createFunction(
     triggers: [{ event: "batch/cross-pollination" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-cross-pollination";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runCrossPollinationSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/cross-pollination"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("process-existing-jobs", async () => {
-        return runCrossPollinationSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "cross_pollination",
-          itemsProcessed: result.totalCompanyNames,
-          itemsInserted: result.resolved,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: result.unresolved,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-cross-pollination",
+      logSource: "cross_pollination",
+      checkStorage: true,
+      execute: () =>
+        step.run("process-existing-jobs", async () =>
+          runCrossPollinationSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalCompanyNames,
+        itemsInserted: r.resolved,
+        itemsRejected: 0,
+        itemsSkipped: r.unresolved,
+      }),
+    });
   },
 );
 
@@ -4089,73 +3231,23 @@ export const batchSourceB10SitemapProbe = inngest.createFunction(
     triggers: [{ event: "batch/sitemap-probe" }, { cron: "0 0 * * 1" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-sitemap-probe";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runSitemapProbeSeeder } = await import(
       "@/lib/jobs/seeders/batch-sources/sitemap-probe"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("probe-sitemaps", async () => {
-        return runSitemapProbeSeeder(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "sitemap_probe",
-          itemsProcessed: result.companiesProbed,
-          itemsInserted: result.companiesInserted,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: 0,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-sitemap-probe",
+      logSource: "sitemap_probe",
+      checkStorage: true,
+      execute: () =>
+        step.run("probe-sitemaps", async () => runSitemapProbeSeeder(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.companiesProbed,
+        itemsInserted: r.companiesInserted,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+      }),
+    });
   },
 );
 
@@ -4172,73 +3264,23 @@ export const batchSourceB8CrtSh = inngest.createFunction(
     triggers: [{ event: "batch/crt-sh" }, { cron: "0 0 1 * *" }],
   },
   async ({ step }) => {
-    const sourceName = "batch-source-crt-sh";
-    const enabled = await step.run("check-health", async () => {
-      const { isSourceEnabled } = await import("@/lib/jobs/source-health");
-      return isSourceEnabled(sourceName);
-    });
-    if (!enabled) {
-      return { skipped: true, reason: "circuit-breaker-open" };
-    }
-    const storage = await step.run("check-storage", async () => {
-      const { isStorageSafeForRefresh } = await import(
-        "@/lib/jobs/storage-check"
-      );
-      return isStorageSafeForRefresh();
-    });
-    if (!storage.safe) {
-      console.warn(
-        `Storage at ${(storage.percentage * 100).toFixed(1)}% (${storage.currentMb}MB / ${storage.limitMb}MB) — skipping batch refresh`,
-      );
-      return { skipped: true, reason: "storage-near-limit", ...storage };
-    }
     const { runCrtShBatch } = await import(
       "@/lib/jobs/seeders/batch-sources/crt-sh"
     );
-    const { writeIngestionLog } = await import(
-      "@/lib/jobs/poller/ingestion-log"
-    );
-
-    const startedAt = new Date();
-
-    try {
-      const result = await step.run("fetch-and-process", async () => {
-        return runCrtShBatch(fetch);
-      });
-
-      await step.run("record-success", async () => {
-        const { recordSourceSuccess } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceSuccess(sourceName);
-      });
-
-      await step.run("write-log", async () => {
-        return writeIngestionLog({
-          type: "seed",
-          status: result.error ? "failed" : "success",
-          source: "crt_sh",
-          itemsProcessed: result.totalRows,
-          itemsInserted: result.insertResult.inserted,
-          itemsUpdated: 0,
-          itemsRejected: result.insertResult.rejected.length,
-          itemsSkipped: result.insertResult.skipped,
-          errorMessage: result.error,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return result;
-    } catch (error) {
-      await step.run("record-failure", async () => {
-        const { recordSourceFailure } = await import(
-          "@/lib/jobs/source-health"
-        );
-        return recordSourceFailure(sourceName, String(error));
-      });
-      throw error;
-    }
+    return runSourceFunction({
+      step,
+      sourceName: "batch-source-crt-sh",
+      logSource: "crt_sh",
+      checkStorage: true,
+      execute: () =>
+        step.run("fetch-and-process", async () => runCrtShBatch(fetch)),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalRows,
+        itemsInserted: r.insertResult.inserted,
+        itemsRejected: r.insertResult.rejected.length,
+        itemsSkipped: r.insertResult.skipped,
+      }),
+    });
   },
 );
 
