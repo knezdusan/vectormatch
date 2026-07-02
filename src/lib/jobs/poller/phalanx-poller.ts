@@ -148,12 +148,16 @@ export async function pollCompany(
   const filteredJobs = allJobs.filter((job) => passesGateZero(job.title));
   const rejectedCount = allJobs.length - filteredJobs.length;
 
-  // Step 2a: SmartRecruiters Tier 2 selective detail fetch (Sprint 4 Task 7).
-  // For jobs where the Tier 1 pseudo-description is too short for a good
-  // embedding, fetch the detail endpoint to get the full job description.
-  // This is best-effort — failures are non-fatal (Tier 1 data is kept).
-  // Runs AFTER Gate 0 to avoid wasting detail fetches on jobs that will be
-  // rejected by the title filter.
+  // Step 2a: Selective Tier 2 detail fetch for ATS sources that need it.
+  // For jobs where the Tier 1 content is too short for a good embedding
+  // (< MIN_FULLTEXT_LENGTH chars), fetch the detail endpoint to get the full
+  // job description. This is best-effort — failures are non-fatal (Tier 1 data
+  // is kept). Runs AFTER Gate 0 to avoid wasting detail fetches on jobs that
+  // will be rejected by the title filter.
+  //
+  // SmartRecruiters: list endpoint has no description field at all.
+  // Greenhouse: list endpoint includes ?content=true but some boards return
+  //   empty content. Detail endpoint may return fuller content.
   let enrichedJobs = filteredJobs;
   if (atsSource === "smartrecruiters" && filteredJobs.length > 0) {
     try {
@@ -166,6 +170,20 @@ export async function pollCompany(
         fetchFn,
       );
       // Replace enrichedJobs with enriched + unchanged (order preserved by concat)
+      enrichedJobs = [...enrichment.unchanged, ...enrichment.enriched];
+    } catch {
+      // Non-fatal: if enrichment fails, proceed with Tier 1 data only
+    }
+  } else if (atsSource === "greenhouse" && filteredJobs.length > 0) {
+    try {
+      const { enrichGreenhouseJobs } = await import(
+        "@/lib/jobs/poller/greenhouse-detail"
+      );
+      const enrichment = await enrichGreenhouseJobs(
+        filteredJobs,
+        atsSlug,
+        fetchFn,
+      );
       enrichedJobs = [...enrichment.unchanged, ...enrichment.enriched];
     } catch {
       // Non-fatal: if enrichment fails, proceed with Tier 1 data only

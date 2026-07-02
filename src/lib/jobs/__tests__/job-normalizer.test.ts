@@ -476,6 +476,122 @@ describe("extractJobMetadata — Greenhouse", () => {
     const meta = extractJobMetadata("greenhouse", rawJson);
     expect(meta.employmentType).toBeNull();
   });
+
+  // ── Content-based workplace_type fallback ─────────────────────────────────
+  // When the location heuristic returns null (84.9% of Greenhouse jobs), scan
+  // the content (HTML description) for workplace-type phrases. This reduces
+  // NULL workplace_type from 84.9% to a much lower rate, giving Gate 3 better
+  // structured metadata instead of forcing the LLM to guess.
+
+  it("detects remote from content when location has no keyword", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "San Francisco, CA" },
+      content: "<p>This is a fully remote position.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote from 'work from home' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "New York, NY" },
+      content: "<p>You can work from home for this role.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote from 'remote eligible' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Austin, TX" },
+      content: "<p>This position is remote eligible.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects hybrid from content when location has no keyword", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "London" },
+      content: "<p>This is a hybrid role with 2-3 days in office.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("detects hybrid from 'hybrid' keyword in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Berlin" },
+      content: "<p>We offer a hybrid work model.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("detects on-site from 'in-office' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Tokyo" },
+      content: "<p>This is an in-office position.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+
+  it("detects on-site from 'must work from office' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Mumbai, India" },
+      content: "<p>Candidate must work from our Mumbai office.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("on-site");
+  });
+
+  it("prefers hybrid over remote when content mentions both", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Dublin" },
+      content: "<p>This is a hybrid role with some remote work days.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("hybrid");
+  });
+
+  it("does not detect remote from 'remote access' (false positive guard)", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Huntsville, AL" },
+      content: "<p>Experience with remote access systems required.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBeNull();
+  });
+
+  it("returns null when content has no workplace keywords", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Bengaluru, India" },
+      content: "<p>We are looking for a senior engineer to join our team.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBeNull();
+  });
+
+  it("location heuristic takes precedence over content fallback", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Remote - United States" },
+      content: "<p>This is an in-office position in our SF office.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
 });
 
 describe("extractJobMetadata — Lever", () => {
@@ -835,7 +951,10 @@ describe("normalizeJob", () => {
   it("returns 'normalized' when Phase 1 regex finds ≥1 persona_defining tag (no LLM call)", async () => {
     const rawJson = JSON.stringify({
       title: "Senior React Engineer",
-      content: "<p>React, TypeScript, and Next.js developer needed.</p>",
+      content:
+        "<p>React, TypeScript, and Next.js developer needed. " +
+        "You will build user interfaces and work on a fast-paced team " +
+        "delivering high-quality software products.</p>",
     });
     const llmSpy = vi.fn(async () => [
       "should-not-be-called",
@@ -859,7 +978,10 @@ describe("normalizeJob", () => {
   it("returns 'normalized' with fullText for embedding", async () => {
     const rawJson = JSON.stringify({
       title: "Python Backend Developer",
-      content: "<p>Django and PostgreSQL experience required.</p>",
+      content:
+        "<p>Django and PostgreSQL experience required. " +
+        "You will build scalable backend services and APIs using Python. " +
+        "Experience with REST and GraphQL is a plus.</p>",
     });
 
     const result = await normalizeJob("greenhouse", rawJson, "Fallback");
@@ -872,10 +994,14 @@ describe("normalizeJob", () => {
   // ── Phase 1 finds 0 persona_defining → Phase 2 LLM fallback ─────────────
 
   it("triggers Phase 2 LLM fallback when Phase 1 finds 0 persona_defining tags", async () => {
-    // Text with only supporting tags (css, html) — no persona_defining
+    // Text with only supporting tags (css, html) — no persona_defining.
+    // Content must be > 100 chars to pass the title-only guard.
     const rawJson = JSON.stringify({
       title: "Design Systems Engineer",
-      content: "<p>CSS and HTML knowledge required for this design role.</p>",
+      content:
+        "<p>CSS and HTML knowledge required for this design role. " +
+        "You will work on the design system, maintaining component libraries " +
+        "and ensuring visual consistency across all products and platforms.</p>",
     });
     const mockLlm = makeMockLlm(["react", "typescript"]);
 
@@ -895,10 +1021,13 @@ describe("normalizeJob", () => {
   });
 
   it("returns 'rejected' when Phase 2 LLM also finds 0 persona_defining tags", async () => {
-    // Text with no tech tags at all
+    // Text with no tech tags at all — content > 100 chars to pass title-only guard
     const rawJson = JSON.stringify({
       title: "Office Manager",
-      content: "<p>Manage office operations and scheduling.</p>",
+      content:
+        "<p>Manage office operations and scheduling for a growing team. " +
+        "Responsibilities include coordinating meetings, managing supplies, " +
+        "and supporting the executive team with administrative tasks.</p>",
     });
     // LLM returns only supporting tags or empty
     const mockLlm = makeMockLlm([]);
@@ -911,12 +1040,17 @@ describe("normalizeJob", () => {
     );
 
     expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("no_tags");
   });
 
   it("returns 'rejected' when Phase 2 LLM returns only supporting tags", async () => {
+    // Content > 100 chars to pass title-only guard
     const rawJson = JSON.stringify({
       title: "QA Analyst",
-      content: "<p>Manual testing with some CSS knowledge.</p>",
+      content:
+        "<p>Manual testing with some CSS knowledge required. " +
+        "You will be responsible for test case creation, execution, and " +
+        "reporting. Experience with test management tools is a plus.</p>",
     });
     // LLM returns only supporting tags (no persona_defining)
     const mockLlm = makeMockLlm(["css", "html", "git"]);
@@ -929,14 +1063,19 @@ describe("normalizeJob", () => {
     );
 
     expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("no_tags");
   });
 
   // ── Phase 2 LLM call fails → 'normalization_failed' ─────────────────────
 
   it("returns 'normalization_failed' when Phase 2 LLM call throws", async () => {
+    // Content > 100 chars to pass title-only guard
     const rawJson = JSON.stringify({
       title: "Office Manager",
-      content: "<p>Manage office operations.</p>",
+      content:
+        "<p>Manage office operations and scheduling for a growing team. " +
+        "Responsibilities include coordinating meetings, managing supplies, " +
+        "and supporting the executive team with administrative tasks.</p>",
     });
     const mockLlm = makeMockLlmThatThrows(
       new Error("OpenAI rate limit exceeded"),
@@ -956,9 +1095,13 @@ describe("normalizeJob", () => {
   });
 
   it("returns 'normalization_failed' with error message for non-Error throws", async () => {
+    // Content > 100 chars to pass title-only guard
     const rawJson = JSON.stringify({
       title: "Office Manager",
-      content: "<p>Manage office operations.</p>",
+      content:
+        "<p>Manage office operations and scheduling for a growing team. " +
+        "Responsibilities include coordinating meetings, managing supplies, " +
+        "and supporting the executive team with administrative tasks.</p>",
     });
     const mockLlm = makeMockLlmThatThrows(new Error("timeout"));
 
@@ -973,9 +1116,92 @@ describe("normalizeJob", () => {
     expect(result.error).toBe("timeout");
   });
 
+  // ── Title-only rejection guard (fullText < 100 chars) ───────────────────
+
+  it("rejects title-only jobs with fullText < 100 chars (no LLM call)", async () => {
+    const rawJson = JSON.stringify({
+      title: "Software Engineer",
+      content: "<p>Short desc.</p>",
+    });
+    const llmSpy = vi.fn(async () => [
+      "should-not-be-called",
+    ]) as LlmTagExtractor;
+
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      llmSpy,
+    );
+
+    expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("title_only");
+    expect(result.tags).toEqual([]);
+    // LLM should NOT have been called — title-only guard short-circuits
+    expect(llmSpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects SmartRecruiters title-only jobs (metadata-only pseudo-description < 100 chars)", async () => {
+    // Simulates a SmartRecruiters job where the detail fetch failed and only
+    // the Tier 1 pseudo-description (title + metadata) is available.
+    const rawJson = JSON.stringify({
+      name: "Senior Machine Learning Engineer",
+      location: { city: "Sydney", country: "au", remote: true },
+      typeOfEmployment: { label: "Full-time" },
+      company: { name: "Canva" },
+    });
+    const llmSpy = vi.fn(async () => [
+      "should-not-be-called",
+    ]) as LlmTagExtractor;
+
+    const result = await normalizeJob(
+      "smartrecruiters",
+      rawJson,
+      "Fallback",
+      llmSpy,
+    );
+
+    expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("title_only");
+    expect(llmSpy).not.toHaveBeenCalled();
+  });
+
+  it("allows jobs with fullText exactly 100 chars", async () => {
+    // fullText must be exactly 100 chars to pass the guard (>= 100)
+    const title = "React Developer";
+    // Build content so that title + " " + content = exactly 100 chars
+    // title is 15 chars, + 1 space = 16, need content = 84 chars
+    const content = "A".repeat(84);
+    const rawJson = JSON.stringify({ title, content });
+    const mockLlm = makeMockLlm(["react"]);
+
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      mockLlm,
+    );
+
+    // Should NOT be rejected as title_only (fullText is exactly 100 chars)
+    expect(result.status).not.toBe("rejected");
+    expect(result.rejectionReason).not.toBe("title_only");
+  });
+
+  it("rejects jobs with fullText 99 chars (just below threshold)", async () => {
+    const title = "React Developer";
+    // title is 15 chars, + 1 space = 16, need content = 83 chars → fullText = 99
+    const content = "A".repeat(83);
+    const rawJson = JSON.stringify({ title, content });
+
+    const result = await normalizeJob("greenhouse", rawJson, "Fallback");
+
+    expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("title_only");
+  });
+
   // ── Edge cases ──────────────────────────────────────────────────────────
 
-  it("handles unknown ATS source by using title-only text", async () => {
+  it("handles unknown ATS source by using title-only text (rejected by guard)", async () => {
     const rawJson = JSON.stringify({
       title: "React Developer",
       description: "desc",
@@ -986,19 +1212,31 @@ describe("normalizeJob", () => {
       "React Developer",
     );
 
-    // Title "React Developer" contains "React" which is persona_defining
-    expect(result.status).toBe("normalized");
-    expect(result.tags).toContain("react");
+    // Title "React Developer" + "desc" = 20 chars → rejected by title-only guard
+    expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("title_only");
   });
 
-  it("handles invalid JSON by using fallback title", async () => {
+  it("handles invalid JSON by using fallback title (rejected by guard if short)", async () => {
     const result = await normalizeJob(
       "greenhouse",
       "not json",
       "Python Developer",
     );
 
-    // Title "Python Developer" contains "Python" which is persona_defining
+    // Title "Python Developer" = 16 chars → rejected by title-only guard
+    expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("title_only");
+  });
+
+  it("handles invalid JSON with long fallback title (passes guard, finds tags)", async () => {
+    // Long enough title with persona_defining tag to pass guard + regex.
+    // Must be > 100 chars to pass the title-only guard.
+    const longTitle =
+      "Senior Python Developer with Django and PostgreSQL experience needed for backend role " +
+      "at a fast-growing startup building scalable web applications with modern technologies";
+    const result = await normalizeJob("greenhouse", "not json", longTitle);
+
     expect(result.status).toBe("normalized");
     expect(result.tags).toContain("python");
   });
@@ -1190,24 +1428,30 @@ describe("extractJobMetadata — G7 nullable rawJson", () => {
 });
 
 describe("normalizeJob — G7 nullable rawJson", () => {
-  it("degrades to title-only when rawJson is null (no LLM call needed)", async () => {
+  it("degrades to title-only when rawJson is null (rejected by title-only guard)", async () => {
     // normalizeJob with null rawJson → extractJobContent returns title-only
-    // → regex scan on title → likely < threshold → LLM fallback on title
-    // Use a mock LLM that returns no tags → rejected
-    const mockLlm: LlmTagExtractor = async () => [];
+    // → title-only guard rejects (< 100 chars) → no LLM call needed
+    const mockLlm = vi.fn(async () => []) as LlmTagExtractor;
     const result = await normalizeJob("greenhouse", null, "Manager", mockLlm);
 
     expect(result.status).toBe("rejected");
+    expect(result.rejectionReason).toBe("title_only");
     expect(result.fullText).toBe("Manager");
+    // LLM should not have been called (title-only guard short-circuits)
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 
   it("produces fullText that should be stored as normalizedText", async () => {
     // Verify that normalizeJob's fullText output is the cleaned text that
     // the handler writes to normalizedText (G7). This is the contract:
     //   DB update: normalizedText = normalization.fullText, rawJson = null
+    // Content > 100 chars to pass the title-only guard.
     const rawJson = JSON.stringify({
       title: "Senior React Engineer",
-      content: "<p>We need <strong>React</strong> and <em>TypeScript</em>.</p>",
+      content:
+        "<p>We need <strong>React</strong> and <em>TypeScript</em> developers. " +
+        "You will build user interfaces with modern web technologies and " +
+        "work on a fast-paced team delivering high-quality software.</p>",
     });
     const mockLlm: LlmTagExtractor = async () => ["react", "typescript"];
     const result = await normalizeJob(
@@ -1219,11 +1463,10 @@ describe("normalizeJob — G7 nullable rawJson", () => {
 
     expect(result.status).toBe("normalized");
     // fullText is the HTML-stripped, cleaned text — this is what gets
-    // written to normalizedText and what Gate 3 reads. Note: HTML tag
-    // stripping replaces tags with spaces, so </em>. becomes " .".
-    expect(result.fullText).toBe(
-      "Senior React Engineer We need React and TypeScript .",
-    );
+    // written to normalizedText and what Gate 3 reads.
+    expect(result.fullText).toContain("Senior React Engineer");
+    expect(result.fullText).toContain("React");
+    expect(result.fullText).toContain("TypeScript");
     // Verify it's significantly smaller than rawJson (G7 storage win)
     expect(result.fullText.length).toBeLessThan(rawJson.length);
   });

@@ -1106,8 +1106,8 @@ export const normalizationRetrySweep = inngest.createFunction(
     id: "poller-normalization-retry",
     name: "Normalization Retry Sweep",
     // Every 4 hours — the daily schedule (0 6 * * *) was too slow to clear
-    // normalization backlogs. With a 500-job limit per run and 4h cadence,
-    // throughput is 3000/day (6 runs × 500), enough to keep up with peak
+    // normalization backlogs. With a 2000-job limit per run and 4h cadence,
+    // throughput is 12000/day (6 runs × 2000), enough to keep up with peak
     // ingestion bursts (e.g. 3634 jobs from a single Greenhouse poll).
     triggers: [{ cron: "0 */4 * * *" }],
   },
@@ -1321,6 +1321,16 @@ export const jobIngestedHandler = inngest.createFunction(
           })
           .where(eq(job.id, jobId));
       } else if (normalization.status === "rejected") {
+        // Title-only degradation observability — log when a job is rejected
+        // because its content was too short (< 100 chars). This indicates
+        // either a failed detail fetch or an ATS source with no detail
+        // endpoint. Tracking these helps identify which ATS sources need
+        // detail fetch fallbacks.
+        if (normalization.rejectionReason === "title_only") {
+          console.warn(
+            `[jobIngestedHandler] Title-only rejection for job ${jobId} (atsSource=${decision.job.atsSource}, fullTextLen=${normalization.fullText.length}): content too short for quality embedding`,
+          );
+        }
         await db
           .update(job)
           .set({
@@ -1982,7 +1992,9 @@ export const matchBulkReprocess = inngest.createFunction(
         // UUIDs are safe to interpolate (validated by the DB in the prior query).
         const uuidArraySql = `ARRAY[${batchIds.map((id) => `'${id}'`).join(",")}]::uuid[]`;
 
-        // Load tags + embeddings for this batch only
+        // Load tags + embeddings for this batch only.
+        // Re-check status = 'active' and job_embedding IS NOT NULL in case the
+        // job was deactivated or re-normalized between step 1 and this batch.
         const result = await db.execute(sql`
           SELECT
             j.id,
@@ -1990,6 +2002,8 @@ export const matchBulkReprocess = inngest.createFunction(
             j.job_embedding::text AS job_embedding_str
           FROM job j
           WHERE j.id = ANY(${sql.raw(uuidArraySql)})
+            AND j.status = 'active'
+            AND j.job_embedding IS NOT NULL
         `);
 
         const jobs = result.rows.map((row) => ({
@@ -2080,28 +2094,21 @@ export function parseVectorString(str: string | null | undefined): number[] {
 // ── Sprint 8: Periodic Re-Matching Sweep ─────────────────────────────────────
 
 /**
- * Match Retry Sweep — daily sweep that catches any jobs missed by the normal
- * matching pipeline. Runs at 07:00 UTC (after the normalization retry sweep
- * at 06:00 UTC, so newly-normalized jobs are included).
- *
- * Triggered by: cron "0 7 * * *"
+ * Match Retry Sweep — periodic sweep that catches any jobs missed by the normal
+ * matching pipeline. Runs every 6 hours (cron "0 \u002A/6 * * *"), after the
+ * normalization retry sweep (every 4h), so newly-normalized jobs are included.
  *
  * Finds active+embedded jobs that:
  *   - Have tag overlap with any persona (Gate 1 eligible)
+ *   - Pass Gate 2 (cosine distance < threshold) for at least one persona
  *   - Are NOT in match_queue for any persona
- *   - Were detected more than 1 hour ago (not freshly inserted — those are
- *     handled by jobIngestedHandler)
  *
- * Emits `job/ingested` events with `isNew: false` for these jobs. The
- * `jobIngestedHandler` will skip normalization (already normalized) but...
- * wait — jobIngestedHandler skips already-normalized jobs entirely. So instead
- * we emit `match/bulk-reprocess` events for each missed job, which triggers
- * the bulk reprocess function to run Gate 1+2 directly.
+ * No time filter — the NOT EXISTS check against match_queue prevents duplicates,
+ * and freshly inserted jobs are handled by jobIngestedHandler. This matches the
+ * countUnmatchedEmbeddedJobs health monitor query (which also has no time filter).
  *
- * Actually, to avoid the idempotency skip in jobIngestedHandler, this sweep
- * directly emits `match/gate-3-evaluate` is NOT what we want either — we need
- * Gate 1+2 to run first. The cleanest approach: emit a `match/bulk-reprocess`
- * event that triggers the bulk reprocess function for all unmatched jobs.
+ * Triggers `match/bulk-reprocess` event, which runs Gate 1+2 + Gate 3 fan-out
+ * for the unmatched jobs.
  */
 export const matchRetrySweep = inngest.createFunction(
   {
@@ -2118,6 +2125,14 @@ export const matchRetrySweep = inngest.createFunction(
     // match_queue entry for that persona. The Gate 2 check avoids counting
     // jobs that were correctly filtered by cosine distance — those are not
     // "missed" by the pipeline.
+    //
+    // No time filter (previously had `detected_at < NOW() - 1h`): the NOT
+    // EXISTS check against match_queue already prevents duplicate processing,
+    // and freshly inserted jobs are handled by jobIngestedHandler. Removing
+    // the time filter ensures the sweep catches all unmatched jobs, matching
+    // the countUnmatchedEmbeddedJobs health monitor query (which has no time
+    // filter). This fixes the discrepancy where health reported 66 unmatched
+    // jobs but the sweep missed recently-ingested ones.
     const unmatchedJobs = await step.run("find-unmatched", async () => {
       const { db } = await import("@/db/db");
       const { sql } = await import("drizzle-orm");
@@ -2135,7 +2150,6 @@ export const matchRetrySweep = inngest.createFunction(
           AND cardinality(j.extracted_tags) > 0
           AND p.persona_embedding IS NOT NULL
           AND (p.persona_embedding <=> j.job_embedding) < ${GATE2_MAX_COSINE_DISTANCE}::real
-          AND j.detected_at < NOW() - INTERVAL '1 hour'
           AND NOT EXISTS (
             SELECT 1 FROM match_queue mq
             WHERE mq.job_id = j.id AND mq.persona_id = p.id

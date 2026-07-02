@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SENDER_IDENTITIES } from "@/lib/mail";
 
 interface MailComposeProps {
   // The bound action from useActionState — triggers the server action
@@ -23,6 +31,9 @@ export function MailCompose({ sendAction }: MailComposeProps) {
   const [sending, setSending] = useState(false);
   const [showCc, setShowCc] = useState(false);
   const [htmlMode, setHtmlMode] = useState(false);
+  const [fromAddress, setFromAddress] = useState<string>(
+    SENDER_IDENTITIES[0].value,
+  );
 
   // Listen for reply events from VMMailClient
   useEffect(() => {
@@ -80,6 +91,29 @@ export function MailCompose({ sendAction }: MailComposeProps) {
   return (
     <Card className="p-6 max-w-3xl mx-auto w-full">
       <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+        {/* From selector */}
+        <div className="flex gap-2 items-center">
+          <Label
+            htmlFor="compose-from"
+            className="text-sm text-muted-foreground w-12 shrink-0"
+          >
+            From
+          </Label>
+          <Select value={fromAddress} onValueChange={(v) => setFromAddress(v)}>
+            <SelectTrigger id="compose-from" className="flex-1">
+              <SelectValue placeholder="Select sender..." />
+            </SelectTrigger>
+            <SelectContent>
+              {SENDER_IDENTITIES.map((sender) => (
+                <SelectItem key={sender.value} value={sender.value}>
+                  {sender.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input type="hidden" name="from" value={fromAddress} />
+        </div>
+
         {/* Recipients */}
         <div className="space-y-2">
           <div className="flex gap-2 items-center">
@@ -196,10 +230,9 @@ export function MailCompose({ sendAction }: MailComposeProps) {
         {/* Actions */}
         <div className="flex items-center justify-between gap-3 pt-2">
           <p className="text-xs text-muted-foreground">
-            Emails are sent via Resend from{" "}
-            <span className="font-medium">
-              {process.env.NEXT_PUBLIC_MAIL_FROM || "noreply@vectormatch.dev"}
-            </span>
+            Sending as{" "}
+            <span className="font-medium text-foreground">{fromAddress}</span>{" "}
+            via Resend
           </p>
           <Button type="submit" disabled={sending} className="min-w-[120px]">
             {sending ? (

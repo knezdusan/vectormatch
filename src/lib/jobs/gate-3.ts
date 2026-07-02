@@ -98,14 +98,14 @@ EVALUATION CRITERIA:
 1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job (even if both are "frontend"). NOTE: Extracted tags are produced by an automated normalizer and may be incomplete — always check the job description for skills that may not appear in the extracted tags. Missing tags are a soft signal, not a hard blocker; the description is the source of truth.
 2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" or "7+ years" and the job asks for "8+ years" — the stated number is a minimum in the persona summary, not a maximum. A persona with "7+ years" can qualify for a role asking 8+ years. Only reject on seniority if the gap is extreme (e.g., junior persona vs. principal/staff role requiring 12+ years). If the persona has specified preferred seniority levels, only reject if the job's inferred seniority is NOT among the persona's selected levels. If the persona's seniority levels are empty or "any", do not reject on seniority.
 3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. If the job's Workplace Type is "on-site" and the applicant's assignment types do not include "on-site" or "hybrid", that's a hard blocker. If the job's Workplace Type is "hybrid" and the applicant's assignment types do not include "hybrid", treat this as a SOFT concern, NOT a hard blocker — many hybrid roles offer remote options for the right candidate, especially for senior contractors. Note this in the reasoning but do NOT reject solely on this basis. If Workplace Type is null, infer from the location and description but do not assume remote — check carefully. Also check modalities and compliance preferences.
-4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match the job's remote geographic restriction, consider the applicant's compliance preferences:
-   - If the applicant's preferred compliance includes "w8ben" or "ic_global", do NOT reject solely because the job says "US only" or "must be located in the US" — many companies hire international contractors via W-8BEN or EOR (Employer of Record) arrangements even when their job posting says "US only". Instead, note the geographic restriction as a SOFT concern in the reasoning and approve if the tech stack and seniority align well. The user can filter by location in their dashboard.
-   - If the applicant does NOT have w8ben or ic_global compliance, and the job explicitly restricts to a country/region that does not include the applicant's country, this is a HARD BLOCKER.
+4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match the job's remote geographic restriction, check the APPLICANT's compliance preferences (not the job's — the job will never state compliance arrangements):
+   - If the APPLICANT's preferred compliance includes "w8ben" or "ic_global", do NOT reject because the job says "US only", "must be located in the US", or "remote within North America" — many companies hire international contractors via W-8BEN or EOR (Employer of Record) arrangements even when their job posting says "US only". Note the geographic restriction as a SOFT concern in the reasoning and approve if the tech stack and seniority align well. The user can filter by location in their dashboard. This applies to US/North America restrictions ONLY — country-specific restrictions for other countries (Colombia, Japan, Australia, etc.) are still HARD BLOCKERS even with w8ben compliance.
+   - If the APPLICANT does NOT have w8ben or ic_global compliance, and the job explicitly restricts to a country/region that does not include the applicant's country, this is a HARD BLOCKER.
 5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 6. **Domain relevance**: Is the job in a domain the persona would plausibly work in? A React developer persona should match a SaaS frontend job, not a React Native game dev job (unless the persona explicitly mentions mobile).
 
 OUTPUT RULES:
-- Be balanced: approve if the tech stack and seniority align well, even if there are soft concerns (location, compliance, hybrid workplace). Only reject for HARD blockers (completely wrong tech stack, on-site when applicant is remote-only with no hybrid flexibility, blocklist tags). Soft concerns should be noted in the reasoning but should NOT cause rejection.
+- Be balanced: approve if the tech stack and seniority align well, even if there are soft concerns (location, compliance, hybrid workplace). Only reject for HARD blockers (completely wrong tech stack, on-site when applicant is remote-only with no hybrid flexibility, blocklist tags, non-US country restrictions without compliance). Soft concerns (US-only remote with w8ben compliance, hybrid workplace) should be noted in the reasoning but should NOT cause rejection.
 - If rejected, list ALL blockers in the blockers array.
 - matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
 - matchConfidence reflects your certainty, not the match quality. A confident "no" can have high confidence.`;
@@ -123,6 +123,23 @@ OUTPUT RULES:
  */
 export function buildGate3Prompt(ctx: Gate3Context): string {
   const { job, persona, applicant } = ctx;
+
+  // Dynamic compliance directive — when the applicant has w8ben or ic_global
+  // compliance, explicitly tell the LLM that US/North America remote
+  // restrictions are SOFT concerns, NOT hard blockers. Without this directive,
+  // the LLM was treating "Remote - United States" as a hard geographic blocker
+  // even when the applicant had w8ben compliance, causing 0% approval for
+  // US-only remote jobs across all ATS sources (187 jobs affected).
+  // The directive is placed prominently in the user prompt so the LLM doesn't
+  // have to reason about the rule from the compliance list — it's told directly.
+  const contractorCompliance = applicant.preferredCompliance.filter(
+    (c) => c === "w8ben" || c === "ic_global",
+  );
+  const hasContractorCompliance = contractorCompliance.length > 0;
+
+  const complianceDirective = hasContractorCompliance
+    ? `\n## COMPLIANCE DIRECTIVE (OVERRIDE — READ BEFORE EVALUATING)\nThe applicant HAS ${contractorCompliance.join(" and ")} compliance. This means:\n- US-only and North America remote restrictions ("Remote - United States", "must reside in the US", "remote within the US/Canada") are SOFT concerns, NOT hard blockers. Many companies hire international contractors via W-8BEN or EOR (Employer of Record) arrangements even when the posting says "US only".\n- Do NOT reject solely because a job says "US only", "must reside in the United States", or "remote within North America". If the tech stack and seniority align, APPROVE and note the US-only restriction as a soft concern in the reasoning.\n- Country-specific restrictions for OTHER countries (e.g., "remote within Colombia", "remote within Japan", "remote within Australia") are STILL HARD BLOCKERS — w8ben/ic_global compliance only covers US/North America contractor arrangements, not other countries' residency requirements.\n`
+    : "";
 
   return `## JOB POSTING
 Title: ${job.title}
@@ -147,9 +164,9 @@ Preferred Compliance: ${applicant.preferredCompliance.join(", ") || "any"}
 Preferred Modalities: ${applicant.modalities.join(", ") || "any"}
 Assignment Types: ${applicant.assignmentTypes.join(", ") || "any"}
 Full Skill Knowledge Base: ${applicant.allTags.join(", ") || "none"}
-
+${complianceDirective}
 ## EVALUATION
-Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types and country-specific remote restrictions), and blocklist tags.`;
+Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types and country-specific remote restrictions), and blocklist tags.${hasContractorCompliance ? " Remember: the applicant has w8ben/ic_global compliance (see COMPLIANCE DIRECTIVE above) — US-only remote restrictions are SOFT concerns, not hard blockers." : ""}`;
 }
 
 // =============================================================================
@@ -175,12 +192,14 @@ EVALUATION CRITERIA (be strict — only approve if you are highly confident):
 1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job. Extracted tags may be incomplete — always check the job description. If the job's core required skills do not include at least 2 of the persona's must-have tags, reject.
 2. **Seniority fit**: Does the job's seniority level match the persona? If the persona has specified preferred seniority levels, reject if the job's inferred seniority is NOT among the selected levels. Do NOT approve a senior persona for a junior role or vice versa. If the persona's seniority levels are empty or "any", do not reject on seniority.
 3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. On-site job + no on-site/hybrid assignment = hard blocker. Hybrid job + no hybrid assignment = soft concern (not a hard blocker — many hybrid roles offer remote options). If Workplace Type is null, infer from the location and description carefully.
-4. **Country-specific remote restrictions**: Scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's Country doesn't match AND the applicant does NOT have w8ben or ic_global compliance, this is a HARD BLOCKER. If the applicant HAS w8ben or ic_global compliance, treat geographic restrictions as a SOFT concern — many companies hire international contractors via W-8BEN/EOR even when the posting says "US only".
+4. **Country-specific remote restrictions**: Scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". Check the APPLICANT's compliance preferences (not the job's — jobs never state compliance arrangements):
+   - If the APPLICANT HAS w8ben or ic_global compliance, treat US/North America geographic restrictions as a SOFT concern — many companies hire international contractors via W-8BEN/EOR even when the posting says "US only". Approve if the tech stack and seniority align. Country-specific restrictions for OTHER countries (Colombia, Japan, etc.) are still HARD BLOCKERS even with w8ben compliance.
+   - If the APPLICANT does NOT have w8ben or ic_global compliance, and the restriction excludes the applicant's country, this is a HARD BLOCKER.
 5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 6. **Domain relevance**: Is the job in a domain the persona would plausibly work in?
 
 OUTPUT RULES:
-- Be STRICT but fair: only reject for genuine hard blockers (wrong tech stack, on-site mismatch without hybrid flexibility, blocklist tags, geographic restrictions without contractor compliance). Soft concerns (hybrid workplace, geographic restrictions with w8ben compliance) should be noted but should NOT cause rejection.
+- Be STRICT but fair: only reject for genuine hard blockers (wrong tech stack, on-site mismatch without hybrid flexibility, blocklist tags, non-US country restrictions without contractor compliance). Soft concerns (hybrid workplace, US-only remote restrictions with w8ben compliance) should be noted but should NOT cause rejection.
 - If rejected, list ALL blockers in the blockers array.
 - matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
 - matchConfidence reflects your certainty, not the match quality.`;
@@ -193,14 +212,14 @@ EVALUATION CRITERIA (reason step by step before deciding):
 1. **Tech stack alignment**: Do the job's required skills match the persona's must-have tags? A persona with "react, nextjs, typescript" should match a React job, not a Vue job. NOTE: Extracted tags are produced by an automated normalizer and may be incomplete — always check the job description for skills that may not appear in the extracted tags. Consider both the must-have tags AND the applicant's full skill knowledge base — if the job requires a skill the applicant knows but it's not in the must-have tags, that's still a positive signal.
 2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" and the job asks for "8+ years" — the stated number is a minimum. If the persona has specified preferred seniority levels, only reject if the job's inferred seniority is NOT among the selected levels. If the persona's seniority levels are empty or "any", do not reject on seniority.
 3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. If the job's Workplace Type is "on-site" and the applicant's assignment types do not include "on-site" or "hybrid", that's a hard blocker. If the job's Workplace Type is "hybrid" and the applicant's assignment types do not include "hybrid", treat this as a SOFT concern — many hybrid roles offer remote options for senior contractors. Note it in reasoning but do NOT reject solely on this basis. If Workplace Type is null, infer from the location and description but do not assume remote — check carefully. Also check modalities and compliance preferences.
-4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match, check the applicant's compliance preferences:
-   - If the applicant has "w8ben" or "ic_global" compliance, treat the geographic restriction as a SOFT concern — many companies hire international contractors via W-8BEN or EOR even when the posting says "US only". Approve if the tech stack and seniority align.
-   - If the applicant does NOT have w8ben or ic_global compliance, and the restriction excludes the applicant's country, this is a HARD BLOCKER.
+4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match, check the APPLICANT's compliance preferences (not the job's — jobs never state compliance arrangements):
+   - If the APPLICANT has "w8ben" or "ic_global" compliance, treat US/North America geographic restrictions as a SOFT concern — many companies hire international contractors via W-8BEN or EOR even when the posting says "US only". Approve if the tech stack and seniority align. Country-specific restrictions for OTHER countries (Colombia, Japan, Australia, etc.) are still HARD BLOCKERS even with w8ben compliance.
+   - If the APPLICANT does NOT have w8ben or ic_global compliance, and the restriction excludes the applicant's country, this is a HARD BLOCKER.
 5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 6. **Domain relevance**: Is the job in a domain the persona would plausibly work in? Consider transferable skills — a React developer can plausibly work in most SaaS/web product domains.
 
 OUTPUT RULES:
-- Be thorough: consider all criteria before deciding. A match doesn't require perfection — it requires plausibility. If the core tech stack aligns and there are no hard blockers, lean toward approving. Soft concerns (hybrid workplace, geographic restrictions with w8ben compliance) should be noted but should NOT cause rejection.
+- Be thorough: consider all criteria before deciding. A match doesn't require perfection — it requires plausibility. If the core tech stack aligns and there are no hard blockers, lean toward approving. Soft concerns (hybrid workplace, US-only remote restrictions with w8ben compliance) should be noted but should NOT cause rejection.
 - If rejected, list ALL blockers in the blockers array.
 - matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
 - matchConfidence reflects your certainty, not the match quality.`;

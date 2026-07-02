@@ -14,6 +14,7 @@
 
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { Resend } from "resend";
 import { z } from "zod";
 import { db } from "@/db/db";
 import { inboundEmails } from "@/db/schemas/jobs/inboundEmail";
@@ -32,8 +33,6 @@ export type MailActionState = {
   data?: unknown;
 };
 
-export type MailFolder = "inbox" | "sent" | "trash";
-
 // ── Schemas ──────────────────────────────────────────────────────────────────
 
 const emailIdSchema = z.string().uuid();
@@ -49,6 +48,7 @@ const composeSchema = z.object({
   htmlBody: z.string().min(1, "Email body cannot be empty").max(1_000_000),
   textBody: z.string().max(500_000).optional().or(z.literal("")),
   replyToId: z.string().uuid().optional(),
+  from: z.string().max(200).optional(),
 });
 
 // ── Query Actions ────────────────────────────────────────────────────────────
@@ -235,6 +235,7 @@ export async function sendMailAction(
     htmlBody: formData.get("htmlBody") as string,
     textBody: (formData.get("textBody") as string) || "",
     replyToId: (formData.get("replyToId") as string) || undefined,
+    from: (formData.get("from") as string) || undefined,
   };
 
   const parsed = composeSchema.safeParse(raw);
@@ -253,6 +254,7 @@ export async function sendMailAction(
       subject: parsed.data.subject,
       html: parsed.data.htmlBody,
       text: parsed.data.textBody || undefined,
+      from: parsed.data.from || undefined,
     });
 
     if (!result.success) {
@@ -411,20 +413,149 @@ export async function permanentDeleteSentAction(
   return { success: true };
 }
 
+// ── Lazy Resend client for sync ──────────────────────────────────────────────
+
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (_resend) return _resend;
+  _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
+
 /**
- * Get unread count for badge display.
+ * Manually sync new emails from Resend's Receiving API.
+ *
+ * Pulls the latest received emails from Resend and inserts any that aren't
+ * already in our database. Also fetches full content (HTML, text, headers)
+ * for each new email.
+ *
+ * Returns the count of newly synced emails.
  */
-export async function getUnreadInboundCount(): Promise<number> {
+export async function syncInboundEmailsAction(): Promise<{
+  success: boolean;
+  newCount: number;
+  error?: string;
+}> {
+  await requireRole("admin");
+
   try {
-    await requireRole("admin");
-  } catch {
-    return 0;
+    // Fetch recent received emails from Resend (max 100 per call)
+    const { data: listData, error: listError } =
+      await getResend().emails.receiving.list({ limit: 100 });
+
+    if (listError) {
+      return {
+        success: false,
+        newCount: 0,
+        error:
+          typeof listError === "object" && listError !== null
+            ? JSON.stringify(listError)
+            : String(listError),
+      };
+    }
+
+    const receivedEmails = (listData?.data ?? []) as Array<{
+      id: string;
+      from: string;
+      to: string[];
+      subject: string | null;
+      message_id: string | null;
+      attachments?: unknown[];
+      created_at: string;
+    }>;
+
+    if (receivedEmails.length === 0) {
+      return { success: true, newCount: 0 };
+    }
+
+    // Find which ones we already have in the database
+    const resendIds = receivedEmails.map((e) => e.id);
+    const existing = await db
+      .select({ resendEmailId: inboundEmails.resendEmailId })
+      .from(inboundEmails)
+      .where(sql`${inboundEmails.resendEmailId} = ANY(${resendIds})`);
+    const existingIds = new Set(existing.map((r) => r.resendEmailId));
+
+    // Filter to only new emails
+    const newEmails = receivedEmails.filter((e) => !existingIds.has(e.id));
+
+    if (newEmails.length === 0) {
+      return { success: true, newCount: 0 };
+    }
+
+    // Insert all new emails (metadata only first)
+    let inserted = 0;
+    for (const email of newEmails) {
+      try {
+        await db
+          .insert(inboundEmails)
+          .values({
+            resendEmailId: email.id,
+            fromAddress: email.from,
+            toAddress: email.to?.[0] ?? "",
+            subject: email.subject ?? null,
+            messageId: email.message_id ?? null,
+            attachmentCount: String(email.attachments?.length ?? 0),
+            status: "received",
+            folder: "inbox",
+            isRead: false,
+          })
+          .onConflictDoNothing({
+            target: inboundEmails.resendEmailId,
+          });
+        inserted++;
+      } catch {
+        // Skip duplicates or errors on individual inserts
+      }
+    }
+
+    // Fetch full content for each new email (best-effort)
+    for (const email of newEmails) {
+      try {
+        const { data: fullEmail, error: fetchError } =
+          await getResend().emails.receiving.get(email.id);
+
+        if (fetchError || !fullEmail) {
+          // Mark as error but don't fail the sync
+          await db
+            .update(inboundEmails)
+            .set({
+              status: "error",
+              error: fetchError
+                ? typeof fetchError === "object"
+                  ? JSON.stringify(fetchError)
+                  : String(fetchError)
+                : "No data returned",
+              updatedAt: new Date(),
+            })
+            .where(eq(inboundEmails.resendEmailId, email.id));
+          continue;
+        }
+
+        await db
+          .update(inboundEmails)
+          .set({
+            htmlBody: fullEmail.html ?? null,
+            textBody: fullEmail.text ?? null,
+            headers: fullEmail.headers
+              ? JSON.stringify(fullEmail.headers)
+              : null,
+            status: "fetched",
+            updatedAt: new Date(),
+          })
+          .where(eq(inboundEmails.resendEmailId, email.id));
+      } catch {
+        // Non-fatal — the email metadata is stored, content can be fetched later
+      }
+    }
+
+    revalidatePath("/dashboard/admin/mail");
+    return { success: true, newCount: inserted };
+  } catch (e) {
+    return {
+      success: false,
+      newCount: 0,
+      error: e instanceof Error ? e.message : "Failed to sync emails",
+    };
   }
-  const rows = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(inboundEmails)
-    .where(
-      and(eq(inboundEmails.folder, "inbox"), eq(inboundEmails.isRead, false)),
-    );
-  return rows[0]?.count ?? 0;
 }

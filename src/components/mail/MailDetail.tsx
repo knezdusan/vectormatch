@@ -226,7 +226,7 @@ export function MailDetail({
       <div className="flex-1 overflow-y-auto p-4">
         {renderedHtml ? (
           <iframe
-            srcDoc={renderedHtml}
+            srcDoc={`<div style="white-space: pre-wrap; font-size: 0.875rem; font-family: sans-serif; word-wrap: break-word; color: #fff;">${renderedHtml}</div>`}
             title="Email content"
             sandbox="allow-same-origin"
             className="w-full h-full min-h-[300px] border-0"

@@ -137,9 +137,16 @@ export const auth = betterAuth({
 
 // Helper function to get the current session
 export async function getAuthSession() {
-  return await auth.api.getSession({
-    headers: await headers(),
-  });
+  try {
+    return await auth.api.getSession({
+      headers: await headers(),
+    });
+  } catch {
+    // Better Auth throws APIError("Failed to get session") when the
+    // session can't be retrieved (expired, DB unavailable, etc.).
+    // Return null so callers can handle it as "no session".
+    return null;
+  }
 }
 
 /**

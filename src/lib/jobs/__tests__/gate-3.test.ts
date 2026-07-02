@@ -233,6 +233,91 @@ describe("buildGate3Prompt", () => {
     expect(prompt).toContain("## EVALUATION");
     expect(prompt).toContain("strong match");
   });
+
+  // ── Compliance directive (w8ben / ic_global) ──────────────────────────────
+  // The compliance directive is a dynamic section added to the user prompt
+  // when the applicant has w8ben or ic_global compliance. It explicitly tells
+  // the LLM that US-only remote restrictions are SOFT concerns, not hard
+  // blockers. Without this, the LLM was rejecting US-only remote jobs even
+  // when the applicant had w8ben compliance (0% approval for US-remote jobs).
+
+  it("adds compliance directive when applicant has w8ben compliance", () => {
+    const prompt = buildGate3Prompt(mockContext); // mockContext has w8ben
+
+    expect(prompt).toContain("COMPLIANCE DIRECTIVE");
+    expect(prompt).toContain("w8ben");
+    expect(prompt).toContain("SOFT concerns, NOT hard blockers");
+    expect(prompt).toContain("US-only");
+  });
+
+  it("adds compliance directive when applicant has ic_global compliance", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        preferredCompliance: ["ic_global"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("COMPLIANCE DIRECTIVE");
+    expect(prompt).toContain("ic_global");
+    expect(prompt).toContain("SOFT concerns, NOT hard blockers");
+  });
+
+  it("adds compliance directive when applicant has both w8ben and ic_global", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        preferredCompliance: ["w8ben", "ic_global"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("COMPLIANCE DIRECTIVE");
+    expect(prompt).toContain("w8ben and ic_global");
+  });
+
+  it("does NOT add compliance directive when applicant has no contractor compliance", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        preferredCompliance: ["b2b"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).not.toContain("COMPLIANCE DIRECTIVE");
+  });
+
+  it("does NOT add compliance directive when compliance is empty", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        preferredCompliance: [],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).not.toContain("COMPLIANCE DIRECTIVE");
+  });
+
+  it("compliance directive clarifies non-US country restrictions are still hard blockers", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Colombia");
+    expect(prompt).toContain("Japan");
+    expect(prompt).toContain("STILL HARD BLOCKERS");
+  });
+
+  it("evaluation section references compliance directive", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("COMPLIANCE DIRECTIVE above");
+  });
 });
 
 // =============================================================================

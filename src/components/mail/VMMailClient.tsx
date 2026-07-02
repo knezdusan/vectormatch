@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox, MailPlus, Search, Send, Trash2 } from "lucide-react";
+import { Inbox, MailPlus, RefreshCw, Search, Send, Trash2 } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -17,6 +17,7 @@ import {
   restoreInboundEmailAction,
   restoreSentEmailAction,
   sendMailAction,
+  syncInboundEmailsAction,
 } from "@/actions/mail";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,6 +54,7 @@ export function VMMailClient() {
   > | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
 
   // ── Send mail state ────────────────────────────────────────────────────────
   const [sendState, sendAction] = useActionState<MailActionState, FormData>(
@@ -132,6 +134,30 @@ export function VMMailClient() {
       toast.error("Failed to load emails");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Sync new emails from Resend ────────────────────────────────────────────
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const result = await syncInboundEmailsAction();
+      if (result.success) {
+        if (result.newCount > 0) {
+          toast.success(
+            `${result.newCount} new email${result.newCount > 1 ? "s" : ""} synced`,
+          );
+          await loadList();
+        } else {
+          toast.info("No new emails found");
+        }
+      } else {
+        toast.error(result.error ?? "Failed to sync emails");
+      }
+    } catch {
+      toast.error("Failed to sync emails");
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -262,7 +288,7 @@ export function VMMailClient() {
         <div className="grid gap-4 lg:grid-cols-[380px_1fr] min-h-[600px]">
           {/* Left: List panel */}
           <div className="flex flex-col gap-3">
-            {/* Search + sort */}
+            {/* Search + sort + sync */}
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -273,6 +299,21 @@ export function VMMailClient() {
                   className="pl-9"
                 />
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={syncing}
+                title="Check Resend for new emails"
+                className="shrink-0"
+              >
+                <RefreshCw
+                  className={`size-4 ${syncing ? "animate-spin" : ""}`}
+                />
+                <span className="hidden sm:inline">
+                  {syncing ? "Syncing..." : "Check now"}
+                </span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

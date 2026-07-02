@@ -54,7 +54,24 @@ export type NormalizationResult = {
   fullText: string;
   /** Only set on normalization_failed — the error message for logging. */
   error?: string;
+  /** Why the job was rejected — set when status='rejected' to distinguish
+   *  title-only degradation ('title_only') from insufficient tags ('no_tags').
+   *  Used for observability and metrics. */
+  rejectionReason?: "title_only" | "no_tags";
 };
+
+/**
+ * Minimum fullText length (chars) for a job to be considered normalizable.
+ * Jobs with shorter text (title-only or near-title-only) produce poor
+ * embeddings and waste LLM calls in Gate 3. They are rejected at normalization
+ * time with rejectionReason='title_only'.
+ *
+ * This threshold matches MIN_FULLTEXT_LENGTH in smartrecruiters-detail.ts —
+ * the detail fetch tries to enrich jobs below this threshold before they
+ * reach normalization. If the detail fetch fails (or the ATS has no detail
+ * endpoint), the job is rejected here.
+ */
+const MIN_NORMALIZABLE_FULLTEXT_LENGTH = 100;
 
 /** Injectable LLM tag extractor — defaults to extractTagsLLM. Tests pass a
  *  mock to avoid hitting the OpenAI API. */
@@ -515,6 +532,52 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
       workplaceType = "remote";
     } else if (/on-?site|in-?office/i.test(locationName)) {
       workplaceType = "on-site";
+    }
+  }
+
+  // Fallback: scan the job description content for workplace-type phrases.
+  // Greenhouse has no structured workplace field, so 84.9% of jobs had NULL
+  // workplace_type with the location heuristic alone (location names like
+  // "San Francisco, CA" don't contain remote/hybrid keywords). The content
+  // field (HTML description, available with ?content=true) often contains
+  // explicit workplace-type statements. This fallback only runs when the
+  // location heuristic returned null, so it never overrides the more
+  // reliable location-based detection.
+  if (workplaceType === null) {
+    const content =
+      typeof obj.content === "string" && obj.content.length > 0
+        ? obj.content
+        : null;
+    if (content) {
+      // Check hybrid first — some hybrid descriptions mention "remote" too.
+      // Use phrase-level matching to reduce false positives (e.g., "remote
+      // access" or "remote monitoring" should not trigger "remote").
+      if (
+        /\bhybrid\b/i.test(content) ||
+        /\b(?:mix|combination)\s+of\s+(?:remote|in[- ]office|on[- ]site)/i.test(
+          content,
+        ) ||
+        /\b\d\s*[-–]?\s*\d\s*days?\s+(?:in\s+office|on[- ]site)/i.test(content)
+      ) {
+        workplaceType = "hybrid";
+      } else if (
+        /\b(?:fully|100%|all[- ])\s*remote\b/i.test(content) ||
+        /\bremote[- ]first\b/i.test(content) ||
+        /\bwork\s+from\s+home\b/i.test(content) ||
+        /\bwork\s+remotely\b/i.test(content) ||
+        /\bremote\s+(?:work|position|opportunity|role|job|eligible|arrangement)\b/i.test(
+          content,
+        )
+      ) {
+        workplaceType = "remote";
+      } else if (
+        /\bon[- ]site\b/i.test(content) ||
+        /\bin[- ]office\b/i.test(content) ||
+        /\bmust\s+(?:work|be)\s+(?:from|in|on[- ]site)\b/i.test(content) ||
+        /\bin[- ]person\b/i.test(content)
+      ) {
+        workplaceType = "on-site";
+      }
     }
   }
 
@@ -1126,6 +1189,21 @@ export async function normalizeJob(
   // Step 1: ATS-source-aware content extraction.
   const { fullText } = extractJobContent(atsSource, rawJson, fallbackTitle);
 
+  // Step 1b: Title-only rejection guard.
+  // Jobs with very short fullText (< MIN_NORMALIZABLE_FULLTEXT_LENGTH chars)
+  // produce poor embeddings and waste LLM calls in Gate 3. The SmartRecruiters
+  // detail fetch (and future Greenhouse detail fetch) try to enrich these jobs
+  // before they reach normalization. If enrichment failed or wasn't available,
+  // reject the job here with rejectionReason='title_only' for observability.
+  if (fullText.length < MIN_NORMALIZABLE_FULLTEXT_LENGTH) {
+    return {
+      status: "rejected",
+      tags: [],
+      fullText,
+      rejectionReason: "title_only" as const,
+    };
+  }
+
   // Step 2: Phase 1 regex scan.
   let tags = scanTagsRegex(fullText);
 
@@ -1152,7 +1230,12 @@ export async function normalizeJob(
     }
 
     // Still not enough persona_defining tags → rejected (tombstone).
-    return { status: "rejected", tags, fullText };
+    return {
+      status: "rejected",
+      tags,
+      fullText,
+      rejectionReason: "no_tags" as const,
+    };
   } catch (error) {
     // Step 7: LLM call failed → normalization_failed (retryable).
     // Do NOT set normalizedAt — the job must remain retryable.

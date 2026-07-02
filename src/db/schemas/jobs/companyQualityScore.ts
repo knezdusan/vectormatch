@@ -10,7 +10,14 @@
 //
 // See CORPUS_EXPANSION_TDD §3.2 for the full specification.
 
-import { index, integer, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  pgTable,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { company } from "./company";
 
 export const companyQualityScore = pgTable(
@@ -32,8 +39,11 @@ export const companyQualityScore = pgTable(
     calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
   },
   (table) => ({
-    // One score row per company
-    companyIdx: index("company_quality_score_company_idx").on(table.companyId),
+    // One score row per company — UNIQUE so ON CONFLICT (company_id) works.
+    // The quality flywheel upsert relies on this unique constraint.
+    companyUniqueIdx: uniqueIndex("company_quality_score_company_idx").on(
+      table.companyId,
+    ),
     // For finding high/low quality companies during recalc
     scoreIdx: index("company_quality_score_score_idx").on(table.score),
   }),
