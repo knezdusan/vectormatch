@@ -12,7 +12,7 @@
 //
 // Security: every action calls requireRole("admin").
 
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
 import { z } from "zod";
@@ -473,7 +473,7 @@ export async function syncInboundEmailsAction(): Promise<{
     const existing = await db
       .select({ resendEmailId: inboundEmails.resendEmailId })
       .from(inboundEmails)
-      .where(sql`${inboundEmails.resendEmailId} = ANY(${resendIds})`);
+      .where(inArray(inboundEmails.resendEmailId, resendIds));
     const existingIds = new Set(existing.map((r) => r.resendEmailId));
 
     // Filter to only new emails
