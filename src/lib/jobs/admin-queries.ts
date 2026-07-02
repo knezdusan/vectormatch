@@ -90,6 +90,7 @@ export interface SystemOverviewStats {
   totalJobs: number;
   activeJobs: number;
   totalMatches: number;
+  approvedMatches: number;
 }
 
 export interface StatusDistribution {
@@ -339,6 +340,7 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
     jobRows,
     activeJobRows,
     matchRows,
+    approvedMatchRows,
   ] = await Promise.all([
     db.select({ cnt: count() }).from(user),
     db
@@ -349,6 +351,10 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
     db.select({ cnt: count() }).from(job),
     db.select({ cnt: count() }).from(job).where(eq(job.status, "active")),
     db.select({ cnt: count() }).from(matchQueue),
+    db
+      .select({ cnt: count() })
+      .from(matchQueue)
+      .where(eq(matchQueue.status, "approved")),
   ]);
 
   return {
@@ -358,6 +364,7 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
     totalJobs: jobRows[0]?.cnt ?? 0,
     activeJobs: activeJobRows[0]?.cnt ?? 0,
     totalMatches: matchRows[0]?.cnt ?? 0,
+    approvedMatches: approvedMatchRows[0]?.cnt ?? 0,
   };
 }
 
@@ -436,16 +443,16 @@ export interface AtsSourceApprovalRow {
  *   - travel: "travel"
  *   - other: everything else
  */
-export async function getRejectionCategories(): Promise<
-  RejectionCategoryRow[]
-> {
+export async function getRejectionCategories(
+  daysBack = 30,
+): Promise<RejectionCategoryRow[]> {
   const result = await db.execute(sql`
     WITH blockers AS (
       SELECT unnest(llm_blockers) AS blocker
       FROM match_queue
       WHERE status = 'rejected'
         AND llm_blockers IS NOT NULL
-        AND evaluated_at > NOW() - INTERVAL '30 days'
+        AND evaluated_at > NOW() - ${daysBack} * INTERVAL '1 day'
     )
     SELECT
       CASE
@@ -470,9 +477,9 @@ export async function getRejectionCategories(): Promise<
 /**
  * Get Gate 3 approval rate by prompt variant (A/B test analysis).
  */
-export async function getApprovalByPromptVariant(): Promise<
-  PromptVariantRow[]
-> {
+export async function getApprovalByPromptVariant(
+  daysBack = 30,
+): Promise<PromptVariantRow[]> {
   const result = await db.execute(sql`
     SELECT
       COALESCE(prompt_variant, 'unknown') AS variant,
@@ -483,7 +490,7 @@ export async function getApprovalByPromptVariant(): Promise<
         / NULLIF(count(*), 0) * 100, 1
       ) AS approval_rate
     FROM match_queue
-    WHERE evaluated_at > NOW() - INTERVAL '30 days'
+    WHERE evaluated_at > NOW() - ${daysBack} * INTERVAL '1 day'
       AND status IN ('approved', 'rejected')
     GROUP BY prompt_variant
     ORDER BY approval_rate DESC
@@ -500,7 +507,9 @@ export async function getApprovalByPromptVariant(): Promise<
  * Get Gate 3 approval rate by persona. Helps identify if one persona has
  * 0% approval (its tags may need adjustment).
  */
-export async function getApprovalByPersona(): Promise<PersonaApprovalRow[]> {
+export async function getApprovalByPersona(
+  daysBack = 30,
+): Promise<PersonaApprovalRow[]> {
   const result = await db.execute(sql`
     SELECT
       mq.persona_id,
@@ -513,7 +522,7 @@ export async function getApprovalByPersona(): Promise<PersonaApprovalRow[]> {
       ) AS approval_rate
     FROM match_queue mq
     JOIN persona p ON mq.persona_id = p.id
-    WHERE mq.evaluated_at > NOW() - INTERVAL '30 days'
+    WHERE mq.evaluated_at > NOW() - ${daysBack} * INTERVAL '1 day'
       AND mq.status IN ('approved', 'rejected')
     GROUP BY mq.persona_id, p.persona_label
     ORDER BY approval_rate DESC
@@ -531,9 +540,9 @@ export async function getApprovalByPersona(): Promise<PersonaApprovalRow[]> {
  * Get Gate 3 approval rate by ATS source. Helps identify if one ATS has
  * systematically lower approval rates (e.g., different job description format).
  */
-export async function getApprovalByAtsSource(): Promise<
-  AtsSourceApprovalRow[]
-> {
+export async function getApprovalByAtsSource(
+  daysBack = 30,
+): Promise<AtsSourceApprovalRow[]> {
   const result = await db.execute(sql`
     SELECT
       j.ats_source,
@@ -545,7 +554,7 @@ export async function getApprovalByAtsSource(): Promise<
       ) AS approval_rate
     FROM match_queue mq
     JOIN job j ON mq.job_id = j.id
-    WHERE mq.evaluated_at > NOW() - INTERVAL '30 days'
+    WHERE mq.evaluated_at > NOW() - ${daysBack} * INTERVAL '1 day'
       AND mq.status IN ('approved', 'rejected')
     GROUP BY j.ats_source
     ORDER BY approval_rate DESC

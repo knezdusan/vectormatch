@@ -1105,7 +1105,11 @@ export const normalizationRetrySweep = inngest.createFunction(
   {
     id: "poller-normalization-retry",
     name: "Normalization Retry Sweep",
-    triggers: [{ cron: "0 6 * * *" }],
+    // Every 4 hours — the daily schedule (0 6 * * *) was too slow to clear
+    // normalization backlogs. With a 500-job limit per run and 4h cadence,
+    // throughput is 3000/day (6 runs × 500), enough to keep up with peak
+    // ingestion bursts (e.g. 3634 jobs from a single Greenhouse poll).
+    triggers: [{ cron: "0 */4 * * *" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1118,7 +1122,7 @@ export const normalizationRetrySweep = inngest.createFunction(
     const startedAt = new Date();
 
     const stuckJobs = await step.run("get-stuck-jobs", async () => {
-      // Select up to 500 jobs that need (re-)normalization, prioritizing the
+      // Select up to 2000 jobs that need (re-)normalization, prioritizing the
       // oldest ones (they've been waiting the longest). Two categories:
       //   1. normalization_failed (retryable — LLM/transient error)
       //   2. active + normalizedAt IS NULL (never normalized — batchPollTier
@@ -1127,6 +1131,11 @@ export const normalizationRetrySweep = inngest.createFunction(
       // extract content. Jobs with rawJson = NULL have already been
       // normalized (G7 prunes rawJson after normalization) and should have
       // normalizedAt set, so this filter is a safety net.
+      //
+      // Limit raised from 500 → 2000 to clear backlogs faster. The
+      // jobIngestedHandler has concurrency 10, so 2000 events are processed
+      // in ~10 minutes (2000/10 × ~3s per LLM call). The 4h cron cadence
+      // gives 6 runs/day = 12000 jobs/day max throughput.
       const result = await db
         .select({
           id: job.id,
@@ -1138,7 +1147,7 @@ export const normalizationRetrySweep = inngest.createFunction(
           sql`(${job.status} = 'normalization_failed' OR (${job.status} = 'active' AND ${job.normalizedAt} IS NULL)) AND ${job.rawJson} IS NOT NULL`,
         )
         .orderBy(job.detectedAt)
-        .limit(500);
+        .limit(2000);
 
       return result;
     });
@@ -1906,22 +1915,30 @@ export const matchBulkReprocess = inngest.createFunction(
     // the step response body small. Even job IDs add up: 5000 UUIDs is ~180KB,
     // and the whole function response body must stay under Inngest's 1MB limit.
     // 1000 IDs (~36KB) is safe. The function can be re-run to process the rest.
+    //
+    // When personaId is null (sweep mode), we JOIN with persona and check
+    // per-persona: a job is included if it has tag overlap with a persona AND
+    // no match_queue entry for THAT persona. This ensures jobs that have
+    // entries for persona A but not persona B are still processed. The
+    // runGateSQLRouter's ON CONFLICT (job_id, persona_id) DO NOTHING handles
+    // any duplicates safely.
     const jobIds = await step.run("get-unmatched-jobs", async () => {
       const { db } = await import("@/db/db");
       const { sql } = await import("drizzle-orm");
 
       const result = await db.execute(sql`
-        SELECT j.id
+        SELECT DISTINCT j.id
         FROM job j
+        ${personaId ? sql`` : sql`JOIN persona p ON (j.extracted_tags && p.must_have_tags)`}
         WHERE j.status = 'active'
           AND j.job_embedding IS NOT NULL
           AND j.extracted_tags IS NOT NULL
           AND cardinality(j.extracted_tags) > 0
-          ${personaId ? sql`AND EXISTS (SELECT 1 FROM persona p WHERE p.id = ${personaId}::uuid AND j.extracted_tags && p.must_have_tags)` : sql``}
+          ${personaId ? sql`AND EXISTS (SELECT 1 FROM persona p WHERE p.id = ${personaId}::uuid AND j.extracted_tags && p.must_have_tags)` : sql`AND p.persona_embedding IS NOT NULL`}
           AND NOT EXISTS (
             SELECT 1 FROM match_queue mq
             WHERE mq.job_id = j.id
-            ${personaId ? sql`AND mq.persona_id = ${personaId}::uuid` : sql``}
+            ${personaId ? sql`AND mq.persona_id = ${personaId}::uuid` : sql`AND mq.persona_id = p.id`}
             ${includeRejected ? sql`AND mq.status = 'approved'` : sql``}
           )
         ORDER BY j.detected_at DESC
@@ -2090,13 +2107,23 @@ export const matchRetrySweep = inngest.createFunction(
   {
     id: "match-retry-sweep",
     name: "Match Retry Sweep",
-    triggers: [{ cron: "0 7 * * *" }],
+    // Every 6 hours — the daily schedule (0 7 * * *) was too infrequent to
+    // catch jobs missed by the matching pipeline. With 4 runs/day, the
+    // bulk reprocess can process up to 4000 unmatched jobs/day (4 × 1000).
+    triggers: [{ cron: "0 */6 * * *" }],
   },
   async ({ step }) => {
-    // Step 1: Find unmatched active+embedded jobs with tag overlap
+    // Step 1: Find unmatched active+embedded jobs that pass Gate 1 (tag
+    // overlap) AND Gate 2 (cosine distance) for some persona but have no
+    // match_queue entry for that persona. The Gate 2 check avoids counting
+    // jobs that were correctly filtered by cosine distance — those are not
+    // "missed" by the pipeline.
     const unmatchedJobs = await step.run("find-unmatched", async () => {
       const { db } = await import("@/db/db");
       const { sql } = await import("drizzle-orm");
+      const { GATE2_MAX_COSINE_DISTANCE } = await import(
+        "@/lib/jobs/matching-config"
+      );
 
       const result = await db.execute(sql`
         SELECT DISTINCT j.id, j.detected_at
@@ -2106,6 +2133,8 @@ export const matchRetrySweep = inngest.createFunction(
           AND j.job_embedding IS NOT NULL
           AND j.extracted_tags IS NOT NULL
           AND cardinality(j.extracted_tags) > 0
+          AND p.persona_embedding IS NOT NULL
+          AND (p.persona_embedding <=> j.job_embedding) < ${GATE2_MAX_COSINE_DISTANCE}::real
           AND j.detected_at < NOW() - INTERVAL '1 hour'
           AND NOT EXISTS (
             SELECT 1 FROM match_queue mq

@@ -1,14 +1,7 @@
 // Admin Overview — top-level system stat cards for the admin dashboard.
 // Server Component that fetches aggregated counts from admin-queries.ts.
 
-import {
-  Briefcase,
-  Building2,
-  CircleCheck,
-  Layers,
-  UserCheck,
-  Users,
-} from "lucide-react";
+import { Briefcase, Building2, CircleCheck, Layers, Users } from "lucide-react";
 
 import {
   Card,
@@ -97,16 +90,17 @@ export async function AdminOverview() {
     totalJobs: 0,
     activeJobs: 0,
     totalMatches: 0,
+    approvedMatches: 0,
   };
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-6">
       <StatCard
-        label="Total Users"
+        label="Users (Total / Onboarded)"
         value={safe.totalUsers}
+        secondary={{ label: "Onboarded", value: safe.onboardedUsers }}
         description={`${formatOnboardingRate(safe)} have completed onboarding`}
         icon={Users}
-        secondary={{ label: "Onboarded", value: safe.onboardedUsers }}
       />
       <StatCard
         label="Companies"
@@ -129,15 +123,9 @@ export async function AdminOverview() {
       />
       <StatCard
         label="Matches"
-        value={safe.totalMatches}
-        description="Total job-to-persona queue rows"
+        value={safe.approvedMatches}
+        description="Total Gate 3 approved matches"
         icon={Layers}
-      />
-      <StatCard
-        label="Onboarded Users"
-        value={safe.onboardedUsers}
-        description={`${formatOnboardingRate(safe)} of all users completed onboarding`}
-        icon={UserCheck}
       />
     </div>
   );

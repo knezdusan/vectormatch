@@ -6,7 +6,7 @@
 // the selected range (1, 7, or 30 days); distributions and company tables are
 // all-time snapshots.
 
-import { Award, Filter, TrendingUp, Users } from "lucide-react";
+import { Award, Filter, Info, TrendingUp, Users } from "lucide-react";
 
 import { DistributionCharts } from "@/components/admin/DistributionCharts";
 import { FunnelChart } from "@/components/admin/FunnelChart";
@@ -30,6 +30,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   type CompanyQualityRow,
   type FunnelStats,
@@ -147,8 +153,8 @@ function CompanyTable({
 }
 
 function parseRange(value: string | undefined): TimeRange {
-  if (value === "1" || value === "30") return value;
-  return "7";
+  if (value === "7" || value === "30") return value;
+  return "1";
 }
 
 interface MatchingFunnelProps {
@@ -272,7 +278,23 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Gate 0 Passed</CardDescription>
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CardDescription className="text-xs flex items-center gap-1 cursor-help">
+                    Gate 0 Passed
+                    <Info className="size-3" />
+                  </CardDescription>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-xs">
+                  <p>
+                    Jobs normalized in the last {rangeLabel}. Match queue rows
+                    can be created for jobs normalized earlier, so Gate 1+2 and
+                    Gate 3 may be positive even when this is zero.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums">
@@ -363,6 +385,20 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
             <div className="flex items-center gap-2">
               <Award className="size-5 text-muted-foreground" />
               <CardTitle>Top Companies by Quality</CardTitle>
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="size-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p>
+                      Quality score = approved matches / total jobs processed
+                      (0–100). Companies are ranked by score; high scores
+                      promote to active_hot, low scores demote to dormant.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </CardHeader>
           <CardContent>

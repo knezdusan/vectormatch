@@ -34,6 +34,13 @@ interface DistributionChartsProps {
   fusionScores: BucketDistribution[];
 }
 
+const tierDescriptions: Record<string, string> = {
+  active_hot: "Approved matches in the last 30 days → polled every 3h",
+  active: "Posted a job in the last 14 days → polled every 12h",
+  dormant: "No jobs in >14 days → polled weekly",
+  dead: "Endpoint gone or too many failures",
+};
+
 const tooltipStyle = {
   backgroundColor: "var(--background)",
   borderColor: "var(--border)",
@@ -55,10 +62,12 @@ function ChartSection({
   title,
   children,
   empty,
+  footer,
 }: {
   title: string;
   children: React.ReactNode;
   empty: boolean;
+  footer?: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
@@ -70,6 +79,7 @@ function ChartSection({
       ) : (
         <div className="aspect-video w-full text-xs">{children}</div>
       )}
+      {footer}
     </div>
   );
 }
@@ -93,7 +103,31 @@ export function DistributionCharts({
 
   return (
     <div className="grid gap-6 md:grid-cols-3">
-      <ChartSection title="Tier Distribution" empty={tiersEmpty}>
+      <ChartSection
+        title="Tier Distribution"
+        empty={tiersEmpty}
+        footer={
+          !tiersEmpty ? (
+            <div className="space-y-1 pt-1">
+              {tiers.map((t) => (
+                <div key={t.tier} className="flex items-start gap-2 text-xs">
+                  <span
+                    className="mt-1 inline-block size-2 rounded-full shrink-0"
+                    style={{ backgroundColor: t.color }}
+                  />
+                  <span className="text-muted-foreground">
+                    <span className="font-medium capitalize text-foreground">
+                      {t.label}
+                    </span>
+                    {" — "}
+                    {tierDescriptions[t.label] ?? "Unknown tier"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null
+        }
+      >
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Tooltip
@@ -135,7 +169,19 @@ export function DistributionCharts({
         </ResponsiveContainer>
       </ChartSection>
 
-      <ChartSection title="Quality Score Distribution" empty={qualityEmpty}>
+      <ChartSection
+        title="Quality Score Distribution"
+        empty={qualityEmpty}
+        footer={
+          !qualityEmpty ? (
+            <p className="text-xs text-muted-foreground pt-1">
+              Per-company score (0–100) based on approved matches / total jobs
+              processed. High scores promote companies to active_hot; low scores
+              demote them to dormant.
+            </p>
+          ) : null
+        }
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={qualityBuckets}
@@ -194,7 +240,19 @@ export function DistributionCharts({
         </ResponsiveContainer>
       </ChartSection>
 
-      <ChartSection title="Fusion Score Distribution" empty={fusionEmpty}>
+      <ChartSection
+        title="Fusion Score Distribution"
+        empty={fusionEmpty}
+        footer={
+          !fusionEmpty ? (
+            <p className="text-xs text-muted-foreground pt-1">
+              Number of distinct discovery sources that found the same company
+              (HN, GitHub, Product Hunt, etc.). Higher-fusion companies get
+              priority polling.
+            </p>
+          ) : null
+        }
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={fusionScores}

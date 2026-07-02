@@ -97,7 +97,23 @@ function ApprovalRateTable({
   );
 }
 
-export async function RejectionPatternAnalysis() {
+function parseRange(value: string | undefined): number {
+  if (value === "1" || value === "7" || value === "30") {
+    return Number.parseInt(value, 10);
+  }
+  return 1;
+}
+
+interface RejectionPatternAnalysisProps {
+  range?: string;
+}
+
+export async function RejectionPatternAnalysis({
+  range,
+}: RejectionPatternAnalysisProps) {
+  const daysBack = parseRange(range);
+  const rangeLabel = daysBack === 1 ? "24h" : `${daysBack}d`;
+
   let categories: { category: string; count: number }[] = [];
   let variants: {
     variant: string;
@@ -122,10 +138,10 @@ export async function RejectionPatternAnalysis() {
 
   try {
     [categories, variants, personas, atsSources] = await Promise.all([
-      getRejectionCategories(),
-      getApprovalByPromptVariant(),
-      getApprovalByPersona(),
-      getApprovalByAtsSource(),
+      getRejectionCategories(daysBack),
+      getApprovalByPromptVariant(daysBack),
+      getApprovalByPersona(daysBack),
+      getApprovalByAtsSource(daysBack),
     ]);
   } catch (e) {
     error =
@@ -178,7 +194,7 @@ export async function RejectionPatternAnalysis() {
         </div>
         <CardDescription>
           Rejection reasons by category and approval rates by variant, persona,
-          and ATS source (last 30 days)
+          and ATS source (last {rangeLabel})
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

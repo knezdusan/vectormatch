@@ -15,6 +15,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
+import { GATE2_MAX_COSINE_DISTANCE } from "@/lib/jobs/matching-config";
 import { getDatabaseSizeMb } from "@/lib/jobs/storage-check";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -254,9 +255,16 @@ async function calcGate3ApprovalRate7d(): Promise<number> {
 }
 
 async function countUnmatchedEmbeddedJobs(): Promise<number> {
-  // Jobs with embeddings that have tag overlap with any persona but no
-  // match_queue entry for that persona. These were missed by the matching
+  // Jobs with embeddings that pass BOTH Gate 1 (tag overlap) AND Gate 2
+  // (cosine distance < threshold) for some persona, but have no match_queue
+  // entry for that persona. These were genuinely missed by the matching
   // pipeline and should be caught by the retry sweep.
+  //
+  // The Gate 2 filter is critical: without it, the query counts every job
+  // that has tag overlap but was correctly filtered by cosine distance,
+  // producing a false-positive alert. With 3 personas and a 0.5 distance
+  // threshold, ~95% of Gate 1-eligible jobs are correctly rejected by
+  // Gate 2 — counting them as "unmatched" would fire the alert constantly.
   const result = await db.execute(sql`
     SELECT count(DISTINCT j.id)::int AS cnt
     FROM job j
@@ -265,6 +273,8 @@ async function countUnmatchedEmbeddedJobs(): Promise<number> {
       AND j.job_embedding IS NOT NULL
       AND j.extracted_tags IS NOT NULL
       AND cardinality(j.extracted_tags) > 0
+      AND p.persona_embedding IS NOT NULL
+      AND (p.persona_embedding <=> j.job_embedding) < ${GATE2_MAX_COSINE_DISTANCE}::real
       AND NOT EXISTS (
         SELECT 1 FROM match_queue mq
         WHERE mq.job_id = j.id AND mq.persona_id = p.id

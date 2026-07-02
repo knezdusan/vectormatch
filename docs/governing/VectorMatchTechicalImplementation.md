@@ -604,7 +604,7 @@ The Inngest v4 SDK provides the durable execution layer for all background jobs,
 | File | Purpose |
 |------|---------|
 | `src/inngest/client.ts` | Typed Inngest client (`id: "vectormatch"`) with `VectorMatchEvents` catalog. Re-exports as `inngest`. |
-| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`, `gate3Evaluator`, `pendingQueueSweep` (cron every 15 min — picks up stuck pending rows), `personaUpdatedHandler` (event-driven — re-evaluates rejected matches when persona tags change), `cleanupOrphanedCvUploads`, `companyRevivalSweep`, `normalizationRetrySweep`, `tierActiveFanOut`, `tierDormantFanOut`, `pollCompanyFn`. 16 functions total. |
+| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`, `gate3Evaluator`, `pendingQueueSweep` (cron every 30 min — picks up stuck pending rows), `personaUpdatedHandler` (event-driven — re-evaluates rejected matches when persona tags change AND triggers bulk reprocess), `cleanupOrphanedCvUploads`, `companyRevivalSweep`, `normalizationRetrySweep` (limit 500/run), `tierActiveFanOut`, `tierDormantFanOut`, `pollCompanyFn`, `batchPollTier`, `aggregatorJobHandler`, `staleJobVerifier`, `pipelineHealthMonitor`, `matchBulkReprocess` (event-triggered bulk reprocessing), `matchRetrySweep` (daily re-matching sweep), plus 27 Module B source seeder functions (10 batch + 13 daily + Brave Search + crt.sh + slugger retry). 48 functions total. |
 | `src/inngest/index.ts` | Barrel exports for clean imports (`@/inngest`). |
 | `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) with `maxDuration: 300`. |
 | `docs/reports/inngest-agent-resources.md` | Coding agent reference: LLM docs, MCP, CLI debugging, AI patterns (`step.ai.wrap`, `step.ai.infer`). |
@@ -1413,10 +1413,12 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 | `phalanxPoller` | `poller/run` event (manual) | Single-company poll by companyId (admin/testing). |
 | `tierRecalc` | cron `0 4 * * *` (daily 04:00 UTC) | Recalculates all company tiers based on activity. |
 | `staleCleanup` | cron `0 3 * * *` (daily 03:00 UTC) | Marks stale (7d) and gone (30d) jobs. |
-| `normalizationRetrySweep` | cron `0 6 * * *` (daily 06:00 UTC) | **[Sprint 7]** Re-emits `job/ingested` for stuck jobs: `normalization_failed` OR `active + normalizedAt IS NULL`. Limit 200/run. |
-| `pipelineHealthMonitor` | cron `*/30 * * * *` (every 30 min) | **[Sprint 7]** Collects 8 pipeline metrics, evaluates thresholds, creates/resolves `pipeline_health` alerts. See §4.7.10. |
+| `normalizationRetrySweep` | cron `0 6 * * *` (daily 06:00 UTC) | **[Sprint 7]** Re-emits `job/ingested` for stuck jobs: `normalization_failed` OR `active + normalizedAt IS NULL`. **[Sprint 8]** Limit raised to 500/run to clear backlog faster. |
+| `pipelineHealthMonitor` | cron `*/30 * * * *` (every 30 min) | **[Sprint 7]** Collects 8 pipeline metrics, evaluates thresholds, creates/resolves `pipeline_health` alerts. **[Sprint 8]** Expanded with 4 new metrics: approvedMatches24h, gate3ApprovalRate7d, unmatchedEmbeddedJobs, avgGate3Confidence. See §4.7.10. |
+| `matchBulkReprocess` | `match/bulk-reprocess` event (manual) | **[Sprint 8]** Retroactively matches existing active+embedded jobs against personas. Queries jobs NOT in match_queue (LIMIT 1000), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch. Concurrency limit 1. Triggered via admin dashboard "Run Bulk Reprocess" button. |
+| `matchRetrySweep` | cron `0 7 * * *` (daily 07:00 UTC) | **[Sprint 8]** Catches jobs missed by normal pipeline — queries active+embedded jobs older than 1h with no match_queue entry, processes in batches of 25 with parallel Gate 1+2. |
 
-**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 1,594 project tests pass (84 files). Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
+**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 1,623 project tests pass (86 files). Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
 
 ### 4.5 The B→C Handoff Contract `[Status: Implemented — G7 rawJson Pruning, June 29 2026]`
 
@@ -1749,6 +1751,45 @@ Both are additive `ALTER TYPE ... ADD VALUE IF NOT EXISTS` — no data loss, no 
 
 **Production deployment note:** The `batchPollTier` chunking fix and `fetchWithTimeout` are the critical changes — without them, the pipeline makes near-zero progress per cron cycle (observed: ~3-6 companies polled per 3h cycle vs. 100 target). After deploying these fixes, the next `batchPollTier` cron fire should make real progress, and `SELECT count(*) FROM ingestion_log WHERE type='batch_poll'` should be non-zero.
 
+#### 4.7.11 Sprint 8 — Match Delivery Fix & Bulk Reprocessing `[Status: Implemented — July 1 2026]`
+
+Ten tasks implemented to fix the broken matching pipeline. Despite successfully ingesting 9,637 companies and 9,126 active jobs, only 62 matches existed (1 approved, 61 rejected) — the same as before the corpus expansion campaign. Root cause: 6 distinct issues identified via live DB funnel analysis.
+
+**Task 1 (CRITICAL — Bulk Reprocessing):** New `matchBulkReprocess` Inngest function (`src/inngest/functions.ts`, event-triggered via `match/bulk-reprocess`, concurrency limit 1). Queries active+embedded jobs NOT in match_queue (LIMIT 1000 to stay under Inngest response body size limit), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch inside the step (avoids returning large arrays in step response). Admin dashboard "Run Bulk Reprocess" button (`BulkReprocessButton.tsx`) triggers via `triggerBulkReprocess` Server Action in `src/actions/admin.ts`. Uses raw SQL array literal for UUID batch queries (Drizzle's parameterized array binding doesn't work with `ANY()` — expands to record type, not array).
+
+**Task 2a (Normalization Retry Limit):** `normalizationRetrySweep` limit raised from 200 to 500 jobs/run to clear the 4,083-job unnormalized backlog faster.
+
+**Task 3 (Cross-Posting Dedup Relaxed):** Gate 1+2 dedup clause in `src/lib/jobs/gate-1-2.ts` now blocks only `approved` matches (added `AND mq.status = 'approved'` to the NOT EXISTS subquery). Previously blocked ALL matches including rejected ones — a job rejected for Persona A was never evaluated for Persona B. This was blocking 12 valid candidate pairs.
+
+**Task 4 (Workplace Pre-Filter Removed):** Removed `workplace_type` vs. `assignment_types` pre-filter from Gate 1+2 in `src/lib/jobs/gate-1-2.ts`. Previously blocked 113 of 198 candidate pairs (74 on-site + 39 hybrid) before Gate 3 could evaluate them. Gate 3 (LLM) now makes the final determination.
+
+**Task 5 (Gate 3 Prompt Tuned):** All 3 prompt variants in `src/lib/jobs/gate-3.ts` updated with: international contractor guidance (W-8BEN compliance context — "US only" remote jobs may accept international contractors), hybrid as soft concern (not auto-reject), and balanced approach (replaced "be conservative" bias that contributed to 1.6% approval rate).
+
+**Task 6 (Periodic Re-Matching Sweep):** New `matchRetrySweep` Inngest function (cron `0 7 * * *` — daily 07:00 UTC). Catches jobs missed by normal pipeline — queries active+embedded jobs older than 1h with no match_queue entry (via persona JOIN for tag overlap), processes in batches of 25 with parallel Gate 1+2. Uses `SELECT DISTINCT j.id, j.detected_at` (detected_at in select list for ORDER BY compatibility with DISTINCT).
+
+**Task 7 (Match Monitoring Metrics):** Added 4 new metrics to `src/lib/jobs/pipeline-health.ts`:
+| Metric | Query | Alert Threshold |
+|---|---|---|
+| `approvedMatches24h` | `count(*) FROM match_queue WHERE status='approved' AND created_at > NOW() - 24h` | < 5 (LOW_APPROVAL_RATE) |
+| `gate3ApprovalRate7d` | `approved / total WHERE evaluated_at > NOW() - 7d` | < 0.02 (2%) |
+| `unmatchedEmbeddedJobs` | `count(DISTINCT j.id) FROM job j JOIN persona p ON tag overlap WHERE j.active+embedded AND NOT EXISTS match_queue` | > 100 |
+| `avgGate3Confidence` | `avg(llm_confidence) FROM match_queue WHERE evaluated_at > NOW() - 7d` | (informational) |
+
+Updated `PipelineHealthMonitor.tsx` with new metric cards and alert display.
+
+**Task 8 (Verification Tests):** New test files: `gate-1-2.test.ts` (relaxed dedup, no workplace filter), `gate-3.test.ts` (prompt tuning, international contractor guidance), `pipeline-health.test.ts` (new metrics), `parse-vector.test.ts` (vector string parsing utility).
+
+**Task 9 (personaUpdatedHandler Enhanced):** `personaUpdatedHandler` in `src/inngest/functions.ts` now emits a `match/bulk-reprocess` event after re-evaluating rejected matches — triggers bulk reprocess for new jobs that were never matched against the updated persona.
+
+**Task 10 (Rejection Pattern Analysis):** New queries in `src/lib/jobs/admin-queries.ts` (`getRejectionPatternAnalysis`, `getApprovalRateByPromptVariant`, `getApprovalRateByPersona`, `getApprovalRateByAtsSource`). New `RejectionPatternAnalysis.tsx` admin dashboard component with reusable `ApprovalRateTable` sub-component.
+
+**SQL Fixes (post-deploy):**
+1. `SELECT DISTINCT ... ORDER BY` incompatibility — removed unnecessary `DISTINCT` from `matchBulkReprocess` query (no JOIN, so no duplicates). Added `j.detected_at` to select list for `matchRetrySweep` (DISTINCT needed due to persona JOIN).
+2. `cannot cast type record to uuid[]` — replaced Drizzle parameterized array `${batchIds}::uuid[]` with raw SQL array literal `ARRAY[...]::uuid[]` using `sql.raw()`. Drizzle expands JS arrays into individual params `($1, $2, ...)` which Postgres treats as a record type, not an array.
+3. **Performance:** Parallelized Gate 1+2 calls within batches using `Promise.all` — reduced bulk reprocess runtime from ~41 min (sequential) to ~3-5 min (parallel, limited by Neon connection pool).
+
+**Verification:** 1,623 tests pass (86 files), 0 TS errors, 0 new migrations. Biome clean.
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
@@ -1763,7 +1804,7 @@ Both are additive `ALTER TYPE ... ADD VALUE IF NOT EXISTS` — no data loss, no 
 - **C5** — Seed script: `scripts/seed-routing-engine.ts` (synthetic data for calibration).
 - **C2** — Gate 1+2 SQL router: `gate-1-2.ts` with workplace type pre-filter, wired into `jobIngestedHandler`.
 - **C3** — Gate 3 LLM evaluator: `gate-3.ts` (3 A/B test prompt variants, seniority-aware matching, country-specific remote checks) + `gate3Evaluator` Inngest function.
-- **C3b** — Gate 3 feedback loop: `pendingQueueSweep` (cron every 15 min) + `personaUpdatedHandler` (event-driven re-evaluation). Added June 28 2026.
+- **C3b** — Gate 3 feedback loop: `pendingQueueSweep` (cron every 30 min) + `personaUpdatedHandler` (event-driven re-evaluation + bulk reprocess trigger) + `matchBulkReprocess` (manual bulk reprocessing) + `matchRetrySweep` (daily re-matching sweep). Added June 28 2026, enhanced July 1 2026.
 - **C4** — Dashboard query layer + UI: `dashboard-queries.ts` (status-filtered queries, pagination, resilient unread badge) + `matches.ts` Server Actions + `/dashboard/jobs` list page + `/dashboard/jobs/[matchId]` detail page + sidebar unread badge.
 - **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/reports/calibration-report.md` + yield analysis (June 28 2026).
 - **C7** — Persona consolidation & diversification: 3 TypeScript personas consolidated to 2 distinct + 1 new PHP/Laravel persona. `CANONICAL_TAGS` expanded to 146 entries (added `wordpress`, `docker`). Added June 28 2026.
@@ -1825,25 +1866,19 @@ await db.execute(sql`
 **Config values** (`src/lib/jobs/matching-config.ts`):
 | Constant | Value | Calibration Status |
 |---|---|---|
-| `GATE2_MAX_COSINE_DISTANCE` | `0.48` | Calibrated against real data (June 28 2026 yield analysis). Tightened from 0.55 to 0.48 to cut LLM costs while retaining strong matches. At 0.55, the funnel produced 160 candidates (85% were weak matches that Gate 3 rejected). At 0.48, the funnel produces 24 candidates — an 85% reduction in LLM calls with no loss of true positives. All candidates now have cosine distance < 0.48 (strong semantic matches). Previous values: 0.55 (June 25 2026), 0.35 (blocked all real matches). |
+| `GATE2_MAX_COSINE_DISTANCE` | `0.50` (env-configurable) | Calibrated against real data. Tightened from 0.55 to 0.48 (June 28 2026 yield analysis) to cut LLM costs. Loosened back to 0.50 (Sprint 3, June 30 2026) and made env-configurable via `GATE2_MAX_COSINE_DISTANCE` env var — tunable without redeploy. At 0.55, the funnel produced 160 candidates (85% were weak matches that Gate 3 rejected). At 0.48, the funnel produces 24 candidates — an 85% reduction in LLM calls with no loss of true positives. Sprint 8 (July 1 2026) uses 0.50 as the default to slightly widen the funnel after removing the workplace pre-filter. Previous values: 0.50 (Sprint 3+), 0.48 (June 28 2026), 0.55 (June 25 2026), 0.35 (blocked all real matches). |
 | `GATE_ROUTER_LIMIT` | `8` | Uncalibrated — doing all filtering on synthetic data. |
 | `GATE1_WEIGHT` | `0.6` | Uncalibrated guess. |
 | `GATE2_WEIGHT` | `0.4` | Uncalibrated guess. `GATE1_WEIGHT + GATE2_WEIGHT = 1.0`. |
 
-**Workplace type pre-filter (added June 28 2026):** The Gate 1+2 SQL now includes a `workplace_type` filter that joins `applicant.assignment_types` against `job.workplace_type`:
-- `workplace_type = 'remote'` → requires `remote` or `remote_local` in applicant's assignment types
-- `workplace_type = 'hybrid'` → requires `hybrid` in applicant's assignment types
-- `workplace_type = 'on-site'` → requires `on-site` or `hybrid` in applicant's assignment types
-- `workplace_type IS NULL` → no filter (job posting didn't specify)
-
-This pre-filter eliminates on-site/hybrid jobs for remote-only applicants BEFORE the LLM call, saving Gate 3 costs on obvious mismatches.
+**Workplace type pre-filter (added June 28 2026, REMOVED July 1 2026):** The Gate 1+2 SQL previously included a `workplace_type` filter that joined `applicant.assignment_types` against `job.workplace_type`. This pre-filter eliminated on-site/hybrid jobs for remote-only applicants BEFORE the LLM call. **Removed in Sprint 8** because it was too aggressive — it blocked 113 of 198 candidate pairs (74 on-site + 39 hybrid) before Gate 3 could evaluate them. The LLM (Gate 3) now makes the final determination, especially for hybrid roles that may offer remote options. This trades a small increase in Gate 3 LLM costs for a significant increase in match coverage.
 
 **Edge cases handled:**
 - Empty `jobTags`: Skip Gate 1, rely on Gate 2 alone. Log warning.
 - No personas pass: Return empty array. No Gate 3 fan-out.
 - All candidates blocklisted: Filtered by `NOT (p.blocklist_tags && ...)`.
 - Null `jobEmbedding`: Defensive fallback to Gate 1 only with `LIMIT 8`.
-- **Cross-posting duplicates** (added June 25 2026): ATS APIs list the same job multiple times with different `external_job_id` values (e.g. for different locations/teams). The `NOT EXISTS` subquery checks if a match already exists for the same `(ats_slug, title, persona_id)` before inserting — prevents duplicate matches and saves Gate 3 LLM calls. Discovered when 19% of active jobs were duplicates (449 out of 2,348). **[Status: TO DO — Post-MVP]** The current dedup prevents re-matching when a company re-posts the same job title with a new `external_job_id` (e.g. re-opening a closed position). Post-MVP, consider adding a "re-evaluate after N days" mechanism for rejected matches if the underlying job is re-posted, or keying dedup on a normalized title hash + company rather than exact title string.
+- **Cross-posting duplicates** (added June 25 2026, RELAXED July 1 2026): ATS APIs list the same job multiple times with different `external_job_id` values (e.g. for different locations/teams). The `NOT EXISTS` subquery checks if a match already exists for the same `(ats_slug, title, persona_id)` before inserting — prevents duplicate matches and saves Gate 3 LLM calls. Discovered when 19% of active jobs were duplicates (449 out of 2,348). **Sprint 8 relaxation (July 1 2026):** The dedup now blocks only `approved` matches (not rejected/pending). Previously, it blocked ALL matches including rejected ones — meaning a job rejected for Persona A was never evaluated for Persona B. This was blocking 12 valid candidate pairs. The relaxed dedup allows re-evaluation of jobs previously rejected for a different persona, while still preventing duplicate approved matches.
 
 **Performance:** `EXPLAIN ANALYZE` (verified by `scripts/verify-gate-explain.mts`) confirms both GIN and HNSW indexes are used. At MVP scale (~1,000 personas), the composite ORDER BY may cause an in-memory sort (HNSW index is optimized for pure KNN, not composite expressions) — this is <5ms at 1k rows. At 100k+ scale, a two-phase query (KNN + re-rank) may be needed (post-MVP).
 
@@ -1878,12 +1913,22 @@ FROM match_queue WHERE prompt_variant IS NOT NULL GROUP BY prompt_variant;
 **Country-specific remote restrictions (added June 28 2026):**
 All three prompt variants now explicitly instruct the LLM to scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's country doesn't match, this is a HARD BLOCKER. This addresses the yield analysis finding that location mismatch was the #1 rejection reason — many remote jobs restrict applications to specific countries/regions.
 
-**Gate 3 feedback loop (added June 28 2026):**
-Two new Inngest functions provide resilience and re-evaluation:
+**Gate 3 feedback loop (added June 28 2026, ENHANCED July 1 2026):**
+Four Inngest functions provide resilience, re-evaluation, and bulk processing:
 
-1. **`pendingQueueSweep`** (cron every 15 minutes): Finds `match_queue` rows stuck in `pending` status for >10 minutes and emits `match/gate-3-evaluate` events for them. This handles cases where the original Gate 3 event was lost (e.g. script ran without Inngest event key, or an event was dropped). Without this sweep, pending rows would sit forever.
+1. **`pendingQueueSweep`** (cron every 30 minutes): Finds `match_queue` rows stuck in `pending` status for >10 minutes and emits `match/gate-3-evaluate` events for them. This handles cases where the original Gate 3 event was lost (e.g. script ran without Inngest event key, or an event was dropped). Without this sweep, pending rows would sit forever.
 
-2. **`personaUpdatedHandler`** (event: `persona/updated`): When a user updates their persona's `must_have_tags`, `blocklist_tags`, or `embedding_summary` via `updatePersonasAction`, the action emits a `persona/updated` Inngest event. This function finds all `rejected` match_queue rows for that persona (where the job is still active), resets them to `pending`, and emits `match/gate-3-evaluate` events for re-evaluation. Limited to 50 re-evaluations per persona update to control LLM costs. This closes the feedback loop — when a user adjusts their persona to be more permissive or changes their tag emphasis, previously rejected jobs get a second chance.
+2. **`personaUpdatedHandler`** (event: `persona/updated`): When a user updates their persona's `must_have_tags`, `blocklist_tags`, or `embedding_summary` via `updatePersonasAction`, the action emits a `persona/updated` Inngest event. This function finds all `rejected` match_queue rows for that persona (where the job is still active), resets them to `pending`, and emits `match/gate-3-evaluate` events for re-evaluation. Limited to 50 re-evaluations per persona update to control LLM costs. **Sprint 8 enhancement (July 1 2026):** Now also emits a `match/bulk-reprocess` event to trigger `matchBulkReprocess` for new jobs that were never matched against the updated persona.
+
+3. **`matchBulkReprocess`** (event: `match/bulk-reprocess`, added July 1 2026): Manually triggered via admin dashboard. Queries active+embedded jobs NOT in match_queue (LIMIT 1000), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch. Concurrency limit 1. Designed for retroactive matching when personas are created/updated or when pipeline fixes unlock previously unmatchable jobs.
+
+4. **`matchRetrySweep`** (cron daily 07:00 UTC, added July 1 2026): Catches jobs missed by the normal pipeline — queries active+embedded jobs older than 1h with no match_queue entry (via persona JOIN for tag overlap), processes in batches of 25 with parallel Gate 1+2. Daily safety net for timing errors, filter changes, and edge cases.
+
+**Sprint 8 prompt tuning (July 1 2026):**
+All three prompt variants updated with:
+- **International contractor guidance:** Explicitly instructs the LLM to consider W-8BEN compliance — "US only" remote jobs may accept international contractors if the applicant has `preferred_compliance = {w8ben, ic_global}`. The LLM should not auto-reject based solely on geographic restrictions without considering compliance context.
+- **Hybrid as soft concern:** Hybrid workplace is now a soft concern (not an auto-reject). The LLM should evaluate whether the hybrid requirement is a hard blocker or if remote options may be negotiable.
+- **Balanced approach:** Replaced the "be conservative: only approve if you are confident" bias with a more balanced instruction that doesn't bias toward rejection. The previous wording contributed to a 1.6% approval rate (target: 2-4%).
 *   Inngest concurrency is capped to max 5 (Inngest free plan limit, June 2026).
 The original limit of 50 existed to prevent Vercel's 340-second idle-connection
 limit from severing fanned-out function instances. Under Module E, there is no

@@ -106,7 +106,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
             </CardContent>
           </Card>
           <MatchingFunnel range={range} />
-          <RejectionPatternAnalysis />
+          <RejectionPatternAnalysis range={range} />
         </TabsContent>
         <TabsContent value="pipeline" className="space-y-4">
           <PipelineHealthMonitor />
