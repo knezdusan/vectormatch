@@ -2,7 +2,7 @@
 // Server Component that displays Gate 3 rejection patterns and approval rates
 // by prompt variant, persona, and ATS source.
 
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Info } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,6 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   getApprovalByAtsSource,
   getApprovalByPersona,
   getApprovalByPromptVariant,
@@ -33,6 +39,57 @@ interface ApprovalRow {
   total: number;
   approved: number;
   approvalRate: number;
+}
+
+function SectionTitle({ label, tooltip }: { label: string; tooltip: string }) {
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <h4 className="text-sm font-medium mb-2 flex items-center gap-1.5 cursor-help">
+            {label}
+            <Info className="size-3.5 text-muted-foreground" />
+          </h4>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+const categoryDescriptions: Record<string, string> = {
+  geographic:
+    "Remote restrictions, US-only requirements, country-specific location constraints, or must-reside rules.",
+  workplace:
+    "Workplace type mismatches such as on-site, hybrid, assignment type, or modality conflicts.",
+  skills:
+    "Missing or required skills, skills not mentioned in the persona, or required experience gaps.",
+  domain:
+    "Technology domains or frameworks the persona wants to avoid, e.g., Angular, jQuery, web3, React Native, Vue.",
+  travel: "Travel or relocation requirements.",
+  other:
+    "Blockers that do not match any specific keyword category and fall outside the standard classifiers.",
+};
+
+function CategoryLabel({ category }: { category: string }) {
+  const description = categoryDescriptions[category] ?? "Unknown category";
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="text-sm w-24 capitalize flex items-center gap-1 cursor-help">
+            {category}
+            <Info className="size-3 text-muted-foreground" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-xs">
+          <p>{description}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 function approvalRateColor(rate: number): string {
@@ -51,16 +108,18 @@ function ApprovalRateTable({
   label,
   rows,
   emptyMessage,
+  tooltip,
 }: {
   label: string;
   rows: ApprovalRow[];
   emptyMessage: string;
+  tooltip: string;
 }) {
   const labelShort = label.replace("Approval Rate by ", "");
 
   return (
     <div>
-      <h4 className="text-sm font-medium mb-2">{label}</h4>
+      <SectionTitle label={label} tooltip={tooltip} />
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (
@@ -200,9 +259,10 @@ export async function RejectionPatternAnalysis({
       <CardContent className="space-y-6">
         {/* Rejection categories */}
         <div>
-          <h4 className="text-sm font-medium mb-2">
-            Rejection Reasons by Category ({totalRejections} total blockers)
-          </h4>
+          <SectionTitle
+            label={`Rejection Reasons by Category (${totalRejections} total blockers)`}
+            tooltip="Blockers are extracted from the llm_blockers array on rejected match_queue rows and categorized by keyword matching: geographic, workplace, skills, domain, travel, other."
+          />
           {categories.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No rejection data available
@@ -216,9 +276,7 @@ export async function RejectionPatternAnalysis({
                     : "0";
                 return (
                   <div key={c.category} className="flex items-center gap-3">
-                    <span className="text-sm w-24 capitalize">
-                      {c.category}
-                    </span>
+                    <CategoryLabel category={c.category} />
                     <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
                       <div
                         className="bg-primary h-full rounded-full"
@@ -239,16 +297,19 @@ export async function RejectionPatternAnalysis({
           label="Approval Rate by Prompt Variant"
           rows={variantRows}
           emptyMessage="No prompt variant data available"
+          tooltip="A/B test breakdown of the three Gate 3 prompt variants: balanced, strict, thorough. Identifies which prompt produces the highest approval rate."
         />
         <ApprovalRateTable
           label="Approval Rate by Persona"
           rows={personaRows}
           emptyMessage="No persona data available"
+          tooltip="Approval rate per persona. A 0% rate may indicate tags that are too broad or too strict, or that the persona is targeting a mismatching job market."
         />
         <ApprovalRateTable
           label="Approval Rate by ATS Source"
           rows={atsRows}
           emptyMessage="No ATS source data available"
+          tooltip="Approval rate per ATS platform. Helps identify whether a particular ATS format (Greenhouse, Lever, Ashby, etc.) systematically produces lower-quality matches."
         />
       </CardContent>
     </Card>

@@ -4,6 +4,7 @@ import {
   Briefcase,
   FileText,
   LayoutDashboard,
+  Mail,
   Shield,
   User,
   Users,
@@ -106,6 +107,17 @@ export function DashboardSidebarNav({
                 <Link href="/dashboard/admin/users">
                   <Users />
                   <span>Users</span>
+                </Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton
+                asChild
+                isActive={pathname === "/dashboard/admin/mail"}
+              >
+                <Link href="/dashboard/admin/mail">
+                  <Mail />
+                  <span>VM Mail</span>
                 </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>

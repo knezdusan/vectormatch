@@ -253,6 +253,13 @@
       "when": 1782943690592,
       "tag": "0035_flimsy_yellow_claw",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1782997924410,
+      "tag": "0036_known_paladin",
+      "breakpoints": true
     }
   ]
 }

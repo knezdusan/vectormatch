@@ -6,9 +6,19 @@
 // full content (HTML, text, headers, attachments) is fetched via the
 // Received emails API on demand.
 //
+// Folders: inbox | trash — soft-delete moves to trash, permanent delete
+// removes the row entirely.
+//
 // See: https://resend.com/docs/dashboard/receiving/
 
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import type z from "zod";
 
@@ -43,6 +53,12 @@ export const inboundEmails = pgTable(
     status: text("status").notNull().default("received"),
     error: text("error"),
 
+    // ── Mailbox management ──────────────────────────────────────────────────
+    isRead: boolean("is_read").notNull().default(false),
+    // inbox | trash — soft-delete moves to trash
+    folder: text("folder").notNull().default("inbox"),
+    deletedAt: timestamp("deleted_at"),
+
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -55,6 +71,10 @@ export const inboundEmails = pgTable(
     toAddressIdx: index("inbound_emails_to_address_idx").on(table.toAddress),
     // Index for sorting by creation date (dashboard inbox view)
     createdAtIdx: index("inbound_emails_created_at_idx").on(table.createdAt),
+    // Index for filtering by folder (inbox vs trash)
+    folderIdx: index("inbound_emails_folder_idx").on(table.folder),
+    // Index for filtering unread emails
+    isReadIdx: index("inbound_emails_is_read_idx").on(table.isRead),
   }),
 );
 

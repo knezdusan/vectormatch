@@ -121,12 +121,19 @@ async function fetchEmailContent(emailId: string): Promise<void> {
     await getResend().emails.receiving.get(emailId);
 
   if (error) {
-    console.error(`[resend-webhook] Resend API error for ${emailId}:`, error);
+    const errorMsg =
+      typeof error === "object" && error !== null
+        ? JSON.stringify(error)
+        : String(error);
+    console.error(
+      `[resend-webhook] Resend API error for ${emailId}:`,
+      errorMsg,
+    );
     await db
       .update(inboundEmails)
       .set({
         status: "error",
-        error: String(error),
+        error: errorMsg,
         updatedAt: new Date(),
       })
       .where(eq(inboundEmails.resendEmailId, emailId));
