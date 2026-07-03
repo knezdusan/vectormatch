@@ -252,8 +252,8 @@ export const bigQuerySeeder = inngest.createFunction(
 // fallow-ignore-next-line unused-export
 export function cronToTier(cron: string): "active_hot" | "active" | "dormant" {
   switch (cron) {
-    case "0 */3 * * *":
-      return "active_hot"; // every 3h — hot tier (G1)
+    case "0 */2 * * *":
+      return "active_hot"; // every 2h — hot tier (G1)
     case "0 */12 * * *":
       return "active"; // every 12h — standard tier
     case "0 3 * * 1":
@@ -263,8 +263,16 @@ export function cronToTier(cron: string): "active_hot" | "active" | "dormant" {
   }
 }
 
-/** Batch size — companies per batchPollTier function run (G5 TDD §1.2). */
-const BATCH_SIZE = 100;
+/**
+ * Batch size — companies per batchPollTier function run (G5 TDD §1.2).
+ *
+ * Increased from 100 to 500 (July 2026) to reduce the active_hot polling
+ * cycle from ~52h to ~10.5h. With 1,752 active_hot companies and a 2h cron,
+ * the full cycle is now ~3.5h. The Greenhouse rate limiter (2 req/s) means
+ * ~350 Greenhouse companies per batch take ~175s — well under the 300s route
+ * maxDuration. POLL_CHUNK_SIZE=10 ensures checkpointed progress.
+ */
+const BATCH_SIZE = 500;
 
 /**
  * Poll chunk size — companies per step.run() call within a batchPollTier run
@@ -288,7 +296,7 @@ const POLL_CHUNK_SIZE = 10;
  * count by 50-100x — making 5,000 companies viable on the 50K/month Hobby plan.
  *
  * Three cron triggers map to three tiers via cronToTier():
- *   - every 3h cron   → active_hot  (G1 tier, companies with recent approved matches)
+ *   - every 2h cron   → active_hot  (G1 tier, companies with recent approved matches)
  *   - every 12h cron  → active      (standard tier, companies with recent job posts)
  *   - weekly Mon 3am  → dormant     (dormant tier, companies with no recent activity)
  *
@@ -329,7 +337,7 @@ export const batchPollTier = inngest.createFunction(
     id: "poller-batch-poll-tier",
     name: "Batch Poll Tier",
     triggers: [
-      { cron: "0 */3 * * *" }, // every 3h — hot tier
+      { cron: "0 */2 * * *" }, // every 2h — hot tier
       { cron: "0 */12 * * *" }, // every 12h — standard tier
       { cron: "0 3 * * 1" }, // weekly Monday 3am — dormant tier
     ],

@@ -1,7 +1,7 @@
 "use client";
 
 import { Inbox, MailPlus, RefreshCw, Search, Send, Trash2 } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   deleteInboundEmailAction,
@@ -53,8 +53,14 @@ export function VMMailClient() {
     unknown
   > | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+
+  // Unread count is derived from the current inbox items so it stays in sync
+  // when an email is opened or toggled read/unread without needing a full reload.
+  const unreadCount = useMemo(
+    () => items.filter((item) => item.isRead === false).length,
+    [items],
+  );
 
   // ── Send mail state ────────────────────────────────────────────────────────
   const [sendState, sendAction] = useActionState<MailActionState, FormData>(
@@ -90,7 +96,6 @@ export function VMMailClient() {
           sort,
         });
         setItems(rows as ListItem[]);
-        setUnreadCount(rows.filter((r) => !r.isRead).length);
       } else if (tab === "trash") {
         // Trash shows both inbound and sent trashed emails
         const [inbound, sent] = await Promise.all([

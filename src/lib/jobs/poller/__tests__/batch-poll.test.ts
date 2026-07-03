@@ -28,8 +28,8 @@ import { getBatchForTier } from "@/lib/jobs/poller/tier-queries";
 // =============================================================================
 
 describe("cronToTier", () => {
-  it("maps the 3h cron to active_hot", () => {
-    expect(cronToTier("0 */3 * * *")).toBe("active_hot");
+  it("maps the 2h cron to active_hot", () => {
+    expect(cronToTier("0 */2 * * *")).toBe("active_hot");
   });
 
   it("maps the 12h cron to active", () => {

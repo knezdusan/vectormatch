@@ -236,18 +236,21 @@ describe("buildGate3Prompt", () => {
 
   // ── Compliance directive (w8ben / ic_global) ──────────────────────────────
   // The compliance directive is a dynamic section added to the user prompt
-  // when the applicant has w8ben or ic_global compliance. It explicitly tells
-  // the LLM that US-only remote restrictions are SOFT concerns, not hard
-  // blockers. Without this, the LLM was rejecting US-only remote jobs even
-  // when the applicant had w8ben compliance (0% approval for US-remote jobs).
+  // when the applicant has w8ben or ic_global compliance. It tells the LLM
+  // to distinguish between contractor-friendly postings (approve) and W-2-only
+  // postings (hard blocker) when evaluating US-only remote restrictions.
+  // Without this, the LLM was rejecting US-only remote jobs even when the
+  // applicant had w8ben compliance (0% approval for US-remote jobs). The
+  // initial fix (treating ALL US-only as soft) was too broad — only ~2-5% of
+  // "US only" postings actually accept international contractors.
 
   it("adds compliance directive when applicant has w8ben compliance", () => {
     const prompt = buildGate3Prompt(mockContext); // mockContext has w8ben
 
     expect(prompt).toContain("COMPLIANCE DIRECTIVE");
     expect(prompt).toContain("w8ben");
-    expect(prompt).toContain("SOFT concerns, NOT hard blockers");
-    expect(prompt).toContain("US-only");
+    expect(prompt).toContain("CONTRACTOR-FRIENDLY");
+    expect(prompt).toContain("W-2 EMPLOYEE ONLY");
   });
 
   it("adds compliance directive when applicant has ic_global compliance", () => {
@@ -262,7 +265,8 @@ describe("buildGate3Prompt", () => {
 
     expect(prompt).toContain("COMPLIANCE DIRECTIVE");
     expect(prompt).toContain("ic_global");
-    expect(prompt).toContain("SOFT concerns, NOT hard blockers");
+    expect(prompt).toContain("CONTRACTOR-FRIENDLY");
+    expect(prompt).toContain("W-2 EMPLOYEE ONLY");
   });
 
   it("adds compliance directive when applicant has both w8ben and ic_global", () => {
@@ -305,12 +309,25 @@ describe("buildGate3Prompt", () => {
     expect(prompt).not.toContain("COMPLIANCE DIRECTIVE");
   });
 
-  it("compliance directive clarifies non-US country restrictions are still hard blockers", () => {
+  it("compliance directive distinguishes contractor-friendly vs W-2-only language", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    // Contractor-friendly signals
+    expect(prompt).toContain("contractor");
+    expect(prompt).toContain("1099");
+    expect(prompt).toContain("B2B");
+    // W-2-only signals
+    expect(prompt).toContain("W-2");
+    expect(prompt).toContain("must be authorized to work in the US");
+    expect(prompt).toContain("visa sponsorship");
+  });
+
+  it("compliance directive clarifies non-US country restrictions are always hard blockers", () => {
     const prompt = buildGate3Prompt(mockContext);
 
     expect(prompt).toContain("Colombia");
     expect(prompt).toContain("Japan");
-    expect(prompt).toContain("STILL HARD BLOCKERS");
+    expect(prompt).toContain("ALWAYS HARD BLOCKER");
   });
 
   it("evaluation section references compliance directive", () => {
