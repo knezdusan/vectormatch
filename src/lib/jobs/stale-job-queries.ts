@@ -9,7 +9,7 @@
 //
 // See TDD §1.6 for the full specification.
 
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, eq, gt, inArray } from "drizzle-orm";
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
@@ -81,29 +81,9 @@ export async function markMatchesStale(matchIds: string[]): Promise<number> {
 
   const result = await db
     .update(matchQueue)
-    .set({ status: "stale" })
+    .set({ status: "stale", staleAt: new Date() })
     .where(inArray(matchQueue.id, matchIds))
     .returning({ id: matchQueue.id });
 
   return result.length;
-}
-
-/**
- * Count approved matches for verification (for logging/metrics).
- */
-export async function countApprovedMatches(daysBack = 30): Promise<number> {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - daysBack);
-
-  const result = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(matchQueue)
-    .where(
-      and(
-        eq(matchQueue.status, "approved"),
-        gt(matchQueue.evaluatedAt, cutoff),
-      ),
-    );
-
-  return result[0]?.count ?? 0;
 }

@@ -52,6 +52,10 @@ export type NormalizationResult = {
   tags: string[];
   /** title + " " + cleanedDescription — the input to the embedder. */
   fullText: string;
+  /** AI-generated 1–2 sentence candidate-facing summary of the job. Set for
+   *  normalized jobs; may be set on rejected jobs if the LLM produced one before
+   *  the rejection decision. */
+  summary?: string;
   /** Only set on normalization_failed — the error message for logging. */
   error?: string;
   /** Why the job was rejected — set when status='rejected' to distinguish
@@ -76,6 +80,13 @@ const MIN_NORMALIZABLE_FULLTEXT_LENGTH = 100;
 /** Injectable LLM tag extractor — defaults to extractTagsLLM. Tests pass a
  *  mock to avoid hitting the OpenAI API. */
 export type LlmTagExtractor = (fullText: string) => Promise<string[]>;
+
+/** Injectable LLM summary extractor — defaults to summarizeJobLLM. Tests pass a
+ *  mock to avoid hitting the OpenAI API. */
+export type LlmSummaryExtractor = (
+  fullText: string,
+  title: string,
+) => Promise<string | null>;
 
 // =============================================================================
 // ATS-SOURCE-AWARE CONTENT EXTRACTION (§4.1)
@@ -1150,6 +1161,59 @@ export async function extractTagsLLM(fullText: string): Promise<string[]> {
 }
 
 // =============================================================================
+// AI SUMMARY GENERATION (added July 2026)
+// =============================================================================
+
+/** Zod schema for the LLM summary output. */
+const llmSummarySchema = z.object({
+  shortDescription: z
+    .string()
+    .min(20)
+    .max(240)
+    .describe(
+      "A concise, candidate-facing summary of the job in 1-2 sentences. " +
+        "Focus on the role, responsibilities, and key technologies. " +
+        "Exclude company history, benefits, equal-opportunity statements, and application instructions.",
+    ),
+});
+
+const LLM_SUMMARY_SYSTEM_PROMPT = `You are a technical job-description summarizer. Read the job posting below and write a concise, candidate-facing summary in 1-2 sentences (max 240 characters).
+
+Focus ONLY on:
+- The role and seniority (e.g., "Senior Frontend Engineer")
+- Core responsibilities
+- Key technologies, frameworks, and domains
+
+EXCLUDE:
+- Company mission, history, or values
+- Benefits, perks, or compensation
+- Equal-opportunity / diversity statements
+- Application instructions or generic fluff
+
+Keep the summary factual and dense. Do not use marketing language.`;
+
+/**
+ * Generate a concise candidate-facing summary of the job using gpt-4o-mini.
+ *
+ * The summary is limited to 1-2 sentences and focuses on the role,
+ * responsibilities, and key technologies. It intentionally excludes company
+ * boilerplate, benefits, and application instructions.
+ */
+export async function summarizeJobLLM(
+  fullText: string,
+  title: string,
+): Promise<string | null> {
+  const { object } = await generateObject({
+    model: openai("gpt-4o-mini"),
+    schema: llmSummarySchema,
+    system: LLM_SUMMARY_SYSTEM_PROMPT,
+    prompt: `Job title: ${title}\n\n${fullText}`,
+  });
+
+  return object.shortDescription ?? null;
+}
+
+// =============================================================================
 // NORMALIZATION ORCHESTRATION (§4.3)
 // =============================================================================
 
@@ -1172,22 +1236,29 @@ function countPersonaDefining(tags: string[]): number {
  *   5. If count < threshold → Phase 2 LLM fallback.
  *   6. After Phase 2, recount. If still < threshold → 'rejected' (tombstone).
  *   7. If Phase 2 LLM call fails → 'normalization_failed' (retryable).
+ *   8. Generate AI summary for normalized jobs (added July 2026).
  *
- * @param atsSource     The ATS platform ("greenhouse" | "lever" | "ashby")
- * @param rawJson       The raw ATS JSON string (job.rawJson)
- * @param fallbackTitle The job title from the DB row (used if extraction fails
- *                       or as the title source)
- * @param llmExtractor  Injectable LLM extractor (defaults to extractTagsLLM).
- *                      Tests pass a mock to avoid hitting the OpenAI API.
+ * @param atsSource          The ATS platform ("greenhouse" | "lever" | "ashby")
+ * @param rawJson            The raw ATS JSON string (job.rawJson)
+ * @param fallbackTitle      The job title from the DB row (used if extraction fails
+ *                            or as the title source)
+ * @param llmExtractor       Injectable LLM tag extractor (defaults to extractTagsLLM).
+ * @param summaryExtractor   Injectable LLM summary extractor (defaults to summarizeJobLLM).
+ *                            Tests pass mocks to avoid hitting the OpenAI API.
  */
 export async function normalizeJob(
   atsSource: string,
   rawJson: string | null,
   fallbackTitle: string,
   llmExtractor: LlmTagExtractor = extractTagsLLM,
+  summaryExtractor: LlmSummaryExtractor = summarizeJobLLM,
 ): Promise<NormalizationResult> {
   // Step 1: ATS-source-aware content extraction.
-  const { fullText } = extractJobContent(atsSource, rawJson, fallbackTitle);
+  const { fullText, title } = extractJobContent(
+    atsSource,
+    rawJson,
+    fallbackTitle,
+  );
 
   // Step 1b: Title-only rejection guard.
   // Jobs with very short fullText (< MIN_NORMALIZABLE_FULLTEXT_LENGTH chars)
@@ -1204,15 +1275,30 @@ export async function normalizeJob(
     };
   }
 
+  // Helper: generate summary without letting a summary failure break
+  // normalization. The summary is a display nicety, not a matching gate.
+  async function safeSummarize(): Promise<string | undefined> {
+    try {
+      return (await summaryExtractor(fullText, title)) ?? undefined;
+    } catch (error) {
+      console.warn(
+        "[normalizeJob] Summary generation failed; continuing without summary.",
+        error instanceof Error ? error.message : error,
+      );
+      return undefined;
+    }
+  }
+
   // Step 2: Phase 1 regex scan.
   let tags = scanTagsRegex(fullText);
 
   // Step 3: Count persona_defining tags.
   let definingCount = countPersonaDefining(tags);
 
-  // Step 4: If enough persona_defining tags → normalized.
+  // Step 4: If enough persona_defining tags → normalized + summary.
   if (definingCount >= GATE_NORMALIZATION_MIN_PERSONA_TAGS) {
-    return { status: "normalized", tags, fullText };
+    const summary = await safeSummarize();
+    return { status: "normalized", tags, fullText, summary };
   }
 
   // Step 5: Phase 2 LLM fallback.
@@ -1226,7 +1312,8 @@ export async function normalizeJob(
 
     // Step 6: Recount after Phase 2.
     if (definingCount >= GATE_NORMALIZATION_MIN_PERSONA_TAGS) {
-      return { status: "normalized", tags, fullText };
+      const summary = await safeSummarize();
+      return { status: "normalized", tags, fullText, summary };
     }
 
     // Still not enough persona_defining tags → rejected (tombstone).

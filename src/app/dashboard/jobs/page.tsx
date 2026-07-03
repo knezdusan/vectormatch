@@ -23,7 +23,13 @@ export const metadata = {
 };
 
 const PAGE_SIZE = 10;
-const VALID_STATUSES = ["approved", "rejected", "pending", "all"] as const;
+const VALID_STATUSES = [
+  "approved",
+  "rejected",
+  "stale",
+  "pending",
+  "all",
+] as const;
 type StatusFilter = (typeof VALID_STATUSES)[number];
 
 export default async function JobsPage({
@@ -56,6 +62,7 @@ export default async function JobsPage({
     unreadCount,
     approvedCount,
     rejectedCount,
+    staleCount,
     pendingCount,
     allCount,
   ] = await Promise.all([
@@ -64,6 +71,7 @@ export default async function JobsPage({
     getUnreadBadgeCount(userId),
     getMatchesCount(userId, "approved"),
     getMatchesCount(userId, "rejected"),
+    getMatchesCount(userId, "stale"),
     getMatchesCount(userId, "pending"),
     getMatchesCount(userId, "all"),
   ]);
@@ -71,6 +79,7 @@ export default async function JobsPage({
   const counts = {
     approved: approvedCount,
     rejected: rejectedCount,
+    stale: staleCount,
     pending: pendingCount,
     all: allCount,
   };

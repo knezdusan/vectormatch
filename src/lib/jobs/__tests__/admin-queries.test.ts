@@ -270,7 +270,7 @@ describe("getSystemOverviewStats", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns aggregated system counts", async () => {
-    const counts = [10, 8, 50, 1200, 900, 3000, 45];
+    const counts = [10, 8, 50, 1200, 900, 3000, 45, 3];
     let callIndex = 0;
     vi.mocked(db.select).mockImplementation(() => {
       const idx = callIndex++;
@@ -289,6 +289,7 @@ describe("getSystemOverviewStats", () => {
     expect(result.activeJobs).toBe(900);
     expect(result.totalMatches).toBe(3000);
     expect(result.approvedMatches).toBe(45);
+    expect(result.staleMatches24h).toBe(3);
   });
 });
 

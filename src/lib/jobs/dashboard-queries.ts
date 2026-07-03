@@ -17,7 +17,7 @@
 
 import "server-only";
 
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
@@ -35,6 +35,8 @@ export type MatchRow = {
   jobTitle: string;
   jobAtsSource: string;
   jobAtsSlug: string;
+  jobNormalizedText: string | null;
+  jobShortDescription: string | null;
   personaId: string;
   personaLabel: string;
   overlapScore: number;
@@ -97,16 +99,21 @@ export type MatchDetail = {
  */
 export async function getMatches(
   userId: string,
-  status: "approved" | "rejected" | "pending" | "all" = "approved",
+  status: "approved" | "rejected" | "pending" | "stale" | "all" = "approved",
   limit = 20,
   offset = 0,
 ): Promise<MatchRow[]> {
+  const staleCutoff = new Date();
+  staleCutoff.setDate(staleCutoff.getDate() - 1);
+
   const statusFilter =
     status === "all"
       ? undefined
       : status === "pending"
         ? inArray(matchQueue.status, ["pending", "error"])
-        : eq(matchQueue.status, status);
+        : status === "stale"
+          ? sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${staleCutoff}`
+          : eq(matchQueue.status, status);
 
   const rows = await db
     .select({
@@ -115,6 +122,8 @@ export async function getMatches(
       jobTitle: job.title,
       jobAtsSource: job.atsSource,
       jobAtsSlug: job.atsSlug,
+      jobNormalizedText: job.normalizedText,
+      jobShortDescription: job.shortDescription,
       personaId: matchQueue.personaId,
       personaLabel: persona.personaLabel,
       overlapScore: matchQueue.overlapScore,
@@ -170,14 +179,19 @@ export async function getApprovedMatches(
  */
 export async function getMatchesCount(
   userId: string,
-  status: "approved" | "rejected" | "pending" | "all" = "approved",
+  status: "approved" | "rejected" | "pending" | "stale" | "all" = "approved",
 ): Promise<number> {
+  const staleCutoff = new Date();
+  staleCutoff.setDate(staleCutoff.getDate() - 1);
+
   const statusFilter =
     status === "all"
       ? undefined
       : status === "pending"
         ? inArray(matchQueue.status, ["pending", "error"])
-        : eq(matchQueue.status, status);
+        : status === "stale"
+          ? sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${staleCutoff}`
+          : eq(matchQueue.status, status);
 
   const rows = await db
     .select({ cnt: count() })

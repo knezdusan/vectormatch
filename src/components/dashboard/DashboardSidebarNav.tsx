@@ -23,9 +23,11 @@ import {
 export function DashboardSidebarNav({
   role,
   unreadCount = 0,
+  mailUnreadCount = 0,
 }: {
   role?: string | null;
   unreadCount?: number;
+  mailUnreadCount?: number;
 }) {
   const pathname = usePathname();
 
@@ -118,6 +120,11 @@ export function DashboardSidebarNav({
                 <Link href="/dashboard/admin/mail">
                   <Mail />
                   <span>VM Mail</span>
+                  {mailUnreadCount > 0 && (
+                    <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-1 group-data-[collapsible=icon]:top-1">
+                      {mailUnreadCount > 99 ? "99+" : mailUnreadCount}
+                    </span>
+                  )}
                 </Link>
               </SidebarMenuSubButton>
             </SidebarMenuSubItem>

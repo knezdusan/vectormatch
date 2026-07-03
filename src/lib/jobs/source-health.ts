@@ -25,9 +25,9 @@ import {
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type SourceHealthStatus = "active" | "degraded" | "disabled";
+type SourceHealthStatus = "active" | "degraded" | "disabled";
 
-export interface SourceHealthRow {
+interface SourceHealthRow {
   sourceName: string;
   status: SourceHealthStatus;
   consecutiveFailures: number;
@@ -47,7 +47,7 @@ export interface SourceHealthRow {
  * tracked (first run). The caller should treat a missing row as "active" —
  * `isSourceEnabled` does this implicitly.
  */
-export async function getSourceHealth(
+async function getSourceHealth(
   sourceName: string,
 ): Promise<SourceHealthRow | null> {
   const rows = await db

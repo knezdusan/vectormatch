@@ -15,11 +15,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { JobMetadata } from "@/lib/jobs/job-normalizer";
 import type { NormalizedJob } from "@/lib/jobs/poller/ats-adapters";
+import { enrichGreenhouseJobs } from "@/lib/jobs/poller/greenhouse-detail";
 import {
-  enrichGreenhouseJobs,
   MAX_DETAIL_FETCHES,
   MIN_FULLTEXT_LENGTH,
-} from "@/lib/jobs/poller/greenhouse-detail";
+} from "@/lib/jobs/poller/smartrecruiters-detail";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

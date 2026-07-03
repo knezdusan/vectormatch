@@ -9,6 +9,7 @@ import { markAllMatchesRead, markMatchRead } from "@/actions/matches";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import type { MatchRow } from "@/lib/jobs/dashboard-queries";
@@ -55,6 +56,32 @@ function formatDate(date: Date | null): string {
   });
 }
 
+/**
+ * Choose the best description excerpt for the card.
+ *
+ * Prefer the AI-generated plain-text shortDescription. normalizedText is
+ * already cleaned (HTML-stripped) by the normalizer, so we can use a tiny
+ * plain-text fallback without pulling cheerio into the client bundle.
+ */
+function prepareDescriptionExcerpt(
+  shortDescription: string | null,
+  normalizedText: string | null,
+  jobTitle: string,
+): string | null {
+  if (shortDescription && shortDescription.trim().length > 0) {
+    return shortDescription.trim();
+  }
+
+  if (!normalizedText) return null;
+  let text = normalizedText.trim();
+  const title = jobTitle.trim();
+  if (title.length > 0 && text.toLowerCase().startsWith(title.toLowerCase())) {
+    text = text.slice(title.length).trimStart();
+  }
+  // Limit fallback length so a card with no summary never dominates the layout.
+  return text.length > 0 ? text.slice(0, 360) : null;
+}
+
 // =============================================================================
 // MATCH CARD
 // =============================================================================
@@ -77,6 +104,11 @@ function MatchCard({ match }: { match: MatchRow }) {
   }
 
   const careerUrl = atsCareerUrl(match.jobAtsSource, match.jobAtsSlug);
+  const descriptionExcerpt = prepareDescriptionExcerpt(
+    match.jobShortDescription,
+    match.jobNormalizedText,
+    match.jobTitle,
+  );
 
   return (
     <Link href={`/dashboard/jobs/${match.matchQueueId}`} className="block">
@@ -125,6 +157,17 @@ function MatchCard({ match }: { match: MatchRow }) {
               </button>
             )}
           </div>
+
+          {/* Job description excerpt — context about the position itself */}
+          {descriptionExcerpt && (
+            <>
+              <Separator />
+              <p className="line-clamp-10 text-sm text-muted-foreground">
+                {descriptionExcerpt}
+              </p>
+              <Separator />
+            </>
+          )}
 
           {/* Calibration metrics — the primary debugging interface */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
@@ -211,7 +254,7 @@ interface MatchListProps {
   totalCount: number;
   currentPage: number;
   pageSize: number;
-  statusFilter: "approved" | "rejected" | "pending" | "all";
+  statusFilter: "approved" | "rejected" | "stale" | "pending" | "all";
   unreadCount: number;
 }
 
@@ -294,7 +337,9 @@ export function MatchList({
             <p className="mt-1 text-sm text-muted-foreground">
               {statusFilter === "approved"
                 ? "When the 3-Gate funnel finds jobs matching your personas, they'll appear here."
-                : `No ${statusFilter} matches found. Try a different filter.`}
+                : statusFilter === "stale"
+                  ? "No jobs were closed in the last 24 hours."
+                  : `No ${statusFilter} matches found. Try a different filter.`}
             </p>
           </div>
           <Link href="/dashboard/profile-management">
@@ -349,6 +394,7 @@ export function MatchList({
 const STATUS_TABS = [
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
+  { value: "stale", label: "Closed" },
   { value: "pending", label: "Pending" },
   { value: "all", label: "All" },
 ] as const;

@@ -559,3 +559,21 @@ export async function syncInboundEmailsAction(): Promise<{
     };
   }
 }
+
+/**
+ * Get unread count for badge display.
+ */
+export async function getUnreadInboundCount(): Promise<number> {
+  try {
+    await requireRole("admin");
+  } catch {
+    return 0;
+  }
+  const rows = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(inboundEmails)
+    .where(
+      and(eq(inboundEmails.folder, "inbox"), eq(inboundEmails.isRead, false)),
+    );
+  return rows[0]?.count ?? 0;
+}

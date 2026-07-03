@@ -91,6 +91,7 @@ export interface SystemOverviewStats {
   activeJobs: number;
   totalMatches: number;
   approvedMatches: number;
+  staleMatches24h: number;
 }
 
 export interface StatusDistribution {
@@ -333,6 +334,9 @@ export async function getPurgeCandidates(
  * All counts are simple index-backed COUNT(*) queries.
  */
 export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 1);
+
   const [
     totalUsersRows,
     onboardedRows,
@@ -341,6 +345,7 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
     activeJobRows,
     matchRows,
     approvedMatchRows,
+    staleMatchRows,
   ] = await Promise.all([
     db.select({ cnt: count() }).from(user),
     db
@@ -355,6 +360,12 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
       .select({ cnt: count() })
       .from(matchQueue)
       .where(eq(matchQueue.status, "approved")),
+    db
+      .select({ cnt: count() })
+      .from(matchQueue)
+      .where(
+        sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${cutoff}`,
+      ),
   ]);
 
   return {
@@ -365,6 +376,7 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
     activeJobs: activeJobRows[0]?.cnt ?? 0,
     totalMatches: matchRows[0]?.cnt ?? 0,
     approvedMatches: approvedMatchRows[0]?.cnt ?? 0,
+    staleMatches24h: staleMatchRows[0]?.cnt ?? 0,
   };
 }
 

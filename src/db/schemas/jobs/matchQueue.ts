@@ -74,6 +74,10 @@ export const matchQueue = pgTable(
     promptVariant: text("prompt_variant"),
     // When Gate 3 ran. Null until Gate 3 completes.
     evaluatedAt: timestamp("evaluated_at"),
+    // When the match was marked stale by staleJobVerifier. Separate from
+    // evaluatedAt because a match can be approved for days before the underlying
+    // job is closed at the source.
+    staleAt: timestamp("stale_at"),
     // In-app notification badge (§8). Defaults to false; set true when the
     // user views the match.
     isRead: boolean("is_read").notNull().default(false),

@@ -322,7 +322,6 @@ vi.mock("@/db/db", () => ({
 }));
 
 import {
-  countApprovedMatches,
   getApprovedMatchesForVerification,
   markMatchesStale,
 } from "@/lib/jobs/stale-job-queries";
@@ -379,52 +378,27 @@ describe("stale-job-queries", () => {
       expect(result).toBe(0);
     });
 
-    it("updates match status to stale", async () => {
+    it("updates match status to stale and records staleAt", async () => {
       const { db } = await import("@/db/db");
       const mockUpdate = vi.mocked(db.update);
-      mockUpdate.mockReturnValue({
-        set: vi.fn().mockReturnValue({
-          where: vi.fn().mockReturnValue({
-            returning: vi
-              .fn()
-              .mockResolvedValue([{ id: "match-1" }, { id: "match-2" }]),
-          }),
+      const setSpy = vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          returning: vi
+            .fn()
+            .mockResolvedValue([{ id: "match-1" }, { id: "match-2" }]),
         }),
+      });
+      mockUpdate.mockReturnValue({
+        set: setSpy,
       } as never);
 
       const result = await markMatchesStale(["match-1", "match-2"]);
 
       expect(result).toBe(2);
-    });
-  });
-
-  describe("countApprovedMatches", () => {
-    it("returns count of approved matches", async () => {
-      const { db } = await import("@/db/db");
-      const mockSelect = vi.mocked(db.select);
-      mockSelect.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([{ count: 42 }]),
-        }),
-      } as never);
-
-      const result = await countApprovedMatches(30);
-
-      expect(result).toBe(42);
-    });
-
-    it("returns 0 when no matches", async () => {
-      const { db } = await import("@/db/db");
-      const mockSelect = vi.mocked(db.select);
-      mockSelect.mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([]),
-        }),
-      } as never);
-
-      const result = await countApprovedMatches(30);
-
-      expect(result).toBe(0);
+      expect(setSpy).toHaveBeenCalledWith({
+        status: "stale",
+        staleAt: expect.any(Date),
+      });
     });
   });
 });

@@ -1317,6 +1317,8 @@ export const jobIngestedHandler = inngest.createFunction(
             normalizedText: normalization.fullText,
             rawJson: null,
             normalizedAt: new Date(),
+            // AI-generated candidate-facing summary (added July 2026).
+            shortDescription: normalization.summary,
             // status stays 'active' — normalizedAt indicates normalization done
           })
           .where(eq(job.id, jobId));
@@ -1425,6 +1427,132 @@ export const jobIngestedHandler = inngest.createFunction(
       candidates: candidates.length,
       queued: candidates.length,
     };
+  },
+);
+
+// ── Job Summary Backfill (added July 2026) ───────────────────────────────────
+
+/**
+ * Job Summary Backfill Sweep — finds active jobs without an AI-generated
+ * shortDescription and emits `job/summarize` events for them.
+ *
+ * Trigger: cron every 6 hours (4x/day). Once all jobs are backfilled, the
+ * query returns 0 rows and the function becomes a cheap no-op.
+ *
+ * Uses event fan-out so the per-job handler respects the concurrency limit
+ * and avoids OpenAI rate limits.
+ */
+export const jobSummaryBackfill = inngest.createFunction(
+  {
+    id: "job-summary-backfill",
+    name: "Job Summary Backfill Sweep",
+    triggers: [{ cron: "0 */6 * * *" }],
+  },
+  async ({ step }) => {
+    const jobs = await step.run("find-jobs-without-summary", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { sql } = await import("drizzle-orm");
+
+      return await db
+        .select({ id: job.id })
+        .from(job)
+        .where(
+          sql`${job.status} = 'active' AND ${job.shortDescription} IS NULL AND ${job.normalizedAt} IS NOT NULL`,
+        )
+        .limit(200);
+    });
+
+    if (jobs.length === 0) {
+      return { queued: 0 };
+    }
+
+    await step.sendEvent(
+      "summarize-fan-out",
+      jobs.map((j) => ({
+        id: `job-summarize-${j.id}-${Date.now()}`,
+        name: "job/summarize",
+        data: { jobId: j.id },
+      })),
+    );
+
+    return { queued: jobs.length };
+  },
+);
+
+/**
+ * Job Summarize Handler — generates one AI summary and writes it to the job row.
+ *
+ * Triggered by: `job/summarize` event (emitted by jobSummaryBackfill).
+ * Concurrency limit 10 matches the existing normalization handler to avoid
+ * OpenAI rate limit exhaustion.
+ */
+export const jobSummarizeHandler = inngest.createFunction(
+  {
+    id: "job-summarize-handler",
+    name: "Job Summarize — Backfill One Job",
+    triggers: [{ event: "job/summarize" }],
+    concurrency: { limit: 10 },
+  },
+  async ({ event, step }) => {
+    const { jobId } = event.data;
+
+    const jobRow = await step.run("fetch-job", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { eq } = await import("drizzle-orm");
+
+      const rows = await db
+        .select({
+          id: job.id,
+          atsSource: job.atsSource,
+          title: job.title,
+          rawJson: job.rawJson,
+          normalizedText: job.normalizedText,
+          shortDescription: job.shortDescription,
+          normalizedAt: job.normalizedAt,
+        })
+        .from(job)
+        .where(eq(job.id, jobId))
+        .limit(1);
+
+      return rows[0] ?? null;
+    });
+
+    if (!jobRow || jobRow.shortDescription || !jobRow.normalizedAt) {
+      return { skipped: true, reason: "already summarized or not normalized" };
+    }
+
+    const summary = await step.run("summarize", async () => {
+      const { extractJobContent, summarizeJobLLM } = await import(
+        "@/lib/jobs/job-normalizer"
+      );
+      const { fullText, title } = extractJobContent(
+        jobRow.atsSource,
+        jobRow.rawJson,
+        jobRow.title,
+        jobRow.normalizedText,
+      );
+      if (fullText.length < 100) return null;
+      return await summarizeJobLLM(fullText, title);
+    });
+
+    if (!summary) {
+      return { skipped: true, reason: "summary generation returned empty" };
+    }
+
+    await step.run("write-summary", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { eq } = await import("drizzle-orm");
+
+      await db
+        .update(job)
+        .set({ shortDescription: summary })
+        .where(eq(job.id, jobId));
+    });
+
+    return { summarized: true };
   },
 );
 

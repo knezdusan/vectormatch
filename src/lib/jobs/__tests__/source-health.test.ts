@@ -38,7 +38,6 @@ import { db } from "@/db/db";
 import {
   disableSource,
   enableSource,
-  getSourceHealth,
   isSourceEnabled,
   recordSourceFailure,
   recordSourceSuccess,
@@ -72,35 +71,6 @@ function lastUpsertArgs(): { target: unknown; set: Record<string, unknown> } {
 describe("Source Health — Circuit Breakers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  // ── getSourceHealth ───────────────────────────────────────────────────────
-  describe("getSourceHealth", () => {
-    it("returns the health row when it exists", async () => {
-      setHealthRow({
-        sourceName: "daily-source-hn-algolia",
-        status: "active",
-        consecutiveFailures: 0,
-        lastSuccessAt: new Date("2026-06-30"),
-        lastFailureAt: null,
-        lastError: null,
-        totalRuns: 10,
-        totalFailures: 0,
-        disabledAt: null,
-        disabledReason: null,
-      });
-
-      const health = await getSourceHealth("daily-source-hn-algolia");
-      expect(health).not.toBeNull();
-      expect(health?.sourceName).toBe("daily-source-hn-algolia");
-      expect(health?.status).toBe("active");
-    });
-
-    it("returns null when the source has never been tracked", async () => {
-      setHealthRow(null);
-      const health = await getSourceHealth("unknown-source");
-      expect(health).toBeNull();
-    });
   });
 
   // ── isSourceEnabled ───────────────────────────────────────────────────────

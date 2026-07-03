@@ -35,11 +35,13 @@ function getInitials(name: string | null | undefined): string {
 interface DashboardSidebarProps {
   session: AuthSession;
   unreadCount?: number;
+  mailUnreadCount?: number;
 }
 
 export function DashboardSidebar({
   session,
   unreadCount = 0,
+  mailUnreadCount = 0,
 }: DashboardSidebarProps) {
   if (!session) {
     return null;
@@ -70,6 +72,7 @@ export function DashboardSidebar({
         <DashboardSidebarNav
           role={session.user.role}
           unreadCount={unreadCount}
+          mailUnreadCount={mailUnreadCount}
         />
       </SidebarContent>
       <SidebarFooter className="gap-3 pb-3">

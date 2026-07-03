@@ -19,6 +19,7 @@ import {
   extractJobContent,
   extractJobMetadata,
   extractJobUrl,
+  type LlmSummaryExtractor,
   type LlmTagExtractor,
   normalizeAggregatorJob,
   normalizeJob,
@@ -946,7 +947,36 @@ describe("normalizeJob", () => {
       throw error;
     };
 
+  // Mock summary extractor — avoids real OpenAI calls during tests.
+  const mockSummaryExtractor: LlmSummaryExtractor = async () =>
+    "Mock summary for testing.";
+
   // ── Phase 1 regex finds ≥1 persona_defining tag → 'normalized' ──────────
+
+  it("includes the AI summary when normalization succeeds", async () => {
+    const rawJson = JSON.stringify({
+      title: "Senior React Engineer",
+      content:
+        "<p>React, TypeScript, and Next.js developer needed. " +
+        "You will build user interfaces and work on a fast-paced team " +
+        "delivering high-quality software products.</p>",
+    });
+    const customSummary =
+      "Senior React engineer building UI with TypeScript and Next.js.";
+    const customSummaryExtractor: LlmSummaryExtractor = async () =>
+      customSummary;
+
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      undefined,
+      customSummaryExtractor,
+    );
+
+    expect(result.status).toBe("normalized");
+    expect(result.summary).toBe(customSummary);
+  });
 
   it("returns 'normalized' when Phase 1 regex finds ≥1 persona_defining tag (no LLM call)", async () => {
     const rawJson = JSON.stringify({
@@ -965,6 +995,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       llmSpy,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("normalized");
@@ -984,7 +1015,13 @@ describe("normalizeJob", () => {
         "Experience with REST and GraphQL is a plus.</p>",
     });
 
-    const result = await normalizeJob("greenhouse", rawJson, "Fallback");
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      undefined,
+      mockSummaryExtractor,
+    );
 
     expect(result.status).toBe("normalized");
     expect(result.fullText).toContain("Python Backend Developer");
@@ -1010,6 +1047,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("normalized");
@@ -1037,6 +1075,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("rejected");
@@ -1060,6 +1099,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("rejected");
@@ -1086,6 +1126,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("normalization_failed");
@@ -1110,6 +1151,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("normalization_failed");
@@ -1132,6 +1174,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       llmSpy,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("rejected");
@@ -1159,6 +1202,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       llmSpy,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("rejected");
@@ -1180,6 +1224,7 @@ describe("normalizeJob", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     // Should NOT be rejected as title_only (fullText is exactly 100 chars)
@@ -1193,7 +1238,13 @@ describe("normalizeJob", () => {
     const content = "A".repeat(83);
     const rawJson = JSON.stringify({ title, content });
 
-    const result = await normalizeJob("greenhouse", rawJson, "Fallback");
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      undefined,
+      mockSummaryExtractor,
+    );
 
     expect(result.status).toBe("rejected");
     expect(result.rejectionReason).toBe("title_only");
@@ -1210,6 +1261,8 @@ describe("normalizeJob", () => {
       "unknown_ats",
       rawJson,
       "React Developer",
+      undefined,
+      mockSummaryExtractor,
     );
 
     // Title "React Developer" + "desc" = 20 chars → rejected by title-only guard
@@ -1222,6 +1275,8 @@ describe("normalizeJob", () => {
       "greenhouse",
       "not json",
       "Python Developer",
+      undefined,
+      mockSummaryExtractor,
     );
 
     // Title "Python Developer" = 16 chars → rejected by title-only guard
@@ -1235,7 +1290,13 @@ describe("normalizeJob", () => {
     const longTitle =
       "Senior Python Developer with Django and PostgreSQL experience needed for backend role " +
       "at a fast-growing startup building scalable web applications with modern technologies";
-    const result = await normalizeJob("greenhouse", "not json", longTitle);
+    const result = await normalizeJob(
+      "greenhouse",
+      "not json",
+      longTitle,
+      undefined,
+      mockSummaryExtractor,
+    );
 
     expect(result.status).toBe("normalized");
     expect(result.tags).toContain("python");
@@ -1428,11 +1489,20 @@ describe("extractJobMetadata — G7 nullable rawJson", () => {
 });
 
 describe("normalizeJob — G7 nullable rawJson", () => {
+  const mockSummaryExtractor: LlmSummaryExtractor = async () =>
+    "Mock summary for testing.";
+
   it("degrades to title-only when rawJson is null (rejected by title-only guard)", async () => {
     // normalizeJob with null rawJson → extractJobContent returns title-only
     // → title-only guard rejects (< 100 chars) → no LLM call needed
     const mockLlm = vi.fn(async () => []) as LlmTagExtractor;
-    const result = await normalizeJob("greenhouse", null, "Manager", mockLlm);
+    const result = await normalizeJob(
+      "greenhouse",
+      null,
+      "Manager",
+      mockLlm,
+      mockSummaryExtractor,
+    );
 
     expect(result.status).toBe("rejected");
     expect(result.rejectionReason).toBe("title_only");
@@ -1459,6 +1529,7 @@ describe("normalizeJob — G7 nullable rawJson", () => {
       rawJson,
       "Fallback",
       mockLlm,
+      mockSummaryExtractor,
     );
 
     expect(result.status).toBe("normalized");

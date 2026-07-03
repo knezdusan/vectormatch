@@ -31,10 +31,9 @@ import {
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Constants ────────────────────────────────────────────────────────────────
-// MIN_FULLTEXT_LENGTH and MAX_DETAIL_FETCHES are imported from
+// MIN_FULLTEXT_LENGTH and MAX_DETAIL_FETCHES are defined in and imported from
 // smartrecruiters-detail.ts (the canonical source) to avoid duplicate
-// declarations. Re-exported here so tests can import from this module.
-export { MAX_DETAIL_FETCHES, MIN_FULLTEXT_LENGTH };
+// declarations. Tests should import them from smartrecruiters-detail.ts.
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

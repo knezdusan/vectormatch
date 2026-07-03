@@ -260,6 +260,20 @@
       "when": 1782997924410,
       "tag": "0036_known_paladin",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1783073265021,
+      "tag": "0037_brief_kinsey_walden",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1783078589717,
+      "tag": "0038_luxuriant_cobalt_man",
+      "breakpoints": true
     }
   ]
 }
