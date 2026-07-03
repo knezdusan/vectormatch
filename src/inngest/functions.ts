@@ -2066,7 +2066,7 @@ export const matchBulkReprocess = inngest.createFunction(
     // per-persona: a job is included if it has tag overlap with a persona AND
     // no match_queue entry for THAT persona. This ensures jobs that have
     // entries for persona A but not persona B are still processed. The
-    // runGateSQLRouter's ON CONFLICT (job_id, persona_id) DO NOTHING handles
+    // runGateSQLRouter's ON CONFLICT (job_id, persona_id) DO UPDATE handles
     // any duplicates safely.
     const jobIds = await step.run("get-unmatched-jobs", async () => {
       const { db } = await import("@/db/db");

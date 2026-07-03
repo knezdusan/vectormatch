@@ -140,7 +140,7 @@ describe("Gate 1+2 SQL shape validation", () => {
     expect(sqlText).toContain("1 -");
   });
 
-  it("uses ON CONFLICT (job_id, persona_id) DO NOTHING", async () => {
+  it("uses ON CONFLICT (job_id, persona_id) DO UPDATE to reset rejected entries", async () => {
     mockExecuteReturns([]);
     await runGateSQLRouter("job-1", ["react"], [0.1, 0.2, 0.3]);
 
@@ -148,7 +148,8 @@ describe("Gate 1+2 SQL shape validation", () => {
     expect(sqlText).toContain("on conflict");
     expect(sqlText).toContain("job_id");
     expect(sqlText).toContain("persona_id");
-    expect(sqlText).toContain("do nothing");
+    expect(sqlText).toContain("do update set");
+    expect(sqlText).toContain("status = 'pending'");
   });
 
   it("uses LIMIT from GATE_ROUTER_LIMIT config", async () => {

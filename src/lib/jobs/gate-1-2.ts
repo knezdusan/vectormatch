@@ -143,8 +143,8 @@ export async function runGateSQLRouter(
   // blocked on ANY match_queue status (including rejected), which prevented
   // re-evaluation of jobs whose sibling was rejected for a different persona.
   // Sprint 8: relaxed to only block 'approved' matches — rejected siblings are
-  // now re-evaluated, and the ON CONFLICT (job_id, persona_id) DO NOTHING
-  // clause prevents duplicate entries at the match_queue level.
+  // now re-evaluated, and the ON CONFLICT (job_id, persona_id) DO UPDATE
+  // clause resets rejected entries to 'pending' for re-evaluation by Gate 3.
   //
   // ── Workplace type pre-filter (Sprint 8 — REMOVED) ────────────────────────
   // The workplace_type pre-filter was removed in Sprint 8. It was blocking 113
@@ -193,7 +193,16 @@ export async function runGateSQLRouter(
         + (1 - (p.persona_embedding <=> ${embeddingStr}::vector)) * ${GATE2_WEIGHT}::real
       ) DESC
     LIMIT ${GATE_ROUTER_LIMIT}
-    ON CONFLICT (job_id, persona_id) DO NOTHING
+    ON CONFLICT (job_id, persona_id) DO UPDATE SET
+      status = 'pending',
+      evaluated_at = NULL,
+      llm_blockers = NULL,
+      llm_reasoning = NULL,
+      llm_confidence = NULL,
+      prompt_variant = EXCLUDED.prompt_variant,
+      match_score = EXCLUDED.match_score,
+      overlap_score = EXCLUDED.overlap_score,
+      cosine_distance = EXCLUDED.cosine_distance
     RETURNING id, persona_id, applicant_id, overlap_score, cosine_distance
   `;
 
@@ -241,7 +250,14 @@ async function runGate1Only(
       AND NOT (p.blocklist_tags && ${sql.raw(tagsArray)})
     ORDER BY ov.overlap_score DESC
     LIMIT ${GATE_ROUTER_LIMIT}
-    ON CONFLICT (job_id, persona_id) DO NOTHING
+    ON CONFLICT (job_id, persona_id) DO UPDATE SET
+      status = 'pending',
+      evaluated_at = NULL,
+      llm_blockers = NULL,
+      llm_reasoning = NULL,
+      llm_confidence = NULL,
+      prompt_variant = EXCLUDED.prompt_variant,
+      overlap_score = EXCLUDED.overlap_score
     RETURNING id, persona_id, applicant_id, overlap_score
   `;
 

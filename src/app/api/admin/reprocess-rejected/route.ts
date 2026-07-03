@@ -1,13 +1,14 @@
 // Temporary endpoint — triggers a bulk reprocess that re-evaluates previously
 // rejected jobs with the updated Gate 3 compliance directive.
 //
-// Usage: curl -X POST https://vectormatch.dev/api/admin/reprocess-rejected
+// Usage: visit https://vectormatch.dev/api/admin/reprocess-rejected in your
+// browser while logged in as admin.
 //
 // DELETE THIS FILE after the one-time reprocess is complete.
 
-import { headers } from "next/headers";
-import { inngest } from "@/inngest/client";
 import { auth } from "@/lib/auth";
+import { inngest } from "@/inngest/client";
+import { headers } from "next/headers";
 
 export async function GET() {
   const session = await auth.api.getSession({
