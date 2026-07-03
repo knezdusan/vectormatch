@@ -196,10 +196,11 @@ export async function runGateSQLRouter(
     ON CONFLICT (job_id, persona_id) DO UPDATE SET
       status = 'pending',
       evaluated_at = NULL,
+      llm_verdict = NULL,
       llm_blockers = NULL,
       llm_reasoning = NULL,
       llm_confidence = NULL,
-      match_score = NULL,
+      llm_model = NULL,
       prompt_variant = NULL,
       overlap_score = EXCLUDED.overlap_score,
       cosine_distance = EXCLUDED.cosine_distance
@@ -253,10 +254,11 @@ async function runGate1Only(
     ON CONFLICT (job_id, persona_id) DO UPDATE SET
       status = 'pending',
       evaluated_at = NULL,
+      llm_verdict = NULL,
       llm_blockers = NULL,
       llm_reasoning = NULL,
       llm_confidence = NULL,
-      match_score = NULL,
+      llm_model = NULL,
       prompt_variant = NULL,
       overlap_score = EXCLUDED.overlap_score
     RETURNING id, persona_id, applicant_id, overlap_score

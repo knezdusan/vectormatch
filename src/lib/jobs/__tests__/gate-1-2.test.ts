@@ -150,7 +150,8 @@ describe("Gate 1+2 SQL shape validation", () => {
     expect(sqlText).toContain("persona_id");
     expect(sqlText).toContain("do update set");
     expect(sqlText).toContain("status = 'pending'");
-    expect(sqlText).toContain("match_score = null");
+    expect(sqlText).toContain("llm_verdict = null");
+    expect(sqlText).toContain("prompt_variant = null");
     expect(sqlText).not.toContain("excluded.match_score");
     expect(sqlText).not.toContain("excluded.prompt_variant");
   });
