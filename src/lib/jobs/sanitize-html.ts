@@ -9,6 +9,7 @@
 // injecting into the DOM is a cheap defensive layer.
 
 import * as cheerio from "cheerio";
+import type { AnyNode, Element } from "domhandler";
 
 const ALLOWED_TAGS = new Set([
   "a",
@@ -42,25 +43,42 @@ const ALLOWED_ATTRIBUTES: Record<string, Set<string>> = {
 
 const FORBIDDEN_URL_SCHEMES = /^\s*(javascript|data|vbscript):/i;
 
+function isElement(node: AnyNode): node is Element {
+  // domhandler marks <script> and <style> as their own node types ("script" and
+  // "style"), but they still carry a tagName and attribs and must be treated as
+  // elements for sanitization.
+  return node.type === "tag" || node.type === "script" || node.type === "style";
+}
+
 export function sanitizeJobDescription(html: string): string {
   if (!html || typeof html !== "string") {
     return "";
   }
 
-  const $ = cheerio.load(html, {
-    // Don't add <html>/<body> wrappers; keep the fragment as-is.
-    _useHtmlParser2: true,
-  });
+  // Load as a fragment (third argument false) so cheerio does not wrap it in
+  // <html><body>. This keeps the returned HTML close to the original input.
+  const $ = cheerio.load(html, undefined, false);
 
   // Walk every element in the fragment.
   $("*").each((_, element) => {
     const node = $(element);
-    const tagName = element.tagName?.toLowerCase() ?? "";
+
+    if (!isElement(element)) {
+      return;
+    }
+
+    const tagName = element.tagName.toLowerCase();
 
     if (!ALLOWED_TAGS.has(tagName)) {
-      // Replace forbidden tags with their text content. This keeps the
-      // readable text without rendering the tag (e.g. <script>).
-      node.replaceWith(node.text());
+      // Dangerous tags (<script>, <style>, <iframe>, etc.) are removed
+      // entirely. For most other forbidden tags we keep the text so that
+      // readable content is not lost, but script/style content is never
+      // user-facing text.
+      if (tagName === "script" || tagName === "style") {
+        node.remove();
+      } else {
+        node.replaceWith(node.text());
+      }
       return;
     }
 
@@ -82,7 +100,5 @@ export function sanitizeJobDescription(html: string): string {
     }
   });
 
-  // cheerio.load with a fragment returns a document with the content inside
-  // <html><head></head><body>...</body></html>. We extract the body content.
-  return $("body").html() ?? "";
+  return $.html() ?? "";
 }

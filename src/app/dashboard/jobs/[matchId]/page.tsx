@@ -312,13 +312,11 @@ export default async function MatchDetailPage({
         {/* Full description */}
         {jobContent.description ? (
           <div
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized
-            // HTML from ATS job descriptions; all scripts, event handlers,
-            // and non-semantic tags are stripped in sanitizeJobDescription.
+            // biome-ignore lint: sanitized HTML from ATS job descriptions; scripts, event handlers, and non-semantic tags are stripped in sanitizeJobDescription.
             dangerouslySetInnerHTML={{
               __html: sanitizeJobDescription(jobContent.description),
             }}
-            className="prose prose-sm max-w-none dark:prose-invert text-sm text-foreground"
+            className="text-sm text-foreground leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-1 [&_a]:text-primary [&_a]:underline [&_strong]:font-semibold [&_em]:italic [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1"
           />
         ) : (
           <p className="text-sm text-muted-foreground italic">
