@@ -199,8 +199,8 @@ export async function runGateSQLRouter(
       llm_blockers = NULL,
       llm_reasoning = NULL,
       llm_confidence = NULL,
-      prompt_variant = EXCLUDED.prompt_variant,
-      match_score = EXCLUDED.match_score,
+      match_score = NULL,
+      prompt_variant = NULL,
       overlap_score = EXCLUDED.overlap_score,
       cosine_distance = EXCLUDED.cosine_distance
     RETURNING id, persona_id, applicant_id, overlap_score, cosine_distance
@@ -256,7 +256,8 @@ async function runGate1Only(
       llm_blockers = NULL,
       llm_reasoning = NULL,
       llm_confidence = NULL,
-      prompt_variant = EXCLUDED.prompt_variant,
+      match_score = NULL,
+      prompt_variant = NULL,
       overlap_score = EXCLUDED.overlap_score
     RETURNING id, persona_id, applicant_id, overlap_score
   `;
