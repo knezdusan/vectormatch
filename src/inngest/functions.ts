@@ -2073,7 +2073,7 @@ export const matchBulkReprocess = inngest.createFunction(
       const { sql } = await import("drizzle-orm");
 
       const result = await db.execute(sql`
-        SELECT DISTINCT j.id
+        SELECT DISTINCT ON (j.id) j.id, j.detected_at
         FROM job j
         ${personaId ? sql`` : sql`JOIN persona p ON (j.extracted_tags && p.must_have_tags)`}
         WHERE j.status = 'active'
@@ -2087,7 +2087,7 @@ export const matchBulkReprocess = inngest.createFunction(
             ${personaId ? sql`AND mq.persona_id = ${personaId}::uuid` : sql`AND mq.persona_id = p.id`}
             ${includeRejected ? sql`AND mq.status = 'approved'` : sql``}
           )
-        ORDER BY j.detected_at DESC
+        ORDER BY j.id, j.detected_at DESC
         LIMIT 1000
       `);
 
