@@ -550,7 +550,7 @@ async function main(): Promise<void> {
   console.log(
     "must be re-calibrated against 20-30 REAL job/persona pairs before",
   );
-  console.log("launch (MODULE_C_DECISIONS.md §13, Feature C6).");
+  console.log("launch (MODULE_C_DECISIONS.md §14, Feature C6).");
   console.log();
 
   process.exit(0);

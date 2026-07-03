@@ -189,7 +189,7 @@ export async function runGateSQLRouter(
       )
     ORDER BY
       (
-        ov.overlap_score * ${GATE1_WEIGHT}::real
+        (1 - EXP(-0.4 * LEAST(ov.overlap_score, 5))) * ${GATE1_WEIGHT}::real
         + (1 - (p.persona_embedding <=> ${embeddingStr}::vector)) * ${GATE2_WEIGHT}::real
       ) DESC
     LIMIT ${GATE_ROUTER_LIMIT}
@@ -320,7 +320,7 @@ export async function explainGateRouter(
       AND p.persona_embedding IS NOT NULL
     ORDER BY
       (
-        ov.overlap_score * ${GATE1_WEIGHT}::real
+        (1 - EXP(-0.4 * LEAST(ov.overlap_score, 5))) * ${GATE1_WEIGHT}::real
         + (1 - (p.persona_embedding <=> ${embeddingStr}::vector)) * ${GATE2_WEIGHT}::real
       ) DESC
     LIMIT ${GATE_ROUTER_LIMIT}

@@ -3,12 +3,11 @@
 // ProfilePersonasForm — editable personas for State 3
 // src/components/onboarding/ProfilePersonasForm.tsx
 
-import { startTransition, useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { startTransition, useActionState, useState } from "react";
 import { updatePersonasAction } from "@/actions/profile";
 import { PersonaSection } from "@/components/onboarding/PersonaSection";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { ProfileFormFooter } from "@/components/onboarding/ProfileFormFooter";
+import { useActionToast } from "@/components/onboarding/useActionToast";
 import type { Persona } from "@/db/schemas/jobs/persona";
 import type { PersonaInput } from "@/lib/onboarding/profile-schemas";
 
@@ -50,15 +49,7 @@ export function ProfilePersonasForm({
     setDraftPersonas(personasToInput(personas));
   };
 
-  useEffect(() => {
-    if (!state) return;
-    if (state.success) {
-      toast.success("Personas saved");
-      onSaved?.();
-    } else if (state.error) {
-      toast.error("Failed to save personas", { description: state.error });
-    }
-  }, [state, onSaved]);
+  useActionToast(state, "Personas saved", "Failed to save personas", onSaved);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,29 +68,13 @@ export function ProfilePersonasForm({
         onChange={setDraftPersonas}
       />
 
-      {state?.error && (
-        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-          {state.error}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Spinner className="mr-2" />}
-          Save personas
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isPending}
-          onClick={() => {
-            reset();
-            onCancel?.();
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
+      <ProfileFormFooter
+        state={state}
+        isPending={isPending}
+        saveLabel="Save personas"
+        onReset={reset}
+        onCancel={onCancel}
+      />
     </form>
   );
 }

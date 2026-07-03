@@ -3,14 +3,14 @@
 // ProfileWorkHistoryForm — editable work history for State 3
 // src/components/onboarding/ProfileWorkHistoryForm.tsx
 
-import { startTransition, useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { startTransition, useActionState, useState } from "react";
 import { updateWorkHistoryAction } from "@/actions/profile";
+import { ProfileFormFooter } from "@/components/onboarding/ProfileFormFooter";
+import { useActionToast } from "@/components/onboarding/useActionToast";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import type { WorkingHistory } from "@/db/schemas/jobs/workingHistory";
 import { TagMultiSelect } from "./TagMultiSelect";
 
@@ -86,15 +86,12 @@ export function ProfileWorkHistoryForm({
     setEntries(workHistoryToEntries(workHistory));
   };
 
-  useEffect(() => {
-    if (!state) return;
-    if (state.success) {
-      toast.success("Work history saved");
-      onSaved?.();
-    } else if (state.error) {
-      toast.error("Failed to save work history", { description: state.error });
-    }
-  }, [state, onSaved]);
+  useActionToast(
+    state,
+    "Work history saved",
+    "Failed to save work history",
+    onSaved,
+  );
 
   const updateEntry = (index: number, patch: Partial<WorkHistoryEntryForm>) => {
     setEntries((prev) =>
@@ -242,29 +239,13 @@ export function ProfileWorkHistoryForm({
         Add job entry
       </Button>
 
-      {state?.error && (
-        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-          {state.error}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Spinner className="mr-2" />}
-          Save work history
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isPending}
-          onClick={() => {
-            reset();
-            onCancel?.();
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
+      <ProfileFormFooter
+        state={state}
+        isPending={isPending}
+        saveLabel="Save work history"
+        onReset={reset}
+        onCancel={onCancel}
+      />
     </form>
   );
 }

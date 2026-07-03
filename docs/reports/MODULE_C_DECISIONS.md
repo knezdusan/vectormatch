@@ -574,7 +574,50 @@ Per AGENTS.md rule 2: import domain logic lazily inside handlers to avoid loadin
 
 ---
 
-## 12. Re-Match Strategy — Deferred to Post-MVP
+## 12. Display Match Score (Dashboard Composite Score)
+
+**Decision:** The dashboard renders a single, composite 0–100 match score derived from multiple signals in `src/lib/jobs/dashboard-queries.ts`. This score is **not** the same as the Gate 1+2 router's composite ordering score (used only to rank candidates in `gate-1-2.ts`). It is a user-facing calibration score that combines positive match signals with negative mismatch signals.
+
+**Formula (July 2026):**
+
+```text
+score = clamp(
+  similarity * 0.25
+  + overlapNormalized * 0.30
+  + workplaceMatch * 0.12
+  + locationMatch * 0.08
+  + seniorityMatch * 0.08
+  + companyQuality * 0.17
+  - blocklistPenalty * 0.10
+  - coverageGap * 0.10
+  - secondaryDomainMismatch * 0.08,
+  0, 1
+) * 100
+```
+
+| Signal | Computation | Weight |
+|---|---|---|
+| Semantic similarity | `1 - cosineDistance` | 0.25 |
+| Tag overlap | `1 - exp(-0.4 * min(overlapScore, 5))` | 0.30 |
+| Workplace alignment | `assignmentTypes` vs. `job.workplaceType` (exact = 1.0, hybrid/remote partial = 0.5, mismatch = 0.0) | 0.12 |
+| Location alignment | `applicant.country` vs. `job.locationName` (country-specific remote = 1.0, generic remote = 1.0, restricted country = 0.0, unknown = 0.5) | 0.08 |
+| Seniority alignment | `job.title` regex vs. `persona.seniorityLevels` (match = 1.0, mismatch = 0.0, unknown = 0.5) | 0.08 |
+| Company quality | `companyQualityScore / 100` (default 50) | 0.17 |
+| Blocklist penalty | `1.0` if `blocklistTags && extractedTags`, else `0.0` | 0.10 |
+| Coverage gap | `1 - overlapScore / min(mustHaveCount, jobTagCount)` | 0.10 |
+| Secondary domain mismatch | `min(count / 3, 1.0)` where `count` is the number of alternative framework/language tags in `extractedTags` not present in `mustHaveTags` | 0.08 |
+
+**Alternative framework/language list for secondary domain mismatch:** `wordpress`, `vue`, `nuxt`, `angular`, `svelte`, `solidjs`, `php`, `laravel`, `ruby`, `rails`, `csharp`, `dotnet`, `aspnet`, `swift`, `kotlin`, `flutter`, `ios`, `android`. General-purpose backend/AI languages (`python`, `go`, `golang`, `rust`, `java`, `spring`, `spring-boot`, `django`, `flask`, `fastapi`) are intentionally excluded to avoid penalizing legitimate AI/full-stack secondary skills.
+
+**Rationale:** Gate 1+2 scores (overlap, cosine distance) are insufficient for a user-facing quality signal. The LLM rejects matches for reasons that are not captured by tag overlap or vector similarity alone — missing must-have skills, blocklist hits, or off-domain framework requirements. The composite score encodes these mismatch signals so the dashboard ranking and star rating reflect the same factors that drive the LLM verdict.
+
+**Calibration status:** The weights are tuned empirically against live `match_queue` data (July 2026). The current gap between approved (avg ~54.1/100) and rejected (avg ~39.9/100) matches is ~14 points. The next targeted signal is an experience gap (extracting `min_experience_years` from job descriptions and comparing to persona-inferred experience).
+
+**Ordering:** The dashboard list is ordered by this composite score descending, then `createdAt` descending.
+
+---
+
+## 13. Re-Match Strategy — Deferred to Post-MVP
 
 **Problem:** When a user updates their persona (changes `mustHaveTags`), or when a job's `rawJson` is refreshed on re-poll, the existing matches may be stale. Module A regenerates persona embeddings on tag changes, but nothing re-triggers Module C for affected jobs.
 
@@ -586,7 +629,7 @@ Per AGENTS.md rule 2: import domain logic lazily inside handlers to avoid loadin
 
 ---
 
-## 13. Implementation Feature Sequence
+## 14. Implementation Feature Sequence
 
 Module C is implemented as 7 isolated features, each independently shippable and testable. Ordered by dependency.
 
@@ -600,7 +643,7 @@ Module C is implemented as 7 isolated features, each independently shippable and
 | **C2** — Gate 1+2 SQL router | `gate-1-2.ts` (raw SQL, `unnest`/`= ANY` overlap count, composite ordering, edge cases), wire into `jobIngestedHandler` step 5, `matchQueue` insertion | Unit: SQL shape validation (assert `unnest` not `&`), result parsing, edge cases. Integration: `EXPLAIN ANALYZE` against seed data from C5 — verify GIN + HNSW index usage | 1 day |
 | **C3** — Gate 3 LLM evaluator | `gate-3-evaluator.ts` (Zod schema, prompt builder, `generateObject`), `gate3Evaluator` Inngest function, `match/gate-3-evaluate` fan-out from `jobIngestedHandler`, `match/approved` emission | Unit: prompt construction, verdict parsing (mocked AI SDK), Inngest function (mocked evaluator) | 1.5 days |
 | **C4** — In-app notification | `/dashboard/jobs` page query, `isRead` Server Action, sidebar unread badge, 30s polling | Component test: badge renders correct count. E2E: approved match appears in dashboard | 0.5 day |
-| **C6** — Calibration & observability *(launch-blocking)* | Run 20–30 real jobs through funnel, inspect verdicts, tune `GATE2_MAX_COSINE_DISTANCE` and weights, add Inngest step metrics | Manual calibration document with tuned values | 1 day |
+| **C6** — Calibration & observability *(launch-blocking)* | Run 20–30 real jobs through funnel, inspect verdicts, tune `GATE2_MAX_COSINE_DISTANCE` and weights, add Inngest step metrics. **Display score calibration (July 2026):** Add composite match score in `dashboard-queries.ts`, add negative signals (blocklist penalty, coverage gap, secondary domain mismatch), tune weights against live `match_queue` data. | Manual calibration document with tuned values; dashboard score verified against SQL/manual recomputation | 1 day + ongoing calibration |
 
 **Total: ~6 days for a focused implementation.** Longer if learning Inngest/pgvector as you go — and that's fine.
 
@@ -610,7 +653,7 @@ Module C is implemented as 7 isolated features, each independently shippable and
 
 ---
 
-## 14. Open Questions (Not Blocking, Track for Post-MVP)
+## 15. Open Questions (Not Blocking, Track for Post-MVP)
 
 1. **Gate 3 model escalation:** When should a borderline verdict (confidence 0.4–0.6) be re-evaluated by `gpt-4o` instead of `gpt-4o-mini`? Post-MVP: two-pass Gate 3 with confidence-based escalation.
 2. **Funnel observability metrics:** What dashboard metrics track gate conversion rates (jobs ingested → normalized → Gate 1+2 passed → Gate 3 approved)? Post-MVP: Inngest step naming convention + a metrics query.
@@ -618,3 +661,4 @@ Module C is implemented as 7 isolated features, each independently shippable and
 4. **Dynamic Gate 2 widening:** If all 8 Gate 1+2 candidates fail Gate 3, should the funnel re-run with a wider `GATE2_MAX_COSINE_DISTANCE`? Post-MVP: adaptive widening with a cap.
 5. **`defer()` and checkpointing migration:** When Inngest stabilizes `defer()` (no longer EXPERIMENTAL) and checkpointing (no longer developer preview), revisit both as a paired item. Migrate the `match/approved` emission from `step.sendEvent()` to `defer()` for fire-and-forget semantics with independent retries. Enable checkpointing on `gate3Evaluator` if the inter-step latency win is measurable.
 6. **Gate 3 error recovery sweep:** The Gate 3 error path (§6.5) leaves `matchQueue` rows at `status = 'pending'` with `llmVerdict = 'error'` when the LLM returns unparseable output or all retries exhaust. These rows are recoverable only by a future sweep that re-emits `match/gate-3-evaluate` for `pending` rows older than N hours. This sweep does not exist in MVP — it's acceptable because error rows are rare (LLM parse failures are uncommon with `generateObject` + Zod enforcement), but the sweep should be built before scale to prevent error rows from accumulating invisibly.
+7. **Experience gap signal:** Jobs rejected for requiring more years of experience than the persona has (e.g., "8+ years" vs. persona inferred at "7+ years") still score high because the formula has no experience component. Post-MVP: extract `min_experience_years` from job descriptions via regex or LLM, compare to persona-inferred experience, and add a negative signal.

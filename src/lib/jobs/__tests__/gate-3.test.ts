@@ -1,7 +1,7 @@
 /**
  * Unit tests for Module C — Gate 3 LLM Arbiter (Step 6 of the 3-Gate Funnel).
  *
- * Test coverage (MODULE_C_DECISIONS.md §13, Feature C3):
+ * Test coverage (MODULE_C_DECISIONS.md §14, Feature C3):
  *   - buildGate3Prompt: context assembly (job + persona + applicant sections)
  *   - gate3VerdictSchema: Zod validation (approved, confidence, reasoning, blockers)
  *   - evaluateGate3: LLM call with mocked generateObject

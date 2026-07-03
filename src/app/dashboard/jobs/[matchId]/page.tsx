@@ -17,6 +17,7 @@ import { getAuthSession } from "@/lib/auth";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import { getMatchDetail } from "@/lib/jobs/dashboard-queries";
 import { extractJobContent, extractJobUrl } from "@/lib/jobs/job-normalizer";
+import { sanitizeJobDescription } from "@/lib/jobs/sanitize-html";
 
 export const metadata = {
   title: "Match Detail | VectorMatch",
@@ -310,9 +311,15 @@ export default async function MatchDetailPage({
 
         {/* Full description */}
         {jobContent.description ? (
-          <pre className="whitespace-pre-wrap break-words text-sm text-foreground font-sans leading-relaxed">
-            {jobContent.description}
-          </pre>
+          <div
+            // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized
+            // HTML from ATS job descriptions; all scripts, event handlers,
+            // and non-semantic tags are stripped in sanitizeJobDescription.
+            dangerouslySetInnerHTML={{
+              __html: sanitizeJobDescription(jobContent.description),
+            }}
+            className="prose prose-sm max-w-none dark:prose-invert text-sm text-foreground"
+          />
         ) : (
           <p className="text-sm text-muted-foreground italic">
             No description available in raw JSON.

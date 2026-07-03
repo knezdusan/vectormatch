@@ -13,12 +13,13 @@
 import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { and, desc, eq, inArray } from "drizzle-orm";
+import type { z } from "zod";
 
 import { db } from "@/db/db";
 import { applicant, cvUpload, persona, workingHistory } from "@/db/schemas";
 import { inngest } from "@/inngest/client";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
-import { getAuthSession } from "@/lib/auth";
+import { type AuthSession, getAuthSession } from "@/lib/auth";
 import { CANONICAL_TAGS, PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
 import {
   reparseCvSchema,
@@ -51,6 +52,47 @@ function ok(): ActionState {
   return { error: null, success: true };
 }
 
+/**
+ * Authenticate the caller, extract the JSON `payload` from FormData, and
+ * validate it against `schema`. Returns a discriminated union so callers can
+ * early-return on failure with `fail(result.error)` or destructure
+ * `{ session, data }` on success.
+ *
+ * Consolidates the 4 identical auth+parse prologues previously duplicated at
+ * the top of every profile action.
+ */
+type AuthenticatedParseResult<T> =
+  | { success: false; error: string }
+  | { success: true; session: NonNullable<AuthSession>; data: T };
+
+async function authenticateAndParse<T>(
+  formData: FormData,
+  schema: z.ZodType<T>,
+): Promise<AuthenticatedParseResult<T>> {
+  const session = await getAuthSession();
+  if (!session) return { success: false, error: "Not authenticated" };
+
+  const payloadJson = formData.get("payload") as string | null;
+  if (!payloadJson) return { success: false, error: "Missing payload" };
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(payloadJson);
+  } catch {
+    return { success: false, error: "Invalid JSON payload" };
+  }
+
+  const parsed = schema.safeParse(payload);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid payload",
+    };
+  }
+
+  return { success: true, session, data: parsed.data };
+}
+
 // Reused from parseCvAction — kept in sync with the canonical taxonomy.
 const CANONICAL_TAG_LIST = CANONICAL_TAGS.map((t) => t.tag).join(", ");
 const PERSONA_DEFINING_TAG_LIST = Array.from(PERSONA_DEFINING_TAGS).join(", ");
@@ -77,34 +119,20 @@ export async function updateApplicantPreferencesAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const session = await getAuthSession();
-  if (!session) return fail("Not authenticated");
-
-  const payloadJson = formData.get("payload") as string | null;
-  if (!payloadJson) return fail("Missing payload");
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return fail("Invalid JSON payload");
-  }
-
-  const parsed = updatePreferencesSchema.safeParse(payload);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid payload");
-  }
+  const result = await authenticateAndParse(formData, updatePreferencesSchema);
+  if (!result.success) return fail(result.error);
+  const { session, data } = result;
 
   try {
     await db
       .update(applicant)
       .set({
-        country: parsed.data.country,
-        canWorkUsHours: parsed.data.canWorkUsHours,
-        assignmentTypes: parsed.data.assignmentTypes,
-        modalities: parsed.data.modalities,
-        preferredCompliance: parsed.data.preferredCompliance,
-        seniorityLevels: parsed.data.seniorityLevels,
+        country: data.country,
+        canWorkUsHours: data.canWorkUsHours,
+        assignmentTypes: data.assignmentTypes,
+        modalities: data.modalities,
+        preferredCompliance: data.preferredCompliance,
+        seniorityLevels: data.seniorityLevels,
       })
       .where(eq(applicant.userId, session.user.id));
 
@@ -122,25 +150,14 @@ export async function updateWorkHistoryAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const session = await getAuthSession();
-  if (!session) return fail("Not authenticated");
+  const result = await authenticateAndParse(
+    formData,
+    updateWorkHistoryPayloadSchema,
+  );
+  if (!result.success) return fail(result.error);
+  const { session, data } = result;
 
-  const payloadJson = formData.get("payload") as string | null;
-  if (!payloadJson) return fail("Missing payload");
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return fail("Invalid JSON payload");
-  }
-
-  const parsed = updateWorkHistoryPayloadSchema.safeParse(payload);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid payload");
-  }
-
-  const { entries } = parsed.data;
+  const { entries } = data;
   const userId = session.user.id;
 
   try {
@@ -256,25 +273,14 @@ export async function updatePersonasAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const session = await getAuthSession();
-  if (!session) return fail("Not authenticated");
+  const result = await authenticateAndParse(
+    formData,
+    updatePersonasPayloadSchema,
+  );
+  if (!result.success) return fail(result.error);
+  const { session, data } = result;
 
-  const payloadJson = formData.get("payload") as string | null;
-  if (!payloadJson) return fail("Missing payload");
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return fail("Invalid JSON payload");
-  }
-
-  const parsed = updatePersonasPayloadSchema.safeParse(payload);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid payload");
-  }
-
-  const { personas: personasInput } = parsed.data;
+  const { personas: personasInput } = data;
   const userId = session.user.id;
 
   // Enforce at least one persona-defining tag per persona (same rule as onboarding).
@@ -440,25 +446,11 @@ export async function reparseCvAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const session = await getAuthSession();
-  if (!session) return fail("Not authenticated");
+  const result = await authenticateAndParse(formData, reparseCvSchema);
+  if (!result.success) return fail(result.error);
+  const { session, data } = result;
 
-  const payloadJson = formData.get("payload") as string | null;
-  if (!payloadJson) return fail("Missing payload");
-
-  let payload: unknown;
-  try {
-    payload = JSON.parse(payloadJson);
-  } catch {
-    return fail("Invalid JSON payload");
-  }
-
-  const parsed = reparseCvSchema.safeParse(payload);
-  if (!parsed.success) {
-    return fail(parsed.error.issues[0]?.message ?? "Invalid payload");
-  }
-
-  const { cvUploadId } = parsed.data;
+  const { cvUploadId } = data;
   const userId = session.user.id;
 
   try {

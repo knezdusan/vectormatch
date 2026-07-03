@@ -1,0 +1,640 @@
+Analyzing all approved matches in the system
+
+Found 30 approved matches
+
+## Summary Statistics
+
+- Average match score: 52.8/100
+- Score range: 32 - 73
+- Average LLM confidence: 0.87
+- Score distribution:
+  90-100: 0
+  80-89: 0
+  70-79: 3
+  60-69: 5
+  50-59: 6
+  40-49: 15
+  below 40: 1
+
+## SQL vs Manual Score Verification
+
+✅ All SQL scores match manual recomputation
+
+## Per-Match Analysis
+
+### 1. Senior Frontend Engineer
+  Company: hirehangar
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 73/100 (3.5/5 stars)
+  Cosine distance: 0.4545
+  Overlap: 4
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Mexico - Mexico City, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Frontend Engineer, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.200
+  Secondary domain mismatch: 0.000
+  Company quality: 80
+  Matched at: 2026-07-02T10:02:47.152Z
+  LLM reasoning: The job aligns well with the persona’s must-have skills in React, Next.js, TypeScript, and Tailwind CSS. There are soft concerns regarding the remote work restriction as the applicant is located in Serbia, but since the job allows for remote work, this should not be a disqualifier. Additionally, the seniority level is appropriate for the applicant's experience.
+
+### 2. Senior Frontend Engineer
+  Company: hirehangar
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 73/100 (3.5/5 stars)
+  Cosine distance: 0.4494
+  Overlap: 4
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Mexico - Mexico City, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Frontend Engineer, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.200
+  Secondary domain mismatch: 0.000
+  Company quality: 80
+  Matched at: 2026-07-02T10:02:47.152Z
+  LLM reasoning: The job aligns well with the applicant's tech stack, particularly in React, Next.js, and TypeScript, and the applicant's extensive experience exceeds the requirements for seniority. Although the job location is specified as Mexico City, the remote work structure and the applicant’s willingness to work US hours make this a strong match. There are no hard blockers present.
+
+### 3. Frontend-Focused Full Stack Developer
+  Company: hirehangar
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 70/100 (3.5/5 stars)
+  Cosine distance: 0.4263
+  Overlap: 4
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Mexico - Mexico City, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Frontend-Focused Full Stack Developer, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.200
+  Secondary domain mismatch: 0.000
+  Company quality: 80
+  Matched at: 2026-07-02T10:02:36.040Z
+  LLM reasoning: The job aligns well with the persona's tech stack, particularly in React, Next.js, and TypeScript. There are no hard blockers related to location or workplace type, as the role is remote and the persona can work US hours, despite being based in Serbia. Additionally, the persona's extensive experience and qualifications meet the seniority expectations for the role.
+
+### 4. Frontend-Focused Full Stack Developer
+  Company: hirehangar
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 69/100 (3.5/5 stars)
+  Cosine distance: 0.4558
+  Overlap: 4
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Mexico - Mexico City, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Frontend-Focused Full Stack Developer, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.200
+  Secondary domain mismatch: 0.000
+  Company quality: 80
+  Matched at: 2026-07-02T10:02:36.040Z
+  LLM reasoning: The job's required tech stack aligns well with the persona's expertise, particularly in React, Next.js, TypeScript, and Tailwind CSS. The seniority level appears to match as the role seeks a 'senior' level developer, which fits the persona's profile. There are no hard blockers, as the role is fully remote and the applicant has the required remote work experience and compliance options.
+
+### 5. Full Stack Software Engineer - Canada
+  Company: Reacher
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 69/100 (3.5/5 stars)
+  Cosine distance: 0.4993
+  Overlap: 4
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Remote, applicant=RS, match=1
+  Seniority: persona=senior, lead, title=Full Stack Software Engineer - Canada, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.200
+  Secondary domain mismatch: 0.667
+  Company quality: 100
+  Matched at: 2026-07-01T18:47:02.317Z
+  LLM reasoning: This job aligns well with the developer persona's must-have tags, particularly requiring expertise in TypeScript, React, and Next.js. Additionally, the role is remote and matches the preferred full-time assignment type, while also fitting the seniority level desired by the persona.
+
+### 6. Software Engineer - Latam
+  Company: Reacher
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 69/100 (3.5/5 stars)
+  Cosine distance: 0.4980
+  Overlap: 4
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Remote, applicant=RS, match=1
+  Seniority: persona=senior, lead, title=Software Engineer - Latam, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.200
+  Secondary domain mismatch: 0.667
+  Company quality: 100
+  Matched at: 2026-07-01T18:47:02.251Z
+  LLM reasoning: The job's tech stack aligns well with the persona's skills, especially in Next.js, React, TypeScript, and prompt engineering. The seniority level also fits the persona's extensive experience in full-stack development. There are no hard blockers related to workplace type or country restrictions, making this a strong match.
+
+### 7. Full Stack Software Engineer
+  Company: Ketryx
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 61/100 (3/5 stars)
+  Cosine distance: 0.4984
+  Overlap: 3
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=hybrid, applicant=remote, match=0.5
+  Location: job=Vienna, Austria, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Full Stack Software Engineer, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 0.000
+  Company quality: 100
+  Matched at: 2026-07-03T14:13:01.682Z
+  LLM reasoning: The job aligns well with the applicant's skills in TypeScript, Next.js, and React, all essential for the role. Although the position prefers in-person work in Vienna, the company is open to remote employment for exceptional candidates, making it a viable option for someone with the applicant's extensive experience. There are no hard blockers present that would disqualify the application.
+
+### 8. Senior Frontend Engineer
+  Company: Weave
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 61/100 (3/5 stars)
+  Cosine distance: 0.4896
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=hybrid, applicant=remote, match=0.5
+  Location: job=San Francisco Bay Area, CA, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Frontend Engineer, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.333
+  Secondary domain mismatch: 0.000
+  Company quality: 100
+  Matched at: 2026-07-02T22:01:36.282Z
+  LLM reasoning: The job aligns well with the applicant's skill set in TypeScript and React. Although the applicant focuses on Next.js, which is not a mandatory requirement for this role, their extensive background and seniority fit are strong positives. The hybrid workplace model is a soft concern since the applicant can work US hours and has the necessary compliance, making this a plausible match overall.
+
+### 9. Software Engineer - Frontend
+  Company: Mach9
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 56/100 (3/5 stars)
+  Cosine distance: 0.4887
+  Overlap: 3
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=N/A, applicant=remote, match=0.5
+  Location: job=San Francisco, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Engineer - Frontend, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.000
+  Secondary domain mismatch: 0.000
+  Company quality: 50
+  Matched at: 2026-07-01T19:21:36.285Z
+  LLM reasoning: The job requires React, Next.js, TypeScript, and Tailwind, all of which align well with the applicant's skill set. Although the job does not specify a workplace type, the applicant's remote work preference and compliance options mitigate potential concerns. Overall, the technical expertise and seniority preference match well, making it a strong fit.
+
+### 10. Senior Full-stack Engineer (React+.NET)
+  Company: Pearl
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 55/100 (3/5 stars)
+  Cosine distance: 0.4793
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=N/A, applicant=remote, match=0.5
+  Location: job=Ukraine, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Full-stack Engineer (React+.NET), match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.333
+  Company quality: 100
+  Matched at: 2026-07-03T14:15:33.836Z
+  LLM reasoning: The job aligns well with the applicant's skill set, particularly in React and TypeScript, while also engaging with AI-related technologies. While the employment type and workplace arrangement are unspecified, the lack of explicit W-2 language allows room for contractor flexibility, making this a plausible fit.
+
+### 11. Senior Software Engineer
+  Company: Pearl
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 55/100 (3/5 stars)
+  Cosine distance: 0.4808
+  Overlap: 2
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=N/A, applicant=remote, match=0.5
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Software Engineer, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.333
+  Company quality: 100
+  Matched at: 2026-07-03T14:10:55.686Z
+  LLM reasoning: The job's tech stack aligns well with the applicant's experience in React, TypeScript, and JavaScript, though the specific mention of C# adds a soft concern since it's not part of the applicant's core expertise. Additionally, the workplace type is not specified, providing flexibility for remote work, and the applicant's compliance makes them suitable for this role. The seniority level matches prefectly, given the applicant's extensive experience.
+
+### 12. Member of Technical Staff (Software Engineer, Computer Growth)
+  Company: perplexity (opens in new tab)
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 55/100 (3/5 stars)
+  Cosine distance: 0.4984
+  Overlap: 3
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=N/A, applicant=remote, match=0.5
+  Location: job=San Francisco, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Member of Technical Staff (Software Engineer, Computer Growth), match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 1.000
+  Company quality: 100
+  Matched at: 2026-07-01T18:47:02.086Z
+  LLM reasoning: The tech stack aligns well with the persona's must-have skills (TypeScript, Next.js, React), and they have extensive experience and a strong profile, which exceeds the minimum experience outlined in the job posting. There are no hard blockers or major concerns; however, the unspecified workplace type is noted but is acceptable due to the applicant's remote assignment preference.
+
+### 13. Frontend Engineer （業務委託）
+  Company: Tailor
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 55/100 (3/5 stars)
+  Cosine distance: 0.4746
+  Overlap: 3
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Tokyo, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Frontend Engineer （業務委託）, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 0.333
+  Company quality: 50
+  Matched at: 2026-06-29T22:09:59.326Z
+  LLM reasoning: The job aligns well with the applicant's skill set, particularly in React, TypeScript, and Next.js. While the job requests 5+ years of experience and the persona has 7+, there's also a focus on tech lead experience, which the persona likely meets. No hard blockers are present, and the remote work compatibility is favorable.
+
+### 14. Software Engineer - Applied AI 
+  Company: DevRev
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 50/100 (2.5/5 stars)
+  Cosine distance: 0.4716
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Philippines Remote, applicant=RS, match=1
+  Seniority: persona=senior, lead, title=Software Engineer - Applied AI , match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.667
+  Company quality: 50
+  Matched at: 2026-07-03T18:03:43.784Z
+  LLM reasoning: The job aligns well with the persona's tech stack, particularly in TypeScript, Python, and prompt engineering, which the applicant is experienced in. While the job does not specify employment type, the remote nature allows for flexibility, and the candidate has the necessary compliance to work remotely. The seniority level is consistent with the applicant's extensive experience, making this a strong match overall.
+
+### 15. Software Development Engineer III (Full Stack) - Agency Experience
+  Company: gohighlevel
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 48/100 (2.5/5 stars)
+  Cosine distance: 0.4442
+  Overlap: 3
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III (Full Stack) - Agency Experience, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:57.109Z
+  LLM reasoning: The job aligns well with the persona's tech stack, particularly in TypeScript, React, and Tailwind CSS. While there is a slight divergence with the inclusion of Node.js and NestJS on the backend, this is not a hard blocker given the persona's knowledge base. The position is remote, which matches the applicant's preferences, and there are no disqualifying geographic restrictions.
+
+### 16. Software Development Engineer III (Full Stack) - Agency Experience
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 48/100 (2.5/5 stars)
+  Cosine distance: 0.4371
+  Overlap: 3
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III (Full Stack) - Agency Experience, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:57.109Z
+  LLM reasoning: The job matches well with the persona's tech stack, especially in TypeScript, Node.js, and React, while also allowing for experience in other frameworks like Angular and Vue. The seniority level aligns as well, given the requirement of 4+ years, while the persona holds 15+ years. The remote workplace type fits the applicant's preferences and country restrictions can be managed with their compliance options, making this a strong match overall.
+
+### 17. Software Development Engineer III - Users
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 48/100 (2.5/5 stars)
+  Cosine distance: 0.4206
+  Overlap: 2
+  LLM confidence: 0.8
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Users, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.000
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:21.690Z
+  LLM reasoning: The job's required skills largely align with the persona's expertise, particularly in TypeScript, Node.js, and JavaScript, and the experience in user management systems complements the persona's extensive background in web development. Although the persona's focus on Next.js and some specific technologies like PostgreSQL and AI integration may not perfectly match the job's requirements, the alignment in full-stack capabilities and the seniority level being a fit supports approval.
+
+### 18. Software Development Engineer III (Fullstack) - Contacts
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 48/100 (2.5/5 stars)
+  Cosine distance: 0.4281
+  Overlap: 3
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III (Fullstack) - Contacts, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:06.489Z
+  LLM reasoning: The job aligns well with the candidate's tech stack, particularly in Node.js and frontend development with React or Vue.js, which is an acceptable substitute given the persona's strong React background. While the job requires experience with specific technologies like Elasticsearch and RabbitMQ, the applicant's extensive experience and adaptability suggest they could quickly bridge any gaps. There are no hard blockers, as the applicant can work remotely and complies with preferred modalities.
+
+### 19. Senior Forward Deployed Engineer
+  Company: DevRev
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 47/100 (2.5/5 stars)
+  Cosine distance: 0.4716
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=N/A, applicant=remote, match=0.5
+  Location: job=Ljubljana, Ljubljana, Slovenia, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Forward Deployed Engineer, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.333
+  Company quality: 50
+  Matched at: 2026-07-03T18:01:29.341Z
+  LLM reasoning: The job aligns well with the persona's skills in TypeScript and prompt engineering, along with relevant experience in Python and SQL. The seniority level is appropriate for the persona given their extensive background, and there are no hard blockers since the job does not specify employment type or has specific geographic restrictions.
+
+### 20. Software Development Engineer III - Full Stack Development - Ads Manager Team
+  Company: gohighlevel
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 47/100 (2.5/5 stars)
+  Cosine distance: 0.4995
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Full Stack Development - Ads Manager Team, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.333
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:42.061Z
+  LLM reasoning: The job aligns well with the persona's skills in TypeScript and Node.js, and includes both React and AWS, which the applicant can utilize. Although the role primarily focuses on backend development, the applicant's strong frontend experience with React makes them a suitable fit. There are no hard blockers, and the workplace type is compatible with the applicant's preference for remote opportunities.
+
+### 21. Lead Engineer - Courses
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 46/100 (2.5/5 stars)
+  Cosine distance: 0.4184
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Lead Engineer - Courses, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:32.014Z
+  LLM reasoning: The job's tech stack aligns well with the persona's expertise in React and Node.js, and the role offers a seniority level consistent with their experience. There are no hard blockers, as the job is fully remote and the compliance preferences align with potential geographic restrictions.
+
+### 22. Lead Engineer - Revex Platform
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 46/100 (2.5/5 stars)
+  Cosine distance: 0.4143
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Lead Engineer - Revex Platform, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:16.125Z
+  LLM reasoning: The job aligns well with the persona's tech skills, particularly in React, Node.js, and CI/CD practices. Additionally, the seniority level of Lead Engineer matches the persona's preferred seniority. There are no hard blockers to prevent approval, although the position is based in India and the persona is located in Serbia, but this is softened by the compliance options available.
+
+### 23. Software Development Engineer III - Fullstack
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 46/100 (2.5/5 stars)
+  Cosine distance: 0.3881
+  Overlap: 3
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Fullstack, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.400
+  Secondary domain mismatch: 1.000
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:13.612Z
+  LLM reasoning: The job requires skills that align closely with the persona's must-have tags, specifically TypeScript, Node.js, and React. Additionally, the remote nature of the position fits the applicant's assignment preferences. The applicant's experience level appears to match the seniority needed for this role.
+
+### 24. Senior Software Engineer, Frontend - Care Platform Clinical Workflows
+  Company: ro
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 45/100 (2.5/5 stars)
+  Cosine distance: 0.4738
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=hybrid, applicant=remote, match=0.5
+  Location: job=New York, NY, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Senior Software Engineer, Frontend - Care Platform Clinical Workflows, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.500
+  Secondary domain mismatch: 0.000
+  Company quality: 13
+  Matched at: 2026-07-02T10:00:55.326Z
+  LLM reasoning: The job aligns well with the developer persona's skills in React and TypeScript, and while it doesn't specifically mention Next.js, the experience the persona has with similar technologies can be leveraged. The hybrid workplace type is a soft concern since the persona only indicates remote preference but has w8ben compliance, which indicates potential flexibility. There's no hard blockers present, making this opportunity a strong match overall.
+
+### 25. Software Development Engineer III - Core CRM
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 45/100 (2.5/5 stars)
+  Cosine distance: 0.4068
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Core CRM, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.333
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:41.224Z
+  LLM reasoning: The job's tech stack aligns well with the persona's skills, particularly in Node.js, TypeScript, and API design, despite the position requiring Vue instead of React. The seniority level of the role is suitable, and no hard blockers are present, with remote work being possible. The applicant's compliance preferences allow for flexibility in geographic restrictions, making this a strong fit overall.
+
+### 26. Staff Engineer - Platform Engineering
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 43/100 (2/5 stars)
+  Cosine distance: 0.4766
+  Overlap: 1
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Staff Engineer - Platform Engineering, match=1
+  Blocklist penalty: 0
+  Coverage gap: 0.750
+  Secondary domain mismatch: 0.000
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:28.830Z
+  LLM reasoning: The job is a strong match due to the alignment in the tech stack, particularly Node.js, and the role's seniority level, which fits the candidate's extensive experience. The remote workplace type aligns with the applicant's preferences, although the applicant is located in Serbia and the job is posted for India, but given the remote nature and preferred compliance options, this should not be a disqualifier.
+
+### 27. Software Development Engineer III - Backend Developer (Courses)
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 42/100 (2/5 stars)
+  Cosine distance: 0.4219
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=Delhi, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Backend Developer (Courses), match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:41.009Z
+  LLM reasoning: The tech stack aligns well with the applicant's skills, particularly with Node.js, JavaScript, and MySQL, and the applicant has extensive experience in full-stack development. Although the job prefers Vue.js, the applicant's strong background in React and general web development makes them a competent candidate. There are no hard blockers related to geographical constraints or employment type, supporting a strong match overall.
+
+### 28. Software Development Engineer III - Full Stack Development (Platform Experience)
+  Company: gohighlevel
+  Persona: Next.js / AI Full-Stack Engineer
+  Status: approved
+  Match score: 42/100 (2/5 stars)
+  Cosine distance: 0.4219
+  Overlap: 2
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Full Stack Development (Platform Experience), match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:09.570Z
+  LLM reasoning: The job aligns well with the applicant's technical skills in React, Node.js, and Redis, even though it doesn't specifically list TypeScript and Next.js, which are part of the persona's must-have tags. The seniority level is also a fit, as the role requires 5+ years of experience, while the persona has over 15 years. The remote work option is compatible with the applicant's assignment types, and there are no hard blockers present.
+
+### 29. Software Development Engineer III (Fullstack) - Contacts
+  Company: gohighlevel
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 41/100 (2/5 stars)
+  Cosine distance: 0.4682
+  Overlap: 2
+  LLM confidence: 0.9
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III (Fullstack) - Contacts, match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.600
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:06.489Z
+  LLM reasoning: The job requires skills aligned with the persona's expertise, including Node.js and TypeScript, and offers a preference for React, which the persona excels in. The role's remote nature matches the applicant's 'remote' assignment type, and while the exact seniority request is not specified, the persona's experience is sufficient for a senior position. There are no blockers present, making this a strong match.
+
+### 30. Software Development Engineer III - Full Stack Development (Platform Experience)
+  Company: gohighlevel
+  Persona: Senior React / GraphQL Frontend Engineer
+  Status: approved
+  Match score: 32/100 (1.5/5 stars)
+  Cosine distance: 0.4603
+  Overlap: 1
+  LLM confidence: 0.85
+  LLM verdict: approved
+  Workplace: job=remote, applicant=remote, match=1
+  Location: job=India, applicant=RS, match=0.5
+  Seniority: persona=senior, lead, title=Software Development Engineer III - Full Stack Development (Platform Experience), match=0.5
+  Blocklist penalty: 0
+  Coverage gap: 0.800
+  Secondary domain mismatch: 0.667
+  Company quality: 20
+  Matched at: 2026-07-02T04:00:09.570Z
+  LLM reasoning: The job requires a strong foundation in full-stack development, including technologies such as React and Node.js, which align with the persona's expertise in React and their full skill knowledge base. Although the persona doesn't have explicit experience with Vue.js or the specific backend technologies mentioned, their extensive experience and adaptability in frontend frameworks provide a plausible fit. There are no hard blockers regarding the job's remote nature and the applicant's location, as
+
+
+## Potential Calibration Issues
+
+⚠️ 16 approved matches score below 50/100:
+  - Software Development Engineer III (Full Stack) - Agency Experience: 48/100 (overlap=3, dist=0.4442)
+  - Software Development Engineer III (Full Stack) - Agency Experience: 48/100 (overlap=3, dist=0.4371)
+  - Software Development Engineer III - Users: 48/100 (overlap=2, dist=0.4206)
+  - Software Development Engineer III (Fullstack) - Contacts: 48/100 (overlap=3, dist=0.4281)
+  - Senior Forward Deployed Engineer: 47/100 (overlap=2, dist=0.4716)
+  - Software Development Engineer III - Full Stack Development - Ads Manager Team: 47/100 (overlap=2, dist=0.4995)
+  - Lead Engineer - Courses: 46/100 (overlap=2, dist=0.4184)
+  - Lead Engineer - Revex Platform: 46/100 (overlap=2, dist=0.4143)
+  - Software Development Engineer III - Fullstack: 46/100 (overlap=3, dist=0.3881)
+  - Senior Software Engineer, Frontend - Care Platform Clinical Workflows: 45/100 (overlap=2, dist=0.4738)
+  - Software Development Engineer III - Core CRM: 45/100 (overlap=2, dist=0.4068)
+  - Staff Engineer - Platform Engineering: 43/100 (overlap=1, dist=0.4766)
+  - Software Development Engineer III - Backend Developer (Courses): 42/100 (overlap=2, dist=0.4219)
+  - Software Development Engineer III - Full Stack Development (Platform Experience): 42/100 (overlap=2, dist=0.4219)
+  - Software Development Engineer III (Fullstack) - Contacts: 41/100 (overlap=2, dist=0.4682)
+  - Software Development Engineer III - Full Stack Development (Platform Experience): 32/100 (overlap=1, dist=0.4603)
+
+⚠️ 17 high-confidence (≥0.80) matches have low scores (<55):
+  - Software Engineer - Applied AI : score=50, confidence=0.85
+  - Software Development Engineer III (Full Stack) - Agency Experience: score=48, confidence=0.85
+  - Software Development Engineer III (Full Stack) - Agency Experience: score=48, confidence=0.9
+  - Software Development Engineer III - Users: score=48, confidence=0.8
+  - Software Development Engineer III (Fullstack) - Contacts: score=48, confidence=0.85
+  - Senior Forward Deployed Engineer: score=47, confidence=0.85
+  - Software Development Engineer III - Full Stack Development - Ads Manager Team: score=47, confidence=0.85
+  - Lead Engineer - Courses: score=46, confidence=0.85
+  - Lead Engineer - Revex Platform: score=46, confidence=0.85
+  - Software Development Engineer III - Fullstack: score=46, confidence=0.85
+  - Senior Software Engineer, Frontend - Care Platform Clinical Workflows: score=45, confidence=0.85
+  - Software Development Engineer III - Core CRM: score=45, confidence=0.85
+  - Staff Engineer - Platform Engineering: score=43, confidence=0.85
+  - Software Development Engineer III - Backend Developer (Courses): score=42, confidence=0.85
+  - Software Development Engineer III - Full Stack Development (Platform Experience): score=42, confidence=0.85
+  - Software Development Engineer III (Fullstack) - Contacts: score=41, confidence=0.9
+  - Software Development Engineer III - Full Stack Development (Platform Experience): score=32, confidence=0.85
+
+ℹ️ 5 jobs have no workplace type (default 0.5 neutral):
+  - Software Engineer - Frontend
+  - Senior Full-stack Engineer (React+.NET)
+  - Senior Software Engineer
+  - Member of Technical Staff (Software Engineer, Computer Growth)
+  - Senior Forward Deployed Engineer

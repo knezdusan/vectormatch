@@ -1,7 +1,7 @@
 /**
  * Unit tests for Module C — Dashboard Query Layer + Match Server Actions.
  *
- * Test coverage (MODULE_C_DECISIONS.md §13, Feature C4):
+ * Test coverage (MODULE_C_DECISIONS.md §14, Feature C4):
  *   - getApprovedMatches: query shape, pagination, applicant scoping
  *   - getUnreadBadgeCount: count query, applicant scoping
  *   - getMatchDetail: single match fetch, applicant scoping, not-found case

@@ -46,7 +46,7 @@ export function calculateQualityScore(
   approvedMatches: number,
   totalJobsProcessed: number,
 ): number {
-  if (totalJobsProcessed === 0) return 0;
+  if (totalJobsProcessed === 0) return 50; // neutral for no data
   return Math.round((approvedMatches / totalJobsProcessed) * 100);
 }
 
@@ -102,7 +102,7 @@ export async function recalculateQualityScores(): Promise<QualityFlywheelResult>
     SELECT
       c.id,
       CASE
-        WHEN COUNT(mq.id) = 0 THEN 0
+        WHEN COUNT(mq.id) = 0 THEN 50
         ELSE ROUND(
           COUNT(*) FILTER (WHERE mq.status = 'approved')::numeric /
           COUNT(mq.id) * 100
@@ -114,7 +114,7 @@ export async function recalculateQualityScores(): Promise<QualityFlywheelResult>
       MAX(mq.evaluated_at) FILTER (WHERE mq.status = 'approved') AS last_approved_at,
       NOW()
     FROM company c
-    LEFT JOIN job j ON j.ats_source = c.ats_source AND j.ats_slug = c.ats_slug
+    LEFT JOIN job j ON j.ats_source = c.ats_source::text AND j.ats_slug = c.ats_slug
     LEFT JOIN match_queue mq ON mq.job_id = j.id
     WHERE c.polling_enabled = true
     GROUP BY c.id

@@ -68,7 +68,7 @@ export const updateWorkHistoryPayloadSchema = z.object({
 // Persona CRUD
 // =============================================================================
 
-export const personaSchema = z.object({
+const personaSchema = z.object({
   id: z.string().uuid().optional(), // omitted for new personas
   personaId: z.string().min(1, "Persona ID is required"),
   personaLabel: z.string().min(1, "Persona label is required"),

@@ -17,9 +17,9 @@ import {
 // =============================================================================
 
 describe("calculateQualityScore", () => {
-  it("returns 0 when totalJobsProcessed is 0 (no division by zero)", () => {
-    expect(calculateQualityScore(0, 0)).toBe(0);
-    expect(calculateQualityScore(5, 0)).toBe(0);
+  it("returns 50 (neutral) when totalJobsProcessed is 0 (no division by zero)", () => {
+    expect(calculateQualityScore(0, 0)).toBe(50);
+    expect(calculateQualityScore(5, 0)).toBe(50);
   });
 
   it("calculates score as (approved / total) * 100", () => {

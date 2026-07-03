@@ -1954,11 +1954,27 @@ can't is a candidate for Inngest, not a synchronous route.
 The dashboard is the primary calibration interface — all scoring data (cosine distance, overlap score, LLM confidence, LLM reasoning, blockers) is visible on both the list and detail views.
 
 **Query layer** (`src/lib/jobs/dashboard-queries.ts`):
-*   `getMatches(userId, status, limit, offset)` — status-filtered (approved/rejected/pending/all), paginated, applicant-scoped list of matches with job title, ATS source/slug, persona label, cosine distance, overlap score, LLM verdict, LLM reasoning, LLM confidence, LLM blockers, status, isRead, createdAt.
+*   `getMatches(userId, status, limit, offset)` — status-filtered (approved/rejected/pending/all), paginated, applicant-scoped list of matches with job title, ATS source/slug, persona label, **composite match score (0–100)** derived from Gate 1/2 signals + workplace/location/seniority alignment + company quality + negative mismatch penalties, cosine distance, overlap score, LLM verdict, LLM reasoning, LLM confidence, LLM blockers, status, isRead, createdAt.
 *   `getMatchesCount(userId, status)` — total count for pagination controls.
 *   `getApprovedMatches(userId, limit, offset)` — backward-compat wrapper around `getMatches` with `status='approved'`.
 *   `getUnreadBadgeCount(userId)` — count of approved + unread matches for the sidebar badge. Resilient — returns 0 on DB error instead of crashing the dashboard layout.
-*   `getMatchDetail(userId, matchQueueId)` — full match detail with job `rawJson`, extracted tags, persona embedding summary, must-have tags, LLM confidence, LLM blockers, LLM model, evaluatedAt.
+*   `getMatchDetail(userId, matchQueueId)` — full match detail with job `rawJson`, extracted tags, persona embedding summary, must-have tags, blocklist tags, LLM confidence, LLM blockers, LLM model, evaluatedAt.
+
+**Display match score formula (implemented July 2026):** `src/lib/jobs/dashboard-queries.ts` computes a 0–100 composite score in SQL, ordered by the score in the dashboard list. The formula is intentionally separate from the Gate 1+2 router's composite ordering score (used only for candidate ranking) and is calibrated to reflect user-facing match quality.
+
+| Signal | Weight | Direction |
+|---|---|---|
+| Semantic similarity (`1 - cosineDistance`) | 25% | Positive |
+| Tag overlap (`1 - exp(-0.4 * min(overlapScore, 5))`) | 30% | Positive |
+| Workplace alignment (assignment type vs. `job.workplaceType`) | 12% | Positive |
+| Location alignment (country vs. `job.locationName`) | 8% | Positive |
+| Seniority alignment (title inference vs. `persona.seniorityLevels`) | 8% | Positive |
+| Company quality score (`companyQualityScore`) | 17% | Positive |
+| Blocklist tag hit | 10% | Negative (flat) |
+| Coverage gap (`1 - overlap / min(mustHaveCount, jobTagCount)`) | 10% | Negative |
+| Secondary domain mismatch | 8% | Negative |
+
+*Negative signals are subtracted from the positive sum and the result is clamped to `[0, 100]`. The coverage gap penalizes missing persona must-have tags. The secondary domain mismatch penalizes alternative framework/language tags (e.g., `wordpress`, `vue`, `angular`, `php`, `laravel`, `csharp`, `.net`, mobile stacks) present in the job but not in the persona's must-have tags. General-purpose languages used in AI/full-stack roles (`python`, `go`, `java`, `rust`, `django`, `flask`, `fastapi`) are intentionally excluded from the penalty list to avoid over-penalizing legitimate secondary skills.*
 
 **Server Actions** (`src/actions/matches.ts`):
 *   `markMatchRead(matchQueueId)` — sets `is_read = true`, scoped to `applicant_id = session.user.id`.
@@ -1966,7 +1982,7 @@ The dashboard is the primary calibration interface — all scoring data (cosine 
 
 **List view** (`/dashboard/jobs`, Server Component):
 *   Status filter tabs (Approved / Rejected / Pending / All) with per-status counts.
-*   Paginated match cards (10 per page) with: job title, ATS source + slug, persona label, cosine distance (raw number), overlap score (raw number), LLM confidence (color-coded: green >0.7, yellow 0.4–0.7, red <0.4), LLM reasoning (1–3 sentences), blockers (as badges), status badge, unread indicator.
+*   Paginated match cards (10 per page) with: job title, ATS source + slug, persona label, **composite match score (0–100, 5-star visual)**, cosine distance (raw number), overlap score (raw number), LLM confidence (color-coded: green >0.7, yellow 0.4–0.7, red <0.4), LLM reasoning (1–3 sentences), blockers (as badges), status badge, unread indicator.
 *   "Mark all read" button + per-card "Mark as read" action (Server Action + `router.refresh()`).
 *   "View on ATS" link to the company's hosted career page (via `ATS_ENDPOINTS[source].hostedBoard(slug)`).
 *   Empty state with link to profile management.
@@ -1974,6 +1990,7 @@ The dashboard is the primary calibration interface — all scoring data (cosine 
 
 **Detail view** (`/dashboard/jobs/[matchId]`, Server Component):
 *   Full job description parsed from `rawJson` via `extractJobContent` (ATS-source-aware: Greenhouse `content`, Lever `descriptionPlain`/`description`, Ashby `descriptionPlain`/`descriptionHtml`).
+*   **Match score panel (0–100) with component breakdown**: semantic similarity, tag overlap, workplace/location/seniority alignment, company quality, blocklist penalty, coverage gap, secondary domain mismatch.
 *   Gate 1+2 scores panel (cosine distance, overlap score, LLM confidence, timestamps).
 *   Gate 3 LLM verdict panel (verdict, confidence, model, reasoning, blockers).
 *   Persona context panel (label, embedding summary, must-have tags).
@@ -1986,21 +2003,26 @@ The dashboard is the primary calibration interface — all scoring data (cosine 
 *   Badge rendered next to "Jobs" nav item (count in accent-colored circle).
 *   Updates on navigation (Server Component re-renders) and after `router.refresh()` from mark-as-read actions.
 
-### 5.5 Calibration (Feature C6) `[Status: Implemented — Synthetic Data Calibrated; Real-Data Calibration In Progress]`
+### 5.5 Calibration (Feature C6) `[Status: Implemented — Funnel Thresholds Calibrated; Display Score Calibration In Progress]`
 
-**⚠️ LAUNCH-BLOCKING (for public access):** The current thresholds are uncalibrated guesses validated only against synthetic seed data. No non-developer user sees Module C output until thresholds are benchmarked against real job/persona pairs.
+**⚠️ LAUNCH-BLOCKING (for public access):** Funnel routing thresholds (`GATE2_MAX_COSINE_DISTANCE`, `GATE_ROUTER_LIMIT`) are now calibrated against live `match_queue` data. The dashboard display score, however, is still being tuned — the current weights are empirical guesses refined against real data, but the next targeted signal (experience gap) is not yet implemented. No non-developer user sees Module C output until the display score is fully calibrated.
 
 **Self-use calibration path:** The "20–30 real pairs" requirement is correct for opening the app to the public, but overly cautious for solo developer use. The developer's own usage IS the calibration:
 1. Onboard with a real CV (Module A — done)
 2. Run Module B seeders/poller to ingest real jobs
 3. The 3-Gate funnel processes them and populates `match_queue`
-4. Inspect matches via `/dashboard/jobs` (cosine distance, overlap score, LLM confidence, LLM reasoning all visible)
+4. Inspect matches via `/dashboard/jobs` (cosine distance, overlap score, LLM confidence, LLM reasoning, composite match score, and component breakdown all visible)
 5. Tune `GATE2_MAX_COSINE_DISTANCE` and `GATE_ROUTER_LIMIT` based on observed false positives/negatives
-6. Document tuned values in `docs/reports/calibration-report.md`
+6. Tune the display score weights and negative signals (blocklist penalty, coverage gap, secondary domain mismatch) using `scripts/analyze-approved-matches.ts` and `scripts/analyze-rejected-matches.ts`
+7. Document tuned values in `docs/reports/calibration-report.md`
 
 The dashboard UI was built specifically as the calibration debugging interface. Synthetic seed data has been cleaned from the production database (via `scripts/cleanup-seed-data.ts`); the next step is ingesting real jobs.
 
-**Calibration script:** `scripts/calibrate-routing-engine.ts` — runs Gate 1+2 against seed data, collects cosine distance + overlap score distributions, measures true candidate counts at different thresholds (no LIMIT), and optionally evaluates Gate 3 verdicts on a sample.
+**Calibration scripts:**
+- `scripts/calibrate-routing-engine.ts` — runs Gate 1+2 against seed data, collects cosine distance + overlap score distributions, measures true candidate counts at different thresholds (no LIMIT), and optionally evaluates Gate 3 verdicts on a sample.
+- `scripts/analyze-approved-matches.ts` — live-data analysis: per-match score breakdown, SQL-vs-manual verification, approved-match distribution, high-confidence/low-score outliers.
+- `scripts/analyze-rejected-matches.ts` — live-data analysis: rejected-match distribution, overlap with approved scores, top false negatives.
+- `scripts/investigate-wordpress-matching.ts` — targeted case study for WordPress/Vue secondary-domain mismatch behavior.
 
 **Key findings (synthetic data, 100 personas + 500 jobs):**
 - `GATE2_MAX_COSINE_DISTANCE = 0.35` was a no-op — seed embeddings cluster tightly (mean 0.19, max 0.21). 222 candidates pass per job; the LIMIT 8 does all filtering.
@@ -2027,6 +2049,19 @@ The dashboard UI was built specifically as the calibration debugging interface. 
   3. **PHP/Laravel Developer** (php, laravel, mysql, wordpress, javascript) — new persona for diversified job matching (0 candidates in current corpus — expected, corpus is TypeScript-focused)
 - **CANONICAL_TAGS expanded:** Added `wordpress` (persona_defining, backend) and `docker` (persona_defining, devops) to support the new PHP/Laravel persona and full-stack persona. Total: 146 entries.
 - **Company corpus is the bottleneck:** At 449 companies (~29 new jobs/day), the funnel produces ~1-2 approved matches/week. Quadrupling to 1,800+ companies would produce ~4-8 approved matches/week. See `docs/governing/company-corpus-expansion-prompt.md` for the dedicated expansion session plan.
+
+**Key findings (display score calibration, July 2026 — live `match_queue` data):**
+- **Composite display score introduced.** The dashboard now shows a single 0–100 match score instead of raw Gate 1/2 numbers. The score combines positive signals (semantic similarity, tag overlap, workplace/location/seniority alignment, company quality) with negative signals (blocklist tag hit, coverage gap, secondary domain mismatch).
+- **Negative signals added to better reflect LLM rejection reasons:**
+  - **Blocklist penalty:** Flat 10-point penalty if a job's extracted tags overlap with the persona's `blocklistTags`.
+  - **Coverage gap:** Penalty proportional to the fraction of persona must-have tags missing from the job (`1 - overlap / min(mustHaveCount, jobTagCount)`), weighted at 10%.
+  - **Secondary domain mismatch:** Penalty for alternative framework/language tags present in the job but not in the persona's must-have tags (`min(count / 3, 1.0) * 8%`). Tracks `wordpress`, `vue`, `nuxt`, `angular`, `svelte`, `solidjs`, `php`, `laravel`, `ruby`, `rails`, `csharp`, `dotnet`, `aspnet`, `swift`, `kotlin`, `flutter`, `ios`, `android`. Excludes general-purpose languages (`python`, `go`, `java`, `rust`, `django`, `flask`, `fastapi`) to avoid penalizing AI/full-stack secondary skills.
+- **Calibration results:**
+  - Approved matches average **54.1/100**, rejected matches average **39.9/100** — a 14.2-point gap.
+  - WordPress/Vue-heavy roles for React/Next.js personas dropped by ~8–10 points (e.g., gohighlevel "SDE III - Fullstack" from 56 to 48), while the PHP/Laravel persona on the dedicated WordPress role dropped by only 5 points (52 → 47), confirming the signal correctly weights persona-specific vs. off-domain tags.
+  - The remaining high-scoring rejected matches are dominated by location restrictions (e.g., "Japan only", "London on-site") and experience gaps (e.g., 8+ years required vs. persona's 7+ years) — signals not yet captured by the formula.
+- **Tools added:** `scripts/analyze-approved-matches.ts`, `scripts/analyze-rejected-matches.ts`, `scripts/investigate-wordpress-matching.ts` for empirical score analysis and SQL-vs-manual verification.
+- **Status:** Real-data calibration for the *funnel* thresholds (`GATE2_MAX_COSINE_DISTANCE`, `GATE_ROUTER_LIMIT`) is complete. Display score calibration is ongoing; the next targeted improvement is an experience-gap signal (extract `min_experience_years` from job descriptions and compare to persona-inferred experience).
 
 **Key findings (post-flush, June 29 2026 — 5,290 companies, 4,086 active jobs, 3 personas):**
 - **Corpus expansion complete:** 449 → 5,290 companies (106% of 5,000 target) via 10 batch sources + 13 daily-native sources. Top source: Wayback CDX (4,163 companies). See `docs/reports/CORPUS_EXPANSION_TDD.md` and `docs/reports/CORPUS_EXPANSION_HANDOFF.md`.

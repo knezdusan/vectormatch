@@ -3,14 +3,13 @@
 // ProfilePreferencesForm — editable work preferences for State 3
 // src/components/onboarding/ProfilePreferencesForm.tsx
 
-import { startTransition, useActionState, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { startTransition, useActionState, useState } from "react";
 import { updateApplicantPreferencesAction } from "@/actions/profile";
-import { Button } from "@/components/ui/button";
+import { ProfileFormFooter } from "@/components/onboarding/ProfileFormFooter";
+import { useActionToast } from "@/components/onboarding/useActionToast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Spinner } from "@/components/ui/spinner";
 import type { Applicant } from "@/db/schemas/jobs/applicant";
 import type {
   AssignmentType,
@@ -131,15 +130,12 @@ export function ProfilePreferencesForm({
     setSeniorityLevels((applicant.seniorityLevels ?? []) as SeniorityLevel[]);
   };
 
-  useEffect(() => {
-    if (!state) return;
-    if (state.success) {
-      toast.success("Preferences saved");
-      onSaved?.();
-    } else if (state.error) {
-      toast.error("Failed to save preferences", { description: state.error });
-    }
-  }, [state, onSaved]);
+  useActionToast(
+    state,
+    "Preferences saved",
+    "Failed to save preferences",
+    onSaved,
+  );
 
   const toggleArrayValue = <T extends string>(
     values: T[],
@@ -295,29 +291,13 @@ export function ProfilePreferencesForm({
         </div>
       </div>
 
-      {state?.error && (
-        <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-          {state.error}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isPending}>
-          {isPending && <Spinner className="mr-2" />}
-          Save preferences
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isPending}
-          onClick={() => {
-            reset();
-            onCancel?.();
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
+      <ProfileFormFooter
+        state={state}
+        isPending={isPending}
+        saveLabel="Save preferences"
+        onReset={reset}
+        onCancel={onCancel}
+      />
     </form>
   );
 }

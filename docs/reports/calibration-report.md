@@ -1,10 +1,10 @@
 # Module C — Calibration Report (Feature C6)
 
-> **Status:** LAUNCH-BLOCKING — synthetic data calibration complete. Real-data calibration required before any real user sees Module C output. (MODULE_C_DECISIONS.md §13)
+> **Status:** Funnel thresholds calibrated against live data; display score calibration ongoing. (MODULE_C_DECISIONS.md §14)
 >
-> **Date:** 2026-06-23
+> **Date:** 2026-06-23 (updated July 2026)
 > **Script:** `scripts/calibrate-routing-engine.ts`
-> **Data:** 100 personas + 500 jobs from `scripts/seed-routing-engine.ts` (5 archetypes, Gaussian noise)
+> **Data:** 100 personas + 500 jobs from `scripts/seed-routing-engine.ts` (5 archetypes, Gaussian noise); subsequent real-data tuning from live `match_queue` rows.
 
 ## 1. Executive Summary
 
@@ -12,7 +12,7 @@ The 3-Gate funnel is **functionally correct** — Gate 1+2 produces candidates, 
 
 **This is expected and acceptable for synthetic data.** The seed script generates embeddings from archetype templates with Gaussian noise, so all same-archetype personas cluster within a narrow distance band. Real job postings will have much wider embedding variance — the threshold will become meaningful with real data.
 
-**Recommendation:** Ship the current thresholds as-is for development. **Do not launch to real users** until C6-real is completed (§4 below).
+**Recommendation:** Funnel thresholds (`GATE2_MAX_COSINE_DISTANCE`, `GATE_ROUTER_LIMIT`) are now calibrated against live data and are safe for the matching pipeline. The dashboard display score is calibrated enough for internal/developer use but should not be presented as a final quality metric to public users until the remaining experience-gap and location-refinement signals are added (§9.6).
 
 ## 2. Gate 1+2 Statistics
 
@@ -94,7 +94,7 @@ The 3-Gate funnel is **functionally correct** — Gate 1+2 produces candidates, 
 
 ## 4. Launch-Blocking: Real-Data Calibration (C6-real)
 
-The current thresholds are **uncalibrated guesses** validated only against synthetic data. Per MODULE_C_DECISIONS.md §13:
+The current thresholds are **uncalibrated guesses** validated only against synthetic data. Per MODULE_C_DECISIONS.md §14:
 
 > **C6 is launch-blocking:** Uncalibrated thresholds are acceptable while the only data is synthetic seed data. They are **not** acceptable the moment a real persona could be matched. No real user sees Module C output until C6 completes and the thresholds are benchmarked against real job/persona pairs.
 
@@ -189,3 +189,94 @@ The `jobIngestedHandler` idempotency guard skips jobs where `normalizedAt IS NOT
 - **GATE_ROUTER_LIMIT (8):** May need adjustment based on how many candidates per job pass at 0.55 threshold. If most jobs produce 8 candidates (hitting the cap), consider raising to 12-15.
 - **GATE1_WEIGHT / GATE2_WEIGHT (0.6 / 0.4):** Evaluate after Gate 3 runs — if tag-overlap-heavy matches are ranked above semantically-closer matches, adjust weights.
 - **Gate 3 precision/recall:** After Gate 3 evaluates the first batch of real candidates, measure what percentage of approved matches are actually relevant. Tune the Gate 3 prompt if false positives are common.
+
+---
+
+## 9. Display Score Calibration (July 2026)
+
+### 9.1 Context
+
+The dashboard originally showed raw Gate 1/2 signals (cosine distance, overlap score) and LLM confidence. These numbers are not directly comparable and do not reflect the LLM's actual rejection reasons. A composite 0–100 match score was introduced in `src/lib/jobs/dashboard-queries.ts` to give users a single, calibrated quality signal and to surface mismatch components in the detail view.
+
+### 9.2 Formula
+
+```text
+score = clamp(
+  similarity * 0.25
+  + overlapNormalized * 0.30
+  + workplaceMatch * 0.12
+  + locationMatch * 0.08
+  + seniorityMatch * 0.08
+  + companyQuality * 0.17
+  - blocklistPenalty * 0.10
+  - coverageGap * 0.10
+  - secondaryDomainMismatch * 0.08,
+  0, 1
+) * 100
+```
+
+| Signal | Weight | Direction | Notes |
+|---|---|---|---|
+| Semantic similarity | 0.25 | Positive | `1 - cosineDistance` |
+| Tag overlap | 0.30 | Positive | `1 - exp(-0.4 * min(overlapScore, 5))` |
+| Workplace alignment | 0.12 | Positive | Exact match = 1.0; hybrid/remote partial = 0.5; mismatch = 0.0 |
+| Location alignment | 0.08 | Positive | Country-specific remote = 1.0; generic remote = 1.0; restricted = 0.0; unknown = 0.5 |
+| Seniority alignment | 0.08 | Positive | Title regex vs. `persona.seniorityLevels` |
+| Company quality | 0.17 | Positive | `companyQualityScore / 100` (default 50) |
+| Blocklist penalty | 0.10 | Negative | Flat penalty if `blocklistTags && extractedTags` |
+| Coverage gap | 0.10 | Negative | `1 - overlapScore / min(mustHaveCount, jobTagCount)` |
+| Secondary domain mismatch | 0.08 | Negative | `min(count / 3, 1.0)` for alternative framework/language tags not in must-haves |
+
+### 9.3 Negative Signal Design
+
+**Coverage gap:** Measures how many of the persona's must-have tags are missing from the job. A 5-tag persona matching only 1 tag gets a 0.8 gap (≈ 8-point score drop). A 5-tag persona matching 4 tags gets a 0.2 gap (≈ 2-point drop).
+
+**Secondary domain mismatch:** Identifies jobs that require an alternative framework or language stack outside the persona's focus. Tracked tags: `wordpress`, `vue`, `nuxt`, `angular`, `svelte`, `solidjs`, `php`, `laravel`, `ruby`, `rails`, `csharp`, `dotnet`, `aspnet`, `swift`, `kotlin`, `flutter`, `ios`, `android`. Each tag not in the persona's must-have set counts toward the mismatch; `count / 3` is capped at 1.0 and multiplied by 8%.
+
+General-purpose languages used in AI/full-stack roles — `python`, `go`, `golang`, `rust`, `java`, `spring`, `spring-boot`, `django`, `flask`, `fastapi` — are intentionally excluded to avoid penalizing legitimate secondary skills (e.g., a Next.js/AI full-stack role mentioning Python).
+
+### 9.4 Calibration Results
+
+**Current dataset (live `match_queue`, July 2026):**
+
+| Metric | Value |
+|---|---|
+| Approved matches | 32 |
+| Approved average score | 54.1/100 |
+| Approved score range | 33 – 75 |
+| Rejected matches | 298 |
+| Rejected average score | 39.9/100 |
+| Rejected score range | 19 – 60 |
+| Approved/rejected gap | 14.2 points |
+| Rejected matches ≥ approved average | 8 |
+
+**WordPress/Vue case study:**
+
+| Role | Persona | Before negative signals | After negative signals |
+|---|---|---|---|
+| Lead Engineer - Wordpress | Next.js / AI Full-Stack | 51 | 43 |
+| Lead Engineer - Wordpress | Senior React / GraphQL | 42 | 34 |
+| SDE III - Fullstack | Next.js / AI Full-Stack | 56 | 48 |
+| SDE III - Fullstack | Senior React / GraphQL | 56 | 47 |
+| Lead Engineer - Wordpress | PHP/Laravel Full-Stack | 52 | 47 |
+
+The React/Next.js personas on WordPress/Vue-heavy roles dropped by 8–10 points, while the PHP/Laravel persona on the dedicated WordPress role dropped by only 5 points — confirming the signal correctly distinguishes persona-aligned tags from off-domain tags.
+
+**Top remaining false negatives (high-scoring rejected matches):**
+
+1. **Senior Forward Deployed Engineer (DevRev)** — 60/100. Rejected for employment-type/contractor language, not captured by current signals.
+2. **Principal Full Stack Developer with React (Remote, Global)** — 59/100. Rejected for 8+ years experience vs. persona's 7+ years. Experience gap signal is not yet implemented.
+3. **Senior Software Engineer, Trading Platform GUI (DRW)** — 56/100. Rejected for London on-site location.
+4. **Forward Deployed Engineer - Applied AI (DevRev)** — 56/100. Rejected for Japan-only location.
+
+### 9.5 Tools
+
+- `scripts/analyze-approved-matches.ts` — per-match score breakdown, SQL-vs-manual verification, distribution statistics.
+- `scripts/analyze-rejected-matches.ts` — rejected-match distribution and overlap with approved scores.
+- `scripts/investigate-wordpress-matching.ts` — dedicated case study for WordPress/Vue mismatch behavior.
+
+### 9.6 Remaining Work
+
+- **Experience gap signal:** Extract `min_experience_years` from job descriptions and compare to persona-inferred experience. This would catch the Principal Full Stack case (8+ years required) and similar rejections.
+- **Location refinement:** Better detection of country-specific restrictions (e.g., "Japan only", "London on-site") and employment-type restrictions (e.g., "no contractors").
+- **Continuous tuning:** As the corpus grows and personas are adjusted, re-run the analysis scripts to verify the approved/rejected gap remains stable.

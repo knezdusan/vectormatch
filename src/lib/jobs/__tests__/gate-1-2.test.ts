@@ -1,7 +1,7 @@
 /**
  * Unit tests for Module C — Gate 1+2 SQL Router (Step 5 of the 3-Gate Funnel).
  *
- * Test coverage (MODULE_C_DECISIONS.md §13, Feature C2):
+ * Test coverage (MODULE_C_DECISIONS.md §14, Feature C2):
  *   - SQL shape validation: assert `unnest` is used, NOT the invalid `&` operator
  *   - Result parsing: rows from db.execute are correctly mapped to candidates
  *   - Edge cases: empty tags, no matches, empty embedding (defensive fallback)

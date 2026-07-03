@@ -1,7 +1,7 @@
 /**
  * Unit tests for Module C — Job Normalizer (Step 1 of the 3-Gate Funnel).
  *
- * Test coverage (MODULE_C_DECISIONS.md §13, Feature C1):
+ * Test coverage (MODULE_C_DECISIONS.md §14, Feature C1):
  *   - ATS-source-aware content extraction (Greenhouse/Lever/Ashby + edge cases)
  *   - Phase 1 regex tag scan (word boundaries, case insensitivity, dedup, C++ vs C)
  *   - Phase 2 LLM fallback (mocked — no real OpenAI calls)

@@ -1,0 +1,207 @@
+Analyzing rejected matches...
+
+Found 298 rejected matches
+
+## Rejected Matches Summary
+
+- Count: 298
+- Average score: 39.9/100
+- Median score: 40/100
+- Score range: 19 - 60
+- Score distribution:
+  90-100: 0
+  80-89: 0
+  70-79: 0
+  60-69: 1
+  50-59: 33
+  40-49: 117
+  30-39: 120
+  20-29: 26
+  10-19: 1
+  below 10: 0
+
+## Approved vs Rejected Comparison
+
+- Approved average: 54.1/100
+- Rejected average: 39.9/100
+- Approved range: 33 - 75
+- Rejected range: 19 - 60
+
+- 256 rejected matches score >= lowest approved score (33)
+- 8 rejected matches score >= approved average (54.1)
+
+## Top 10 Rejected Matches by Score (Potential False Negatives)
+
+1. Senior Forward Deployed Engineer 
+   Company: DevRev
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 60/100 (3/5 stars)
+   Overlap: 2, Cosine: 0.4689
+   Confidence: 0.85
+   Company quality: 50
+   Reasoning: The tech stack aligns well with the persona's expertise in typescript, prompt engineering, and integration with AI. However, the job lacks explicitly contractor-friendly language for employment type, ...
+
+2. Principal Full Stack Developer with React (Remote, Global)
+   Company: teramind
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 59/100 (3/5 stars)
+   Overlap: 3, Cosine: 0.3336
+   Confidence: 0.9
+   Company quality: 0
+   Reasoning: While the job aligns well with the tech stack and has a similar seniority level, it requires 8+ years of experience, which slightly exceeds the persona's 7+ years. Additionally, there may be complexit...
+
+3. Senior Software Engineer, Trading Platform GUI
+   Company: DRW 
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 56/100 (3/5 stars)
+   Overlap: 3, Cosine: 0.4910
+   Confidence: 0.85
+   Company quality: 50
+   Reasoning: While the job's tech stack aligns with the applicant's skills, the critical issue is the location—London—with no specified remote options, presenting a hard blocker for the applicant residing in Serbi...
+
+4. Forward Deployed Engineer - Applied AI 
+   Company: DevRev
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 56/100 (3/5 stars)
+   Overlap: 2, Cosine: 0.4803
+   Confidence: 0.95
+   Company quality: 50
+   Reasoning: The job requires remote work from Japan, which is a hard blocker for the applicant since they are based in Serbia and there's a country-specific restriction for jobs located in Japan. Additionally, th...
+
+5. Software Engineer - Frontend
+   Company: Mach9
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 56/100 (3/5 stars)
+   Overlap: 3, Cosine: 0.4880
+   Confidence: 0.85
+   Company quality: 50
+   Reasoning: The job requires strong proficiency in React, Next.js, and TypeScript, which aligns well with the persona's skills. However, the location requirement of San Francisco combined with an unspecified work...
+
+6. Senior Software Engineer (UI)
+   Company: Envoy Global, Inc.
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 55/100 (3/5 stars)
+   Overlap: 3, Cosine: 0.4229
+   Confidence: 0.9
+   Company quality: 50
+   Reasoning: The job requires expertise in Angular, while the persona is focused on React and related technologies. This significant difference in the primary tech stack combined with location restrictions makes i...
+
+7. Software Development Engineer III - Full Stack Development - Ads Manager Team
+   Company: gohighlevel
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 55/100 (3/5 stars)
+   Overlap: 3, Cosine: 0.4827
+   Confidence: 0.9
+   Company quality: 20
+   Reasoning: The job requires strong proficiency in Vue.js, whereas the persona specializes in Next.js and does not list Vue as a skill. Although the seniority level aligns, the tech stack mismatch is a significan...
+
+8. Senior Customer Support Engineer
+   Company: Vercel
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 55/100 (3/5 stars)
+   Overlap: 2, Cosine: 0.4366
+   Confidence: 0.7
+   Company quality: 0
+   Reasoning: While the persona's skills in Next.js, React, and TypeScript align well with the job requirements, the geographical restriction to Japan is a hard blocker for the applicant located in Serbia. Addition...
+
+9. Senior Frontend Engineer - AI Product
+   Company: Re:Build Manufacturing
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 54/100 (2.5/5 stars)
+   Overlap: 3, Cosine: 0.4897
+   Confidence: 0.9
+   Company quality: 0
+   Reasoning: While the tech stack aligns well with the applicant's skills in React, TypeScript, and Tailwind CSS, the job explicitly restricts employment to US citizens or lawful permanent residents due to export ...
+
+10. Software Engineer, Foundations
+   Company: Hex Technologies
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 54/100 (2.5/5 stars)
+   Overlap: 3, Cosine: 0.4871
+   Confidence: 0.85
+   Company quality: 0
+   Reasoning: The job aligns well with the tech stack (Typescript, GraphQL, AWS), however, the position is specified as remote but limited to candidates based in the US. The applicant is located in RS and despite h...
+
+
+## Bottom 10 Rejected Matches by Score (Clear Rejections)
+
+1. Senior Full stack developer Dynamics AX + .Net
+   Company: Amdaris
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 25/100 (1.5/5 stars)
+   Overlap: 1, Cosine: 0.4898
+   Confidence: 0.8
+   Reasoning: The job requires expertise in C# and Dynamics AX, which are not in the applicant's must-have tags of TypeScript, React, Next.js, GraphQL, or Tailwind CSS. Additionally, the job location and unspecifie...
+
+2. Senior Software Engineer, Mobile SDK
+   Company: Appier
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 25/100 (1.5/5 stars)
+   Overlap: 1, Cosine: 0.4765
+   Confidence: 0.9
+   Reasoning: The job requires expertise in mobile SDK development with specific skills in Swift and Kotlin, whereas the applicant's background focuses on web development with TypeScript, Node.js, and React. Additi...
+
+3. Senior Full Stack Developer 
+   Company: Amdaris
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 25/100 (1.5/5 stars)
+   Overlap: 1, Cosine: 0.4663
+   Confidence: 0.95
+   Reasoning: While the job requires relevant technologies like React, it heavily relies on C# and other backend technologies, which may not align with the applicant's core expertise in frontend development. Additi...
+
+4. Junior Full Stack Engineer
+   Company: zerohomes
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 25/100 (1.5/5 stars)
+   Overlap: 1, Cosine: 0.4991
+   Confidence: 0.85
+   Reasoning: The job requires Nuxt rather than Next.js, which is a significant tech stack mismatch, making it unsuitable for this persona. Furthermore, the role is targeted at junior candidates, while this persona...
+
+5. Web Application Developer - Defense
+   Company: palantir
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 23/100 (1/5 stars)
+   Overlap: 1, Cosine: 0.4951
+   Confidence: 0.9
+   Reasoning: The job requires on-site work and explicitly states that it is a full-time position without mentioning contractor-friendly language, which constitutes a hard blocker for an applicant located outside t...
+
+6. Backend Engineer (Product, Infra)
+   Company: SafetyKit
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 23/100 (1/5 stars)
+   Overlap: 1, Cosine: 0.4804
+   Confidence: 0.85
+   Reasoning: This job requires on-site presence, which conflicts with the applicant's preference for remote work. Additionally, while the role includes TypeScript and Python, it does not align well with the applic...
+
+7. Full stack developer Dynamics AX + .Net
+   Company: Amdaris
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 22/100 (1/5 stars)
+   Overlap: 1, Cosine: 0.4447
+   Confidence: 0.9
+   Reasoning: While the job aligns with some technical skills like C#, SQL, and JavaScript, there is a significant mismatch with the specific technologies required, especially the absence of TypeScript and Next.js,...
+
+8. Full stack developer Dynamics AX + .Net
+   Company: Amdaris
+   Persona: PHP/Laravel Full-Stack Developer
+   Score: 21/100 (1/5 stars)
+   Overlap: 1, Cosine: 0.4687
+   Confidence: 0.9
+   Reasoning: The job requires specific experience with Dynamics AX and a strong focus on .NET technologies, while the applicant's expertise lies primarily in PHP and Laravel with no relevant experience in the Dyna...
+
+9. Senior Frontend Engineer (React)
+   Company: Medal
+   Persona: Senior React / GraphQL Frontend Engineer
+   Score: 20/100 (1/5 stars)
+   Overlap: 1, Cosine: 0.4344
+   Confidence: 0.85
+   Reasoning: While the tech stack for this role aligns well with the persona's experience with React and Redux, the requirement for on-site work is a hard blocker, given the persona's preference for remote work. A...
+
+10. Senior Frontend Engineer (React)
+   Company: Medal
+   Persona: Next.js / AI Full-Stack Engineer
+   Score: 19/100 (1/5 stars)
+   Overlap: 1, Cosine: 0.4638
+   Confidence: 0.85
+   Reasoning: While the job requires significant experience with React and closely related technologies, it is explicitly on-site in NYC, which conflicts with the applicant's preference for remote work. In addition...
+

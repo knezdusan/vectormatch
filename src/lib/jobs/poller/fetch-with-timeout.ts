@@ -18,7 +18,7 @@
 import type { FetchFn } from "@/lib/jobs/types";
 
 /** Default timeout for a single ATS API request (list or detail). */
-export const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 /**
  * Call `fetchFn(url)` with a timeout. If the request doesn't settle within

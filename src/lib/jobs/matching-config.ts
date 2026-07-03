@@ -59,8 +59,14 @@ export const GATE_ROUTER_LIMIT = 8;
 /**
  * Weight of Gate 1 (tag overlap) in the composite ordering score.
  *
- * `compositeScore = overlapScore * GATE1_WEIGHT + similarity * GATE2_WEIGHT`
- * where `similarity = 1 - cosineDistance`. Higher composite score ranks first.
+ * `compositeScore = weightedOverlap(overlapScore) * GATE1_WEIGHT + similarity * GATE2_WEIGHT`
+ * where `similarity = 1 - cosineDistance` and
+ * `weightedOverlap(x) = 1 - exp(-0.4 * min(x, 5))`. Higher composite score
+ * ranks first.
+ *
+ * The non-linear overlap gives the first matching must-have tags more weight
+ * than marginal ones, matching the display scoring formula in
+ * `src/lib/jobs/dashboard-queries.ts`.
  *
  * Calibration status: UNCALIBRATED GUESS. `GATE1_WEIGHT + GATE2_WEIGHT` MUST
  * equal 1.0 — enforced by the composite formula, not a runtime check.

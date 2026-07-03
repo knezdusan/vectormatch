@@ -100,6 +100,18 @@
     {
       "file": "src/lib/blog/posts.ts",
       "exports": ["getAllPostsRaw"]
+    },
+    {
+      "file": "src/lib/jobs/quality/fusion-score.ts",
+      "exports": ["getDiscoverySources", "hasBeenDiscoveredBy"]
+    },
+    {
+      "file": "src/lib/jobs/quality/quality-flywheel.ts",
+      "exports": ["calculateQualityScore", "determineTierAction"]
+    },
+    {
+      "file": "src/app/api/admin/diagnostic/openai/route.ts",
+      "exports": ["OpenAIDiagnosticResponse"]
     }
   ],
   "duplicates": {

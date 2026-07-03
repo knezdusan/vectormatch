@@ -64,7 +64,7 @@ const NEW_PERSONAS = [
     personaId: "nextjs_ai_fullstack",
     personaLabel: "Next.js / AI Full-Stack Engineer",
     embeddingSummary:
-      "Full-stack TypeScript engineer with 15+ years of web development experience and early Next.js adoption since 2017. Builds end-to-end features from database schema through Node.js API layer to React frontend with Next.js App Router, RSC, and streaming UI. Integrates LLM capabilities using Vercel AI SDK, with expertise in prompt engineering, structured output (Zod schemas), and RAG patterns for AI-powered applications. Experienced with Docker containerised deployments and scalable, type-safe SaaS architectures.",
+      "Full-stack TypeScript engineer with 15+ years of web development experience and early Next.js adoption since 2017. Builds end-to-end features from database schema through Node.js API layer to React frontend with Next.js App Router, RSC, and streaming UI. Integrates LLM capabilities using Vercel AI SDK, with expertise in prompt engineering, structured output (Zod schemas), and RAG patterns for AI-powered applications. Experienced with Docker deployments and scalable type-safe SaaS architectures.",
     mustHaveTags: [
       "typescript",
       "nextjs",
@@ -91,6 +91,20 @@ const NEW_PERSONAS = [
     blocklistTags: [] as string[],
   },
 ];
+
+// Defensive guard: the Zod schemas in profile-schemas.ts / schemas.ts cap
+// embedding_summary at 500 chars. This script writes directly to the DB and
+// bypasses Zod, so enforce the same limit here to keep Profile Management
+// saves from failing later.
+const MAX_SUMMARY_LEN = 500;
+for (const p of NEW_PERSONAS) {
+  if (p.embeddingSummary.length > MAX_SUMMARY_LEN) {
+    console.error(
+      `Persona "${p.personaLabel}" embedding_summary is ${p.embeddingSummary.length} chars (max ${MAX_SUMMARY_LEN}). Aborting.`,
+    );
+    process.exit(1);
+  }
+}
 
 async function main() {
   const isDryRun = process.argv.includes("--dry-run");

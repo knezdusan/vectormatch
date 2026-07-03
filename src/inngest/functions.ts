@@ -1857,10 +1857,15 @@ export const pendingQueueSweep = inngest.createFunction(
     }
 
     // Emit Gate 3 events for each pending row.
+    // Use a timestamp suffix on the event ID so each sweep run produces unique
+    // events. A deterministic ID (e.g. `gate-3-sweep-${row.id}`) would be
+    // deduplicated by Inngest if the first Gate 3 run failed or skipped —
+    // leaving the row stuck pending forever.
+    const sweepTs = Date.now();
     await step.sendEvent(
       "sweep-fan-out",
       result.map((row) => ({
-        id: `gate-3-sweep-${row.id}`,
+        id: `gate-3-sweep-${row.id}-${sweepTs}`,
         name: "match/gate-3-evaluate" as const,
         data: {
           matchQueueId: row.id,
@@ -1959,11 +1964,14 @@ export const personaUpdatedHandler = inngest.createFunction(
     });
 
     // Emit Gate 3 events for each re-evaluated rejected row.
+    // Use a timestamp suffix so repeated persona updates produce unique events
+    // (see pending-queue-sweep for the same deduplication rationale).
     if (result.count > 0) {
+      const feedbackTs = Date.now();
       await step.sendEvent(
         "feedback-fan-out",
         result.rows.map((row) => ({
-          id: `gate-3-feedback-${row.id}`,
+          id: `gate-3-feedback-${row.id}-${feedbackTs}`,
           name: "match/gate-3-evaluate" as const,
           data: {
             matchQueueId: row.id,
