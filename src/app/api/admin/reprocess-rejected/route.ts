@@ -9,7 +9,7 @@ import { headers } from "next/headers";
 import { inngest } from "@/inngest/client";
 import { auth } from "@/lib/auth";
 
-export async function POST() {
+export async function GET() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
