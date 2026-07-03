@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { StarRating } from "@/components/ui/star-rating";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import type { MatchRow } from "@/lib/jobs/dashboard-queries";
 
@@ -119,7 +120,7 @@ function MatchCard({ match }: { match: MatchRow }) {
         )}
 
         <div className="flex flex-col gap-3">
-          {/* Header: title + status */}
+          {/* Header: title + score + status */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h3 className="truncate font-medium text-foreground">
@@ -129,12 +130,12 @@ function MatchCard({ match }: { match: MatchRow }) {
                 {match.jobAtsSource} · {match.jobAtsSlug}
               </p>
             </div>
-            <Badge
-              variant={statusBadgeVariant(match.status)}
-              className="shrink-0"
-            >
-              {match.status}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-2">
+              <StarRating score={match.matchScore} />
+              <Badge variant={statusBadgeVariant(match.status)}>
+                {match.status}
+              </Badge>
+            </div>
           </div>
 
           {/* Persona + ATS link */}

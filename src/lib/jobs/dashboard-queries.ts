@@ -20,6 +20,9 @@ import "server-only";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
+import { applicant } from "@/db/schemas/jobs/applicant";
+import { company } from "@/db/schemas/jobs/company";
+import { companyQualityScore } from "@/db/schemas/jobs/companyQualityScore";
 import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { persona } from "@/db/schemas/jobs/persona";
@@ -37,6 +40,7 @@ export type MatchRow = {
   jobAtsSlug: string;
   jobNormalizedText: string | null;
   jobShortDescription: string | null;
+  jobWorkplaceType: string | null;
   personaId: string;
   personaLabel: string;
   overlapScore: number;
@@ -48,6 +52,7 @@ export type MatchRow = {
   status: string;
   isRead: boolean;
   createdAt: Date | null;
+  matchScore: number;
 };
 
 /** A single match detail with full job + persona context. */
@@ -115,6 +120,31 @@ export async function getMatches(
           ? sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${staleCutoff}`
           : eq(matchQueue.status, status);
 
+  // Composite match score (0–100) used for ranking and the 5-star rating.
+  //   28% semantic similarity (1 - cosine distance)
+  //   42% tag overlap (capped at 5)
+  //   15% workplace/modality alignment
+  //   15% company quality score (default 50 if missing)
+  const matchScoreExpr = sql<number>`
+    ROUND(
+      (
+        (1 - COALESCE(${matchQueue.cosineDistance}, 1)) * 0.28
+        + (LEAST(COALESCE(${matchQueue.overlapScore}, 0), 5) / 5.0) * 0.42
+        + (
+          CASE
+            WHEN ${job.workplaceType} IS NULL OR COALESCE(array_length(${applicant.assignmentTypes}, 1), 0) = 0 THEN 0.5
+            WHEN ${job.workplaceType}::text = ANY(${applicant.assignmentTypes}::text[]) THEN 1.0
+            WHEN ${job.workplaceType}::text = 'hybrid' AND ('remote' = ANY(${applicant.assignmentTypes}::text[]) OR 'remote_local' = ANY(${applicant.assignmentTypes}::text[])) THEN 0.5
+            WHEN ${job.workplaceType}::text = 'remote' AND 'hybrid' = ANY(${applicant.assignmentTypes}::text[]) THEN 0.5
+            WHEN ${job.workplaceType}::text = 'on-site' AND 'hybrid' = ANY(${applicant.assignmentTypes}::text[]) THEN 0.5
+            ELSE 0.0
+          END
+        ) * 0.15
+        + (COALESCE(${companyQualityScore.score}, 50) / 100.0) * 0.15
+      ) * 100
+    )
+  `;
+
   const rows = await db
     .select({
       matchQueueId: matchQueue.id,
@@ -124,6 +154,7 @@ export async function getMatches(
       jobAtsSlug: job.atsSlug,
       jobNormalizedText: job.normalizedText,
       jobShortDescription: job.shortDescription,
+      jobWorkplaceType: job.workplaceType,
       personaId: matchQueue.personaId,
       personaLabel: persona.personaLabel,
       overlapScore: matchQueue.overlapScore,
@@ -135,20 +166,30 @@ export async function getMatches(
       status: matchQueue.status,
       isRead: matchQueue.isRead,
       createdAt: matchQueue.createdAt,
+      matchScore: matchScoreExpr,
     })
     .from(matchQueue)
     .innerJoin(job, eq(matchQueue.jobId, job.id))
     .innerJoin(persona, eq(matchQueue.personaId, persona.id))
+    .innerJoin(applicant, eq(matchQueue.applicantId, applicant.userId))
+    .leftJoin(
+      company,
+      sql`${company.atsSource}::text = ${job.atsSource} AND ${company.atsSlug} = ${job.atsSlug}`,
+    )
+    .leftJoin(
+      companyQualityScore,
+      eq(company.id, companyQualityScore.companyId),
+    )
     .where(
       statusFilter
         ? and(eq(matchQueue.applicantId, userId), statusFilter)
         : eq(matchQueue.applicantId, userId),
     )
-    .orderBy(desc(matchQueue.createdAt))
+    .orderBy(desc(matchScoreExpr), desc(matchQueue.createdAt))
     .limit(limit)
     .offset(offset);
 
-  return rows;
+  return rows as MatchRow[];
 }
 
 /**

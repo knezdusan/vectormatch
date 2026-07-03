@@ -32,13 +32,14 @@ const mockWhereReturn = {
   })),
   limit: vi.fn(() => mockSelectReturn),
 };
+const mockJoinable = {
+  innerJoin: vi.fn(() => mockJoinable),
+  leftJoin: vi.fn(() => mockJoinable),
+  where: vi.fn(() => mockWhereReturn),
+};
 const mockFromReturn = {
-  innerJoin: vi.fn(() => ({
-    innerJoin: vi.fn(() => ({
-      where: vi.fn(() => mockWhereReturn),
-    })),
-    where: vi.fn(() => mockWhereReturn),
-  })),
+  innerJoin: vi.fn(() => mockJoinable),
+  leftJoin: vi.fn(() => mockJoinable),
   where: vi.fn(() => mockWhereReturn),
 };
 
