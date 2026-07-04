@@ -3920,20 +3920,25 @@ export const emergencyStoragePurge = inngest.createFunction(
       const { sendStorageAlertEmail } = await import(
         "@/lib/jobs/storage-alert"
       );
+      const { STORAGE_LIMIT_MB } = await import("@/lib/jobs/storage-check");
       const tierSummary = purgeResult.tiers
         .map((t) => `${t.tier}: ${t.deletedCount}`)
         .join(", ");
 
+      const reason = purgeResult.walInflationDetected
+        ? `Emergency purge ABORTED due to WAL inflation — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. ${purgeResult.stopReason} Manual intervention required: reduce Neon history retention or wait for WAL to age out.`
+        : purgeResult.recovered
+          ? `Emergency purge completed — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage recovered from ${purgeResult.storageBeforeMb.toFixed(0)}MB to ${purgeResult.storageAfterMb.toFixed(0)}MB.`
+          : `Emergency purge completed but storage still above recovery threshold — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. Manual intervention required.`;
+
       await sendStorageAlertEmail({
         severity: purgeResult.recovered ? "warning" : "critical",
         currentMb: purgeResult.storageAfterMb,
-        limitMb: 512,
-        percentage: purgeResult.storageAfterMb / 512,
+        limitMb: STORAGE_LIMIT_MB,
+        percentage: purgeResult.storageAfterMb / STORAGE_LIMIT_MB,
         unnormalizedCount: storageStatus.unnormalizedCount,
         maxUnnormalized: storageStatus.maxUnnormalized,
-        reason: purgeResult.recovered
-          ? `Emergency purge completed — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage recovered from ${purgeResult.storageBeforeMb.toFixed(0)}MB to ${purgeResult.storageAfterMb.toFixed(0)}MB.`
-          : `Emergency purge completed but storage still above recovery threshold — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. Manual intervention required.`,
+        reason,
         ingestionHalted: !purgeResult.recovered,
       });
       return { sent: true };

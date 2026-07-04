@@ -23,6 +23,7 @@
 
 import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
+import { STORAGE_LIMIT_MB } from "@/lib/jobs/storage-check";
 
 export interface CleanupStepResult {
   deletedCount: number;
@@ -169,15 +170,43 @@ export async function vacuumAnalyze(): Promise<CleanupStepResult> {
 //   4. stale                — not currently matched, resurrected if re-posted
 //   5. active (FIFO)        — LAST RESORT. Oldest detected_at first.
 //                             Excludes jobs with approved matches.
+//                             Smaller batch size to limit WAL spikes.
 //
-// All tiers delete in batches of BATCH_SIZE rows with a LIMIT clause to avoid
-// massive WAL spikes on Neon. The caller runs VACUUM ANALYZE between tiers.
+// All tiers delete in batches with a LIMIT clause to avoid massive WAL spikes
+// on Neon. The caller runs VACUUM ANALYZE between tiers.
+//
+// WAL INFLATION PROTECTION (added July 2026):
+// Neon's synthetic_storage_size includes WAL retained for history. Large DELETE
+// batches generate WAL that can push synthetic storage ABOVE the hard limit even
+// though pg_database_size drops. The purge now:
+//   1. Uses STORAGE_LIMIT_MB (460, safety-margined) instead of 512 for recovery
+//      checks — this accounts for the ~12% gap between pg_database_size and
+//      Neon's synthetic storage.
+//   2. Tracks storage before/after each batch. If storage INCREASES after a
+//      batch (WAL inflation exceeding the dead-tuple reclaim), the purge stops
+//      immediately — continuing would make the situation worse.
+//   3. Uses a smaller batch size (500) for the active_fifo tier to limit
+//      per-batch WAL generation on the last-resort tier.
 
 /** Maximum rows to delete in a single batch (Neon WAL spike protection). */
 export const PURGE_BATCH_SIZE = 1000;
 
-/** Storage fraction at which the emergency purge stops (75% = ~384MB). */
+/** Smaller batch size for the active_fifo tier (last resort — limits WAL). */
+export const PURGE_ACTIVE_FIFO_BATCH_SIZE = 500;
+
+/**
+ * Storage fraction at which the emergency purge stops.
+ * 75% of STORAGE_LIMIT_MB (460) = 345 MB. This is conservative because
+ * pg_database_size underestimates Neon's synthetic storage by ~12%.
+ */
 export const PURGE_RECOVERY_THRESHOLD = 0.75;
+
+/**
+ * Maximum number of consecutive batches where storage increased (WAL inflation)
+ * before the purge aborts. This prevents a death spiral where each DELETE batch
+ * generates more WAL than it reclaims, pushing synthetic storage higher.
+ */
+export const PURGE_MAX_WAL_INFLATION_BATCHES = 2;
 
 export interface PurgeTierResult {
   /** Tier label for logging. */
@@ -201,6 +230,8 @@ export interface EmergencyPurgeResult {
   recovered: boolean;
   /** Reason the purge stopped. */
   stopReason: string;
+  /** Whether the purge aborted due to WAL inflation (storage increasing). */
+  walInflationDetected: boolean;
 }
 
 // ── Tier 1: normalization_failed (any age) ───────────────────────────────────
@@ -323,9 +354,11 @@ export async function purgeStale(
  *     in the application process).
  *   - Orders by `detected_at` ASC so the oldest jobs (longest time in the
  *     matching pool, most chances to match) are sacrificed first.
+ *   - Uses a smaller default batch size (PURGE_ACTIVE_FIFO_BATCH_SIZE = 500)
+ *     to limit per-batch WAL generation on this destructive tier.
  */
 export async function purgeActiveFifo(
-  limit: number = PURGE_BATCH_SIZE,
+  limit: number = PURGE_ACTIVE_FIFO_BATCH_SIZE,
 ): Promise<PurgeTierResult> {
   const result = await db.execute(sql`
     DELETE FROM job
@@ -351,11 +384,18 @@ export async function purgeActiveFifo(
 
 /**
  * Run the tiered emergency purge until storage drops below the recovery
- * threshold (75%) or all tiers are exhausted.
+ * threshold or all tiers are exhausted.
  *
- * For each tier, deletes in batches of `PURGE_BATCH_SIZE` until the tier is
- * empty or storage recovers. Runs `VACUUM ANALYZE` after each tier to reclaim
- * dead tuples so the storage check reflects reality.
+ * For each tier, deletes in batches until the tier is empty or storage recovers.
+ * Runs `VACUUM ANALYZE` after each tier to reclaim dead tuples so the storage
+ * check reflects reality.
+ *
+ * WAL INFLATION PROTECTION:
+ * Neon's synthetic_storage_size includes WAL. Large DELETE batches can generate
+ * more WAL than the dead tuples they reclaim, causing pg_database_size to drop
+ * while synthetic storage increases. The purge tracks storage before/after each
+ * batch. If storage increases for `PURGE_MAX_WAL_INFLATION_BATCHES` consecutive
+ * batches, the purge aborts immediately — continuing would make things worse.
  *
  * @param storageCheckMb  Function that returns the current DB size in MB.
  *                        Injected to avoid a circular import with storage-check.ts.
@@ -369,34 +409,61 @@ export async function runEmergencyPurge(
   let totalDeleted = 0;
   let stopReason = "all tiers exhausted";
   let recovered = false;
+  let walInflationDetected = false;
+  let consecutiveInflationCount = 0;
+  let lastCheckedMb = storageBeforeMb;
 
   // Tier functions in priority order.
   const tierFns: Array<{
     name: string;
     fn: (limit: number) => Promise<PurgeTierResult>;
+    batchSize: number;
   }> = [
-    { name: "normalization_failed", fn: purgeNormalizationFailed },
-    { name: "rejected", fn: purgeRejected },
-    { name: "gone", fn: purgeGone },
-    { name: "stale", fn: purgeStale },
-    { name: "active_fifo", fn: purgeActiveFifo },
+    {
+      name: "normalization_failed",
+      fn: purgeNormalizationFailed,
+      batchSize: PURGE_BATCH_SIZE,
+    },
+    { name: "rejected", fn: purgeRejected, batchSize: PURGE_BATCH_SIZE },
+    { name: "gone", fn: purgeGone, batchSize: PURGE_BATCH_SIZE },
+    { name: "stale", fn: purgeStale, batchSize: PURGE_BATCH_SIZE },
+    {
+      name: "active_fifo",
+      fn: purgeActiveFifo,
+      batchSize: PURGE_ACTIVE_FIFO_BATCH_SIZE,
+    },
   ];
 
-  for (const { name, fn } of tierFns) {
+  for (const { name, fn, batchSize } of tierFns) {
     let tierDeleted = 0;
     let tierHadRows = false;
 
     // Delete in batches until the tier is empty or storage recovers.
     for (;;) {
       const currentMb = await storageCheckMb();
-      const currentPct = currentMb / 512; // Neon Free tier limit
+      const currentPct = currentMb / STORAGE_LIMIT_MB;
       if (currentPct <= PURGE_RECOVERY_THRESHOLD) {
         recovered = true;
         stopReason = `storage recovered to ${(currentPct * 100).toFixed(1)}% after ${name} tier`;
         break;
       }
 
-      const batch = await fn(PURGE_BATCH_SIZE);
+      // WAL inflation check: if storage increased since the last check,
+      // the DELETE is generating more WAL than it's reclaiming. Abort
+      // before the death spiral gets worse.
+      if (currentMb > lastCheckedMb) {
+        consecutiveInflationCount++;
+        if (consecutiveInflationCount >= PURGE_MAX_WAL_INFLATION_BATCHES) {
+          walInflationDetected = true;
+          stopReason = `WAL inflation detected: storage increased ${consecutiveInflationCount} consecutive checks (${lastCheckedMb.toFixed(0)}MB → ${currentMb.toFixed(0)}MB). Purge aborted to prevent synthetic storage spike.`;
+          break;
+        }
+      } else {
+        consecutiveInflationCount = 0;
+      }
+      lastCheckedMb = currentMb;
+
+      const batch = await fn(batchSize);
       tierDeleted += batch.deletedCount;
       tierHadRows = tierHadRows || batch.hadRows;
 
@@ -418,7 +485,7 @@ export async function runEmergencyPurge(
       await db.execute(sql`VACUUM ANALYZE job`);
     }
 
-    if (recovered) {
+    if (recovered || walInflationDetected) {
       break;
     }
   }
@@ -432,5 +499,6 @@ export async function runEmergencyPurge(
     storageAfterMb,
     recovered,
     stopReason,
+    walInflationDetected,
   };
 }

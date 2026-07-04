@@ -17,6 +17,11 @@ vi.mock("@/db/db", () => ({
   },
 }));
 
+// Mock storage-check to avoid circular import and provide test constants
+vi.mock("@/lib/jobs/storage-check", () => ({
+  STORAGE_LIMIT_MB: 460,
+}));
+
 import { db } from "@/db/db";
 import {
   deleteExhaustedSluggerRetries,
@@ -344,16 +349,16 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
 
-        // Storage check mock: starts at 460MB (90%), drops to 350MB (68%)
-        // after tier 1 deletes. This simulates recovery after tier 1.
+        // STORAGE_LIMIT_MB is 460. Recovery threshold is 75% = 345MB.
+        // Storage starts at 420MB (91%), drops to 340MB (74%) after tier 1.
         let storageCalls = 0;
         const storageCheckMb = async () => {
           storageCalls++;
-          // Before purge: 460MB (90%)
-          // After tier 1 batch 1: still 460 (not yet vacuumed)
-          // After tier 1 batch 2 (empty): 350MB (recovered)
-          if (storageCalls <= 2) return 460;
-          return 350;
+          // Before purge: 420MB (91%)
+          // After tier 1 batch 1: still 420 (not yet vacuumed)
+          // After tier 1 batch 2 (empty): 340MB (recovered, < 75%)
+          if (storageCalls <= 2) return 420;
+          return 340;
         };
 
         // Tier 1 batch 1: deletes 1000, batch 2: deletes 0 (tier empty)
@@ -371,14 +376,15 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         // Should not have reached tier 2 (rejected)
         expect(result.tiers.length).toBe(1);
         expect(result.stopReason).toContain("recovered");
+        expect(result.walInflationDetected).toBe(false);
       });
 
       it("exhausts all tiers when storage does not recover", async () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
 
-        // Storage stays at 460MB (90%) — never recovers
-        const storageCheckMb = async () => 460;
+        // Storage stays at 420MB (91%) — never recovers
+        const storageCheckMb = async () => 420;
 
         // Use mockImplementation with SQL inspection to distinguish purge
         // calls from VACUUM calls. This avoids mock queue ordering issues.
@@ -431,6 +437,34 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         expect(result.recovered).toBe(false);
         expect(result.tiers.length).toBe(5);
         expect(result.stopReason).toBe("all tiers exhausted");
+      });
+
+      it("aborts when WAL inflation is detected (storage increasing)", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+
+        // Simulate WAL inflation: storage starts at 420MB but INCREASES
+        // after each batch (DELETE generates more WAL than it reclaims).
+        // PURGE_MAX_WAL_INFLATION_BATCHES = 2, so after 2 consecutive
+        // increases the purge should abort.
+        let storageCalls = 0;
+        const storageCheckMb = async () => {
+          storageCalls++;
+          // 420 → 425 → 430 → 435 (3 increases → abort on 2nd)
+          return 420 + (storageCalls - 1) * 5;
+        };
+
+        // Every batch deletes rows (but storage keeps increasing)
+        executeMock.mockImplementation(async () => ({ rowCount: 100 }));
+
+        const result = await runEmergencyPurge(storageCheckMb);
+
+        expect(result.recovered).toBe(false);
+        expect(result.walInflationDetected).toBe(true);
+        expect(result.stopReason).toContain("WAL inflation detected");
+        expect(result.stopReason).toContain("425MB → 430MB");
+        // Should have deleted some rows before aborting
+        expect(result.totalDeleted).toBeGreaterThan(0);
       });
     });
   });
