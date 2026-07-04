@@ -325,7 +325,7 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
     });
 
     describe("purgeActiveFifo", () => {
-      it("deletes active jobs by FIFO excluding approved matches", async () => {
+      it("deletes active jobs by FIFO excluding approved matches, unnormalized, and young jobs", async () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
         executeMock.mockResolvedValueOnce({ rowCount: 50 });
@@ -338,6 +338,11 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         // Must exclude jobs with approved matches
         expect(sqlText).toContain("match_queue");
         expect(sqlText).toContain("'approved'");
+        // Must exclude unnormalized jobs (raw_json IS NULL = already pruned)
+        expect(sqlText).toContain("normalized_at IS NOT NULL");
+        expect(sqlText).toContain("raw_json IS NULL");
+        // Must exclude jobs younger than 48 hours
+        expect(sqlText).toContain("48 hours");
         expect(sqlText).toContain("LIMIT");
         expect(result.deletedCount).toBe(50);
         expect(result.tier).toBe("active_fifo");
@@ -345,29 +350,55 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
     });
 
     describe("runEmergencyPurge", () => {
+      // Helper: mock countActiveJobs (SELECT count(*) FROM job WHERE status = 'active')
+      // The orchestrator calls this at the start to calculate the corpus guard budget.
+      function mockActiveCount(
+        executeMock: ReturnType<typeof vi.fn>,
+        count: number,
+      ) {
+        executeMock.mockImplementation(async (sqlObj: unknown) => {
+          const sqlText = getSqlText(sqlObj);
+          if (
+            sqlText.includes("count(*)") &&
+            sqlText.includes("'active'") &&
+            !sqlText.includes("DELETE")
+          ) {
+            return { rows: [{ cnt: count }] };
+          }
+          if (sqlText.includes("VACUUM")) return {};
+          return { rowCount: 0 };
+        });
+      }
+
       it("runs tiers in order and stops when storage recovers (per-batch VACUUM)", async () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
 
         // STORAGE_LIMIT_MB is 460. Recovery threshold is 75% = 345MB.
         // Storage starts at 420MB (91%), drops to 340MB (74%) after batch 1 + VACUUM.
-        // With per-batch VACUUM, the recovery check fires at the TOP of the next
-        // iteration — no need to wait for the tier to end.
         let storageCalls = 0;
         const storageCheckMb = async () => {
           storageCalls++;
-          // Call 1 (initial): 420MB
-          // Call 2 (first loop check, before batch 1): 420MB
-          // Call 3 (second loop check, after batch 1 + VACUUM): 340MB (recovered)
           if (storageCalls <= 2) return 420;
           return 340;
         };
 
-        // Tier 1 batch 1: deletes 1000, then VACUUM runs (per-batch),
-        // then recovery check at top of next iteration fires (340MB < 345MB).
-        executeMock
-          .mockResolvedValueOnce({ rowCount: 1000 }) // purgeNormalizationFailed batch 1
-          .mockResolvedValueOnce({}); // VACUUM ANALYZE job (per-batch)
+        // countActiveJobs returns 5000 (budget = 1000, but recovery happens first)
+        // Tier 1 batch 1: deletes 1000, then VACUUM, then recovery check fires.
+        executeMock.mockImplementation(async (sqlObj: unknown) => {
+          const sqlText = getSqlText(sqlObj);
+          if (
+            sqlText.includes("count(*)") &&
+            sqlText.includes("'active'") &&
+            !sqlText.includes("DELETE")
+          ) {
+            return { rows: [{ cnt: 5000 }] };
+          }
+          if (sqlText.includes("VACUUM")) return {};
+          if (sqlText.includes("'normalization_failed'"))
+            return { rowCount: 1000 };
+          return { rowCount: 0 };
+        });
 
         const result = await runEmergencyPurge(storageCheckMb);
 
@@ -375,38 +406,37 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         expect(result.recovered).toBe(true);
         expect(result.tiers[0].tier).toBe("normalization_failed");
         expect(result.tiers[0].deletedCount).toBe(1000);
-        // Should not have reached tier 2 (rejected)
         expect(result.tiers.length).toBe(1);
         expect(result.stopReason).toContain("recovered");
         expect(result.walInflationDetected).toBe(false);
-        // 4 storage checks: initial + first loop check + post-VACUUM check + final
-        expect(storageCalls).toBe(4);
+        expect(result.corpusGuardTriggered).toBe(false);
+        expect(result.activeCorpusAtStart).toBe(5000);
+        expect(result.activeFifoBudget).toBe(1000); // 20% of 5000
       });
 
       it("recovers within a tier thanks to per-batch VACUUM (the active_fifo bug)", async () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
 
-        // Simulates the production bug: active_fifo tier deletes 3000 jobs in
-        // 6 batches of 500. Without per-batch VACUUM, pg_database_size() doesn't
-        // reflect the reclaimed space and the recovery check never fires.
-        // With per-batch VACUUM, recovery is detected after batch 3.
         let storageCalls = 0;
         const storageCheckMb = async () => {
           storageCalls++;
-          // Calls 1-6: 420MB (initial + 4 empty tiers' checks + active_fifo first check)
-          // Call 7: 380MB (after active_fifo batch 1 + VACUUM)
-          // Call 8: 340MB (after active_fifo batch 2 + VACUUM, recovered)
+          // Calls 1-6: 420MB, Call 7: 380MB, Call 8+: 340MB (recovered)
           if (storageCalls <= 6) return 420;
           if (storageCalls === 7) return 380;
           return 340;
         };
 
-        // Tiers 1-4 are empty (no rows to delete), tier 5 (active_fifo) has rows.
-        // Use mockImplementation to handle VACUUM + purge calls generically.
         let activeFifoCalls = 0;
         executeMock.mockImplementation(async (sqlObj: unknown) => {
           const sqlText = getSqlText(sqlObj);
+          if (
+            sqlText.includes("count(*)") &&
+            sqlText.includes("'active'") &&
+            !sqlText.includes("DELETE")
+          ) {
+            return { rows: [{ cnt: 10000 }] }; // budget = 2000
+          }
           if (sqlText.includes("VACUUM")) return {};
           if (sqlText.includes("'normalization_failed'"))
             return { rowCount: 0 };
@@ -415,7 +445,6 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
           if (sqlText.includes("'stale'")) return { rowCount: 0 };
           if (sqlText.includes("'active'")) {
             activeFifoCalls++;
-            // First 2 batches delete 500 each, 3rd check fires recovery
             return { rowCount: activeFifoCalls <= 2 ? 500 : 0 };
           }
           return { rowCount: 0 };
@@ -435,11 +464,8 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
 
-        // Storage stays at 420MB (91%) — never recovers
         const storageCheckMb = async () => 420;
 
-        // Use mockImplementation with SQL inspection to distinguish purge
-        // calls from VACUUM calls. This avoids mock queue ordering issues.
         const purgeResults: Record<string, number[]> = {
           normalization_failed: [100, 0],
           rejected: [50, 0],
@@ -451,10 +477,14 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
 
         executeMock.mockImplementation(async (sqlObj: unknown) => {
           const sqlText = getSqlText(sqlObj);
-          if (sqlText.includes("VACUUM")) {
-            return {};
+          if (
+            sqlText.includes("count(*)") &&
+            sqlText.includes("'active'") &&
+            !sqlText.includes("DELETE")
+          ) {
+            return { rows: [{ cnt: 10000 }] }; // budget = 2000, well above 500
           }
-          // Match tier by status string in the SQL
+          if (sqlText.includes("VACUUM")) return {};
           if (sqlText.includes("'normalization_failed'")) {
             const i = tierCallCounts.normalization_failed ?? 0;
             tierCallCounts.normalization_failed = i + 1;
@@ -489,25 +519,31 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         expect(result.recovered).toBe(false);
         expect(result.tiers.length).toBe(5);
         expect(result.stopReason).toBe("all tiers exhausted");
+        expect(result.corpusGuardTriggered).toBe(false);
       });
 
       it("aborts when WAL inflation is detected (storage increasing)", async () => {
         const { db } = await import("@/db/db");
         const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
 
-        // Simulate WAL inflation: storage starts at 420MB but INCREASES
-        // after each batch (DELETE generates more WAL than it reclaims).
-        // PURGE_MAX_WAL_INFLATION_BATCHES = 2, so after 2 consecutive
-        // increases the purge should abort.
         let storageCalls = 0;
         const storageCheckMb = async () => {
           storageCalls++;
-          // 420 → 425 → 430 → 435 (3 increases → abort on 2nd)
           return 420 + (storageCalls - 1) * 5;
         };
 
-        // Every batch deletes rows (but storage keeps increasing)
-        executeMock.mockImplementation(async () => ({ rowCount: 100 }));
+        executeMock.mockImplementation(async (sqlObj: unknown) => {
+          const sqlText = getSqlText(sqlObj);
+          if (
+            sqlText.includes("count(*)") &&
+            sqlText.includes("'active'") &&
+            !sqlText.includes("DELETE")
+          ) {
+            return { rows: [{ cnt: 5000 }] };
+          }
+          if (sqlText.includes("VACUUM")) return {};
+          return { rowCount: 100 };
+        });
 
         const result = await runEmergencyPurge(storageCheckMb);
 
@@ -515,8 +551,55 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
         expect(result.walInflationDetected).toBe(true);
         expect(result.stopReason).toContain("WAL inflation detected");
         expect(result.stopReason).toContain("425MB → 430MB");
-        // Should have deleted some rows before aborting
         expect(result.totalDeleted).toBeGreaterThan(0);
+      });
+
+      it("aborts when corpus percentage guard is triggered (prevents corpus wipe)", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+
+        // Storage stays at 420MB (never recovers) — the guard should fire
+        // before the active_fifo tier can delete more than 20% of the corpus.
+        const storageCheckMb = async () => 420;
+
+        // Active corpus = 100 jobs. Budget = 20 (20% of 100).
+        // Tiers 1-4 are empty. active_fifo deletes 20 jobs in batches of 500
+        // (capped to 20 by the budget), then the guard fires.
+        let activeFifoCalls = 0;
+        executeMock.mockImplementation(async (sqlObj: unknown) => {
+          const sqlText = getSqlText(sqlObj);
+          if (
+            sqlText.includes("count(*)") &&
+            sqlText.includes("'active'") &&
+            !sqlText.includes("DELETE")
+          ) {
+            return { rows: [{ cnt: 100 }] };
+          }
+          if (sqlText.includes("VACUUM")) return {};
+          if (sqlText.includes("'normalization_failed'"))
+            return { rowCount: 0 };
+          if (sqlText.includes("'rejected'")) return { rowCount: 0 };
+          if (sqlText.includes("'gone'")) return { rowCount: 0 };
+          if (sqlText.includes("'stale'")) return { rowCount: 0 };
+          if (sqlText.includes("'active'")) {
+            activeFifoCalls++;
+            // First batch: deletes 20 (capped by budget), second batch: guard fires
+            return { rowCount: activeFifoCalls === 1 ? 20 : 0 };
+          }
+          return { rowCount: 0 };
+        });
+
+        const result = await runEmergencyPurge(storageCheckMb);
+
+        expect(result.recovered).toBe(false);
+        expect(result.corpusGuardTriggered).toBe(true);
+        expect(result.stopReason).toContain("Corpus percentage guard");
+        expect(result.stopReason).toContain("20% of 100 active jobs");
+        expect(result.totalDeleted).toBe(20);
+        expect(result.activeCorpusAtStart).toBe(100);
+        expect(result.activeFifoBudget).toBe(20);
+        expect(result.tiers[4].tier).toBe("active_fifo");
+        expect(result.tiers[4].deletedCount).toBe(20);
       });
     });
   });

@@ -1863,13 +1863,18 @@ New env vars: `NEON_API_KEY`, `NEON_PROJECT_ID`. The Neon API endpoint is `GET h
 - **Per-batch VACUUM (July 2026 fix):** VACUUM ANALYZE runs after each batch within a tier (not just between tiers). Without this, `pg_database_size()` still counts dead tuples as used space, and the recovery check at the top of the loop never fires within a tier — causing a false "not recovered" result even though actual storage dropped well below the threshold. This was the root cause of a misleading production alert that said "still above recovery threshold" when storage was actually at 35.2% (162MB / 460MB).
 - **Alert messages updated:** Storage alert emails and database records now reference `STORAGE_LIMIT_MB` and include specific messages for WAL inflation abort vs. normal purge completion.
 
+**Active FIFO Corpus Protection (July 2026):** The `active_fifo` last-resort tier received three safeguards to prevent a corpus wipe scenario discovered in production — when Gate 3 was broken (zero approved matches), the purge had no restraint and deleted the entire active corpus (3000 jobs) in a single run:
+1. **48h age protection** (`PURGE_ACTIVE_FIFO_MIN_AGE_HOURS = 48`): Jobs younger than 48 hours are excluded from the FIFO tier. Newly ingested jobs deserve a chance to be normalized, embedded, and matched before being purged. Without this, a storage emergency right after a large poll burst would delete jobs that the normalizer hasn't even processed yet.
+2. **Normalized-only filter:** The `purgeActiveFifo` SQL now requires `normalized_at IS NOT NULL AND raw_json IS NULL`. Jobs still carrying `raw_json` (~25KB each) are in the normalizer's queue, not the purger's — deleting them destroys data that the normalizer would have pruned (raw_json → normalizedText, 80% size reduction) and matched. This decouples the purge from the unnormalized backlog: the backlog threshold (`MAX_UNNORMALIZED_BACKLOG = 3000`) pauses ingestion, while the purge only targets jobs that have already been through the normalizer.
+3. **Corpus percentage guard** (`PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION = 0.2`): At most 20% of the active corpus can be deleted by the `active_fifo` tier in a single purge run. The orchestrator calls `countActiveJobs()` at the start to calculate the budget (`activeCorpusAtStart × 0.2`). If cumulative `active_fifo` deletions exceed this budget, the purge aborts with `corpusGuardTriggered = true` and a "Corpus percentage guard" stop reason. The alert email includes the budget and corpus size. If storage can't be recovered within the 20% budget, the purge surfaces a "cannot recover without major data loss" alert instead of silently destroying the corpus.
+
 **Emergency Purge Button:** Admin dashboard `EmergencyPurgeButton.tsx` component triggers the purge manually via `triggerEmergencyPurge` Server Action. Shows confirmation dialog with tier descriptions before executing.
 
 **Migrations:**
 - `0039_reflective_caretaker.sql` — Gate 0.5 metadata: 8 job columns + 2 applicant columns + `job_title_region_tag_idx` index.
 - `0040_lazy_freak.sql` — Work authorization: `applicant.work_authorizations` (text array) + `match_queue.work_auth_risk_flag` (boolean).
 
-**Verification:** 1,760 tests pass (90 files), 0 TS errors, 2 new migrations (0039, 0040). Biome clean. New test files: `gate-zero-pre-filter.test.ts`, `neon-api.test.ts`, updated `storage-check.test.ts`, `alerting.test.ts`, `admin-queries.test.ts`, `cleanup-queries.test.ts` (including per-batch VACUUM regression test).
+**Verification:** 1,761 tests pass (90 files), 0 TS errors, 2 new migrations (0039, 0040). Biome clean. New test files: `gate-zero-pre-filter.test.ts`, `neon-api.test.ts`, updated `storage-check.test.ts`, `alerting.test.ts`, `admin-queries.test.ts`, `cleanup-queries.test.ts` (including per-batch VACUUM regression test and corpus percentage guard test).
 
 ---
 

@@ -3927,9 +3927,11 @@ export const emergencyStoragePurge = inngest.createFunction(
 
       const reason = purgeResult.walInflationDetected
         ? `Emergency purge ABORTED due to WAL inflation — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. ${purgeResult.stopReason} Manual intervention required: reduce Neon history retention or wait for WAL to age out.`
-        : purgeResult.recovered
-          ? `Emergency purge completed — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage recovered from ${purgeResult.storageBeforeMb.toFixed(0)}MB to ${purgeResult.storageAfterMb.toFixed(0)}MB.`
-          : `Emergency purge completed but storage still above recovery threshold — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. Manual intervention required.`;
+        : purgeResult.corpusGuardTriggered
+          ? `Emergency purge ABORTED by corpus percentage guard — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. ${purgeResult.stopReason}`
+          : purgeResult.recovered
+            ? `Emergency purge completed — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage recovered from ${purgeResult.storageBeforeMb.toFixed(0)}MB to ${purgeResult.storageAfterMb.toFixed(0)}MB.`
+            : `Emergency purge completed but storage still above recovery threshold — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. Manual intervention required.`;
 
       await sendStorageAlertEmail({
         severity: purgeResult.recovered ? "warning" : "critical",

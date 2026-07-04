@@ -235,6 +235,12 @@ export interface EmergencyPurgeResult {
   stopReason: string;
   /** Whether the purge aborted due to WAL inflation (storage increasing). */
   walInflationDetected: boolean;
+  /** Whether the purge aborted due to the corpus percentage guard. */
+  corpusGuardTriggered: boolean;
+  /** Number of active jobs at the start of the purge (for corpus guard). */
+  activeCorpusAtStart: number;
+  /** Maximum number of active jobs the purge was allowed to delete. */
+  activeFifoBudget: number;
 }
 
 // ── Tier 1: normalization_failed (any age) ───────────────────────────────────
@@ -350,15 +356,88 @@ export async function purgeStale(
 // ── Tier 5: active FIFO (LAST RESORT) ────────────────────────────────────────
 
 /**
+ * Minimum age (in hours) for a job to be eligible for the active_fifo purge
+ * tier. Jobs younger than this are protected — they haven't had enough time to
+ * be normalized, embedded, and matched. Sacrificing them would destroy data
+ * that may have just been ingested and is still in the normalizer's queue.
+ *
+ * 48 hours gives the normalizer (4h cron, 2000 jobs/run = 12000/day throughput)
+ * ample time to process any job, and gives the matching pipeline at least one
+ * full batchPollTier cycle (active_hot every 3h) to produce matches.
+ */
+export const PURGE_ACTIVE_FIFO_MIN_AGE_HOURS = 48;
+
+/**
+ * Maximum fraction of the active corpus that the active_fifo tier is allowed to
+ * delete in a single purge run. If the cumulative deletion count exceeds this
+ * fraction of the initial active job count, the purge aborts with a
+ * "corpus_percentage_guard" stop reason.
+ *
+ * This prevents a scenario where Gate 3 is broken (zero approved matches) and
+ * the purge has no restraint — without this guard, the entire active corpus
+ * can be wiped in a single run.
+ *
+ * 20% means: if you have 5000 active jobs, at most 1000 can be deleted by
+ * active_fifo in one purge. If storage can't be recovered within that budget,
+ * the purge surfaces a "cannot recover without major data loss" alert instead
+ * of silently destroying the corpus.
+ */
+export const PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION = 0.2;
+
+/**
+ * Count active jobs that are eligible for the active_fifo tier (normalized,
+ * older than 48h, no approved matches). Used by the orchestrator to enforce
+ * the corpus percentage guard.
+ */
+export async function countActiveFifoEligible(): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT count(*)::int as cnt FROM job j
+    WHERE j.status = 'active'
+      AND j.normalized_at IS NOT NULL
+      AND j.detected_at < NOW() - INTERVAL '48 hours'
+      AND j.id NOT IN (
+        SELECT mq.job_id FROM match_queue mq WHERE mq.status = 'approved'
+      )
+  `);
+  const row = result.rows[0] as { cnt?: number } | undefined;
+  return row?.cnt ?? 0;
+}
+
+/**
+ * Count all active jobs (regardless of eligibility). Used by the orchestrator
+ * to calculate the corpus percentage guard budget.
+ */
+export async function countActiveJobs(): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT count(*)::int as cnt FROM job WHERE status = 'active'
+  `);
+  const row = result.rows[0] as { cnt?: number } | undefined;
+  return row?.cnt ?? 0;
+}
+
+/**
  * Delete up to `limit` `active` jobs by FIFO (oldest `detected_at` first).
  *
  * This is the last-resort tier — it directly reduces matching recall. Safeguards:
  *   - Excludes jobs that have produced `approved` matches (users may still be
  *     in the application process).
+ *   - Excludes jobs younger than 48 hours (PURGE_ACTIVE_FIFO_MIN_AGE_HOURS) —
+ *     newly ingested jobs deserve a chance to be normalized and matched before
+ *     being purged. Without this, a storage emergency right after a large poll
+ *     burst would delete jobs that the normalizer hasn't even processed yet.
+ *   - Excludes jobs that haven't been normalized yet (normalized_at IS NULL or
+ *     raw_json IS NOT NULL). Jobs still carrying raw_json are in the
+ *     normalizer's queue, not the purger's — deleting them destroys data that
+ *     the normalizer would have pruned (raw_json → normalizedText, 80% size
+ *     reduction) and matched. This decouples the purge from the backlog.
  *   - Orders by `detected_at` ASC so the oldest jobs (longest time in the
  *     matching pool, most chances to match) are sacrificed first.
  *   - Uses a smaller default batch size (PURGE_ACTIVE_FIFO_BATCH_SIZE = 500)
  *     to limit per-batch WAL generation on this destructive tier.
+ *
+ * The orchestrator enforces an additional corpus percentage guard
+ * (PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION) that caps total active_fifo
+ * deletions at 20% of the active corpus per purge run.
  */
 export async function purgeActiveFifo(
   limit: number = PURGE_ACTIVE_FIFO_BATCH_SIZE,
@@ -368,6 +447,9 @@ export async function purgeActiveFifo(
     WHERE id IN (
       SELECT j.id FROM job j
       WHERE j.status = 'active'
+        AND j.normalized_at IS NOT NULL
+        AND j.raw_json IS NULL
+        AND j.detected_at < NOW() - INTERVAL '48 hours'
         AND j.id NOT IN (
           SELECT mq.job_id FROM match_queue mq WHERE mq.status = 'approved'
         )
@@ -390,7 +472,7 @@ export async function purgeActiveFifo(
  * threshold or all tiers are exhausted.
  *
  * For each tier, deletes in batches until the tier is empty or storage recovers.
- * Runs `VACUUM ANALYZE` after each tier to reclaim dead tuples so the storage
+ * Runs `VACUUM ANALYZE` after each batch to reclaim dead tuples so the storage
  * check reflects reality.
  *
  * WAL INFLATION PROTECTION:
@@ -399,6 +481,14 @@ export async function purgeActiveFifo(
  * while synthetic storage increases. The purge tracks storage before/after each
  * batch. If storage increases for `PURGE_MAX_WAL_INFLATION_BATCHES` consecutive
  * batches, the purge aborts immediately — continuing would make things worse.
+ *
+ * CORPUS PERCENTAGE GUARD (active_fifo tier only):
+ * The active_fifo tier is capped at PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION (20%)
+ * of the active corpus per purge run. If the cumulative active_fifo deletions
+ * exceed this budget, the purge aborts with a "corpus_percentage_guard" stop
+ * reason. This prevents a scenario where Gate 3 is broken (zero approved
+ * matches) and the purge has no restraint — without this guard, the entire
+ * active corpus can be wiped in a single run.
  *
  * @param storageCheckMb  Function that returns the current DB size in MB.
  *                        Injected to avoid a circular import with storage-check.ts.
@@ -413,8 +503,18 @@ export async function runEmergencyPurge(
   let stopReason = "all tiers exhausted";
   let recovered = false;
   let walInflationDetected = false;
+  let corpusGuardTriggered = false;
   let consecutiveInflationCount = 0;
   let lastCheckedMb = storageBeforeMb;
+
+  // Corpus percentage guard: calculate the active_fifo deletion budget before
+  // the purge starts. This prevents the active_fifo tier from destroying more
+  // than 20% of the active corpus in a single purge run.
+  const activeCorpusAtStart = await countActiveJobs();
+  const activeFifoBudget = Math.floor(
+    activeCorpusAtStart * PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION,
+  );
+  let activeFifoDeleted = 0;
 
   // Tier functions in priority order.
   const tierFns: Array<{
@@ -466,9 +566,28 @@ export async function runEmergencyPurge(
       }
       lastCheckedMb = currentMb;
 
-      const batch = await fn(batchSize);
+      // Corpus percentage guard: if this is the active_fifo tier and the
+      // budget is exhausted, abort before deleting more active jobs.
+      if (name === "active_fifo" && activeFifoBudget > 0) {
+        if (activeFifoDeleted >= activeFifoBudget) {
+          corpusGuardTriggered = true;
+          stopReason = `Corpus percentage guard: active_fifo has deleted ${activeFifoDeleted} jobs (${(PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION * 100).toFixed(0)}% of ${activeCorpusAtStart} active jobs). Purge aborted to prevent major data loss. Manual intervention required: reduce Neon history retention or increase storage limit.`;
+          break;
+        }
+      }
+
+      // For active_fifo, cap the batch size to not exceed the remaining budget.
+      const effectiveBatchSize =
+        name === "active_fifo" && activeFifoBudget > 0
+          ? Math.min(batchSize, activeFifoBudget - activeFifoDeleted)
+          : batchSize;
+
+      const batch = await fn(effectiveBatchSize);
       tierDeleted += batch.deletedCount;
       tierHadRows = tierHadRows || batch.hadRows;
+      if (name === "active_fifo") {
+        activeFifoDeleted += batch.deletedCount;
+      }
 
       if (!batch.hadRows) {
         break; // Tier exhausted, move to next tier
@@ -491,7 +610,7 @@ export async function runEmergencyPurge(
     });
     totalDeleted += tierDeleted;
 
-    if (recovered || walInflationDetected) {
+    if (recovered || walInflationDetected || corpusGuardTriggered) {
       break;
     }
   }
@@ -506,5 +625,8 @@ export async function runEmergencyPurge(
     recovered,
     stopReason,
     walInflationDetected,
+    corpusGuardTriggered,
+    activeCorpusAtStart,
+    activeFifoBudget,
   };
 }
