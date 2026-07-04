@@ -528,3 +528,160 @@ describe("Gate 0.5 — Multiple blockers", () => {
     expect(result.patternDetected).toBe("title_region_tag");
   });
 });
+
+// =============================================================================
+// REGRESSION: COUNTRY MATCHING SUBSTRING FALSE POSITIVES
+// =============================================================================
+// locationMentionsCountry previously used String.includes(), which let short
+// country codes match as substrings of unrelated words — e.g. "us" inside
+// "Australia", "in" inside "Indonesia", "rs" inside "Lawyers". These caused
+// Check 3 to wrongly PASS on-site jobs in foreign countries (the exact failure
+// mode Gate 0.5 exists to prevent). These tests pin the non-letter boundary
+// matching so the bug cannot regress.
+
+describe("Gate 0.5 — country matching substring regression", () => {
+  it("rejects US applicant for on-site job in Australia (not 'us' substring)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Sydney, Australia",
+          workplaceType: "on-site",
+        },
+        applicant: {
+          country: "US",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: null,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("explicit_on_site");
+  });
+
+  it("rejects India applicant for on-site job in Indonesia (not 'in' substring)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Jakarta, Indonesia",
+          workplaceType: "on-site",
+        },
+        applicant: {
+          country: "IN",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: null,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("explicit_on_site");
+  });
+
+  it("rejects Serbia applicant for on-site job at 'Lawyers HQ, USA' (not 'rs' substring)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Lawyers HQ, USA",
+          workplaceType: "on-site",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("explicit_on_site");
+  });
+
+  it("still passes US applicant for on-site job in 'San Francisco, USA'", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "San Francisco, USA",
+          workplaceType: "on-site",
+        },
+        applicant: {
+          country: "US",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: null,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("still passes US applicant for remote job with 'Remote - US' location", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+        },
+        applicant: {
+          country: "US",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: null,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("still passes India applicant for on-site job in 'Mumbai, India'", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Mumbai, India",
+          workplaceType: "on-site",
+        },
+        applicant: {
+          country: "IN",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: null,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("still rejects country list excluding applicant (no substring regression in Check 2)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Frontend Engineer",
+          locationName: "Remote",
+          workplaceType: "remote",
+          locationCountries: ["Mexico", "Argentina", "Colombia", "India"],
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("location_country_list");
+  });
+
+  it("still passes country list including applicant (no substring regression in Check 2)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote",
+          workplaceType: "remote",
+          locationCountries: ["Serbia", "Germany", "France"],
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+});

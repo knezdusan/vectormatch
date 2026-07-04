@@ -72,6 +72,15 @@ export const matchQueue = pgTable(
     // testing prompt variations to optimize approval rates. Null for rows
     // evaluated before the A/B test feature was deployed.
     promptVariant: text("prompt_variant"),
+    // Work authorization risk flag (added July 2026). Set to true by Gate 3
+    // when the job description is SILENT on work authorization/visa/citizenship
+    // requirements BUT the role is hybrid or single-country-remote (not global).
+    // This surfaces the Ketryx-class risk: work-auth requirements hidden in the
+    // application form, not the JD. The job is NOT rejected — it still goes
+    // through the normal approve/reject flow. The flag renders a warning badge
+    // in the dashboard: "Work authorization not verified — confirm eligibility
+    // before applying." See docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md.
+    workAuthRiskFlag: boolean("work_auth_risk_flag").default(false).notNull(),
     // When Gate 3 ran. Null until Gate 3 completes.
     evaluatedAt: timestamp("evaluated_at"),
     // When the match was marked stale by staleJobVerifier. Separate from

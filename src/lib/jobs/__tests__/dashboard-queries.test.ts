@@ -331,6 +331,7 @@ describe("getMatchDetail", () => {
       createdAt: new Date("2026-06-22"),
       overlapScore: 5,
       cosineDistance: 0.12,
+      workAuthRiskFlag: false,
       jobId: "job-1",
       jobTitle: "Senior React Engineer",
       jobAtsSource: "greenhouse",
@@ -449,7 +450,10 @@ describe("updateMatchStatus", () => {
   });
 
   it("returns error for a disallowed status", async () => {
-    const result = await updateMatchStatus("mq-1", "approved" as "mismatch");
+    const result = await updateMatchStatus(
+      "mq-1",
+      "invalid_status" as "mismatch",
+    );
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Invalid status");

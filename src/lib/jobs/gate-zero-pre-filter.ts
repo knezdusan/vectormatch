@@ -96,6 +96,12 @@ const COUNTRY_NAMES: Record<string, string[]> = {
 
 /**
  * Check if a location string mentions the applicant's country (by code or name).
+ *
+ * Uses non-letter boundary matching rather than naive `String.includes()` to
+ * avoid false positives from short country codes appearing as substrings of
+ * other words — e.g. "us" inside "Australia", "in" inside "Indonesia", "rs"
+ * inside "Lawyers". A name/code matches only when it is preceded by start-of-
+ * string or a non-letter and followed by end-of-string or a non-letter.
  */
 function locationMentionsCountry(
   locationName: string,
@@ -103,11 +109,11 @@ function locationMentionsCountry(
 ): boolean {
   const lower = locationName.toLowerCase();
   const names = COUNTRY_NAMES[countryCode.toUpperCase()];
-  if (names) {
-    return names.some((name) => lower.includes(name));
-  }
-  // Fallback: check the code itself
-  return lower.includes(countryCode.toLowerCase());
+  const candidates = names ?? [countryCode.toLowerCase()];
+  return candidates.some((name) => {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^a-z])${escaped}(?=$|[^a-z])`).test(lower);
+  });
 }
 
 // =============================================================================

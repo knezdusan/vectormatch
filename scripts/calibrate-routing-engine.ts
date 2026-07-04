@@ -456,6 +456,7 @@ async function main(): Promise<void> {
               preferredCompliance: applicant.preferredCompliance,
               modalities: applicant.modalities,
               assignmentTypes: applicant.assignmentTypes,
+              workAuthorizations: applicant.workAuthorizations,
             })
             .from(applicant)
             .where(eq(applicant.userId, c.applicantId))
@@ -490,6 +491,7 @@ async function main(): Promise<void> {
               preferredCompliance: applicantRow[0].preferredCompliance ?? [],
               modalities: applicantRow[0].modalities ?? [],
               assignmentTypes: applicantRow[0].assignmentTypes ?? [],
+              workAuthorizations: applicantRow[0].workAuthorizations ?? [],
             },
           });
 

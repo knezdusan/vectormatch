@@ -187,6 +187,22 @@ export const seniorityLevelsEnum = z.enum([
   "staff",
   "principal",
 ]);
+// Work authorizations / permits the applicant holds (added July 2026).
+// Used by Gate 3 to check against jobs requiring specific work authorization.
+// Stored as text[] in the DB (not a pgEnum) so new permit types can be added
+// without a DB migration — this Zod enum is the validation layer.
+export const workAuthorizationsEnum = z.enum([
+  "eu_citizen", // EU/EEA citizen — right to work in all EU/EEA states
+  "rwr_card_plus", // Austria Red-White-Red Card Plus
+  "blue_card_eu", // EU Blue Card (highly qualified workers)
+  "uk_settled", // UK settled status
+  "uk_pre_settled", // UK pre-settled status (EU Settlement Scheme)
+  "us_green_card", // US permanent resident
+  "us_citizen", // US citizen
+  "canadian_pr", // Canadian permanent resident
+  "swiss_permit_c", // Switzerland settled permit (C)
+  "other_permit", // Other work permit (user should specify in profile)
+]);
 
 /**
  * The canonical ordering of seniority levels (junior → principal).
@@ -336,6 +352,7 @@ export type AssignmentType = z.infer<typeof assignmentTypesEnum>;
 export type Modality = z.infer<typeof modalitiesEnum>;
 export type PreferredCompliance = z.infer<typeof preferredComplianceEnum>;
 export type SeniorityLevel = z.infer<typeof seniorityLevelsEnum>;
+export type WorkAuthorization = z.infer<typeof workAuthorizationsEnum>;
 
 // =============================================================================
 // CV VALIDITY CHECKS (Pre-LLM)

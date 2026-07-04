@@ -16,6 +16,7 @@ import type {
   Modality,
   PreferredCompliance,
   SeniorityLevel,
+  WorkAuthorization,
 } from "@/lib/onboarding/schemas";
 
 const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
@@ -86,6 +87,32 @@ const SENIORITY_VALUES: SeniorityLevel[] = [
   "principal",
 ];
 
+const WORK_AUTH_LABELS: Record<WorkAuthorization, string> = {
+  eu_citizen: "EU/EEA citizen",
+  rwr_card_plus: "Austria RWR Card Plus",
+  blue_card_eu: "EU Blue Card",
+  uk_settled: "UK settled status",
+  uk_pre_settled: "UK pre-settled status",
+  us_green_card: "US permanent resident (green card)",
+  us_citizen: "US citizen",
+  canadian_pr: "Canadian permanent resident",
+  swiss_permit_c: "Switzerland permit C (settled)",
+  other_permit: "Other work permit",
+};
+
+const WORK_AUTH_VALUES: WorkAuthorization[] = [
+  "eu_citizen",
+  "rwr_card_plus",
+  "blue_card_eu",
+  "uk_settled",
+  "uk_pre_settled",
+  "us_green_card",
+  "us_citizen",
+  "canadian_pr",
+  "swiss_permit_c",
+  "other_permit",
+];
+
 type ProfilePreferencesFormProps = {
   applicant: Applicant;
   onSaved?: () => void;
@@ -118,6 +145,9 @@ export function ProfilePreferencesForm({
   const [seniorityLevels, setSeniorityLevels] = useState<SeniorityLevel[]>(
     (applicant.seniorityLevels ?? []) as SeniorityLevel[],
   );
+  const [workAuthorizations, setWorkAuthorizations] = useState<
+    WorkAuthorization[]
+  >((applicant.workAuthorizations ?? []) as WorkAuthorization[]);
 
   const reset = () => {
     setCountry(applicant.country ?? "");
@@ -128,6 +158,9 @@ export function ProfilePreferencesForm({
       (applicant.preferredCompliance ?? []) as PreferredCompliance[],
     );
     setSeniorityLevels((applicant.seniorityLevels ?? []) as SeniorityLevel[]);
+    setWorkAuthorizations(
+      (applicant.workAuthorizations ?? []) as WorkAuthorization[],
+    );
   };
 
   useActionToast(
@@ -161,6 +194,7 @@ export function ProfilePreferencesForm({
         modalities,
         preferredCompliance,
         seniorityLevels,
+        workAuthorizations,
       }),
     );
     startTransition(() => {
@@ -285,6 +319,39 @@ export function ProfilePreferencesForm({
                 className="font-normal"
               >
                 {SENIORITY_LABELS[value]}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Work authorizations / permits</Label>
+        <p className="text-xs text-muted-foreground">
+          Select any work permits or citizenship statuses you hold. Used to
+          filter out jobs requiring authorization you don&apos;t have (e.g.,
+          &quot;EU citizenship required&quot;). Optional — if none are set, jobs
+          are not blocked on this basis but may show a verification warning.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          {WORK_AUTH_VALUES.map((value) => (
+            <div key={value} className="flex items-center gap-2">
+              <Checkbox
+                id={`profile-work-auth-${value}`}
+                checked={workAuthorizations.includes(value)}
+                onCheckedChange={(_checked) =>
+                  toggleArrayValue(
+                    workAuthorizations,
+                    value,
+                    setWorkAuthorizations,
+                  )
+                }
+              />
+              <Label
+                htmlFor={`profile-work-auth-${value}`}
+                className="font-normal"
+              >
+                {WORK_AUTH_LABELS[value]}
               </Label>
             </div>
           ))}

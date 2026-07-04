@@ -1,6 +1,13 @@
 "use client";
 
-import { Check, CheckCheck, ExternalLink, Eye, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  CheckCheck,
+  ExternalLink,
+  Eye,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -263,6 +270,19 @@ function MatchCard({ match }: { match: MatchRow }) {
                   {blocker}
                 </Badge>
               ))}
+            </div>
+          )}
+
+          {/* Work authorization risk flag — warns the user to verify work
+              authorization before applying. Surfaced when the JD was silent on
+              work auth but the role is hybrid or single-country-remote. */}
+          {match.workAuthRiskFlag && match.status === "approved" && (
+            <div className="flex items-center gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-500">
+              <AlertTriangle className="size-4 shrink-0" />
+              <span>
+                Work authorization not verified — confirm eligibility before
+                applying.
+              </span>
             </div>
           )}
 

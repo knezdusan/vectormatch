@@ -67,6 +67,7 @@ const mockContext: Gate3Context = {
     preferredCompliance: ["b2b", "w8ben"],
     modalities: ["full-time", "contract"],
     assignmentTypes: ["remote"],
+    workAuthorizations: [],
   },
 };
 
@@ -76,6 +77,7 @@ const mockApprovedVerdict: Gate3Verdict = {
   matchReasoning:
     "The job requires React, TypeScript, and Next.js which align perfectly with the persona's must-have tags. The remote assignment type matches the applicant's preference.",
   blockers: [],
+  workAuthRiskFlag: false,
 };
 
 const mockRejectedVerdict: Gate3Verdict = {
@@ -84,6 +86,7 @@ const mockRejectedVerdict: Gate3Verdict = {
   matchReasoning:
     "The job requires on-site work in San Francisco, but the applicant only accepts remote assignments.",
   blockers: ["requires on-site in SF"],
+  workAuthRiskFlag: false,
 };
 
 // =============================================================================
@@ -202,6 +205,7 @@ describe("buildGate3Prompt", () => {
         preferredCompliance: [],
         modalities: [],
         assignmentTypes: [],
+        workAuthorizations: [],
       },
     };
 
@@ -334,6 +338,215 @@ describe("buildGate3Prompt", () => {
     const prompt = buildGate3Prompt(mockContext);
 
     expect(prompt).toContain("COMPLIANCE DIRECTIVE above");
+  });
+});
+
+// =============================================================================
+// Work authorization directive (EU permits, named permits, risk flag)
+// =============================================================================
+// Parallel to the compliance directive, but for work-permit/citizenship
+// requirements. Tells the LLM what permits the applicant holds so it can
+// check against jobs requiring EU citizenship, RWR Card Plus, Blue Card EU,
+// UK settled status, etc. Also instructs the LLM to set workAuthRiskFlag
+// when the JD is silent on work auth but the role is hybrid/single-country-remote.
+
+describe("buildGate3Prompt — work authorization directive", () => {
+  it("adds work auth directive when applicant has work authorizations", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen", "rwr_card_plus"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("WORK AUTHORIZATION DIRECTIVE");
+    expect(prompt).toContain("eu_citizen");
+    expect(prompt).toContain("rwr_card_plus");
+    expect(prompt).toContain("EU/EEA member states");
+  });
+
+  it("does NOT add work auth directive when applicant has no work authorizations", () => {
+    const prompt = buildGate3Prompt(mockContext); // mockContext has empty workAuthorizations
+
+    expect(prompt).not.toContain("WORK AUTHORIZATION DIRECTIVE");
+  });
+
+  it("includes work authorizations in applicant hard constraints section", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("Work Authorizations: eu_citizen");
+  });
+
+  it("shows 'none specified' when work authorizations is empty", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("Work Authorizations: none specified");
+  });
+
+  it("directive explains permit coverage for EU citizen", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("eu_citizen: right to work in ALL EU/EEA");
+    expect(prompt).toContain('"EU citizenship required"');
+  });
+
+  it("directive explains permit coverage for RWR Card Plus", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["rwr_card_plus"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("rwr_card_plus: Austrian Red-White-Red Card Plus");
+  });
+
+  it("directive explains permit coverage for Blue Card EU", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["blue_card_eu"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("blue_card_eu: EU Blue Card");
+  });
+
+  it("directive explains permit coverage for UK settled status", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["uk_settled"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("uk_settled: UK settled status");
+  });
+
+  it("directive instructs LLM to reject when applicant lacks required permit", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("HARD BLOCKER");
+    expect(prompt).toContain("does NOT have");
+  });
+
+  it("directive instructs LLM to match when applicant has required permit", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("NOT a blocker");
+  });
+
+  it("directive instructs LLM to set workAuthRiskFlag for hybrid/single-country-remote", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("workAuthRiskFlag=true");
+    expect(prompt).toContain("hybrid or single-country-remote");
+  });
+
+  it("evaluation section references work auth directive", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("WORK AUTHORIZATION DIRECTIVE above");
+  });
+
+  it("evaluation section mentions workAuthRiskFlag even without work auth", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("workAuthRiskFlag=true");
+  });
+});
+
+// =============================================================================
+// gate3VerdictSchema — workAuthRiskFlag field validation
+// =============================================================================
+
+describe("gate3VerdictSchema — workAuthRiskFlag", () => {
+  it("accepts verdict with workAuthRiskFlag=false", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.85,
+      matchReasoning: "Good match",
+      blockers: [],
+      workAuthRiskFlag: false,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts verdict with workAuthRiskFlag=true", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.7,
+      matchReasoning: "Good match but work auth not verified",
+      blockers: [],
+      workAuthRiskFlag: true,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("defaults workAuthRiskFlag to false when omitted", () => {
+    const result = gate3VerdictSchema.safeParse({
+      approved: true,
+      matchConfidence: 0.85,
+      matchReasoning: "Good match",
+      blockers: [],
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workAuthRiskFlag).toBe(false);
+    }
   });
 });
 
@@ -544,6 +757,7 @@ describe("mapVerdict", () => {
       matchConfidence: 0.1,
       matchReasoning: "Weak match but passes minimum criteria.",
       blockers: [],
+      workAuthRiskFlag: false,
     };
 
     expect(mapVerdict(lowConfidenceApproved)).toBe("approved");
@@ -555,6 +769,7 @@ describe("mapVerdict", () => {
       matchConfidence: 0.95,
       matchReasoning: "Clear mismatch in tech stack.",
       blockers: ["wrong tech stack"],
+      workAuthRiskFlag: false,
     };
 
     expect(mapVerdict(highConfidenceRejected)).toBe("rejected");

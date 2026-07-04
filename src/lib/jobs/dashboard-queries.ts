@@ -65,6 +65,10 @@ export type MatchRow = {
   isRead: boolean;
   createdAt: Date | null;
   matchScore: number;
+  // Work authorization risk flag (added July 2026). True when the JD was
+  // silent on work auth but the role is hybrid or single-country-remote.
+  // Renders a warning badge in the dashboard.
+  workAuthRiskFlag: boolean;
 };
 
 /** A single match detail with full job + persona context. */
@@ -81,6 +85,7 @@ export type MatchDetail = {
   createdAt: Date | null;
   overlapScore: number;
   cosineDistance: number | null;
+  workAuthRiskFlag: boolean;
   job: {
     id: string;
     title: string;
@@ -265,6 +270,7 @@ export async function getMatches(
       isRead: matchQueue.isRead,
       createdAt: matchQueue.createdAt,
       matchScore: matchScoreExpr,
+      workAuthRiskFlag: matchQueue.workAuthRiskFlag,
     })
     .from(matchQueue)
     .innerJoin(job, eq(matchQueue.jobId, job.id))
@@ -409,6 +415,7 @@ export async function getMatchDetail(
       createdAt: matchQueue.createdAt,
       overlapScore: matchQueue.overlapScore,
       cosineDistance: matchQueue.cosineDistance,
+      workAuthRiskFlag: matchQueue.workAuthRiskFlag,
       jobId: job.id,
       jobTitle: job.title,
       jobAtsSource: job.atsSource,
@@ -445,6 +452,7 @@ export async function getMatchDetail(
     createdAt: r.createdAt,
     overlapScore: r.overlapScore,
     cosineDistance: r.cosineDistance,
+    workAuthRiskFlag: r.workAuthRiskFlag,
     job: {
       id: r.jobId,
       title: r.jobTitle,

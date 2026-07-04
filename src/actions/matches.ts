@@ -28,9 +28,17 @@ export type MatchActionState = {
   error?: string;
 };
 
-// User-facing match statuses that can be set from the dashboard job card.
-const USER_ACTIONABLE_STATUSES = ["mark_read", "mismatch", "applied"] as const;
-type UserActionableStatus = (typeof USER_ACTIONABLE_STATUSES)[number];
+// Match statuses that can be set from the dashboard UI (job list or detail page).
+const EDITABLE_MATCH_STATUSES = [
+  "approved",
+  "rejected",
+  "stale",
+  "pending",
+  "mark_read",
+  "mismatch",
+  "applied",
+] as const;
+type EditableMatchStatus = (typeof EDITABLE_MATCH_STATUSES)[number];
 
 // =============================================================================
 // ACTIONS
@@ -39,9 +47,9 @@ type UserActionableStatus = (typeof USER_ACTIONABLE_STATUSES)[number];
 /**
  * Update a match to a user-facing status.
  *
- * Allowed statuses are "mark_read", "mismatch", and "applied". Setting a match
- * to one of these statuses removes it from the default "approved" listing and
- * makes it available through the corresponding status filter.
+ * Allowed statuses are the editable match statuses used in the dashboard filters
+ * (approved, rejected, stale, pending, mark_read, mismatch, applied). Setting a
+ * match to a non-approved status removes it from the default "approved" listing.
  *
  * "mark_read" also sets isRead = true so the unread badge stays consistent.
  *
@@ -49,19 +57,19 @@ type UserActionableStatus = (typeof USER_ACTIONABLE_STATUSES)[number];
  * session.user.id — a user cannot modify another user's match.
  *
  * @param matchQueueId  The match queue row ID to update
- * @param status        One of the user-actionable statuses
+ * @param status        One of the editable match statuses
  * @returns             { success: true } or { success: false, error: "..." }
  */
 export async function updateMatchStatus(
   matchQueueId: string,
-  status: UserActionableStatus,
+  status: EditableMatchStatus,
 ): Promise<MatchActionState> {
   const session = await getAuthSession();
   if (!session) {
     return { success: false, error: "Not authenticated" };
   }
 
-  if (!USER_ACTIONABLE_STATUSES.includes(status)) {
+  if (!EDITABLE_MATCH_STATUSES.includes(status)) {
     return { success: false, error: "Invalid status" };
   }
 

@@ -1866,6 +1866,7 @@ export const gate3Evaluator = inngest.createFunction(
             preferredCompliance: applicant.preferredCompliance,
             modalities: applicant.modalities,
             assignmentTypes: applicant.assignmentTypes,
+            workAuthorizations: applicant.workAuthorizations,
           })
           .from(applicant)
           .where(eq(applicant.userId, applicantId))
@@ -1918,6 +1919,7 @@ export const gate3Evaluator = inngest.createFunction(
             preferredCompliance: applicantRows[0].preferredCompliance ?? [],
             modalities: applicantRows[0].modalities ?? [],
             assignmentTypes: applicantRows[0].assignmentTypes ?? [],
+            workAuthorizations: applicantRows[0].workAuthorizations ?? [],
           },
         },
       };
@@ -1968,6 +1970,7 @@ export const gate3Evaluator = inngest.createFunction(
           llmBlockers: verdict.blockers,
           llmModel: "gpt-4o-mini",
           promptVariant: promptVariant,
+          workAuthRiskFlag: verdict.workAuthRiskFlag ?? false,
           evaluatedAt: new Date(),
         })
         .where(eq(matchQueue.id, matchQueueId));

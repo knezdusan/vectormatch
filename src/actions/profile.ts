@@ -133,6 +133,7 @@ export async function updateApplicantPreferencesAction(
         modalities: data.modalities,
         preferredCompliance: data.preferredCompliance,
         seniorityLevels: data.seniorityLevels,
+        workAuthorizations: data.workAuthorizations,
       })
       .where(eq(applicant.userId, session.user.id));
 

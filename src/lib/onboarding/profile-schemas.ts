@@ -13,6 +13,7 @@ import {
   preferredComplianceEnum,
   seniorityLevelsEnum,
   validateAdjacentSeniority,
+  workAuthorizationsEnum,
 } from "./schemas";
 
 // =============================================================================
@@ -34,6 +35,10 @@ export const updatePreferencesSchema = z.object({
   seniorityLevels: z
     .array(seniorityLevelsEnum)
     .min(1, "At least 1 seniority level is required"),
+  // Work authorizations are optional — the user may not hold any named permits.
+  // When empty, Gate 3 soft-fail-opens on the work-auth check but may still set
+  // workAuthRiskFlag for hybrid/single-country-remote roles.
+  workAuthorizations: z.array(workAuthorizationsEnum).default([]),
 });
 
 // =============================================================================

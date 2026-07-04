@@ -49,6 +49,17 @@ export const gate3VerdictSchema = z.object({
     .describe(
       "Hard disqualifiers if rejected (e.g., 'web3 on blocklist', 'requires on-site in SF')",
     ),
+  // Work authorization risk flag (added July 2026). Set to true when the JD is
+  // silent on work authorization/visa/citizenship requirements BUT the role is
+  // hybrid or single-country-remote (not global). This surfaces the Ketryx-class
+  // risk: work-auth requirements hidden in the application form, not the JD.
+  // The job is NOT rejected — the flag warns the user to verify before applying.
+  workAuthRiskFlag: z
+    .boolean()
+    .default(false)
+    .describe(
+      "Set true if the JD is silent on work authorization but the role is hybrid or single-country-remote (not global remote). Set false if the JD explicitly states work-auth requirements (handled as a hard blocker) or the role is global remote with no country restriction.",
+    ),
 });
 
 export type Gate3Verdict = z.infer<typeof gate3VerdictSchema>;
@@ -83,6 +94,11 @@ export type Gate3Context = {
     preferredCompliance: string[];
     modalities: string[];
     assignmentTypes: string[];
+    // Work authorization permits the applicant holds (added July 2026).
+    // e.g. ["eu_citizen", "rwr_card_plus", "blue_card_eu"]. Empty/null when
+    // the user hasn't set it — Gate 3 soft-fail-opens on the work-auth check
+    // but may still set workAuthRiskFlag for hybrid/single-country-remote roles.
+    workAuthorizations: string[];
   };
 };
 
@@ -106,9 +122,14 @@ EVALUATION CRITERIA:
    - If the APPLICANT does NOT have w8ben or ic_global compliance, and the job explicitly restricts to a country/region that does not include the applicant's country, this is a HARD BLOCKER.
 5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 6. **Domain relevance**: Is the job in a domain the persona would plausibly work in? A React developer persona should match a SaaS frontend job, not a React Native game dev job (unless the persona explicitly mentions mobile).
+7. **Work authorization requirements**: Scan the job description for explicit work authorization, citizenship, or visa/permit requirements: "EU citizenship required", "must hold [country] work permit", "RWR Card Plus", "Blue Card EU", "settled status", "no visa sponsorship", "must be authorized to work in [country]", "US citizen or permanent resident only". Check the APPLICANT's workAuthorizations field (not the job's — jobs state requirements, applicants hold permits):
+   - If the job requires a specific citizenship/permit and the applicant's workAuthorizations does NOT include it (or a superset like eu_citizen covering EU-wide requirements), this is a HARD BLOCKER — reject. The applicant cannot legally work in that jurisdiction.
+   - If the job says "no visa sponsorship" or "no sponsorship provided" and the applicant does not have work authorization for that country, this is a HARD BLOCKER.
+   - If the applicant HAS the required permit (e.g., job requires "EU citizenship" and applicant has "eu_citizen"), this is NOT a blocker — approve if other criteria align.
+   - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization/visa/citizenship BUT the role is hybrid OR the location is "Remote - [specific country/region]" (not "Remote - Global" or "Remote - Worldwide"), set workAuthRiskFlag=true. This warns the user to verify work authorization before applying — many employers hide citizenship/permit requirements in the application form, not the JD. If the JD explicitly states work-auth requirements (handled above) or the role is global remote with no country restriction, set workAuthRiskFlag=false.
 
 OUTPUT RULES:
-- Be balanced: approve if the tech stack and seniority align well, even if there are soft concerns (location, compliance, hybrid workplace). Only reject for HARD blockers (completely wrong tech stack, on-site when applicant is remote-only with no hybrid flexibility, blocklist tags, non-US country restrictions without compliance, W-2-only US jobs for international contractors). Soft concerns (US-only remote with w8ben compliance AND contractor-friendly language, hybrid workplace) should be noted in the reasoning but should NOT cause rejection.
+- Be balanced: approve if the tech stack and seniority align well, even if there are soft concerns (location, compliance, hybrid workplace). Only reject for HARD blockers (completely wrong tech stack, on-site when applicant is remote-only with no hybrid flexibility, blocklist tags, non-US country restrictions without compliance, W-2-only US jobs for international contractors, work authorization requirements the applicant cannot satisfy). Soft concerns (US-only remote with w8ben compliance AND contractor-friendly language, hybrid workplace) should be noted in the reasoning but should NOT cause rejection.
 - If rejected, list ALL blockers in the blockers array.
 - matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
 - matchConfidence reflects your certainty, not the match quality. A confident "no" can have high confidence.`;
@@ -149,6 +170,24 @@ export function buildGate3Prompt(ctx: Gate3Context): string {
     ? `\n## COMPLIANCE DIRECTIVE (OVERRIDE — READ BEFORE EVALUATING)\nThe applicant HAS ${contractorCompliance.join(" and ")} compliance. This means they can work as an international contractor for US companies via W-8BEN or EOR (Employer of Record) arrangements. However, NOT every "US only" job is contractor-friendly — you MUST check the job posting's employment-type language:\n\nCONTRACTOR-FRIENDLY (SOFT concern — approve if tech stack and seniority align):\n- The job mentions "contractor", "contract", "1099", "freelance", "B2B", "independent contractor", "consultant"\n- The job does NOT specify any employment type (ambiguous — let the user decide in their dashboard)\n\nW-2 EMPLOYEE ONLY (HARD BLOCKER — reject even with w8ben compliance):\n- The job explicitly says "W-2", "employee", "full-time employee", "must be authorized to work in the US"\n- The job mentions "visa sponsorship", "green card", "US citizen", "permanent resident"\n- The job mentions "direct hire", payroll, benefits, health insurance, 401(k) as part of compensation\n- These companies want a W-2 employee on US payroll, not an international contractor\n\nCOUNTRY-SPECIFIC RESTRICTIONS:\n- US/North America restrictions with contractor-friendly language: SOFT concern\n- US/North America restrictions with W-2/employee language: HARD BLOCKER\n- Other countries (Colombia, Japan, Australia, etc.): ALWAYS HARD BLOCKER regardless of compliance\n`
     : "";
 
+  // Work authorization directive — tells the LLM what permits the applicant
+  // holds so it can check against jobs that require specific work authorization
+  // (EU citizenship, RWR Card Plus, Blue Card EU, UK settled status, etc.).
+  // Parallel to the compliance directive above, but for work-permit/citizenship
+  // requirements rather than employment-type/compliance arrangements.
+  // When the applicant has no work authorizations set, the directive is
+  // omitted (soft-fail-open) — but the LLM is still instructed via criterion 7
+  // in the system prompt to set workAuthRiskFlag for hybrid/single-country-remote
+  // roles with silent JDs.
+  const workAuthList = applicant.workAuthorizations.filter(
+    (w) => w.trim().length > 0,
+  );
+  const hasWorkAuth = workAuthList.length > 0;
+
+  const workAuthDirective = hasWorkAuth
+    ? `\n## WORK AUTHORIZATION DIRECTIVE\nThe applicant holds these work authorizations: ${workAuthList.join(", ")}\n\nPermit coverage:\n- eu_citizen: right to work in ALL EU/EEA member states (covers any "EU citizenship required" or "EU work permit" requirement)\n- rwr_card_plus: Austrian Red-White-Red Card Plus (right to work in Austria for non-EU nationals)\n- blue_card_eu: EU Blue Card (right to work in the issuing EU member state for highly qualified workers)\n- uk_settled: UK settled status (right to work in the UK)\n- uk_pre_settled: UK pre-settled status (right to work in the UK under the EU Settlement Scheme)\n- us_green_card: US permanent resident (right to work in the US)\n- us_citizen: US citizen (right to work in the US)\n- canadian_pr: Canadian permanent resident (right to work in Canada)\n- swiss_permit_c: Switzerland settled permit (right to work in Switzerland)\n- other_permit: other work permit (check the job's country requirement carefully)\n\nWhen evaluating jobs:\n- If the job requires EU citizenship or an EU work permit and the applicant has "eu_citizen", that is a MATCH (NOT a blocker).\n- If the job requires a specific named permit (e.g., "RWR Card Plus") and the applicant has it, that is a MATCH.\n- If the job requires a permit the applicant does NOT have, this is a HARD BLOCKER — reject.\n- If the JD is silent on work authorization but the role is hybrid or single-country-remote (not global), set workAuthRiskFlag=true to warn the user to verify before applying.\n`
+    : "";
+
   return `## JOB POSTING
 Title: ${job.title}
 Workplace Type: ${job.workplaceType ?? "not specified"}
@@ -171,10 +210,11 @@ Can Work US Hours: ${applicant.canWorkUsHours ?? "not specified"}
 Preferred Compliance: ${applicant.preferredCompliance.join(", ") || "any"}
 Preferred Modalities: ${applicant.modalities.join(", ") || "any"}
 Assignment Types: ${applicant.assignmentTypes.join(", ") || "any"}
+Work Authorizations: ${workAuthList.join(", ") || "none specified"}
 Full Skill Knowledge Base: ${applicant.allTags.join(", ") || "none"}
-${complianceDirective}
+${complianceDirective}${workAuthDirective}
 ## EVALUATION
-Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types and country-specific remote restrictions), and blocklist tags.${hasContractorCompliance ? " Remember: the applicant has w8ben/ic_global compliance (see COMPLIANCE DIRECTIVE above) — check whether the job posting uses contractor-friendly language (approve) or W-2/employee language (hard blocker) before deciding on US-only restrictions." : ""}`;
+Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types, country-specific remote restrictions, and work authorization requirements), and blocklist tags. Set workAuthRiskFlag=true if the JD is silent on work authorization but the role is hybrid or single-country-remote (not global).${hasContractorCompliance ? " Remember: the applicant has w8ben/ic_global compliance (see COMPLIANCE DIRECTIVE above) — check whether the job posting uses contractor-friendly language (approve) or W-2/employee language (hard blocker) before deciding on US-only restrictions." : ""}${hasWorkAuth ? " Remember: the applicant holds work authorizations (see WORK AUTHORIZATION DIRECTIVE above) — check whether the job requires permits the applicant has (match) or lacks (hard blocker)." : ""}`;
 }
 
 // =============================================================================
@@ -205,9 +245,14 @@ EVALUATION CRITERIA (be strict — only approve if you are highly confident):
    - If the APPLICANT does NOT have w8ben or ic_global compliance, and the restriction excludes the applicant's country, this is a HARD BLOCKER.
 5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 6. **Domain relevance**: Is the job in a domain the persona would plausibly work in?
+7. **Work authorization requirements**: Scan the job description for explicit work authorization, citizenship, or visa/permit requirements: "EU citizenship required", "must hold [country] work permit", "RWR Card Plus", "Blue Card EU", "settled status", "no visa sponsorship", "must be authorized to work in [country]". Check the APPLICANT's workAuthorizations field:
+   - If the job requires a specific citizenship/permit the applicant does NOT have, this is a HARD BLOCKER — reject.
+   - If the job says "no visa sponsorship" and the applicant lacks work authorization for that country, this is a HARD BLOCKER.
+   - If the applicant HAS the required permit, this is NOT a blocker.
+   - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization BUT the role is hybrid OR single-country-remote (not global), set workAuthRiskFlag=true. Otherwise false.
 
 OUTPUT RULES:
-- Be STRICT but fair: only reject for genuine hard blockers (wrong tech stack, on-site mismatch without hybrid flexibility, blocklist tags, non-US country restrictions without contractor compliance, W-2-only US jobs for international contractors). Soft concerns (hybrid workplace, US-only remote with contractor-friendly language and w8ben compliance) should be noted but should NOT cause rejection.
+- Be STRICT but fair: only reject for genuine hard blockers (wrong tech stack, on-site mismatch without hybrid flexibility, blocklist tags, non-US country restrictions without contractor compliance, W-2-only US jobs for international contractors, work authorization requirements the applicant cannot satisfy). Soft concerns (hybrid workplace, US-only remote with contractor-friendly language and w8ben compliance) should be noted but should NOT cause rejection.
 - If rejected, list ALL blockers in the blockers array.
 - matchReasoning should be 1–3 sentences explaining the key factor(s) in your decision.
 - matchConfidence reflects your certainty, not the match quality.`;
@@ -225,6 +270,11 @@ EVALUATION CRITERIA (reason step by step before deciding):
    - If the APPLICANT does NOT have w8ben or ic_global compliance, and the restriction excludes the applicant's country, this is a HARD BLOCKER.
 5. **Blocklist tags**: If any of the job's tags appear in the persona's blocklist, reject immediately.
 6. **Domain relevance**: Is the job in a domain the persona would plausibly work in? Consider transferable skills — a React developer can plausibly work in most SaaS/web product domains.
+7. **Work authorization requirements**: Scan the job description for explicit work authorization, citizenship, or visa/permit requirements: "EU citizenship required", "must hold [country] work permit", "RWR Card Plus", "Blue Card EU", "settled status", "no visa sponsorship", "must be authorized to work in [country]". Check the APPLICANT's workAuthorizations field:
+   - If the job requires a specific citizenship/permit the applicant does NOT have, this is a HARD BLOCKER — reject. The applicant cannot legally work in that jurisdiction.
+   - If the job says "no visa sponsorship" and the applicant lacks work authorization for that country, this is a HARD BLOCKER.
+   - If the applicant HAS the required permit (e.g., job requires "EU citizenship" and applicant has "eu_citizen"), this is NOT a blocker — approve if other criteria align.
+   - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization/visa/citizenship BUT the role is hybrid OR the location is "Remote - [specific country/region]" (not "Remote - Global" or "Remote - Worldwide"), set workAuthRiskFlag=true. This warns the user to verify work authorization before applying — many employers hide citizenship/permit requirements in the application form, not the JD. If the JD explicitly states work-auth requirements or the role is global remote, set workAuthRiskFlag=false.
 
 OUTPUT RULES:
 - Be thorough: consider all criteria before deciding. A match doesn't require perfection — it requires plausibility. If the core tech stack aligns and there are no hard blockers, lean toward approving. Soft concerns (hybrid workplace, US-only remote with contractor-friendly language and w8ben compliance) should be noted but should NOT cause rejection.

@@ -281,6 +281,13 @@
       "when": 1783152214030,
       "tag": "0039_reflective_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1783160468270,
+      "tag": "0040_lazy_freak",
+      "breakpoints": true
     }
   ]
 }

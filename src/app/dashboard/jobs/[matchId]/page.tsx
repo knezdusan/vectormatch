@@ -7,9 +7,10 @@
 //
 // (MODULE_C_DECISIONS.md §8)
 
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { MatchStatusSelect } from "@/components/dashboard/MatchStatusSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,11 +39,32 @@ function statusBadgeVariant(
     case "approved":
       return "default";
     case "rejected":
+    case "mismatch":
       return "destructive";
     case "pending":
+    case "mark_read":
       return "secondary";
+    case "applied":
+      return "outline";
+    case "stale":
+      return "outline";
     default:
       return "outline";
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case "mark_read":
+      return "Read";
+    case "mismatch":
+      return "Mismatch";
+    case "applied":
+      return "Applied";
+    case "stale":
+      return "Closed";
+    default:
+      return status;
   }
 }
 
@@ -115,27 +137,35 @@ export default async function MatchDetailPage({
             variant={statusBadgeVariant(match.status)}
             className="shrink-0"
           >
-            {match.status}
+            {statusLabel(match.status)}
           </Badge>
         </div>
 
-        {jobUrl && (
-          <a
-            href={jobUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-fit"
-          >
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 cursor-pointer"
+        <div className="flex items-center justify-between gap-4">
+          {jobUrl ? (
+            <a
+              href={jobUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-fit"
             >
-              <ExternalLink className="size-4" />
-              View on {match.job.atsSource}
-            </Button>
-          </a>
-        )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 cursor-pointer"
+              >
+                <ExternalLink className="size-4" />
+                View on {match.job.atsSource}
+              </Button>
+            </a>
+          ) : (
+            <span />
+          )}
+          <MatchStatusSelect
+            matchQueueId={match.matchQueueId}
+            currentStatus={match.status}
+          />
+        </div>
       </div>
 
       {/* Gate 1+2 scores — calibration metrics */}
@@ -233,6 +263,23 @@ export default async function MatchDetailPage({
                     {blocker}
                   </Badge>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {match.workAuthRiskFlag && match.status === "approved" && (
+            <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-600 dark:text-yellow-500">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <div>
+                <p className="font-medium">Work authorization not verified</p>
+                <p className="mt-0.5 text-xs">
+                  The job description does not mention work authorization or
+                  visa requirements, but the role is hybrid or restricted to a
+                  specific country/region. Confirm your eligibility to work in
+                  the required jurisdiction before applying — some employers
+                  hide citizenship or permit requirements in the application
+                  form.
+                </p>
               </div>
             </div>
           )}

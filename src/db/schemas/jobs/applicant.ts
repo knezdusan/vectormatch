@@ -51,6 +51,21 @@ export const applicant = pgTable("applicant", {
   // When NULL, the experience band check in Gate 0.5 is skipped.
   yearsOfExperience: integer("years_of_experience"),
 
+  // ── Work authorization permits (added July 2026) ────────────────────────
+  // Work permits and citizenship statuses the applicant holds. Used by Gate 3
+  // to check against jobs that require specific work authorization (e.g., "EU
+  // citizenship required", "RWR Card Plus", "Blue Card EU", "UK settled
+  // status"). Stored as text[] (not a pgEnum) so new permit types can be added
+  // without a DB migration. NULL/empty until the user sets it via
+  // onboarding/profile management. When empty, Gate 3's work-auth check is
+  // soft-fail-open (the job is not blocked just because we don't know the
+  // applicant's permits — but workAuthRiskFlag may still be set for hybrid /
+  // single-country-remote roles with silent JDs).
+  // Valid values: eu_citizen, rwr_card_plus, blue_card_eu, uk_settled,
+  // uk_pre_settled, us_green_card, us_citizen, canadian_pr, swiss_permit_c,
+  // other_permit.
+  workAuthorizations: text("work_authorizations").array(),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
