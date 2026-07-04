@@ -18,9 +18,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock the storage-check module
 vi.mock("@/lib/jobs/storage-check", () => ({
   getDatabaseSizeMb: vi.fn().mockResolvedValue(200),
-  STORAGE_LIMIT_MB: 512,
+  STORAGE_LIMIT_MB: 460,
+  NEON_STORAGE_LIMIT_MB: 512,
   STORAGE_WARNING_THRESHOLD: 0.88,
   STORAGE_CRITICAL_THRESHOLD: 0.94,
+}));
+
+// Mock the neon-api module — default to null (fallback to pg_database_size)
+vi.mock("@/lib/jobs/neon-api", () => ({
+  getNeonStorageInfo: vi.fn().mockResolvedValue(null),
 }));
 
 // Mock the db module
@@ -45,6 +51,7 @@ import {
   resolveAlertsByType,
   resolveAllAlerts,
 } from "@/lib/jobs/alerting";
+import { getNeonStorageInfo } from "@/lib/jobs/neon-api";
 import { getDatabaseSizeMb } from "@/lib/jobs/storage-check";
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
@@ -194,11 +201,19 @@ describe("getActiveAlerts", () => {
 describe("checkStorageAlerts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: Neon API unavailable → falls back to pg_database_size
+    vi.mocked(getNeonStorageInfo).mockResolvedValue(null);
   });
 
-  it("creates a critical alert when storage exceeds critical threshold", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(490); // 490/512 = 95.7% >= 0.94
-    // hasActiveAlert returns false (no existing alert)
+  it("creates a critical alert when Neon synthetic storage exceeds critical threshold", async () => {
+    // Neon API returns synthetic storage at 95.7% of 512 MB
+    vi.mocked(getNeonStorageInfo).mockResolvedValue({
+      syntheticStorageMb: 490,
+      logicalSizeMb: 460,
+      limitMb: 512,
+      percentage: 490 / 512,
+      source: "neon-api",
+    });
     mockSelectChain([]);
     mockInsertReturning([{ id: "uuid-1", status: "active" }]);
 
@@ -207,8 +222,15 @@ describe("checkStorageAlerts", () => {
     expect(db.insert).toHaveBeenCalled();
   });
 
-  it("creates a warning alert when storage exceeds warning threshold", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(460); // 460/512 = 89.8% >= 0.88, < 0.94
+  it("creates a warning alert when Neon synthetic storage exceeds warning threshold", async () => {
+    // Neon API returns synthetic storage at 90% of 512 MB
+    vi.mocked(getNeonStorageInfo).mockResolvedValue({
+      syntheticStorageMb: 460,
+      logicalSizeMb: 437,
+      limitMb: 512,
+      percentage: 460 / 512,
+      source: "neon-api",
+    });
     mockSelectChain([]);
     mockInsertReturning([{ id: "uuid-2", status: "active" }]);
 
@@ -217,20 +239,43 @@ describe("checkStorageAlerts", () => {
     expect(db.insert).toHaveBeenCalled();
   });
 
+  it("falls back to pg_database_size when Neon API is unavailable", async () => {
+    // Neon API returns null → fallback to pg_database_size with STORAGE_LIMIT_MB=460
+    vi.mocked(getNeonStorageInfo).mockResolvedValue(null);
+    vi.mocked(getDatabaseSizeMb).mockResolvedValue(440); // 440/460 = 95.7% >= 0.94
+    mockSelectChain([]);
+    mockInsertReturning([{ id: "uuid-3", status: "active" }]);
+
+    await checkStorageAlerts();
+
+    expect(db.insert).toHaveBeenCalled();
+    expect(getDatabaseSizeMb).toHaveBeenCalled();
+  });
+
   it("resolves storage alerts when storage is healthy", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(200); // 200/512 = 39%
+    vi.mocked(getNeonStorageInfo).mockResolvedValue({
+      syntheticStorageMb: 200,
+      logicalSizeMb: 180,
+      limitMb: 512,
+      percentage: 200 / 512,
+      source: "neon-api",
+    });
     mockUpdateChain([{ id: "uuid-1" }]);
 
     await checkStorageAlerts();
 
     expect(db.update).toHaveBeenCalled();
-    // Should NOT insert any new alerts
     expect(db.insert).not.toHaveBeenCalled();
   });
 
   it("does not create duplicate alerts when one already exists", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(490); // critical
-    // hasActiveAlert returns true (existing alert)
+    vi.mocked(getNeonStorageInfo).mockResolvedValue({
+      syntheticStorageMb: 490,
+      logicalSizeMb: 460,
+      limitMb: 512,
+      percentage: 490 / 512,
+      source: "neon-api",
+    });
     mockSelectChain([{ id: "existing-alert" }]);
 
     await checkStorageAlerts();

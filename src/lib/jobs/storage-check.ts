@@ -27,13 +27,32 @@ import { job } from "@/db/schemas/jobs/job";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-/** Neon Free tier storage limit (MB). */
-export const STORAGE_LIMIT_MB = 512;
+/**
+ * Effective storage limit for `pg_database_size()` based checks.
+ *
+ * Neon enforces storage against `synthetic_storage_size`, which is ~12% larger
+ * than `pg_database_size()` because it includes WAL, history retention, and
+ * internal overhead. Using 512 MB with `pg_database_size()` would let the
+ * synthetic storage exceed the real limit before the guard fires.
+ *
+ * 460 MB × 1.12 (overhead ratio) ≈ 515 MB synthetic — so 460 MB is the safe
+ * ceiling for `pg_database_size()` to keep synthetic storage under 512 MB.
+ *
+ * The storage monitor (hourly) uses the Neon API directly with the true 512 MB
+ * limit — see NEON_STORAGE_LIMIT_MB below and src/lib/jobs/neon-api.ts.
+ */
+export const STORAGE_LIMIT_MB = 460;
 
-/** Storage fraction at which batch refreshes are skipped (88% = ~450MB). */
+/**
+ * Neon's actual hard storage limit (MB). Used by the storage monitor which
+ * fetches `synthetic_storage_size` from the Neon API.
+ */
+export const NEON_STORAGE_LIMIT_MB = 512;
+
+/** Storage fraction at which batch refreshes are skipped (88%). */
 export const STORAGE_WARNING_THRESHOLD = 0.88;
 
-/** Storage fraction at which a critical alert is raised (94% = ~480MB). */
+/** Storage fraction at which a critical alert is raised (94%). */
 export const STORAGE_CRITICAL_THRESHOLD = 0.94;
 
 /** Storage fraction at which new job ingestion is halted (88% = ~450MB). */

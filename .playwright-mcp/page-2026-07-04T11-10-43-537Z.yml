@@ -1,0 +1,122 @@
+- generic [ref=f2e2]:
+  - banner [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - link [ref=f2e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=f2e7]
+      - generic [ref=f2e15]: DEVELOPMENT SERVER
+    - button "Settings" [ref=f2e18] [cursor=pointer]:
+      - img [ref=f2e19]
+  - generic [ref=f2e21]:
+    - navigation [ref=f2e22]:
+      - generic [ref=f2e23]:
+        - generic [ref=f2e24]:
+          - generic [ref=f2e25]:
+            - generic [ref=f2e26]: Workflow
+            - link "Apps" [ref=f2e27] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e28]:
+                - img [ref=f2e30]
+                - generic [ref=f2e32]: Apps
+            - link "Functions" [ref=f2e33] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e34]:
+                - img [ref=f2e36]
+                - generic [ref=f2e38]: Functions
+            - link "Runs" [ref=f2e39] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e40]:
+                - img [ref=f2e42]
+                - generic [ref=f2e49]: Runs
+            - link "Events" [ref=f2e50] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e51]:
+                - img [ref=f2e53]
+                - generic [ref=f2e55]: Events
+          - generic [ref=f2e56]:
+            - generic [ref=f2e57]: Setup
+            - link "MCP" [ref=f2e58] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e59]:
+                - img [ref=f2e61]
+                - generic [ref=f2e67]: MCP
+        - generic [ref=f2e68]:
+          - generic:
+            - button "Collapse sidebar":
+              - img
+    - generic [ref=f2e69]:
+      - generic [ref=f2e71]:
+        - generic [ref=f2e74]: Runs
+        - generic [ref=f2e76]:
+          - button "Send test event" [ref=f2e77] [cursor=pointer]:
+            - generic [ref=f2e78]: Send test event
+          - button [ref=f2e80] [cursor=pointer]:
+            - img [ref=f2e81]
+      - main [ref=f2e83]:
+        - generic [ref=f2e85]:
+          - generic [ref=f2e86]:
+            - button "Show search" [ref=f2e2818] [cursor=pointer]:
+              - img [ref=f2e2820]
+              - generic [ref=f2e2822]: Show search
+            - generic [ref=f2e92]:
+              - generic [ref=f2e93]:
+                - generic [ref=f2e94]: Time Field
+                - button "Time Field QUEUED AT" [ref=f2e96] [cursor=pointer]:
+                  - generic [ref=f2e97]: QUEUED AT
+                  - img [ref=f2e98]
+              - button "Last 1d" [ref=f2e2823] [cursor=pointer]:
+                - generic [ref=f2e2824]: Last 1d
+                - img [ref=f2e2825]
+            - generic [ref=f2e105]:
+              - generic [ref=f2e106]: Status
+              - button "Status" [active] [ref=f2e2814] [cursor=pointer]:
+                - img [ref=f2e110]
+            - generic [ref=f2e112]:
+              - generic [ref=f2e113]: app
+              - button "app All" [ref=f2e115] [cursor=pointer]:
+                - generic [ref=f2e116]: All
+                - img [ref=f2e117]
+            - generic [ref=f2e119]:
+              - generic [ref=f2e120]: Run type
+              - button "Run type All" [ref=f2e122] [cursor=pointer]:
+                - generic [ref=f2e123]: All
+                - img [ref=f2e124]
+          - generic [ref=f2e126]:
+            - generic [ref=f2e2827]: 0 runs
+            - generic [ref=f2e128]:
+              - generic [ref=f2e129]: Table columns
+              - button "Table columns Table columns" [ref=f2e131] [cursor=pointer]:
+                - generic [ref=f2e132]: Table columns
+                - img [ref=f2e133]
+        - generic [ref=f2e135]:
+          - table [ref=f2e136]:
+            - rowgroup [ref=f2e137]:
+              - row "Status Run ID Trigger Function Queued at Ended at" [ref=f2e138]:
+                - columnheader "Status" [ref=f2e139]:
+                  - generic [ref=f2e140]: Status
+                - columnheader "Run ID" [ref=f2e141]:
+                  - generic [ref=f2e142]: Run ID
+                - columnheader "Trigger" [ref=f2e143]:
+                  - generic [ref=f2e144]: Trigger
+                - columnheader "Function" [ref=f2e145]:
+                  - generic [ref=f2e146]: Function
+                - columnheader "Queued at" [ref=f2e147]:
+                  - generic [ref=f2e148]: Queued at
+                - columnheader "Ended at" [ref=f2e149]:
+                  - generic [ref=f2e150]: Ended at
+            - rowgroup [ref=f2e151]:
+              - row "No results were found." [ref=f2e2828]:
+                - cell "No results were found." [ref=f2e2829]
+          - button "Refresh runs" [ref=f2e2802] [cursor=pointer]:
+            - img [ref=f2e2803]
+            - generic [ref=f2e2805]: Refresh runs
+  - contentinfo [ref=f2e244]:
+    - generic [ref=f2e245]:
+      - link "Support" [ref=f2e246] [cursor=pointer]:
+        - /url: https://support.inngest.com
+      - generic [ref=f2e247]: "|"
+      - link "Docs" [ref=f2e248] [cursor=pointer]:
+        - /url: https://www.inngest.com/docs?ref=dev-server-bottom-bar
+      - generic [ref=f2e249]: "|"
+      - link "Changelog" [ref=f2e250] [cursor=pointer]:
+        - /url: https://www.inngest.com/changelog

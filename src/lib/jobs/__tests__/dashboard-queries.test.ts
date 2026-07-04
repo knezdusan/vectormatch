@@ -176,6 +176,18 @@ describe("getMatches", () => {
     expect(db.select).toHaveBeenCalled();
   });
 
+  it("accepts 'newest' sort order", async () => {
+    await getMatches("user-123", "approved", 20, 0, "newest");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'oldest' sort order", async () => {
+    await getMatches("user-123", "approved", 20, 0, "oldest");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
   it("accepts custom pagination params", async () => {
     await getMatches("user-123", "all", 50, 100);
 

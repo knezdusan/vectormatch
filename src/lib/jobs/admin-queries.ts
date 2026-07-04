@@ -22,10 +22,12 @@ import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { sourceHealth } from "@/db/schemas/jobs/sourceHealth";
 import { GATE2_MAX_COSINE_DISTANCE } from "@/lib/jobs/matching-config";
+import { getNeonStorageInfo } from "@/lib/jobs/neon-api";
 import {
   getDatabaseSizeMb,
   getIngestionBacklog,
   MAX_UNNORMALIZED_BACKLOG,
+  NEON_STORAGE_LIMIT_MB,
   STORAGE_LIMIT_MB,
 } from "@/lib/jobs/storage-check";
 
@@ -37,6 +39,12 @@ export interface InfraStats {
   storageMb: number;
   storageLimitMb: number;
   storagePercentage: number;
+  /** Neon synthetic storage (what Neon actually enforces). null if API unavailable. */
+  neonSyntheticMb?: number;
+  /** Neon's actual hard limit (512 MB). */
+  neonLimitMb: number;
+  /** Synthetic storage percentage against Neon's limit. */
+  neonPercentage?: number;
   gate2Threshold: number;
   unnormalizedCount: number;
   maxUnnormalized: number;
@@ -137,14 +145,18 @@ export async function getAllSourceHealth(): Promise<SourceHealthStats[]> {
  * storage limit, usage percentage, and the current Gate 2 threshold.
  */
 export async function getInfraStats(): Promise<InfraStats> {
-  const [storageMb, unnormalizedCount] = await Promise.all([
+  const [storageMb, unnormalizedCount, neonInfo] = await Promise.all([
     getDatabaseSizeMb(),
     getIngestionBacklog(),
+    getNeonStorageInfo(),
   ]);
   return {
     storageMb,
     storageLimitMb: STORAGE_LIMIT_MB,
     storagePercentage: storageMb / STORAGE_LIMIT_MB,
+    neonSyntheticMb: neonInfo?.syntheticStorageMb,
+    neonLimitMb: neonInfo?.limitMb ?? NEON_STORAGE_LIMIT_MB,
+    neonPercentage: neonInfo?.percentage,
     gate2Threshold: GATE2_MAX_COSINE_DISTANCE,
     unnormalizedCount,
     maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,

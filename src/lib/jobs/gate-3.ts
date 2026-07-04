@@ -54,9 +54,11 @@ export const gate3VerdictSchema = z.object({
   // hybrid or single-country-remote (not global). This surfaces the Ketryx-class
   // risk: work-auth requirements hidden in the application form, not the JD.
   // The job is NOT rejected — the flag warns the user to verify before applying.
+  // NOTE: Must be .required (not .default) because OpenAI's strict JSON schema
+  // mode requires all properties to be in the `required` array. The LLM is
+  // instructed to always set this to true or false explicitly.
   workAuthRiskFlag: z
     .boolean()
-    .default(false)
     .describe(
       "Set true if the JD is silent on work authorization but the role is hybrid or single-country-remote (not global remote). Set false if the JD explicitly states work-auth requirements (handled as a hard blocker) or the role is global remote with no country restriction.",
     ),
@@ -127,6 +129,13 @@ EVALUATION CRITERIA:
    - If the job says "no visa sponsorship" or "no sponsorship provided" and the applicant does not have work authorization for that country, this is a HARD BLOCKER.
    - If the applicant HAS the required permit (e.g., job requires "EU citizenship" and applicant has "eu_citizen"), this is NOT a blocker — approve if other criteria align.
    - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization/visa/citizenship BUT the role is hybrid OR the location is "Remote - [specific country/region]" (not "Remote - Global" or "Remote - Worldwide"), set workAuthRiskFlag=true. This warns the user to verify work authorization before applying — many employers hide citizenship/permit requirements in the application form, not the JD. If the JD explicitly states work-auth requirements (handled above) or the role is global remote with no country restriction, set workAuthRiskFlag=false.
+     IMPORTANT: The location field alone is NOT sufficient to determine single-country-remote. Many ATS systems set the location to a specific city/country (e.g., "Delhi", "India", "Kraków") even for genuinely global remote roles. You MUST check the JD TEXT for global remote indicators before flagging. Do NOT set workAuthRiskFlag=true if the JD contains any of these global remote signals:
+     - "global, remote-first" / "remote-first organization" / "global remote"
+     - "work from anywhere" / "work from any location" / "any country"
+     - "worldwide" / "distributed team" / "distributed workforce"
+     - "team members across N countries" / "operates in N+ countries"
+     - "Remote, Global" or "Remote - Worldwide" in the title or location
+     If the JD text explicitly says the role is global remote (even if the location field says a specific country), set workAuthRiskFlag=false — the role is open to applicants worldwide.
 
 OUTPUT RULES:
 - Be balanced: approve if the tech stack and seniority align well, even if there are soft concerns (location, compliance, hybrid workplace). Only reject for HARD blockers (completely wrong tech stack, on-site when applicant is remote-only with no hybrid flexibility, blocklist tags, non-US country restrictions without compliance, W-2-only US jobs for international contractors, work authorization requirements the applicant cannot satisfy). Soft concerns (US-only remote with w8ben compliance AND contractor-friendly language, hybrid workplace) should be noted in the reasoning but should NOT cause rejection.
@@ -185,7 +194,7 @@ export function buildGate3Prompt(ctx: Gate3Context): string {
   const hasWorkAuth = workAuthList.length > 0;
 
   const workAuthDirective = hasWorkAuth
-    ? `\n## WORK AUTHORIZATION DIRECTIVE\nThe applicant holds these work authorizations: ${workAuthList.join(", ")}\n\nPermit coverage:\n- eu_citizen: right to work in ALL EU/EEA member states (covers any "EU citizenship required" or "EU work permit" requirement)\n- rwr_card_plus: Austrian Red-White-Red Card Plus (right to work in Austria for non-EU nationals)\n- blue_card_eu: EU Blue Card (right to work in the issuing EU member state for highly qualified workers)\n- uk_settled: UK settled status (right to work in the UK)\n- uk_pre_settled: UK pre-settled status (right to work in the UK under the EU Settlement Scheme)\n- us_green_card: US permanent resident (right to work in the US)\n- us_citizen: US citizen (right to work in the US)\n- canadian_pr: Canadian permanent resident (right to work in Canada)\n- swiss_permit_c: Switzerland settled permit (right to work in Switzerland)\n- other_permit: other work permit (check the job's country requirement carefully)\n\nWhen evaluating jobs:\n- If the job requires EU citizenship or an EU work permit and the applicant has "eu_citizen", that is a MATCH (NOT a blocker).\n- If the job requires a specific named permit (e.g., "RWR Card Plus") and the applicant has it, that is a MATCH.\n- If the job requires a permit the applicant does NOT have, this is a HARD BLOCKER — reject.\n- If the JD is silent on work authorization but the role is hybrid or single-country-remote (not global), set workAuthRiskFlag=true to warn the user to verify before applying.\n`
+    ? `\n## WORK AUTHORIZATION DIRECTIVE\nThe applicant holds these work authorizations: ${workAuthList.join(", ")}\n\nPermit coverage:\n- eu_citizen: right to work in ALL EU/EEA member states (covers any "EU citizenship required" or "EU work permit" requirement)\n- rwr_card_plus: Austrian Red-White-Red Card Plus (right to work in Austria for non-EU nationals)\n- blue_card_eu: EU Blue Card (right to work in the issuing EU member state for highly qualified workers)\n- uk_settled: UK settled status (right to work in the UK)\n- uk_pre_settled: UK pre-settled status (right to work in the UK under the EU Settlement Scheme)\n- us_green_card: US permanent resident (right to work in the US)\n- us_citizen: US citizen (right to work in the US)\n- canadian_pr: Canadian permanent resident (right to work in Canada)\n- swiss_permit_c: Switzerland settled permit (right to work in Switzerland)\n- other_permit: other work permit (check the job's country requirement carefully)\n\nWhen evaluating jobs:\n- If the job requires EU citizenship or an EU work permit and the applicant has "eu_citizen", that is a MATCH (NOT a blocker).\n- If the job requires a specific named permit (e.g., "RWR Card Plus") and the applicant has it, that is a MATCH.\n- If the job requires a permit the applicant does NOT have, this is a HARD BLOCKER — reject.\n- If the JD is silent on work authorization but the role is hybrid or single-country-remote (not global), set workAuthRiskFlag=true to warn the user to verify before applying.\n- IMPORTANT: Check the JD TEXT for global remote indicators ("global, remote-first", "work from anywhere", "worldwide", "distributed team", "across N countries", "Remote, Global") before flagging. Many ATS systems set the location field to a specific city/country even for global remote roles. If the JD text says global remote, do NOT set workAuthRiskFlag=true.\n`
     : "";
 
   return `## JOB POSTING
@@ -214,7 +223,7 @@ Work Authorizations: ${workAuthList.join(", ") || "none specified"}
 Full Skill Knowledge Base: ${applicant.allTags.join(", ") || "none"}
 ${complianceDirective}${workAuthDirective}
 ## EVALUATION
-Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types, country-specific remote restrictions, and work authorization requirements), and blocklist tags. Set workAuthRiskFlag=true if the JD is silent on work authorization but the role is hybrid or single-country-remote (not global).${hasContractorCompliance ? " Remember: the applicant has w8ben/ic_global compliance (see COMPLIANCE DIRECTIVE above) — check whether the job posting uses contractor-friendly language (approve) or W-2/employee language (hard blocker) before deciding on US-only restrictions." : ""}${hasWorkAuth ? " Remember: the applicant holds work authorizations (see WORK AUTHORIZATION DIRECTIVE above) — check whether the job requires permits the applicant has (match) or lacks (hard blocker)." : ""}`;
+Based on the above, is this job a strong match for this persona? Consider tech stack alignment, seniority fit, hard constraints (especially workplace type vs assignment types, country-specific remote restrictions, and work authorization requirements), and blocklist tags. Set workAuthRiskFlag=true if the JD is silent on work authorization but the role is hybrid or single-country-remote (not global) — but first check the JD text for global remote indicators ("global, remote-first", "work from anywhere", "worldwide", "distributed team", "across N countries", "Remote, Global"); if the JD says global remote, set workAuthRiskFlag=false even if the location field says a specific country.${hasContractorCompliance ? " Remember: the applicant has w8ben/ic_global compliance (see COMPLIANCE DIRECTIVE above) — check whether the job posting uses contractor-friendly language (approve) or W-2/employee language (hard blocker) before deciding on US-only restrictions." : ""}${hasWorkAuth ? " Remember: the applicant holds work authorizations (see WORK AUTHORIZATION DIRECTIVE above) — check whether the job requires permits the applicant has (match) or lacks (hard blocker)." : ""}`;
 }
 
 // =============================================================================
@@ -249,7 +258,7 @@ EVALUATION CRITERIA (be strict — only approve if you are highly confident):
    - If the job requires a specific citizenship/permit the applicant does NOT have, this is a HARD BLOCKER — reject.
    - If the job says "no visa sponsorship" and the applicant lacks work authorization for that country, this is a HARD BLOCKER.
    - If the applicant HAS the required permit, this is NOT a blocker.
-   - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization BUT the role is hybrid OR single-country-remote (not global), set workAuthRiskFlag=true. Otherwise false.
+   - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization BUT the role is hybrid OR single-country-remote (not global), set workAuthRiskFlag=true. Otherwise false. IMPORTANT: Check the JD TEXT for global remote indicators ("global, remote-first", "work from anywhere", "worldwide", "distributed team", "across N countries", "Remote, Global") before flagging — many ATS systems set the location to a specific city even for global remote roles. If the JD text says global remote, set workAuthRiskFlag=false.
 
 OUTPUT RULES:
 - Be STRICT but fair: only reject for genuine hard blockers (wrong tech stack, on-site mismatch without hybrid flexibility, blocklist tags, non-US country restrictions without contractor compliance, W-2-only US jobs for international contractors, work authorization requirements the applicant cannot satisfy). Soft concerns (hybrid workplace, US-only remote with contractor-friendly language and w8ben compliance) should be noted but should NOT cause rejection.
@@ -275,6 +284,13 @@ EVALUATION CRITERIA (reason step by step before deciding):
    - If the job says "no visa sponsorship" and the applicant lacks work authorization for that country, this is a HARD BLOCKER.
    - If the applicant HAS the required permit (e.g., job requires "EU citizenship" and applicant has "eu_citizen"), this is NOT a blocker — approve if other criteria align.
    - WORK AUTH RISK FLAG: If the JD is SILENT on work authorization/visa/citizenship BUT the role is hybrid OR the location is "Remote - [specific country/region]" (not "Remote - Global" or "Remote - Worldwide"), set workAuthRiskFlag=true. This warns the user to verify work authorization before applying — many employers hide citizenship/permit requirements in the application form, not the JD. If the JD explicitly states work-auth requirements or the role is global remote, set workAuthRiskFlag=false.
+     IMPORTANT: The location field alone is NOT sufficient to determine single-country-remote. Many ATS systems set the location to a specific city/country (e.g., "Delhi", "India", "Kraków") even for genuinely global remote roles. You MUST check the JD TEXT for global remote indicators before flagging. Do NOT set workAuthRiskFlag=true if the JD contains any of these global remote signals:
+     - "global, remote-first" / "remote-first organization" / "global remote"
+     - "work from anywhere" / "work from any location" / "any country"
+     - "worldwide" / "distributed team" / "distributed workforce"
+     - "team members across N countries" / "operates in N+ countries"
+     - "Remote, Global" or "Remote - Worldwide" in the title or location
+     If the JD text explicitly says the role is global remote (even if the location field says a specific country), set workAuthRiskFlag=false — the role is open to applicants worldwide.
 
 OUTPUT RULES:
 - Be thorough: consider all criteria before deciding. A match doesn't require perfection — it requires plausibility. If the core tech stack aligns and there are no hard blockers, lean toward approving. Soft concerns (hybrid workplace, US-only remote with contractor-friendly language and w8ben compliance) should be noted but should NOT cause rejection.

@@ -27,7 +27,12 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { StarRating } from "@/components/ui/star-rating";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
-import type { MatchRow, MatchStatusFilter } from "@/lib/jobs/dashboard-queries";
+import type { MatchRow } from "@/lib/jobs/dashboard-queries";
+import {
+  MATCH_SORT_OPTIONS,
+  type MatchSortOption,
+  type MatchStatusFilter,
+} from "@/lib/jobs/match-filters";
 
 // =============================================================================
 // HELPERS
@@ -362,6 +367,7 @@ interface MatchListProps {
   currentPage: number;
   pageSize: number;
   statusFilter: MatchStatusFilter;
+  sortFilter: MatchSortOption;
   unreadCount: number;
   counts: Record<MatchStatusFilter, number>;
 }
@@ -372,6 +378,7 @@ export function MatchList({
   currentPage,
   pageSize,
   statusFilter,
+  sortFilter,
   unreadCount,
   counts,
 }: MatchListProps) {
@@ -400,6 +407,9 @@ export function MatchList({
     if (statusFilter !== "approved") {
       params.set("status", statusFilter);
     }
+    if (sortFilter !== "best_match") {
+      params.set("sort", sortFilter);
+    }
     router.push(`/dashboard/jobs?${params.toString()}`);
   }
 
@@ -417,7 +427,12 @@ export function MatchList({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <StatusFilterSelect current={statusFilter} counts={counts} />
+          <SortSelect current={sortFilter} statusFilter={statusFilter} />
+          <StatusFilterSelect
+            current={statusFilter}
+            counts={counts}
+            sortFilter={sortFilter}
+          />
           {showMarkAllRead && (
             <Button
               variant="outline"
@@ -506,9 +521,11 @@ export function MatchList({
 function StatusFilterSelect({
   current,
   counts,
+  sortFilter,
 }: {
   current: MatchStatusFilter;
   counts: Record<MatchStatusFilter, number>;
+  sortFilter: MatchSortOption;
 }) {
   const router = useRouter();
   const currentOption = STATUS_OPTIONS.find(
@@ -519,6 +536,9 @@ function StatusFilterSelect({
     const params = new URLSearchParams();
     params.set("status", value);
     params.set("page", "1");
+    if (sortFilter !== "best_match") {
+      params.set("sort", sortFilter);
+    }
     router.push(`/dashboard/jobs?${params.toString()}`);
   }
 
@@ -538,6 +558,48 @@ function StatusFilterSelect({
                 ({counts[option.value]})
               </span>
             )}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+// =============================================================================
+// SORT SELECT
+// =============================================================================
+
+function SortSelect({
+  current,
+  statusFilter,
+}: {
+  current: MatchSortOption;
+  statusFilter: MatchStatusFilter;
+}) {
+  const router = useRouter();
+  const currentOption = MATCH_SORT_OPTIONS.find(
+    (option) => option.value === current,
+  );
+
+  function handleChange(value: string) {
+    const params = new URLSearchParams();
+    params.set("sort", value);
+    params.set("page", "1");
+    if (statusFilter !== "approved") {
+      params.set("status", statusFilter);
+    }
+    router.push(`/dashboard/jobs?${params.toString()}`);
+  }
+
+  return (
+    <Select value={current} onValueChange={handleChange}>
+      <SelectTrigger size="sm" className="w-40">
+        <SelectValue>{currentOption?.label ?? current}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {MATCH_SORT_OPTIONS.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
           </SelectItem>
         ))}
       </SelectContent>

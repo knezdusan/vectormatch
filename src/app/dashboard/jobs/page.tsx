@@ -15,9 +15,13 @@ import {
   getMatches,
   getMatchesCount,
   getUnreadBadgeCount,
-  MATCH_STATUS_FILTERS,
-  type MatchStatusFilter,
 } from "@/lib/jobs/dashboard-queries";
+import {
+  MATCH_SORT_OPTIONS,
+  MATCH_STATUS_FILTERS,
+  type MatchSortOption,
+  type MatchStatusFilter,
+} from "@/lib/jobs/match-filters";
 
 export const metadata = {
   title: "Matched Jobs | VectorMatch",
@@ -26,11 +30,14 @@ export const metadata = {
 
 const PAGE_SIZE = 10;
 const VALID_STATUSES: readonly MatchStatusFilter[] = MATCH_STATUS_FILTERS;
+const VALID_SORTS: readonly MatchSortOption[] = MATCH_SORT_OPTIONS.map(
+  (option) => option.value,
+);
 
 export default async function JobsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; status?: string; sort?: string }>;
 }) {
   const session = await getAuthSession();
   if (!session) {
@@ -47,6 +54,12 @@ export default async function JobsPage({
   )
     ? (statusParam as MatchStatusFilter)
     : "approved";
+  const sortParam = params.sort ?? "best_match";
+  const sortFilter: MatchSortOption = VALID_SORTS.includes(
+    sortParam as MatchSortOption,
+  )
+    ? (sortParam as MatchSortOption)
+    : "best_match";
   const currentPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
@@ -58,7 +71,7 @@ export default async function JobsPage({
   // Fetch data in parallel
   const [matches, totalCount, unreadCount, ...statusCounts] = await Promise.all(
     [
-      getMatches(userId, statusFilter, PAGE_SIZE, offset),
+      getMatches(userId, statusFilter, PAGE_SIZE, offset, sortFilter),
       getMatchesCount(userId, statusFilter),
       getUnreadBadgeCount(userId),
       ...statusCountPromises,
@@ -80,6 +93,7 @@ export default async function JobsPage({
         currentPage={currentPage}
         pageSize={PAGE_SIZE}
         statusFilter={statusFilter}
+        sortFilter={sortFilter}
         unreadCount={unreadCount}
         counts={counts}
       />

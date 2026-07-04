@@ -1,0 +1,1971 @@
+- generic [ref=f2e2]:
+  - banner [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - link [ref=f2e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=f2e7]
+      - generic [ref=f2e15]: DEVELOPMENT SERVER
+    - button "Settings" [ref=f2e18] [cursor=pointer]:
+      - img [ref=f2e19]
+  - generic [ref=f2e21]:
+    - navigation [ref=f2e22]:
+      - generic [ref=f2e23]:
+        - generic [ref=f2e24]:
+          - generic [ref=f2e25]:
+            - generic [ref=f2e26]: Workflow
+            - link "Apps" [ref=f2e27] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e28]:
+                - img [ref=f2e30]
+                - generic [ref=f2e32]: Apps
+            - link "Functions" [ref=f2e33] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e34]:
+                - img [ref=f2e36]
+                - generic [ref=f2e38]: Functions
+            - link "Runs" [ref=f2e39] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e40]:
+                - img [ref=f2e42]
+                - generic [ref=f2e49]: Runs
+            - link "Events" [ref=f2e50] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e51]:
+                - img [ref=f2e53]
+                - generic [ref=f2e55]: Events
+          - generic [ref=f2e56]:
+            - generic [ref=f2e57]: Setup
+            - link "MCP" [ref=f2e58] [cursor=pointer]:
+              - /url: /runs
+              - generic [ref=f2e59]:
+                - img [ref=f2e61]
+                - generic [ref=f2e67]: MCP
+        - generic [ref=f2e68]:
+          - generic:
+            - button "Collapse sidebar":
+              - img
+    - generic [ref=f2e69]:
+      - generic [ref=f2e71]:
+        - generic [ref=f2e74]: Runs
+        - generic [ref=f2e76]:
+          - button "Send test event" [ref=f2e77] [cursor=pointer]:
+            - generic [ref=f2e78]: Send test event
+          - button [ref=f2e80] [cursor=pointer]:
+            - img [ref=f2e81]
+      - main [ref=f2e83]:
+        - generic [ref=f2e85]:
+          - generic [ref=f2e86]:
+            - button "Show search" [disabled] [ref=f2e87]:
+              - img [ref=f2e89]
+              - generic [ref=f2e91]: Show search
+            - generic [ref=f2e92]:
+              - generic [ref=f2e93]:
+                - generic [ref=f2e94]: Time Field
+                - button "Time Field QUEUED AT" [ref=f2e96] [cursor=pointer]:
+                  - generic [ref=f2e97]: QUEUED AT
+                  - img [ref=f2e98]
+              - button "Last 1d" [ref=f2e2810] [cursor=pointer]:
+                - generic [ref=f2e2811]: Last 1d
+                - img [ref=f2e2812]
+            - generic [ref=f2e105]:
+              - generic [ref=f2e106]: Status
+              - generic [ref=f2e107]:
+                - button "Status" [expanded] [ref=f2e2814] [cursor=pointer]:
+                  - img [ref=f2e110]
+                - listbox [ref=f2e2817]:
+                  - generic [ref=f2e256]:
+                    - option "Failed FAILED" [ref=f2e257]:
+                      - generic [ref=f2e259]:
+                        - checkbox [ref=f2e260] [cursor=pointer]
+                        - generic [ref=f2e261]:
+                          - generic "Failed" [ref=f2e262]
+                          - generic [ref=f2e263]: FAILED
+                    - option "Running RUNNING" [selected] [ref=f2e264]:
+                      - generic [ref=f2e266]:
+                        - checkbox [checked] [active] [ref=f2e267] [cursor=pointer]:
+                          - generic:
+                            - img
+                        - generic [ref=f2e268]:
+                          - generic "Running" [ref=f2e269]
+                          - generic [ref=f2e270]: RUNNING
+                    - option "Queued QUEUED" [ref=f2e271]:
+                      - generic [ref=f2e273]:
+                        - checkbox [ref=f2e274] [cursor=pointer]
+                        - generic [ref=f2e275]:
+                          - generic "Queued" [ref=f2e276]
+                          - generic [ref=f2e277]: QUEUED
+                    - option "Completed COMPLETED" [ref=f2e278]:
+                      - generic [ref=f2e280]:
+                        - checkbox [ref=f2e281] [cursor=pointer]
+                        - generic [ref=f2e282]:
+                          - generic "Completed" [ref=f2e283]
+                          - generic [ref=f2e284]: COMPLETED
+                    - option "Canceled CANCELLED" [ref=f2e285]:
+                      - generic [ref=f2e287]:
+                        - checkbox [ref=f2e288] [cursor=pointer]
+                        - generic [ref=f2e289]:
+                          - generic "Canceled" [ref=f2e290]
+                          - generic [ref=f2e291]: CANCELLED
+                    - option "Unknown UNKNOWN" [ref=f2e292]:
+                      - generic [ref=f2e294]:
+                        - checkbox [ref=f2e295] [cursor=pointer]
+                        - generic [ref=f2e296]:
+                          - generic "Unknown" [ref=f2e297]
+                          - generic [ref=f2e298]: UNKNOWN
+                    - button "Apply" [ref=f2e300] [cursor=pointer]:
+                      - generic [ref=f2e301]: Apply
+            - generic [ref=f2e112]:
+              - generic [ref=f2e113]: app
+              - button "app All" [ref=f2e115] [cursor=pointer]:
+                - generic [ref=f2e116]: All
+                - img [ref=f2e117]
+            - generic [ref=f2e119]:
+              - generic [ref=f2e120]: Run type
+              - button "Run type All" [ref=f2e122] [cursor=pointer]:
+                - generic [ref=f2e123]: All
+                - img [ref=f2e124]
+          - generic [ref=f2e126]:
+            - generic [ref=f2e127]: 11,933 runs
+            - generic [ref=f2e128]:
+              - generic [ref=f2e129]: Table columns
+              - button "Table columns Table columns" [ref=f2e131] [cursor=pointer]:
+                - generic [ref=f2e132]: Table columns
+                - img [ref=f2e133]
+        - generic [ref=f2e135]:
+          - table [ref=f2e136]:
+            - rowgroup [ref=f2e137]:
+              - row "Status Run ID Trigger Function Queued at Ended at" [ref=f2e138]:
+                - columnheader "Status" [ref=f2e139]:
+                  - generic [ref=f2e140]: Status
+                - columnheader "Run ID" [ref=f2e141]:
+                  - generic [ref=f2e142]: Run ID
+                - columnheader "Trigger" [ref=f2e143]:
+                  - generic [ref=f2e144]: Trigger
+                - columnheader "Function" [ref=f2e145]:
+                  - generic [ref=f2e146]: Function
+                - columnheader "Queued at" [ref=f2e147]:
+                  - generic [ref=f2e148]: Queued at
+                - columnheader "Ended at" [ref=f2e149]:
+                  - generic [ref=f2e150]: Ended at
+            - rowgroup [ref=f2e151]:
+              - row "Failed FAILED 01KWPCJ3VRPRSFX7TQ6TJFDCH7 Gate 3 — LLM Candidate Evaluation 7/4/2026, 1:00:02 PM 7/4/2026, 1:04:49 PM" [ref=f2e302] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e303]:
+                  - generic [ref=f2e305]:
+                    - generic "Failed" [ref=f2e306]
+                    - paragraph [ref=f2e307]: FAILED
+                - cell "01KWPCJ3VRPRSFX7TQ6TJFDCH7" [ref=f2e308]:
+                  - paragraph [ref=f2e310]: 01KWPCJ3VRPRSFX7TQ6TJFDCH7
+                - cell [ref=f2e311]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e312]:
+                  - paragraph [ref=f2e314]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e315]:
+                  - time [ref=f2e318]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e319]
+                - cell "7/4/2026, 1:04:49 PM" [ref=f2e321]:
+                  - time [ref=f2e324]:
+                    - text: 7/4/2026, 1:04:49 PM
+                    - img [ref=f2e325]
+              - row "Failed FAILED 01KWPCJ3VQTMR3CN12E8017P30 Gate 3 — LLM Candidate Evaluation 7/4/2026, 1:00:02 PM 7/4/2026, 1:04:10 PM" [ref=f2e327] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e328]:
+                  - generic [ref=f2e330]:
+                    - generic "Failed" [ref=f2e331]
+                    - paragraph [ref=f2e332]: FAILED
+                - cell "01KWPCJ3VQTMR3CN12E8017P30" [ref=f2e333]:
+                  - paragraph [ref=f2e335]: 01KWPCJ3VQTMR3CN12E8017P30
+                - cell [ref=f2e336]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e337]:
+                  - paragraph [ref=f2e339]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e340]:
+                  - time [ref=f2e343]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e344]
+                - cell "7/4/2026, 1:04:10 PM" [ref=f2e346]:
+                  - time [ref=f2e349]:
+                    - text: 7/4/2026, 1:04:10 PM
+                    - img [ref=f2e350]
+              - row "Failed FAILED 01KWPCJ3VVBQQD33GD717PEVC3 Gate 3 — LLM Candidate Evaluation 7/4/2026, 1:00:02 PM 7/4/2026, 1:04:31 PM" [ref=f2e352] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e353]:
+                  - generic [ref=f2e355]:
+                    - generic "Failed" [ref=f2e356]
+                    - paragraph [ref=f2e357]: FAILED
+                - cell "01KWPCJ3VVBQQD33GD717PEVC3" [ref=f2e358]:
+                  - paragraph [ref=f2e360]: 01KWPCJ3VVBQQD33GD717PEVC3
+                - cell [ref=f2e361]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e362]:
+                  - paragraph [ref=f2e364]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e365]:
+                  - time [ref=f2e368]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e369]
+                - cell "7/4/2026, 1:04:31 PM" [ref=f2e371]:
+                  - time [ref=f2e374]:
+                    - text: 7/4/2026, 1:04:31 PM
+                    - img [ref=f2e375]
+              - row "Failed FAILED 01KWPCJ3VQ8YA3H7RWZR8977EQ Gate 3 — LLM Candidate Evaluation 7/4/2026, 1:00:02 PM 7/4/2026, 1:04:59 PM" [ref=f2e377] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e378]:
+                  - generic [ref=f2e380]:
+                    - generic "Failed" [ref=f2e381]
+                    - paragraph [ref=f2e382]: FAILED
+                - cell "01KWPCJ3VQ8YA3H7RWZR8977EQ" [ref=f2e383]:
+                  - paragraph [ref=f2e385]: 01KWPCJ3VQ8YA3H7RWZR8977EQ
+                - cell [ref=f2e386]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e387]:
+                  - paragraph [ref=f2e389]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e390]:
+                  - time [ref=f2e393]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e394]
+                - cell "7/4/2026, 1:04:59 PM" [ref=f2e396]:
+                  - time [ref=f2e399]:
+                    - text: 7/4/2026, 1:04:59 PM
+                    - img [ref=f2e400]
+              - row "Failed FAILED 01KWPCJ3VMQACFYVW8K82EF6TS Gate 3 — LLM Candidate Evaluation 7/4/2026, 1:00:02 PM 7/4/2026, 1:05:01 PM" [ref=f2e402] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e403]:
+                  - generic [ref=f2e405]:
+                    - generic "Failed" [ref=f2e406]
+                    - paragraph [ref=f2e407]: FAILED
+                - cell "01KWPCJ3VMQACFYVW8K82EF6TS" [ref=f2e408]:
+                  - paragraph [ref=f2e410]: 01KWPCJ3VMQACFYVW8K82EF6TS
+                - cell [ref=f2e411]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e412]:
+                  - paragraph [ref=f2e414]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e415]:
+                  - time [ref=f2e418]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e419]
+                - cell "7/4/2026, 1:05:01 PM" [ref=f2e421]:
+                  - time [ref=f2e424]:
+                    - text: 7/4/2026, 1:05:01 PM
+                    - img [ref=f2e425]
+              - row "Completed COMPLETED 01KWPCJ1VWZ01RVJEFN1BEPXNB Pending Queue Sweep 7/4/2026, 12:59:59 PM 7/4/2026, 1:00:02 PM" [ref=f2e427] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e428]:
+                  - generic [ref=f2e430]:
+                    - generic "Completed" [ref=f2e431]
+                    - paragraph [ref=f2e432]: COMPLETED
+                - cell "01KWPCJ1VWZ01RVJEFN1BEPXNB" [ref=f2e433]:
+                  - paragraph [ref=f2e435]: 01KWPCJ1VWZ01RVJEFN1BEPXNB
+                - cell [ref=f2e436]
+                - cell "Pending Queue Sweep" [ref=f2e437]:
+                  - paragraph [ref=f2e439]: Pending Queue Sweep
+                - cell "7/4/2026, 12:59:59 PM" [ref=f2e440]:
+                  - time [ref=f2e443]:
+                    - text: 7/4/2026, 12:59:59 PM
+                    - img [ref=f2e444]
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e446]:
+                  - time [ref=f2e449]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e450]
+              - row "Completed COMPLETED 01KWPCJ1VN53SQ9XPDDPY3EDN7 Pipeline Health Monitor 7/4/2026, 12:59:59 PM 7/4/2026, 1:00:07 PM" [ref=f2e452] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e453]:
+                  - generic [ref=f2e455]:
+                    - generic "Completed" [ref=f2e456]
+                    - paragraph [ref=f2e457]: COMPLETED
+                - cell "01KWPCJ1VN53SQ9XPDDPY3EDN7" [ref=f2e458]:
+                  - paragraph [ref=f2e460]: 01KWPCJ1VN53SQ9XPDDPY3EDN7
+                - cell [ref=f2e461]
+                - cell "Pipeline Health Monitor" [ref=f2e462]:
+                  - paragraph [ref=f2e464]: Pipeline Health Monitor
+                - cell "7/4/2026, 12:59:59 PM" [ref=f2e465]:
+                  - time [ref=f2e468]:
+                    - text: 7/4/2026, 12:59:59 PM
+                    - img [ref=f2e469]
+                - cell "7/4/2026, 1:00:07 PM" [ref=f2e471]:
+                  - time [ref=f2e474]:
+                    - text: 7/4/2026, 1:00:07 PM
+                    - img [ref=f2e475]
+              - row "Completed COMPLETED 01KWPCJ1VNZDN9C0TXFZABHNDT Daily Source — Funding Signal 7/4/2026, 12:59:59 PM 7/4/2026, 1:00:02 PM" [ref=f2e477] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e478]:
+                  - generic [ref=f2e480]:
+                    - generic "Completed" [ref=f2e481]
+                    - paragraph [ref=f2e482]: COMPLETED
+                - cell "01KWPCJ1VNZDN9C0TXFZABHNDT" [ref=f2e483]:
+                  - paragraph [ref=f2e485]: 01KWPCJ1VNZDN9C0TXFZABHNDT
+                - cell [ref=f2e486]
+                - cell "Daily Source — Funding Signal" [ref=f2e487]:
+                  - paragraph [ref=f2e489]: Daily Source — Funding Signal
+                - cell "7/4/2026, 12:59:59 PM" [ref=f2e490]:
+                  - time [ref=f2e493]:
+                    - text: 7/4/2026, 12:59:59 PM
+                    - img [ref=f2e494]
+                - cell "7/4/2026, 1:00:02 PM" [ref=f2e496]:
+                  - time [ref=f2e499]:
+                    - text: 7/4/2026, 1:00:02 PM
+                    - img [ref=f2e500]
+              - row "Completed COMPLETED 01KWPCJ1VFH5JZ2B9QYJYB6ZK9 Hourly Storage Monitor 7/4/2026, 12:59:59 PM 7/4/2026, 1:00:01 PM" [ref=f2e502] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e503]:
+                  - generic [ref=f2e505]:
+                    - generic "Completed" [ref=f2e506]
+                    - paragraph [ref=f2e507]: COMPLETED
+                - cell "01KWPCJ1VFH5JZ2B9QYJYB6ZK9" [ref=f2e508]:
+                  - paragraph [ref=f2e510]: 01KWPCJ1VFH5JZ2B9QYJYB6ZK9
+                - cell [ref=f2e511]
+                - cell "Hourly Storage Monitor" [ref=f2e512]:
+                  - paragraph [ref=f2e514]: Hourly Storage Monitor
+                - cell "7/4/2026, 12:59:59 PM" [ref=f2e515]:
+                  - time [ref=f2e518]:
+                    - text: 7/4/2026, 12:59:59 PM
+                    - img [ref=f2e519]
+                - cell "7/4/2026, 1:00:01 PM" [ref=f2e521]:
+                  - time [ref=f2e524]:
+                    - text: 7/4/2026, 1:00:01 PM
+                    - img [ref=f2e525]
+              - row "Completed COMPLETED 01KWPCJ1VES5FA3B6J3A6KN0WE Emergency Storage Purge — Tiered Job Deletion 7/4/2026, 12:59:59 PM 7/4/2026, 1:00:01 PM" [ref=f2e527] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e528]:
+                  - generic [ref=f2e530]:
+                    - generic "Completed" [ref=f2e531]
+                    - paragraph [ref=f2e532]: COMPLETED
+                - cell "01KWPCJ1VES5FA3B6J3A6KN0WE" [ref=f2e533]:
+                  - paragraph [ref=f2e535]: 01KWPCJ1VES5FA3B6J3A6KN0WE
+                - cell [ref=f2e536]
+                - cell "Emergency Storage Purge — Tiered Job Deletion" [ref=f2e537]:
+                  - paragraph [ref=f2e539]: Emergency Storage Purge — Tiered Job Deletion
+                - cell "7/4/2026, 12:59:59 PM" [ref=f2e540]:
+                  - time [ref=f2e543]:
+                    - text: 7/4/2026, 12:59:59 PM
+                    - img [ref=f2e544]
+                - cell "7/4/2026, 1:00:01 PM" [ref=f2e546]:
+                  - time [ref=f2e549]:
+                    - text: 7/4/2026, 1:00:01 PM
+                    - img [ref=f2e550]
+              - row "Completed COMPLETED 01KWPBPJYYWJXK42FQ31KEEASQ Emergency Storage Purge — Tiered Job Deletion 7/4/2026, 12:45:00 PM 7/4/2026, 12:45:01 PM" [ref=f2e552] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e553]:
+                  - generic [ref=f2e555]:
+                    - generic "Completed" [ref=f2e556]
+                    - paragraph [ref=f2e557]: COMPLETED
+                - cell "01KWPBPJYYWJXK42FQ31KEEASQ" [ref=f2e558]:
+                  - paragraph [ref=f2e560]: 01KWPBPJYYWJXK42FQ31KEEASQ
+                - cell [ref=f2e561]
+                - cell "Emergency Storage Purge — Tiered Job Deletion" [ref=f2e562]:
+                  - paragraph [ref=f2e564]: Emergency Storage Purge — Tiered Job Deletion
+                - cell "7/4/2026, 12:45:00 PM" [ref=f2e565]:
+                  - time [ref=f2e568]:
+                    - text: 7/4/2026, 12:45:00 PM
+                    - img [ref=f2e569]
+                - cell "7/4/2026, 12:45:01 PM" [ref=f2e571]:
+                  - time [ref=f2e574]:
+                    - text: 7/4/2026, 12:45:01 PM
+                    - img [ref=f2e575]
+              - row "Failed FAILED 01KWPAV5708P31GSVMXTGFWREV Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:30:01 PM 7/4/2026, 12:36:31 PM" [ref=f2e577] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e578]:
+                  - generic [ref=f2e580]:
+                    - generic "Failed" [ref=f2e581]
+                    - paragraph [ref=f2e582]: FAILED
+                - cell "01KWPAV5708P31GSVMXTGFWREV" [ref=f2e583]:
+                  - paragraph [ref=f2e585]: 01KWPAV5708P31GSVMXTGFWREV
+                - cell [ref=f2e586]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e587]:
+                  - paragraph [ref=f2e589]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e590]:
+                  - time [ref=f2e593]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e594]
+                - cell "7/4/2026, 12:36:31 PM" [ref=f2e596]:
+                  - time [ref=f2e599]:
+                    - text: 7/4/2026, 12:36:31 PM
+                    - img [ref=f2e600]
+              - row "Failed FAILED 01KWPAV56Y1E325KWKVSG99Z4W Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:30:01 PM 7/4/2026, 12:36:15 PM" [ref=f2e602] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e603]:
+                  - generic [ref=f2e605]:
+                    - generic "Failed" [ref=f2e606]
+                    - paragraph [ref=f2e607]: FAILED
+                - cell "01KWPAV56Y1E325KWKVSG99Z4W" [ref=f2e608]:
+                  - paragraph [ref=f2e610]: 01KWPAV56Y1E325KWKVSG99Z4W
+                - cell [ref=f2e611]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e612]:
+                  - paragraph [ref=f2e614]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e615]:
+                  - time [ref=f2e618]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e619]
+                - cell "7/4/2026, 12:36:15 PM" [ref=f2e621]:
+                  - time [ref=f2e624]:
+                    - text: 7/4/2026, 12:36:15 PM
+                    - img [ref=f2e625]
+              - row "Failed FAILED 01KWPAV56VVKCZDXT9SNFMTHVQ Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:30:01 PM 7/4/2026, 12:36:29 PM" [ref=f2e627] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e628]:
+                  - generic [ref=f2e630]:
+                    - generic "Failed" [ref=f2e631]
+                    - paragraph [ref=f2e632]: FAILED
+                - cell "01KWPAV56VVKCZDXT9SNFMTHVQ" [ref=f2e633]:
+                  - paragraph [ref=f2e635]: 01KWPAV56VVKCZDXT9SNFMTHVQ
+                - cell [ref=f2e636]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e637]:
+                  - paragraph [ref=f2e639]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e640]:
+                  - time [ref=f2e643]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e644]
+                - cell "7/4/2026, 12:36:29 PM" [ref=f2e646]:
+                  - time [ref=f2e649]:
+                    - text: 7/4/2026, 12:36:29 PM
+                    - img [ref=f2e650]
+              - row "Failed FAILED 01KWPAV56TRX6H1A0CA8K8NSCR Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:30:01 PM 7/4/2026, 12:36:29 PM" [ref=f2e652] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e653]:
+                  - generic [ref=f2e655]:
+                    - generic "Failed" [ref=f2e656]
+                    - paragraph [ref=f2e657]: FAILED
+                - cell "01KWPAV56TRX6H1A0CA8K8NSCR" [ref=f2e658]:
+                  - paragraph [ref=f2e660]: 01KWPAV56TRX6H1A0CA8K8NSCR
+                - cell [ref=f2e661]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e662]:
+                  - paragraph [ref=f2e664]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e665]:
+                  - time [ref=f2e668]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e669]
+                - cell "7/4/2026, 12:36:29 PM" [ref=f2e671]:
+                  - time [ref=f2e674]:
+                    - text: 7/4/2026, 12:36:29 PM
+                    - img [ref=f2e675]
+              - row "Failed FAILED 01KWPAV56SECR54N6399SD94HY Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:30:01 PM 7/4/2026, 12:37:14 PM" [ref=f2e677] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e678]:
+                  - generic [ref=f2e680]:
+                    - generic "Failed" [ref=f2e681]
+                    - paragraph [ref=f2e682]: FAILED
+                - cell "01KWPAV56SECR54N6399SD94HY" [ref=f2e683]:
+                  - paragraph [ref=f2e685]: 01KWPAV56SECR54N6399SD94HY
+                - cell [ref=f2e686]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e687]:
+                  - paragraph [ref=f2e689]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e690]:
+                  - time [ref=f2e693]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e694]
+                - cell "7/4/2026, 12:37:14 PM" [ref=f2e696]:
+                  - time [ref=f2e699]:
+                    - text: 7/4/2026, 12:37:14 PM
+                    - img [ref=f2e700]
+              - row "Completed COMPLETED 01KWPAV41ZWSVRCMG5S3P9SHX2 Emergency Storage Purge — Tiered Job Deletion 7/4/2026, 12:30:00 PM 7/4/2026, 12:30:00 PM" [ref=f2e702] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e703]:
+                  - generic [ref=f2e705]:
+                    - generic "Completed" [ref=f2e706]
+                    - paragraph [ref=f2e707]: COMPLETED
+                - cell "01KWPAV41ZWSVRCMG5S3P9SHX2" [ref=f2e708]:
+                  - paragraph [ref=f2e710]: 01KWPAV41ZWSVRCMG5S3P9SHX2
+                - cell [ref=f2e711]
+                - cell "Emergency Storage Purge — Tiered Job Deletion" [ref=f2e712]:
+                  - paragraph [ref=f2e714]: Emergency Storage Purge — Tiered Job Deletion
+                - cell "7/4/2026, 12:30:00 PM" [ref=f2e715]:
+                  - time [ref=f2e718]:
+                    - text: 7/4/2026, 12:30:00 PM
+                    - img [ref=f2e719]
+                - cell "7/4/2026, 12:30:00 PM" [ref=f2e721]:
+                  - time [ref=f2e724]:
+                    - text: 7/4/2026, 12:30:00 PM
+                    - img [ref=f2e725]
+              - row "Completed COMPLETED 01KWPAV41XCD4GQRWQ2N2HKEXN Pipeline Health Monitor 7/4/2026, 12:29:59 PM 7/4/2026, 12:30:01 PM" [ref=f2e727] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e728]:
+                  - generic [ref=f2e730]:
+                    - generic "Completed" [ref=f2e731]
+                    - paragraph [ref=f2e732]: COMPLETED
+                - cell "01KWPAV41XCD4GQRWQ2N2HKEXN" [ref=f2e733]:
+                  - paragraph [ref=f2e735]: 01KWPAV41XCD4GQRWQ2N2HKEXN
+                - cell [ref=f2e736]
+                - cell "Pipeline Health Monitor" [ref=f2e737]:
+                  - paragraph [ref=f2e739]: Pipeline Health Monitor
+                - cell "7/4/2026, 12:29:59 PM" [ref=f2e740]:
+                  - time [ref=f2e743]:
+                    - text: 7/4/2026, 12:29:59 PM
+                    - img [ref=f2e744]
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e746]:
+                  - time [ref=f2e749]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e750]
+              - row "Completed COMPLETED 01KWPAV41F1MPF9FCKJQG7PXRA Pending Queue Sweep 7/4/2026, 12:29:59 PM 7/4/2026, 12:30:01 PM" [ref=f2e752] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e753]:
+                  - generic [ref=f2e755]:
+                    - generic "Completed" [ref=f2e756]
+                    - paragraph [ref=f2e757]: COMPLETED
+                - cell "01KWPAV41F1MPF9FCKJQG7PXRA" [ref=f2e758]:
+                  - paragraph [ref=f2e760]: 01KWPAV41F1MPF9FCKJQG7PXRA
+                - cell [ref=f2e761]
+                - cell "Pending Queue Sweep" [ref=f2e762]:
+                  - paragraph [ref=f2e764]: Pending Queue Sweep
+                - cell "7/4/2026, 12:29:59 PM" [ref=f2e765]:
+                  - time [ref=f2e768]:
+                    - text: 7/4/2026, 12:29:59 PM
+                    - img [ref=f2e769]
+                - cell "7/4/2026, 12:30:01 PM" [ref=f2e771]:
+                  - time [ref=f2e774]:
+                    - text: 7/4/2026, 12:30:01 PM
+                    - img [ref=f2e775]
+              - row "Completed COMPLETED 01KWP9ZN4FVZWKHF3QQEZ7QXMQ Emergency Storage Purge — Tiered Job Deletion 7/4/2026, 12:14:59 PM 7/4/2026, 12:15:00 PM" [ref=f2e777] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e778]:
+                  - generic [ref=f2e780]:
+                    - generic "Completed" [ref=f2e781]
+                    - paragraph [ref=f2e782]: COMPLETED
+                - cell "01KWP9ZN4FVZWKHF3QQEZ7QXMQ" [ref=f2e783]:
+                  - paragraph [ref=f2e785]: 01KWP9ZN4FVZWKHF3QQEZ7QXMQ
+                - cell [ref=f2e786]
+                - cell "Emergency Storage Purge — Tiered Job Deletion" [ref=f2e787]:
+                  - paragraph [ref=f2e789]: Emergency Storage Purge — Tiered Job Deletion
+                - cell "7/4/2026, 12:14:59 PM" [ref=f2e790]:
+                  - time [ref=f2e793]:
+                    - text: 7/4/2026, 12:14:59 PM
+                    - img [ref=f2e794]
+                - cell "7/4/2026, 12:15:00 PM" [ref=f2e796]:
+                  - time [ref=f2e799]:
+                    - text: 7/4/2026, 12:15:00 PM
+                    - img [ref=f2e800]
+              - row "Completed COMPLETED 01KWP9DSD81SZFCEPSFMTJGC7P Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 12:05:14 PM 7/4/2026, 12:05:39 PM" [ref=f2e802] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e803]:
+                  - generic [ref=f2e805]:
+                    - generic "Completed" [ref=f2e806]
+                    - paragraph [ref=f2e807]: COMPLETED
+                - cell "01KWP9DSD81SZFCEPSFMTJGC7P" [ref=f2e808]:
+                  - paragraph [ref=f2e810]: 01KWP9DSD81SZFCEPSFMTJGC7P
+                - cell [ref=f2e811]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e812]:
+                  - paragraph [ref=f2e814]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 12:05:14 PM" [ref=f2e815]:
+                  - time [ref=f2e818]:
+                    - text: 7/4/2026, 12:05:14 PM
+                    - img [ref=f2e819]
+                - cell "7/4/2026, 12:05:39 PM" [ref=f2e821]:
+                  - time [ref=f2e824]:
+                    - text: 7/4/2026, 12:05:39 PM
+                    - img [ref=f2e825]
+              - row "Completed COMPLETED 01KWP9DSD8C9AW0RSVQ5007CTN Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 12:05:14 PM 7/4/2026, 12:05:39 PM" [ref=f2e827] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e828]:
+                  - generic [ref=f2e830]:
+                    - generic "Completed" [ref=f2e831]
+                    - paragraph [ref=f2e832]: COMPLETED
+                - cell "01KWP9DSD8C9AW0RSVQ5007CTN" [ref=f2e833]:
+                  - paragraph [ref=f2e835]: 01KWP9DSD8C9AW0RSVQ5007CTN
+                - cell [ref=f2e836]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e837]:
+                  - paragraph [ref=f2e839]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 12:05:14 PM" [ref=f2e840]:
+                  - time [ref=f2e843]:
+                    - text: 7/4/2026, 12:05:14 PM
+                    - img [ref=f2e844]
+                - cell "7/4/2026, 12:05:39 PM" [ref=f2e846]:
+                  - time [ref=f2e849]:
+                    - text: 7/4/2026, 12:05:39 PM
+                    - img [ref=f2e850]
+              - row "Failed FAILED 01KWP9DSD80SGV96GQE7HM5V8H Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 12:05:14 PM 7/4/2026, 12:10:56 PM" [ref=f2e852] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e853]:
+                  - generic [ref=f2e855]:
+                    - generic "Failed" [ref=f2e856]
+                    - paragraph [ref=f2e857]: FAILED
+                - cell "01KWP9DSD80SGV96GQE7HM5V8H" [ref=f2e858]:
+                  - paragraph [ref=f2e860]: 01KWP9DSD80SGV96GQE7HM5V8H
+                - cell [ref=f2e861]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e862]:
+                  - paragraph [ref=f2e864]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 12:05:14 PM" [ref=f2e865]:
+                  - time [ref=f2e868]:
+                    - text: 7/4/2026, 12:05:14 PM
+                    - img [ref=f2e869]
+                - cell "7/4/2026, 12:10:56 PM" [ref=f2e871]:
+                  - time [ref=f2e874]:
+                    - text: 7/4/2026, 12:10:56 PM
+                    - img [ref=f2e875]
+              - row "Failed FAILED 01KWP9DSD5ZQJM3785CBDGRP4D Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 12:05:14 PM 7/4/2026, 12:10:56 PM" [ref=f2e877] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e878]:
+                  - generic [ref=f2e880]:
+                    - generic "Failed" [ref=f2e881]
+                    - paragraph [ref=f2e882]: FAILED
+                - cell "01KWP9DSD5ZQJM3785CBDGRP4D" [ref=f2e883]:
+                  - paragraph [ref=f2e885]: 01KWP9DSD5ZQJM3785CBDGRP4D
+                - cell [ref=f2e886]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e887]:
+                  - paragraph [ref=f2e889]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 12:05:14 PM" [ref=f2e890]:
+                  - time [ref=f2e893]:
+                    - text: 7/4/2026, 12:05:14 PM
+                    - img [ref=f2e894]
+                - cell "7/4/2026, 12:10:56 PM" [ref=f2e896]:
+                  - time [ref=f2e899]:
+                    - text: 7/4/2026, 12:10:56 PM
+                    - img [ref=f2e900]
+              - row "Failed FAILED 01KWP9488821H190QQ5QD2AKXT Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:00:02 PM 7/4/2026, 12:06:59 PM" [ref=f2e902] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e903]:
+                  - generic [ref=f2e905]:
+                    - generic "Failed" [ref=f2e906]
+                    - paragraph [ref=f2e907]: FAILED
+                - cell "01KWP9488821H190QQ5QD2AKXT" [ref=f2e908]:
+                  - paragraph [ref=f2e910]: 01KWP9488821H190QQ5QD2AKXT
+                - cell [ref=f2e911]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e912]:
+                  - paragraph [ref=f2e914]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:00:02 PM" [ref=f2e915]:
+                  - time [ref=f2e918]:
+                    - text: 7/4/2026, 12:00:02 PM
+                    - img [ref=f2e919]
+                - cell "7/4/2026, 12:06:59 PM" [ref=f2e921]:
+                  - time [ref=f2e924]:
+                    - text: 7/4/2026, 12:06:59 PM
+                    - img [ref=f2e925]
+              - row "Failed FAILED 01KWP94888YDMFGZ4WFC5B4XFV Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:00:02 PM 7/4/2026, 12:06:39 PM" [ref=f2e927] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e928]:
+                  - generic [ref=f2e930]:
+                    - generic "Failed" [ref=f2e931]
+                    - paragraph [ref=f2e932]: FAILED
+                - cell "01KWP94888YDMFGZ4WFC5B4XFV" [ref=f2e933]:
+                  - paragraph [ref=f2e935]: 01KWP94888YDMFGZ4WFC5B4XFV
+                - cell [ref=f2e936]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e937]:
+                  - paragraph [ref=f2e939]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:00:02 PM" [ref=f2e940]:
+                  - time [ref=f2e943]:
+                    - text: 7/4/2026, 12:00:02 PM
+                    - img [ref=f2e944]
+                - cell "7/4/2026, 12:06:39 PM" [ref=f2e946]:
+                  - time [ref=f2e949]:
+                    - text: 7/4/2026, 12:06:39 PM
+                    - img [ref=f2e950]
+              - row "Failed FAILED 01KWP94883N0RMTS27BQG4MX3S Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:00:02 PM 7/4/2026, 12:06:35 PM" [ref=f2e952] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e953]:
+                  - generic [ref=f2e955]:
+                    - generic "Failed" [ref=f2e956]
+                    - paragraph [ref=f2e957]: FAILED
+                - cell "01KWP94883N0RMTS27BQG4MX3S" [ref=f2e958]:
+                  - paragraph [ref=f2e960]: 01KWP94883N0RMTS27BQG4MX3S
+                - cell [ref=f2e961]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e962]:
+                  - paragraph [ref=f2e964]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:00:02 PM" [ref=f2e965]:
+                  - time [ref=f2e968]:
+                    - text: 7/4/2026, 12:00:02 PM
+                    - img [ref=f2e969]
+                - cell "7/4/2026, 12:06:35 PM" [ref=f2e971]:
+                  - time [ref=f2e974]:
+                    - text: 7/4/2026, 12:06:35 PM
+                    - img [ref=f2e975]
+              - row "Failed FAILED 01KWP9487ZMXMFBJTCRY6HFZZX Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:00:02 PM 7/4/2026, 12:06:30 PM" [ref=f2e977] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e978]:
+                  - generic [ref=f2e980]:
+                    - generic "Failed" [ref=f2e981]
+                    - paragraph [ref=f2e982]: FAILED
+                - cell "01KWP9487ZMXMFBJTCRY6HFZZX" [ref=f2e983]:
+                  - paragraph [ref=f2e985]: 01KWP9487ZMXMFBJTCRY6HFZZX
+                - cell [ref=f2e986]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e987]:
+                  - paragraph [ref=f2e989]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:00:02 PM" [ref=f2e990]:
+                  - time [ref=f2e993]:
+                    - text: 7/4/2026, 12:00:02 PM
+                    - img [ref=f2e994]
+                - cell "7/4/2026, 12:06:30 PM" [ref=f2e996]:
+                  - time [ref=f2e999]:
+                    - text: 7/4/2026, 12:06:30 PM
+                    - img [ref=f2e1000]
+              - row "Failed FAILED 01KWP9487YWMK7J9S3504F9YN7 Gate 3 — LLM Candidate Evaluation 7/4/2026, 12:00:02 PM 7/4/2026, 12:06:56 PM" [ref=f2e1002] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1003]:
+                  - generic [ref=f2e1005]:
+                    - generic "Failed" [ref=f2e1006]
+                    - paragraph [ref=f2e1007]: FAILED
+                - cell "01KWP9487YWMK7J9S3504F9YN7" [ref=f2e1008]:
+                  - paragraph [ref=f2e1010]: 01KWP9487YWMK7J9S3504F9YN7
+                - cell [ref=f2e1011]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1012]:
+                  - paragraph [ref=f2e1014]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 12:00:02 PM" [ref=f2e1015]:
+                  - time [ref=f2e1018]:
+                    - text: 7/4/2026, 12:00:02 PM
+                    - img [ref=f2e1019]
+                - cell "7/4/2026, 12:06:56 PM" [ref=f2e1021]:
+                  - time [ref=f2e1024]:
+                    - text: 7/4/2026, 12:06:56 PM
+                    - img [ref=f2e1025]
+              - row "Completed COMPLETED 01KWP946800RQW1PHBMED9FMKS Pipeline Health Monitor 7/4/2026, 12:00:00 PM 7/4/2026, 12:00:10 PM" [ref=f2e1027] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1028]:
+                  - generic [ref=f2e1030]:
+                    - generic "Completed" [ref=f2e1031]
+                    - paragraph [ref=f2e1032]: COMPLETED
+                - cell "01KWP946800RQW1PHBMED9FMKS" [ref=f2e1033]:
+                  - paragraph [ref=f2e1035]: 01KWP946800RQW1PHBMED9FMKS
+                - cell [ref=f2e1036]
+                - cell "Pipeline Health Monitor" [ref=f2e1037]:
+                  - paragraph [ref=f2e1039]: Pipeline Health Monitor
+                - cell "7/4/2026, 12:00:00 PM" [ref=f2e1040]:
+                  - time [ref=f2e1043]:
+                    - text: 7/4/2026, 12:00:00 PM
+                    - img [ref=f2e1044]
+                - cell "7/4/2026, 12:00:10 PM" [ref=f2e1046]:
+                  - time [ref=f2e1049]:
+                    - text: 7/4/2026, 12:00:10 PM
+                    - img [ref=f2e1050]
+              - row "Completed COMPLETED 01KWP94680P7ZDDRA7BKT1HQGW Batch Poll Tier 7/4/2026, 12:00:00 PM 7/4/2026, 12:05:14 PM" [ref=f2e1052] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1053]:
+                  - generic [ref=f2e1055]:
+                    - generic "Completed" [ref=f2e1056]
+                    - paragraph [ref=f2e1057]: COMPLETED
+                - cell "01KWP94680P7ZDDRA7BKT1HQGW" [ref=f2e1058]:
+                  - paragraph [ref=f2e1060]: 01KWP94680P7ZDDRA7BKT1HQGW
+                - cell [ref=f2e1061]
+                - cell "Batch Poll Tier" [ref=f2e1062]:
+                  - paragraph [ref=f2e1064]: Batch Poll Tier
+                - cell "7/4/2026, 12:00:00 PM" [ref=f2e1065]:
+                  - time [ref=f2e1068]:
+                    - text: 7/4/2026, 12:00:00 PM
+                    - img [ref=f2e1069]
+                - cell "7/4/2026, 12:05:14 PM" [ref=f2e1071]:
+                  - time [ref=f2e1074]:
+                    - text: 7/4/2026, 12:05:14 PM
+                    - img [ref=f2e1075]
+              - row "Completed COMPLETED 01KWP9467QSDXS33EENYV3WK7B Pending Queue Sweep 7/4/2026, 11:59:59 AM 7/4/2026, 12:00:02 PM" [ref=f2e1077] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1078]:
+                  - generic [ref=f2e1080]:
+                    - generic "Completed" [ref=f2e1081]
+                    - paragraph [ref=f2e1082]: COMPLETED
+                - cell "01KWP9467QSDXS33EENYV3WK7B" [ref=f2e1083]:
+                  - paragraph [ref=f2e1085]: 01KWP9467QSDXS33EENYV3WK7B
+                - cell [ref=f2e1086]
+                - cell "Pending Queue Sweep" [ref=f2e1087]:
+                  - paragraph [ref=f2e1089]: Pending Queue Sweep
+                - cell "7/4/2026, 11:59:59 AM" [ref=f2e1090]:
+                  - time [ref=f2e1093]:
+                    - text: 7/4/2026, 11:59:59 AM
+                    - img [ref=f2e1094]
+                - cell "7/4/2026, 12:00:02 PM" [ref=f2e1096]:
+                  - time [ref=f2e1099]:
+                    - text: 7/4/2026, 12:00:02 PM
+                    - img [ref=f2e1100]
+              - row "Completed COMPLETED 01KWP9467PTGV1BQY8KEF99VP7 Daily Source — CertStream 7/4/2026, 11:59:59 AM 7/4/2026, 12:01:02 PM" [ref=f2e1102] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1103]:
+                  - generic [ref=f2e1105]:
+                    - generic "Completed" [ref=f2e1106]
+                    - paragraph [ref=f2e1107]: COMPLETED
+                - cell "01KWP9467PTGV1BQY8KEF99VP7" [ref=f2e1108]:
+                  - paragraph [ref=f2e1110]: 01KWP9467PTGV1BQY8KEF99VP7
+                - cell [ref=f2e1111]
+                - cell "Daily Source — CertStream" [ref=f2e1112]:
+                  - paragraph [ref=f2e1114]: Daily Source — CertStream
+                - cell "7/4/2026, 11:59:59 AM" [ref=f2e1115]:
+                  - time [ref=f2e1118]:
+                    - text: 7/4/2026, 11:59:59 AM
+                    - img [ref=f2e1119]
+                - cell "7/4/2026, 12:01:02 PM" [ref=f2e1121]:
+                  - time [ref=f2e1124]:
+                    - text: 7/4/2026, 12:01:02 PM
+                    - img [ref=f2e1125]
+              - row "Failed FAILED 01KWP7DAFT7GBB0P5YMYZ33GC4 Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:30:02 AM 7/4/2026, 11:36:30 AM" [ref=f2e1127] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1128]:
+                  - generic [ref=f2e1130]:
+                    - generic "Failed" [ref=f2e1131]
+                    - paragraph [ref=f2e1132]: FAILED
+                - cell "01KWP7DAFT7GBB0P5YMYZ33GC4" [ref=f2e1133]:
+                  - paragraph [ref=f2e1135]: 01KWP7DAFT7GBB0P5YMYZ33GC4
+                - cell [ref=f2e1136]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1137]:
+                  - paragraph [ref=f2e1139]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:30:02 AM" [ref=f2e1140]:
+                  - time [ref=f2e1143]:
+                    - text: 7/4/2026, 11:30:02 AM
+                    - img [ref=f2e1144]
+                - cell "7/4/2026, 11:36:30 AM" [ref=f2e1146]:
+                  - time [ref=f2e1149]:
+                    - text: 7/4/2026, 11:36:30 AM
+                    - img [ref=f2e1150]
+              - row "Failed FAILED 01KWP7DAFQ68A3BSZWJ0W59NJZ Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:30:02 AM 7/4/2026, 11:36:24 AM" [ref=f2e1152] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1153]:
+                  - generic [ref=f2e1155]:
+                    - generic "Failed" [ref=f2e1156]
+                    - paragraph [ref=f2e1157]: FAILED
+                - cell "01KWP7DAFQ68A3BSZWJ0W59NJZ" [ref=f2e1158]:
+                  - paragraph [ref=f2e1160]: 01KWP7DAFQ68A3BSZWJ0W59NJZ
+                - cell [ref=f2e1161]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1162]:
+                  - paragraph [ref=f2e1164]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:30:02 AM" [ref=f2e1165]:
+                  - time [ref=f2e1168]:
+                    - text: 7/4/2026, 11:30:02 AM
+                    - img [ref=f2e1169]
+                - cell "7/4/2026, 11:36:24 AM" [ref=f2e1171]:
+                  - time [ref=f2e1174]:
+                    - text: 7/4/2026, 11:36:24 AM
+                    - img [ref=f2e1175]
+              - row "Failed FAILED 01KWP7DAFRSK47ZK7T9KDPWFYS Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:30:02 AM 7/4/2026, 11:37:12 AM" [ref=f2e1177] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1178]:
+                  - generic [ref=f2e1180]:
+                    - generic "Failed" [ref=f2e1181]
+                    - paragraph [ref=f2e1182]: FAILED
+                - cell "01KWP7DAFRSK47ZK7T9KDPWFYS" [ref=f2e1183]:
+                  - paragraph [ref=f2e1185]: 01KWP7DAFRSK47ZK7T9KDPWFYS
+                - cell [ref=f2e1186]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1187]:
+                  - paragraph [ref=f2e1189]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:30:02 AM" [ref=f2e1190]:
+                  - time [ref=f2e1193]:
+                    - text: 7/4/2026, 11:30:02 AM
+                    - img [ref=f2e1194]
+                - cell "7/4/2026, 11:37:12 AM" [ref=f2e1196]:
+                  - time [ref=f2e1199]:
+                    - text: 7/4/2026, 11:37:12 AM
+                    - img [ref=f2e1200]
+              - row "Failed FAILED 01KWP7DAFQWFJ5WQ3A14C8JMTW Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:30:02 AM 7/4/2026, 11:36:43 AM" [ref=f2e1202] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1203]:
+                  - generic [ref=f2e1205]:
+                    - generic "Failed" [ref=f2e1206]
+                    - paragraph [ref=f2e1207]: FAILED
+                - cell "01KWP7DAFQWFJ5WQ3A14C8JMTW" [ref=f2e1208]:
+                  - paragraph [ref=f2e1210]: 01KWP7DAFQWFJ5WQ3A14C8JMTW
+                - cell [ref=f2e1211]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1212]:
+                  - paragraph [ref=f2e1214]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:30:02 AM" [ref=f2e1215]:
+                  - time [ref=f2e1218]:
+                    - text: 7/4/2026, 11:30:02 AM
+                    - img [ref=f2e1219]
+                - cell "7/4/2026, 11:36:43 AM" [ref=f2e1221]:
+                  - time [ref=f2e1224]:
+                    - text: 7/4/2026, 11:36:43 AM
+                    - img [ref=f2e1225]
+              - row "Failed FAILED 01KWP7DAFRHX435WKQ2PBKNDNN Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:30:02 AM 7/4/2026, 11:36:58 AM" [ref=f2e1227] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1228]:
+                  - generic [ref=f2e1230]:
+                    - generic "Failed" [ref=f2e1231]
+                    - paragraph [ref=f2e1232]: FAILED
+                - cell "01KWP7DAFRHX435WKQ2PBKNDNN" [ref=f2e1233]:
+                  - paragraph [ref=f2e1235]: 01KWP7DAFRHX435WKQ2PBKNDNN
+                - cell [ref=f2e1236]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1237]:
+                  - paragraph [ref=f2e1239]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:30:02 AM" [ref=f2e1240]:
+                  - time [ref=f2e1243]:
+                    - text: 7/4/2026, 11:30:02 AM
+                    - img [ref=f2e1244]
+                - cell "7/4/2026, 11:36:58 AM" [ref=f2e1246]:
+                  - time [ref=f2e1249]:
+                    - text: 7/4/2026, 11:36:58 AM
+                    - img [ref=f2e1250]
+              - row "Completed COMPLETED 01KWP7D8DQ2GECQR9FF563NQM8 Pipeline Health Monitor 7/4/2026, 11:29:59 AM 7/4/2026, 11:30:07 AM" [ref=f2e1252] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1253]:
+                  - generic [ref=f2e1255]:
+                    - generic "Completed" [ref=f2e1256]
+                    - paragraph [ref=f2e1257]: COMPLETED
+                - cell "01KWP7D8DQ2GECQR9FF563NQM8" [ref=f2e1258]:
+                  - paragraph [ref=f2e1260]: 01KWP7D8DQ2GECQR9FF563NQM8
+                - cell [ref=f2e1261]
+                - cell "Pipeline Health Monitor" [ref=f2e1262]:
+                  - paragraph [ref=f2e1264]: Pipeline Health Monitor
+                - cell "7/4/2026, 11:29:59 AM" [ref=f2e1265]:
+                  - time [ref=f2e1268]:
+                    - text: 7/4/2026, 11:29:59 AM
+                    - img [ref=f2e1269]
+                - cell "7/4/2026, 11:30:07 AM" [ref=f2e1271]:
+                  - time [ref=f2e1274]:
+                    - text: 7/4/2026, 11:30:07 AM
+                    - img [ref=f2e1275]
+              - row "Completed COMPLETED 01KWP7D8DGRM774T1E06EXQ0CG Pending Queue Sweep 7/4/2026, 11:29:59 AM 7/4/2026, 11:30:02 AM" [ref=f2e1277] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1278]:
+                  - generic [ref=f2e1280]:
+                    - generic "Completed" [ref=f2e1281]
+                    - paragraph [ref=f2e1282]: COMPLETED
+                - cell "01KWP7D8DGRM774T1E06EXQ0CG" [ref=f2e1283]:
+                  - paragraph [ref=f2e1285]: 01KWP7D8DGRM774T1E06EXQ0CG
+                - cell [ref=f2e1286]
+                - cell "Pending Queue Sweep" [ref=f2e1287]:
+                  - paragraph [ref=f2e1289]: Pending Queue Sweep
+                - cell "7/4/2026, 11:29:59 AM" [ref=f2e1290]:
+                  - time [ref=f2e1293]:
+                    - text: 7/4/2026, 11:29:59 AM
+                    - img [ref=f2e1294]
+                - cell "7/4/2026, 11:30:02 AM" [ref=f2e1296]:
+                  - time [ref=f2e1299]:
+                    - text: 7/4/2026, 11:30:02 AM
+                    - img [ref=f2e1300]
+              - row "Failed FAILED 01KWP5PBCP1180K6GY8TW2Y3QN Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:00:00 AM 7/4/2026, 11:06:34 AM" [ref=f2e1302] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1303]:
+                  - generic [ref=f2e1305]:
+                    - generic "Failed" [ref=f2e1306]
+                    - paragraph [ref=f2e1307]: FAILED
+                - cell "01KWP5PBCP1180K6GY8TW2Y3QN" [ref=f2e1308]:
+                  - paragraph [ref=f2e1310]: 01KWP5PBCP1180K6GY8TW2Y3QN
+                - cell [ref=f2e1311]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1312]:
+                  - paragraph [ref=f2e1314]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1315]:
+                  - time [ref=f2e1318]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1319]
+                - cell "7/4/2026, 11:06:34 AM" [ref=f2e1321]:
+                  - time [ref=f2e1324]:
+                    - text: 7/4/2026, 11:06:34 AM
+                    - img [ref=f2e1325]
+              - row "Failed FAILED 01KWP5PBCPRXXX0E8CQ0CKAHKY Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:00:00 AM 7/4/2026, 11:07:01 AM" [ref=f2e1327] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1328]:
+                  - generic [ref=f2e1330]:
+                    - generic "Failed" [ref=f2e1331]
+                    - paragraph [ref=f2e1332]: FAILED
+                - cell "01KWP5PBCPRXXX0E8CQ0CKAHKY" [ref=f2e1333]:
+                  - paragraph [ref=f2e1335]: 01KWP5PBCPRXXX0E8CQ0CKAHKY
+                - cell [ref=f2e1336]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1337]:
+                  - paragraph [ref=f2e1339]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1340]:
+                  - time [ref=f2e1343]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1344]
+                - cell "7/4/2026, 11:07:01 AM" [ref=f2e1346]:
+                  - time [ref=f2e1349]:
+                    - text: 7/4/2026, 11:07:01 AM
+                    - img [ref=f2e1350]
+              - row "Failed FAILED 01KWP5PBCJ53EV7E7EVGD614K6 Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:00:00 AM 7/4/2026, 11:07:02 AM" [ref=f2e1352] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1353]:
+                  - generic [ref=f2e1355]:
+                    - generic "Failed" [ref=f2e1356]
+                    - paragraph [ref=f2e1357]: FAILED
+                - cell "01KWP5PBCJ53EV7E7EVGD614K6" [ref=f2e1358]:
+                  - paragraph [ref=f2e1360]: 01KWP5PBCJ53EV7E7EVGD614K6
+                - cell [ref=f2e1361]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1362]:
+                  - paragraph [ref=f2e1364]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1365]:
+                  - time [ref=f2e1368]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1369]
+                - cell "7/4/2026, 11:07:02 AM" [ref=f2e1371]:
+                  - time [ref=f2e1374]:
+                    - text: 7/4/2026, 11:07:02 AM
+                    - img [ref=f2e1375]
+              - row "Failed FAILED 01KWP5PBCKA1MW0C38QX2053TS Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:00:00 AM 7/4/2026, 11:07:02 AM" [ref=f2e1377] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1378]:
+                  - generic [ref=f2e1380]:
+                    - generic "Failed" [ref=f2e1381]
+                    - paragraph [ref=f2e1382]: FAILED
+                - cell "01KWP5PBCKA1MW0C38QX2053TS" [ref=f2e1383]:
+                  - paragraph [ref=f2e1385]: 01KWP5PBCKA1MW0C38QX2053TS
+                - cell [ref=f2e1386]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1387]:
+                  - paragraph [ref=f2e1389]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1390]:
+                  - time [ref=f2e1393]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1394]
+                - cell "7/4/2026, 11:07:02 AM" [ref=f2e1396]:
+                  - time [ref=f2e1399]:
+                    - text: 7/4/2026, 11:07:02 AM
+                    - img [ref=f2e1400]
+              - row "Failed FAILED 01KWP5PBCHZB0GHVR0JXBJ1ZCQ Gate 3 — LLM Candidate Evaluation 7/4/2026, 11:00:00 AM 7/4/2026, 11:06:12 AM" [ref=f2e1402] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1403]:
+                  - generic [ref=f2e1405]:
+                    - generic "Failed" [ref=f2e1406]
+                    - paragraph [ref=f2e1407]: FAILED
+                - cell "01KWP5PBCHZB0GHVR0JXBJ1ZCQ" [ref=f2e1408]:
+                  - paragraph [ref=f2e1410]: 01KWP5PBCHZB0GHVR0JXBJ1ZCQ
+                - cell [ref=f2e1411]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1412]:
+                  - paragraph [ref=f2e1414]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1415]:
+                  - time [ref=f2e1418]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1419]
+                - cell "7/4/2026, 11:06:12 AM" [ref=f2e1421]:
+                  - time [ref=f2e1424]:
+                    - text: 7/4/2026, 11:06:12 AM
+                    - img [ref=f2e1425]
+              - row "Completed COMPLETED 01KWP5PAM0SQ5RA9JGDA8NKJ1V Daily Source — NPM Registry 7/4/2026, 11:00:00 AM 7/4/2026, 11:00:01 AM" [ref=f2e1427] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1428]:
+                  - generic [ref=f2e1430]:
+                    - generic "Completed" [ref=f2e1431]
+                    - paragraph [ref=f2e1432]: COMPLETED
+                - cell "01KWP5PAM0SQ5RA9JGDA8NKJ1V" [ref=f2e1433]:
+                  - paragraph [ref=f2e1435]: 01KWP5PAM0SQ5RA9JGDA8NKJ1V
+                - cell [ref=f2e1436]
+                - cell "Daily Source — NPM Registry" [ref=f2e1437]:
+                  - paragraph [ref=f2e1439]: Daily Source — NPM Registry
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1440]:
+                  - time [ref=f2e1443]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1444]
+                - cell "7/4/2026, 11:00:01 AM" [ref=f2e1446]:
+                  - time [ref=f2e1449]:
+                    - text: 7/4/2026, 11:00:01 AM
+                    - img [ref=f2e1450]
+              - row "Completed COMPLETED 01KWP5PAKQZ69V5ER8SZEQKT8S Pending Queue Sweep 7/4/2026, 10:59:59 AM 7/4/2026, 11:00:00 AM" [ref=f2e1452] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1453]:
+                  - generic [ref=f2e1455]:
+                    - generic "Completed" [ref=f2e1456]
+                    - paragraph [ref=f2e1457]: COMPLETED
+                - cell "01KWP5PAKQZ69V5ER8SZEQKT8S" [ref=f2e1458]:
+                  - paragraph [ref=f2e1460]: 01KWP5PAKQZ69V5ER8SZEQKT8S
+                - cell [ref=f2e1461]
+                - cell "Pending Queue Sweep" [ref=f2e1462]:
+                  - paragraph [ref=f2e1464]: Pending Queue Sweep
+                - cell "7/4/2026, 10:59:59 AM" [ref=f2e1465]:
+                  - time [ref=f2e1468]:
+                    - text: 7/4/2026, 10:59:59 AM
+                    - img [ref=f2e1469]
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1471]:
+                  - time [ref=f2e1474]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1475]
+              - row "Completed COMPLETED 01KWP5PAKRBARHQQWERM59FYJN Pipeline Health Monitor 7/4/2026, 10:59:59 AM 7/4/2026, 11:00:00 AM" [ref=f2e1477] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1478]:
+                  - generic [ref=f2e1480]:
+                    - generic "Completed" [ref=f2e1481]
+                    - paragraph [ref=f2e1482]: COMPLETED
+                - cell "01KWP5PAKRBARHQQWERM59FYJN" [ref=f2e1483]:
+                  - paragraph [ref=f2e1485]: 01KWP5PAKRBARHQQWERM59FYJN
+                - cell [ref=f2e1486]
+                - cell "Pipeline Health Monitor" [ref=f2e1487]:
+                  - paragraph [ref=f2e1489]: Pipeline Health Monitor
+                - cell "7/4/2026, 10:59:59 AM" [ref=f2e1490]:
+                  - time [ref=f2e1493]:
+                    - text: 7/4/2026, 10:59:59 AM
+                    - img [ref=f2e1494]
+                - cell "7/4/2026, 11:00:00 AM" [ref=f2e1496]:
+                  - time [ref=f2e1499]:
+                    - text: 7/4/2026, 11:00:00 AM
+                    - img [ref=f2e1500]
+              - row "Failed FAILED 01KWP3ZDCGV6FB5S56SQPG9RB4 Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:30:00 AM 7/4/2026, 10:37:11 AM" [ref=f2e1502] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1503]:
+                  - generic [ref=f2e1505]:
+                    - generic "Failed" [ref=f2e1506]
+                    - paragraph [ref=f2e1507]: FAILED
+                - cell "01KWP3ZDCGV6FB5S56SQPG9RB4" [ref=f2e1508]:
+                  - paragraph [ref=f2e1510]: 01KWP3ZDCGV6FB5S56SQPG9RB4
+                - cell [ref=f2e1511]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1512]:
+                  - paragraph [ref=f2e1514]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1515]:
+                  - time [ref=f2e1518]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1519]
+                - cell "7/4/2026, 10:37:11 AM" [ref=f2e1521]:
+                  - time [ref=f2e1524]:
+                    - text: 7/4/2026, 10:37:11 AM
+                    - img [ref=f2e1525]
+              - row "Failed FAILED 01KWP3ZDCCCMQZ8C3KV4J1WA0T Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:30:00 AM 7/4/2026, 10:36:44 AM" [ref=f2e1527] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1528]:
+                  - generic [ref=f2e1530]:
+                    - generic "Failed" [ref=f2e1531]
+                    - paragraph [ref=f2e1532]: FAILED
+                - cell "01KWP3ZDCCCMQZ8C3KV4J1WA0T" [ref=f2e1533]:
+                  - paragraph [ref=f2e1535]: 01KWP3ZDCCCMQZ8C3KV4J1WA0T
+                - cell [ref=f2e1536]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1537]:
+                  - paragraph [ref=f2e1539]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1540]:
+                  - time [ref=f2e1543]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1544]
+                - cell "7/4/2026, 10:36:44 AM" [ref=f2e1546]:
+                  - time [ref=f2e1549]:
+                    - text: 7/4/2026, 10:36:44 AM
+                    - img [ref=f2e1550]
+              - row "Failed FAILED 01KWP3ZDCAN0G7M9BG70Y9CP4S Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:30:00 AM 7/4/2026, 10:36:50 AM" [ref=f2e1552] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1553]:
+                  - generic [ref=f2e1555]:
+                    - generic "Failed" [ref=f2e1556]
+                    - paragraph [ref=f2e1557]: FAILED
+                - cell "01KWP3ZDCAN0G7M9BG70Y9CP4S" [ref=f2e1558]:
+                  - paragraph [ref=f2e1560]: 01KWP3ZDCAN0G7M9BG70Y9CP4S
+                - cell [ref=f2e1561]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1562]:
+                  - paragraph [ref=f2e1564]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1565]:
+                  - time [ref=f2e1568]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1569]
+                - cell "7/4/2026, 10:36:50 AM" [ref=f2e1571]:
+                  - time [ref=f2e1574]:
+                    - text: 7/4/2026, 10:36:50 AM
+                    - img [ref=f2e1575]
+              - row "Failed FAILED 01KWP3ZDC765GSKCTAM8C4962M Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:30:00 AM 7/4/2026, 10:36:17 AM" [ref=f2e1577] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1578]:
+                  - generic [ref=f2e1580]:
+                    - generic "Failed" [ref=f2e1581]
+                    - paragraph [ref=f2e1582]: FAILED
+                - cell "01KWP3ZDC765GSKCTAM8C4962M" [ref=f2e1583]:
+                  - paragraph [ref=f2e1585]: 01KWP3ZDC765GSKCTAM8C4962M
+                - cell [ref=f2e1586]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1587]:
+                  - paragraph [ref=f2e1589]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1590]:
+                  - time [ref=f2e1593]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1594]
+                - cell "7/4/2026, 10:36:17 AM" [ref=f2e1596]:
+                  - time [ref=f2e1599]:
+                    - text: 7/4/2026, 10:36:17 AM
+                    - img [ref=f2e1600]
+              - row "Failed FAILED 01KWP3ZDC7YWWNP238FVYX9EAY Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:30:00 AM 7/4/2026, 10:37:03 AM" [ref=f2e1602] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1603]:
+                  - generic [ref=f2e1605]:
+                    - generic "Failed" [ref=f2e1606]
+                    - paragraph [ref=f2e1607]: FAILED
+                - cell "01KWP3ZDC7YWWNP238FVYX9EAY" [ref=f2e1608]:
+                  - paragraph [ref=f2e1610]: 01KWP3ZDC7YWWNP238FVYX9EAY
+                - cell [ref=f2e1611]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1612]:
+                  - paragraph [ref=f2e1614]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1615]:
+                  - time [ref=f2e1618]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1619]
+                - cell "7/4/2026, 10:37:03 AM" [ref=f2e1621]:
+                  - time [ref=f2e1624]:
+                    - text: 7/4/2026, 10:37:03 AM
+                    - img [ref=f2e1625]
+              - row "Completed COMPLETED 01KWP3ZCSWNHSTK0KXJNY3VWH7 Pipeline Health Monitor 7/4/2026, 10:29:59 AM 7/4/2026, 10:30:00 AM" [ref=f2e1627] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1628]:
+                  - generic [ref=f2e1630]:
+                    - generic "Completed" [ref=f2e1631]
+                    - paragraph [ref=f2e1632]: COMPLETED
+                - cell "01KWP3ZCSWNHSTK0KXJNY3VWH7" [ref=f2e1633]:
+                  - paragraph [ref=f2e1635]: 01KWP3ZCSWNHSTK0KXJNY3VWH7
+                - cell [ref=f2e1636]
+                - cell "Pipeline Health Monitor" [ref=f2e1637]:
+                  - paragraph [ref=f2e1639]: Pipeline Health Monitor
+                - cell "7/4/2026, 10:29:59 AM" [ref=f2e1640]:
+                  - time [ref=f2e1643]:
+                    - text: 7/4/2026, 10:29:59 AM
+                    - img [ref=f2e1644]
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1646]:
+                  - time [ref=f2e1649]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1650]
+              - row "Completed COMPLETED 01KWP3ZCST63B7Q9SCXWRM5DK3 Pending Queue Sweep 7/4/2026, 10:29:59 AM 7/4/2026, 10:30:00 AM" [ref=f2e1652] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1653]:
+                  - generic [ref=f2e1655]:
+                    - generic "Completed" [ref=f2e1656]
+                    - paragraph [ref=f2e1657]: COMPLETED
+                - cell "01KWP3ZCST63B7Q9SCXWRM5DK3" [ref=f2e1658]:
+                  - paragraph [ref=f2e1660]: 01KWP3ZCST63B7Q9SCXWRM5DK3
+                - cell [ref=f2e1661]
+                - cell "Pending Queue Sweep" [ref=f2e1662]:
+                  - paragraph [ref=f2e1664]: Pending Queue Sweep
+                - cell "7/4/2026, 10:29:59 AM" [ref=f2e1665]:
+                  - time [ref=f2e1668]:
+                    - text: 7/4/2026, 10:29:59 AM
+                    - img [ref=f2e1669]
+                - cell "7/4/2026, 10:30:00 AM" [ref=f2e1671]:
+                  - time [ref=f2e1674]:
+                    - text: 7/4/2026, 10:30:00 AM
+                    - img [ref=f2e1675]
+              - row "Completed COMPLETED 01KWP2YPYBGAW4407VSNH2A108 Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:12:09 AM 7/4/2026, 10:12:11 AM" [ref=f2e1677] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1678]:
+                  - generic [ref=f2e1680]:
+                    - generic "Completed" [ref=f2e1681]
+                    - paragraph [ref=f2e1682]: COMPLETED
+                - cell "01KWP2YPYBGAW4407VSNH2A108" [ref=f2e1683]:
+                  - paragraph [ref=f2e1685]: 01KWP2YPYBGAW4407VSNH2A108
+                - cell [ref=f2e1686]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1687]:
+                  - paragraph [ref=f2e1689]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:12:09 AM" [ref=f2e1690]:
+                  - time [ref=f2e1693]:
+                    - text: 7/4/2026, 10:12:09 AM
+                    - img [ref=f2e1694]
+                - cell "7/4/2026, 10:12:11 AM" [ref=f2e1696]:
+                  - time [ref=f2e1699]:
+                    - text: 7/4/2026, 10:12:11 AM
+                    - img [ref=f2e1700]
+              - row "Completed COMPLETED 01KWP2YKEFK7WKM1G52MDMQPXK Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:12:05 AM 7/4/2026, 10:12:09 AM" [ref=f2e1702] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1703]:
+                  - generic [ref=f2e1705]:
+                    - generic "Completed" [ref=f2e1706]
+                    - paragraph [ref=f2e1707]: COMPLETED
+                - cell "01KWP2YKEFK7WKM1G52MDMQPXK" [ref=f2e1708]:
+                  - paragraph [ref=f2e1710]: 01KWP2YKEFK7WKM1G52MDMQPXK
+                - cell [ref=f2e1711]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1712]:
+                  - paragraph [ref=f2e1714]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:12:05 AM" [ref=f2e1715]:
+                  - time [ref=f2e1718]:
+                    - text: 7/4/2026, 10:12:05 AM
+                    - img [ref=f2e1719]
+                - cell "7/4/2026, 10:12:09 AM" [ref=f2e1721]:
+                  - time [ref=f2e1724]:
+                    - text: 7/4/2026, 10:12:09 AM
+                    - img [ref=f2e1725]
+              - row "Completed COMPLETED 01KWP2YEHRPPGTMYA3F84TYRK0 Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:12:00 AM 7/4/2026, 10:12:04 AM" [ref=f2e1727] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1728]:
+                  - generic [ref=f2e1730]:
+                    - generic "Completed" [ref=f2e1731]
+                    - paragraph [ref=f2e1732]: COMPLETED
+                - cell "01KWP2YEHRPPGTMYA3F84TYRK0" [ref=f2e1733]:
+                  - paragraph [ref=f2e1735]: 01KWP2YEHRPPGTMYA3F84TYRK0
+                - cell [ref=f2e1736]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1737]:
+                  - paragraph [ref=f2e1739]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:12:00 AM" [ref=f2e1740]:
+                  - time [ref=f2e1743]:
+                    - text: 7/4/2026, 10:12:00 AM
+                    - img [ref=f2e1744]
+                - cell "7/4/2026, 10:12:04 AM" [ref=f2e1746]:
+                  - time [ref=f2e1749]:
+                    - text: 7/4/2026, 10:12:04 AM
+                    - img [ref=f2e1750]
+              - row "Completed COMPLETED 01KWP2PYCXJB6FA6V3JRYJBSWK Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:54 AM 7/4/2026, 10:08:01 AM" [ref=f2e1752] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1753]:
+                  - generic [ref=f2e1755]:
+                    - generic "Completed" [ref=f2e1756]
+                    - paragraph [ref=f2e1757]: COMPLETED
+                - cell "01KWP2PYCXJB6FA6V3JRYJBSWK" [ref=f2e1758]:
+                  - paragraph [ref=f2e1760]: 01KWP2PYCXJB6FA6V3JRYJBSWK
+                - cell [ref=f2e1761]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1762]:
+                  - paragraph [ref=f2e1764]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:54 AM" [ref=f2e1765]:
+                  - time [ref=f2e1768]:
+                    - text: 7/4/2026, 10:07:54 AM
+                    - img [ref=f2e1769]
+                - cell "7/4/2026, 10:08:01 AM" [ref=f2e1771]:
+                  - time [ref=f2e1774]:
+                    - text: 7/4/2026, 10:08:01 AM
+                    - img [ref=f2e1775]
+              - row "Completed COMPLETED 01KWP2PYCWDJGAW34KG8HKEDEA Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:54 AM 7/4/2026, 10:07:57 AM" [ref=f2e1777] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1778]:
+                  - generic [ref=f2e1780]:
+                    - generic "Completed" [ref=f2e1781]
+                    - paragraph [ref=f2e1782]: COMPLETED
+                - cell "01KWP2PYCWDJGAW34KG8HKEDEA" [ref=f2e1783]:
+                  - paragraph [ref=f2e1785]: 01KWP2PYCWDJGAW34KG8HKEDEA
+                - cell [ref=f2e1786]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1787]:
+                  - paragraph [ref=f2e1789]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:54 AM" [ref=f2e1790]:
+                  - time [ref=f2e1793]:
+                    - text: 7/4/2026, 10:07:54 AM
+                    - img [ref=f2e1794]
+                - cell "7/4/2026, 10:07:57 AM" [ref=f2e1796]:
+                  - time [ref=f2e1799]:
+                    - text: 7/4/2026, 10:07:57 AM
+                    - img [ref=f2e1800]
+              - row "Completed COMPLETED 01KWP2PFPJP6XQ28YHRBA71TAD Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:39 AM 7/4/2026, 10:07:56 AM" [ref=f2e1802] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1803]:
+                  - generic [ref=f2e1805]:
+                    - generic "Completed" [ref=f2e1806]
+                    - paragraph [ref=f2e1807]: COMPLETED
+                - cell "01KWP2PFPJP6XQ28YHRBA71TAD" [ref=f2e1808]:
+                  - paragraph [ref=f2e1810]: 01KWP2PFPJP6XQ28YHRBA71TAD
+                - cell [ref=f2e1811]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1812]:
+                  - paragraph [ref=f2e1814]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:39 AM" [ref=f2e1815]:
+                  - time [ref=f2e1818]:
+                    - text: 7/4/2026, 10:07:39 AM
+                    - img [ref=f2e1819]
+                - cell "7/4/2026, 10:07:56 AM" [ref=f2e1821]:
+                  - time [ref=f2e1824]:
+                    - text: 7/4/2026, 10:07:56 AM
+                    - img [ref=f2e1825]
+              - row "Completed COMPLETED 01KWP2PFPC1NZN748S2PQPTV49 Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:39 AM 7/4/2026, 10:07:45 AM" [ref=f2e1827] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1828]:
+                  - generic [ref=f2e1830]:
+                    - generic "Completed" [ref=f2e1831]
+                    - paragraph [ref=f2e1832]: COMPLETED
+                - cell "01KWP2PFPC1NZN748S2PQPTV49" [ref=f2e1833]:
+                  - paragraph [ref=f2e1835]: 01KWP2PFPC1NZN748S2PQPTV49
+                - cell [ref=f2e1836]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1837]:
+                  - paragraph [ref=f2e1839]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:39 AM" [ref=f2e1840]:
+                  - time [ref=f2e1843]:
+                    - text: 7/4/2026, 10:07:39 AM
+                    - img [ref=f2e1844]
+                - cell "7/4/2026, 10:07:45 AM" [ref=f2e1846]:
+                  - time [ref=f2e1849]:
+                    - text: 7/4/2026, 10:07:45 AM
+                    - img [ref=f2e1850]
+              - row "Completed COMPLETED 01KWP2NXHY6MAKY8GMTHGV51V2 Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:20 AM 7/4/2026, 10:07:24 AM" [ref=f2e1852] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1853]:
+                  - generic [ref=f2e1855]:
+                    - generic "Completed" [ref=f2e1856]
+                    - paragraph [ref=f2e1857]: COMPLETED
+                - cell "01KWP2NXHY6MAKY8GMTHGV51V2" [ref=f2e1858]:
+                  - paragraph [ref=f2e1860]: 01KWP2NXHY6MAKY8GMTHGV51V2
+                - cell [ref=f2e1861]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1862]:
+                  - paragraph [ref=f2e1864]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:20 AM" [ref=f2e1865]:
+                  - time [ref=f2e1868]:
+                    - text: 7/4/2026, 10:07:20 AM
+                    - img [ref=f2e1869]
+                - cell "7/4/2026, 10:07:24 AM" [ref=f2e1871]:
+                  - time [ref=f2e1874]:
+                    - text: 7/4/2026, 10:07:24 AM
+                    - img [ref=f2e1875]
+              - row "Completed COMPLETED 01KWP2NXHWFX6WWKCN2KY3VW4Y Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:20 AM 7/4/2026, 10:07:24 AM" [ref=f2e1877] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1878]:
+                  - generic [ref=f2e1880]:
+                    - generic "Completed" [ref=f2e1881]
+                    - paragraph [ref=f2e1882]: COMPLETED
+                - cell "01KWP2NXHWFX6WWKCN2KY3VW4Y" [ref=f2e1883]:
+                  - paragraph [ref=f2e1885]: 01KWP2NXHWFX6WWKCN2KY3VW4Y
+                - cell [ref=f2e1886]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1887]:
+                  - paragraph [ref=f2e1889]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:20 AM" [ref=f2e1890]:
+                  - time [ref=f2e1893]:
+                    - text: 7/4/2026, 10:07:20 AM
+                    - img [ref=f2e1894]
+                - cell "7/4/2026, 10:07:24 AM" [ref=f2e1896]:
+                  - time [ref=f2e1899]:
+                    - text: 7/4/2026, 10:07:24 AM
+                    - img [ref=f2e1900]
+              - row "Completed COMPLETED 01KWP2N96YZ4129QM7ZTQG03VE Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:00 AM 7/4/2026, 10:07:24 AM" [ref=f2e1902] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1903]:
+                  - generic [ref=f2e1905]:
+                    - generic "Completed" [ref=f2e1906]
+                    - paragraph [ref=f2e1907]: COMPLETED
+                - cell "01KWP2N96YZ4129QM7ZTQG03VE" [ref=f2e1908]:
+                  - paragraph [ref=f2e1910]: 01KWP2N96YZ4129QM7ZTQG03VE
+                - cell [ref=f2e1911]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1912]:
+                  - paragraph [ref=f2e1914]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:00 AM" [ref=f2e1915]:
+                  - time [ref=f2e1918]:
+                    - text: 7/4/2026, 10:07:00 AM
+                    - img [ref=f2e1919]
+                - cell "7/4/2026, 10:07:24 AM" [ref=f2e1921]:
+                  - time [ref=f2e1924]:
+                    - text: 7/4/2026, 10:07:24 AM
+                    - img [ref=f2e1925]
+              - row "Completed COMPLETED 01KWP2N96X6JT3H1MAKSZWJ5NQ Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:07:00 AM 7/4/2026, 10:07:11 AM" [ref=f2e1927] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1928]:
+                  - generic [ref=f2e1930]:
+                    - generic "Completed" [ref=f2e1931]
+                    - paragraph [ref=f2e1932]: COMPLETED
+                - cell "01KWP2N96X6JT3H1MAKSZWJ5NQ" [ref=f2e1933]:
+                  - paragraph [ref=f2e1935]: 01KWP2N96X6JT3H1MAKSZWJ5NQ
+                - cell [ref=f2e1936]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1937]:
+                  - paragraph [ref=f2e1939]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:07:00 AM" [ref=f2e1940]:
+                  - time [ref=f2e1943]:
+                    - text: 7/4/2026, 10:07:00 AM
+                    - img [ref=f2e1944]
+                - cell "7/4/2026, 10:07:11 AM" [ref=f2e1946]:
+                  - time [ref=f2e1949]:
+                    - text: 7/4/2026, 10:07:11 AM
+                    - img [ref=f2e1950]
+              - row "Completed COMPLETED 01KWP2JBVMVXQ0GVA7QSBPX4QR Gate 3 — LLM Candidate Evaluation 7/4/2026, 10:05:24 AM 7/4/2026, 10:05:27 AM" [ref=f2e1952] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e1953]:
+                  - generic [ref=f2e1955]:
+                    - generic "Completed" [ref=f2e1956]
+                    - paragraph [ref=f2e1957]: COMPLETED
+                - cell "01KWP2JBVMVXQ0GVA7QSBPX4QR" [ref=f2e1958]:
+                  - paragraph [ref=f2e1960]: 01KWP2JBVMVXQ0GVA7QSBPX4QR
+                - cell [ref=f2e1961]
+                - cell "Gate 3 — LLM Candidate Evaluation" [ref=f2e1962]:
+                  - paragraph [ref=f2e1964]: Gate 3 — LLM Candidate Evaluation
+                - cell "7/4/2026, 10:05:24 AM" [ref=f2e1965]:
+                  - time [ref=f2e1968]:
+                    - text: 7/4/2026, 10:05:24 AM
+                    - img [ref=f2e1969]
+                - cell "7/4/2026, 10:05:27 AM" [ref=f2e1971]:
+                  - time [ref=f2e1974]:
+                    - text: 7/4/2026, 10:05:27 AM
+                    - img [ref=f2e1975]
+              - row "Failed FAILED 01KWP2GDFC2PESZ2CWZ4BJ4E9K Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:32 AM" [ref=f2e1977] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e1978]:
+                  - generic [ref=f2e1980]:
+                    - generic "Failed" [ref=f2e1981]
+                    - paragraph [ref=f2e1982]: FAILED
+                - cell "01KWP2GDFC2PESZ2CWZ4BJ4E9K" [ref=f2e1983]:
+                  - paragraph [ref=f2e1985]: 01KWP2GDFC2PESZ2CWZ4BJ4E9K
+                - cell [ref=f2e1986]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e1987]:
+                  - paragraph [ref=f2e1989]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e1990]:
+                  - time [ref=f2e1993]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e1994]
+                - cell "7/4/2026, 11:52:32 AM" [ref=f2e1996]:
+                  - time [ref=f2e1999]:
+                    - text: 7/4/2026, 11:52:32 AM
+                    - img [ref=f2e2000]
+              - row "Failed FAILED 01KWP2GDF3ZHM2RDXMNGFPCCXT Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:41 AM" [ref=f2e2002] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2003]:
+                  - generic [ref=f2e2005]:
+                    - generic "Failed" [ref=f2e2006]
+                    - paragraph [ref=f2e2007]: FAILED
+                - cell "01KWP2GDF3ZHM2RDXMNGFPCCXT" [ref=f2e2008]:
+                  - paragraph [ref=f2e2010]: 01KWP2GDF3ZHM2RDXMNGFPCCXT
+                - cell [ref=f2e2011]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2012]:
+                  - paragraph [ref=f2e2014]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2015]:
+                  - time [ref=f2e2018]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2019]
+                - cell "7/4/2026, 11:52:41 AM" [ref=f2e2021]:
+                  - time [ref=f2e2024]:
+                    - text: 7/4/2026, 11:52:41 AM
+                    - img [ref=f2e2025]
+              - row "Completed COMPLETED 01KWP2GDF0QZ9VY1CJGBWEF9ZF Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:49 AM" [ref=f2e2027] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2028]:
+                  - generic [ref=f2e2030]:
+                    - generic "Completed" [ref=f2e2031]
+                    - paragraph [ref=f2e2032]: COMPLETED
+                - cell "01KWP2GDF0QZ9VY1CJGBWEF9ZF" [ref=f2e2033]:
+                  - paragraph [ref=f2e2035]: 01KWP2GDF0QZ9VY1CJGBWEF9ZF
+                - cell [ref=f2e2036]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2037]:
+                  - paragraph [ref=f2e2039]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2040]:
+                  - time [ref=f2e2043]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2044]
+                - cell "7/4/2026, 11:09:49 AM" [ref=f2e2046]:
+                  - time [ref=f2e2049]:
+                    - text: 7/4/2026, 11:09:49 AM
+                    - img [ref=f2e2050]
+              - row "Completed COMPLETED 01KWP2GDEZMGNVZW3902EDT2BZ Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:49 AM" [ref=f2e2052] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2053]:
+                  - generic [ref=f2e2055]:
+                    - generic "Completed" [ref=f2e2056]
+                    - paragraph [ref=f2e2057]: COMPLETED
+                - cell "01KWP2GDEZMGNVZW3902EDT2BZ" [ref=f2e2058]:
+                  - paragraph [ref=f2e2060]: 01KWP2GDEZMGNVZW3902EDT2BZ
+                - cell [ref=f2e2061]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2062]:
+                  - paragraph [ref=f2e2064]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2065]:
+                  - time [ref=f2e2068]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2069]
+                - cell "7/4/2026, 11:09:49 AM" [ref=f2e2071]:
+                  - time [ref=f2e2074]:
+                    - text: 7/4/2026, 11:09:49 AM
+                    - img [ref=f2e2075]
+              - row "Failed FAILED 01KWP2GDEYW3Q6VAXZS014B752 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:29 AM" [ref=f2e2077] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2078]:
+                  - generic [ref=f2e2080]:
+                    - generic "Failed" [ref=f2e2081]
+                    - paragraph [ref=f2e2082]: FAILED
+                - cell "01KWP2GDEYW3Q6VAXZS014B752" [ref=f2e2083]:
+                  - paragraph [ref=f2e2085]: 01KWP2GDEYW3Q6VAXZS014B752
+                - cell [ref=f2e2086]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2087]:
+                  - paragraph [ref=f2e2089]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2090]:
+                  - time [ref=f2e2093]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2094]
+                - cell "7/4/2026, 11:52:29 AM" [ref=f2e2096]:
+                  - time [ref=f2e2099]:
+                    - text: 7/4/2026, 11:52:29 AM
+                    - img [ref=f2e2100]
+              - row "Completed COMPLETED 01KWP2GDEPXT6G5H4051MFDBQQ Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:25 AM" [ref=f2e2102] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2103]:
+                  - generic [ref=f2e2105]:
+                    - generic "Completed" [ref=f2e2106]
+                    - paragraph [ref=f2e2107]: COMPLETED
+                - cell "01KWP2GDEPXT6G5H4051MFDBQQ" [ref=f2e2108]:
+                  - paragraph [ref=f2e2110]: 01KWP2GDEPXT6G5H4051MFDBQQ
+                - cell [ref=f2e2111]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2112]:
+                  - paragraph [ref=f2e2114]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2115]:
+                  - time [ref=f2e2118]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2119]
+                - cell "7/4/2026, 11:09:25 AM" [ref=f2e2121]:
+                  - time [ref=f2e2124]:
+                    - text: 7/4/2026, 11:09:25 AM
+                    - img [ref=f2e2125]
+              - row "Completed COMPLETED 01KWP2GDEM8QFS1ATH47037H83 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:25 AM" [ref=f2e2127] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2128]:
+                  - generic [ref=f2e2130]:
+                    - generic "Completed" [ref=f2e2131]
+                    - paragraph [ref=f2e2132]: COMPLETED
+                - cell "01KWP2GDEM8QFS1ATH47037H83" [ref=f2e2133]:
+                  - paragraph [ref=f2e2135]: 01KWP2GDEM8QFS1ATH47037H83
+                - cell [ref=f2e2136]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2137]:
+                  - paragraph [ref=f2e2139]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2140]:
+                  - time [ref=f2e2143]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2144]
+                - cell "7/4/2026, 11:09:25 AM" [ref=f2e2146]:
+                  - time [ref=f2e2149]:
+                    - text: 7/4/2026, 11:09:25 AM
+                    - img [ref=f2e2150]
+              - row "Failed FAILED 01KWP2GDEK5CAQH4SD0PCM36AA Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:24 AM" [ref=f2e2152] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2153]:
+                  - generic [ref=f2e2155]:
+                    - generic "Failed" [ref=f2e2156]
+                    - paragraph [ref=f2e2157]: FAILED
+                - cell "01KWP2GDEK5CAQH4SD0PCM36AA" [ref=f2e2158]:
+                  - paragraph [ref=f2e2160]: 01KWP2GDEK5CAQH4SD0PCM36AA
+                - cell [ref=f2e2161]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2162]:
+                  - paragraph [ref=f2e2164]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2165]:
+                  - time [ref=f2e2168]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2169]
+                - cell "7/4/2026, 11:52:24 AM" [ref=f2e2171]:
+                  - time [ref=f2e2174]:
+                    - text: 7/4/2026, 11:52:24 AM
+                    - img [ref=f2e2175]
+              - row "Completed COMPLETED 01KWP2GDEKEWNDB24K4ZTPX28C Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:49 AM" [ref=f2e2177] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2178]:
+                  - generic [ref=f2e2180]:
+                    - generic "Completed" [ref=f2e2181]
+                    - paragraph [ref=f2e2182]: COMPLETED
+                - cell "01KWP2GDEKEWNDB24K4ZTPX28C" [ref=f2e2183]:
+                  - paragraph [ref=f2e2185]: 01KWP2GDEKEWNDB24K4ZTPX28C
+                - cell [ref=f2e2186]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2187]:
+                  - paragraph [ref=f2e2189]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2190]:
+                  - time [ref=f2e2193]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2194]
+                - cell "7/4/2026, 11:09:49 AM" [ref=f2e2196]:
+                  - time [ref=f2e2199]:
+                    - text: 7/4/2026, 11:09:49 AM
+                    - img [ref=f2e2200]
+              - row "Completed COMPLETED 01KWP2GDEF56PSP8X0HYF5NNWD Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:41 AM" [ref=f2e2202] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2203]:
+                  - generic [ref=f2e2205]:
+                    - generic "Completed" [ref=f2e2206]
+                    - paragraph [ref=f2e2207]: COMPLETED
+                - cell "01KWP2GDEF56PSP8X0HYF5NNWD" [ref=f2e2208]:
+                  - paragraph [ref=f2e2210]: 01KWP2GDEF56PSP8X0HYF5NNWD
+                - cell [ref=f2e2211]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2212]:
+                  - paragraph [ref=f2e2214]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2215]:
+                  - time [ref=f2e2218]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2219]
+                - cell "7/4/2026, 11:09:41 AM" [ref=f2e2221]:
+                  - time [ref=f2e2224]:
+                    - text: 7/4/2026, 11:09:41 AM
+                    - img [ref=f2e2225]
+              - row "Failed FAILED 01KWP2GDEE9Q8P2MSEEXSQ9554 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:49 AM" [ref=f2e2227] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2228]:
+                  - generic [ref=f2e2230]:
+                    - generic "Failed" [ref=f2e2231]
+                    - paragraph [ref=f2e2232]: FAILED
+                - cell "01KWP2GDEE9Q8P2MSEEXSQ9554" [ref=f2e2233]:
+                  - paragraph [ref=f2e2235]: 01KWP2GDEE9Q8P2MSEEXSQ9554
+                - cell [ref=f2e2236]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2237]:
+                  - paragraph [ref=f2e2239]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2240]:
+                  - time [ref=f2e2243]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2244]
+                - cell "7/4/2026, 11:52:49 AM" [ref=f2e2246]:
+                  - time [ref=f2e2249]:
+                    - text: 7/4/2026, 11:52:49 AM
+                    - img [ref=f2e2250]
+              - row "Failed FAILED 01KWP2GDED42CJ4560A10130YV Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:31 AM" [ref=f2e2252] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2253]:
+                  - generic [ref=f2e2255]:
+                    - generic "Failed" [ref=f2e2256]
+                    - paragraph [ref=f2e2257]: FAILED
+                - cell "01KWP2GDED42CJ4560A10130YV" [ref=f2e2258]:
+                  - paragraph [ref=f2e2260]: 01KWP2GDED42CJ4560A10130YV
+                - cell [ref=f2e2261]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2262]:
+                  - paragraph [ref=f2e2264]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2265]:
+                  - time [ref=f2e2268]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2269]
+                - cell "7/4/2026, 11:52:31 AM" [ref=f2e2271]:
+                  - time [ref=f2e2274]:
+                    - text: 7/4/2026, 11:52:31 AM
+                    - img [ref=f2e2275]
+              - row "Completed COMPLETED 01KWP2GDEBAT7R8WWR2EQ9D2YE Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:07 AM" [ref=f2e2277] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2278]:
+                  - generic [ref=f2e2280]:
+                    - generic "Completed" [ref=f2e2281]
+                    - paragraph [ref=f2e2282]: COMPLETED
+                - cell "01KWP2GDEBAT7R8WWR2EQ9D2YE" [ref=f2e2283]:
+                  - paragraph [ref=f2e2285]: 01KWP2GDEBAT7R8WWR2EQ9D2YE
+                - cell [ref=f2e2286]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2287]:
+                  - paragraph [ref=f2e2289]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2290]:
+                  - time [ref=f2e2293]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2294]
+                - cell "7/4/2026, 11:09:07 AM" [ref=f2e2296]:
+                  - time [ref=f2e2299]:
+                    - text: 7/4/2026, 11:09:07 AM
+                    - img [ref=f2e2300]
+              - row "Completed COMPLETED 01KWP2GDECJAVBCP2J7YJ1HVSB Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:30 AM" [ref=f2e2302] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2303]:
+                  - generic [ref=f2e2305]:
+                    - generic "Completed" [ref=f2e2306]
+                    - paragraph [ref=f2e2307]: COMPLETED
+                - cell "01KWP2GDECJAVBCP2J7YJ1HVSB" [ref=f2e2308]:
+                  - paragraph [ref=f2e2310]: 01KWP2GDECJAVBCP2J7YJ1HVSB
+                - cell [ref=f2e2311]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2312]:
+                  - paragraph [ref=f2e2314]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2315]:
+                  - time [ref=f2e2318]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2319]
+                - cell "7/4/2026, 11:09:30 AM" [ref=f2e2321]:
+                  - time [ref=f2e2324]:
+                    - text: 7/4/2026, 11:09:30 AM
+                    - img [ref=f2e2325]
+              - row "Failed FAILED 01KWP2GDEA562WTMA7JXZESBMH Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:45 AM" [ref=f2e2327] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2328]:
+                  - generic [ref=f2e2330]:
+                    - generic "Failed" [ref=f2e2331]
+                    - paragraph [ref=f2e2332]: FAILED
+                - cell "01KWP2GDEA562WTMA7JXZESBMH" [ref=f2e2333]:
+                  - paragraph [ref=f2e2335]: 01KWP2GDEA562WTMA7JXZESBMH
+                - cell [ref=f2e2336]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2337]:
+                  - paragraph [ref=f2e2339]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2340]:
+                  - time [ref=f2e2343]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2344]
+                - cell "7/4/2026, 11:52:45 AM" [ref=f2e2346]:
+                  - time [ref=f2e2349]:
+                    - text: 7/4/2026, 11:52:45 AM
+                    - img [ref=f2e2350]
+              - row "Completed COMPLETED 01KWP2GDE6MWMT14PYHVSKC9YC Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:25 AM" [ref=f2e2352] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2353]:
+                  - generic [ref=f2e2355]:
+                    - generic "Completed" [ref=f2e2356]
+                    - paragraph [ref=f2e2357]: COMPLETED
+                - cell "01KWP2GDE6MWMT14PYHVSKC9YC" [ref=f2e2358]:
+                  - paragraph [ref=f2e2360]: 01KWP2GDE6MWMT14PYHVSKC9YC
+                - cell [ref=f2e2361]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2362]:
+                  - paragraph [ref=f2e2364]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2365]:
+                  - time [ref=f2e2368]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2369]
+                - cell "7/4/2026, 11:09:25 AM" [ref=f2e2371]:
+                  - time [ref=f2e2374]:
+                    - text: 7/4/2026, 11:09:25 AM
+                    - img [ref=f2e2375]
+              - row "Completed COMPLETED 01KWP2GDE56CE9FAPBJ9D2SQ15 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:23 AM" [ref=f2e2377] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2378]:
+                  - generic [ref=f2e2380]:
+                    - generic "Completed" [ref=f2e2381]
+                    - paragraph [ref=f2e2382]: COMPLETED
+                - cell "01KWP2GDE56CE9FAPBJ9D2SQ15" [ref=f2e2383]:
+                  - paragraph [ref=f2e2385]: 01KWP2GDE56CE9FAPBJ9D2SQ15
+                - cell [ref=f2e2386]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2387]:
+                  - paragraph [ref=f2e2389]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2390]:
+                  - time [ref=f2e2393]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2394]
+                - cell "7/4/2026, 11:09:23 AM" [ref=f2e2396]:
+                  - time [ref=f2e2399]:
+                    - text: 7/4/2026, 11:09:23 AM
+                    - img [ref=f2e2400]
+              - row "Completed COMPLETED 01KWP2GDE3CDS3BGF3R1V1ZPK1 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:20 AM" [ref=f2e2402] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2403]:
+                  - generic [ref=f2e2405]:
+                    - generic "Completed" [ref=f2e2406]
+                    - paragraph [ref=f2e2407]: COMPLETED
+                - cell "01KWP2GDE3CDS3BGF3R1V1ZPK1" [ref=f2e2408]:
+                  - paragraph [ref=f2e2410]: 01KWP2GDE3CDS3BGF3R1V1ZPK1
+                - cell [ref=f2e2411]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2412]:
+                  - paragraph [ref=f2e2414]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2415]:
+                  - time [ref=f2e2418]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2419]
+                - cell "7/4/2026, 11:09:20 AM" [ref=f2e2421]:
+                  - time [ref=f2e2424]:
+                    - text: 7/4/2026, 11:09:20 AM
+                    - img [ref=f2e2425]
+              - row "Failed FAILED 01KWP2GDE3CJV7ADN34Y5AX699 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:43 AM" [ref=f2e2427] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2428]:
+                  - generic [ref=f2e2430]:
+                    - generic "Failed" [ref=f2e2431]
+                    - paragraph [ref=f2e2432]: FAILED
+                - cell "01KWP2GDE3CJV7ADN34Y5AX699" [ref=f2e2433]:
+                  - paragraph [ref=f2e2435]: 01KWP2GDE3CJV7ADN34Y5AX699
+                - cell [ref=f2e2436]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2437]:
+                  - paragraph [ref=f2e2439]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2440]:
+                  - time [ref=f2e2443]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2444]
+                - cell "7/4/2026, 11:52:43 AM" [ref=f2e2446]:
+                  - time [ref=f2e2449]:
+                    - text: 7/4/2026, 11:52:43 AM
+                    - img [ref=f2e2450]
+              - row "Completed COMPLETED 01KWP2GDE217GCTN3AZKJ4ZHZK Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:08:56 AM" [ref=f2e2452] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2453]:
+                  - generic [ref=f2e2455]:
+                    - generic "Completed" [ref=f2e2456]
+                    - paragraph [ref=f2e2457]: COMPLETED
+                - cell "01KWP2GDE217GCTN3AZKJ4ZHZK" [ref=f2e2458]:
+                  - paragraph [ref=f2e2460]: 01KWP2GDE217GCTN3AZKJ4ZHZK
+                - cell [ref=f2e2461]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2462]:
+                  - paragraph [ref=f2e2464]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2465]:
+                  - time [ref=f2e2468]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2469]
+                - cell "7/4/2026, 11:08:56 AM" [ref=f2e2471]:
+                  - time [ref=f2e2474]:
+                    - text: 7/4/2026, 11:08:56 AM
+                    - img [ref=f2e2475]
+              - row "Completed COMPLETED 01KWP2GDDYY8GX4CBCFPBGREW0 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:08:56 AM" [ref=f2e2477] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2478]:
+                  - generic [ref=f2e2480]:
+                    - generic "Completed" [ref=f2e2481]
+                    - paragraph [ref=f2e2482]: COMPLETED
+                - cell "01KWP2GDDYY8GX4CBCFPBGREW0" [ref=f2e2483]:
+                  - paragraph [ref=f2e2485]: 01KWP2GDDYY8GX4CBCFPBGREW0
+                - cell [ref=f2e2486]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2487]:
+                  - paragraph [ref=f2e2489]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2490]:
+                  - time [ref=f2e2493]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2494]
+                - cell "7/4/2026, 11:08:56 AM" [ref=f2e2496]:
+                  - time [ref=f2e2499]:
+                    - text: 7/4/2026, 11:08:56 AM
+                    - img [ref=f2e2500]
+              - row "Failed FAILED 01KWP2GDDXKHK1PZ0MD4E687J5 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:47 AM" [ref=f2e2502] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2503]:
+                  - generic [ref=f2e2505]:
+                    - generic "Failed" [ref=f2e2506]
+                    - paragraph [ref=f2e2507]: FAILED
+                - cell "01KWP2GDDXKHK1PZ0MD4E687J5" [ref=f2e2508]:
+                  - paragraph [ref=f2e2510]: 01KWP2GDDXKHK1PZ0MD4E687J5
+                - cell [ref=f2e2511]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2512]:
+                  - paragraph [ref=f2e2514]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2515]:
+                  - time [ref=f2e2518]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2519]
+                - cell "7/4/2026, 11:52:47 AM" [ref=f2e2521]:
+                  - time [ref=f2e2524]:
+                    - text: 7/4/2026, 11:52:47 AM
+                    - img [ref=f2e2525]
+              - row "Completed COMPLETED 01KWP2GDDXYPVJD6MXZ71Z19BQ Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:18 AM" [ref=f2e2527] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2528]:
+                  - generic [ref=f2e2530]:
+                    - generic "Completed" [ref=f2e2531]
+                    - paragraph [ref=f2e2532]: COMPLETED
+                - cell "01KWP2GDDXYPVJD6MXZ71Z19BQ" [ref=f2e2533]:
+                  - paragraph [ref=f2e2535]: 01KWP2GDDXYPVJD6MXZ71Z19BQ
+                - cell [ref=f2e2536]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2537]:
+                  - paragraph [ref=f2e2539]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2540]:
+                  - time [ref=f2e2543]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2544]
+                - cell "7/4/2026, 11:09:18 AM" [ref=f2e2546]:
+                  - time [ref=f2e2549]:
+                    - text: 7/4/2026, 11:09:18 AM
+                    - img [ref=f2e2550]
+              - row "Completed COMPLETED 01KWP2GDDWRGB4GPPRQXHYTKPZ Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:06 AM" [ref=f2e2552] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2553]:
+                  - generic [ref=f2e2555]:
+                    - generic "Completed" [ref=f2e2556]
+                    - paragraph [ref=f2e2557]: COMPLETED
+                - cell "01KWP2GDDWRGB4GPPRQXHYTKPZ" [ref=f2e2558]:
+                  - paragraph [ref=f2e2560]: 01KWP2GDDWRGB4GPPRQXHYTKPZ
+                - cell [ref=f2e2561]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2562]:
+                  - paragraph [ref=f2e2564]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2565]:
+                  - time [ref=f2e2568]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2569]
+                - cell "7/4/2026, 11:09:06 AM" [ref=f2e2571]:
+                  - time [ref=f2e2574]:
+                    - text: 7/4/2026, 11:09:06 AM
+                    - img [ref=f2e2575]
+              - row "Failed FAILED 01KWP2GDDWFQKJJYKF7AS23FYF Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:44 AM" [ref=f2e2577] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2578]:
+                  - generic [ref=f2e2580]:
+                    - generic "Failed" [ref=f2e2581]
+                    - paragraph [ref=f2e2582]: FAILED
+                - cell "01KWP2GDDWFQKJJYKF7AS23FYF" [ref=f2e2583]:
+                  - paragraph [ref=f2e2585]: 01KWP2GDDWFQKJJYKF7AS23FYF
+                - cell [ref=f2e2586]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2587]:
+                  - paragraph [ref=f2e2589]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2590]:
+                  - time [ref=f2e2593]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2594]
+                - cell "7/4/2026, 11:52:44 AM" [ref=f2e2596]:
+                  - time [ref=f2e2599]:
+                    - text: 7/4/2026, 11:52:44 AM
+                    - img [ref=f2e2600]
+              - row "Failed FAILED 01KWP2GDDW642G8GZ9Z8M79JFM Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:24 AM" [ref=f2e2602] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2603]:
+                  - generic [ref=f2e2605]:
+                    - generic "Failed" [ref=f2e2606]
+                    - paragraph [ref=f2e2607]: FAILED
+                - cell "01KWP2GDDW642G8GZ9Z8M79JFM" [ref=f2e2608]:
+                  - paragraph [ref=f2e2610]: 01KWP2GDDW642G8GZ9Z8M79JFM
+                - cell [ref=f2e2611]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2612]:
+                  - paragraph [ref=f2e2614]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2615]:
+                  - time [ref=f2e2618]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2619]
+                - cell "7/4/2026, 11:52:24 AM" [ref=f2e2621]:
+                  - time [ref=f2e2624]:
+                    - text: 7/4/2026, 11:52:24 AM
+                    - img [ref=f2e2625]
+              - row "Completed COMPLETED 01KWP2GDDTDGEDBKKDXXBSNPRY Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:08:59 AM" [ref=f2e2627] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2628]:
+                  - generic [ref=f2e2630]:
+                    - generic "Completed" [ref=f2e2631]
+                    - paragraph [ref=f2e2632]: COMPLETED
+                - cell "01KWP2GDDTDGEDBKKDXXBSNPRY" [ref=f2e2633]:
+                  - paragraph [ref=f2e2635]: 01KWP2GDDTDGEDBKKDXXBSNPRY
+                - cell [ref=f2e2636]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2637]:
+                  - paragraph [ref=f2e2639]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2640]:
+                  - time [ref=f2e2643]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2644]
+                - cell "7/4/2026, 11:08:59 AM" [ref=f2e2646]:
+                  - time [ref=f2e2649]:
+                    - text: 7/4/2026, 11:08:59 AM
+                    - img [ref=f2e2650]
+              - row "Completed COMPLETED 01KWP2GDDT1PCHQCPMR1Q40929 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:09:04 AM" [ref=f2e2652] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2653]:
+                  - generic [ref=f2e2655]:
+                    - generic "Completed" [ref=f2e2656]
+                    - paragraph [ref=f2e2657]: COMPLETED
+                - cell "01KWP2GDDT1PCHQCPMR1Q40929" [ref=f2e2658]:
+                  - paragraph [ref=f2e2660]: 01KWP2GDDT1PCHQCPMR1Q40929
+                - cell [ref=f2e2661]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2662]:
+                  - paragraph [ref=f2e2664]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2665]:
+                  - time [ref=f2e2668]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2669]
+                - cell "7/4/2026, 11:09:04 AM" [ref=f2e2671]:
+                  - time [ref=f2e2674]:
+                    - text: 7/4/2026, 11:09:04 AM
+                    - img [ref=f2e2675]
+              - row "Failed FAILED 01KWP2GDDQ3PBP9DC3HW2SVF3W Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:37 AM" [ref=f2e2677] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2678]:
+                  - generic [ref=f2e2680]:
+                    - generic "Failed" [ref=f2e2681]
+                    - paragraph [ref=f2e2682]: FAILED
+                - cell "01KWP2GDDQ3PBP9DC3HW2SVF3W" [ref=f2e2683]:
+                  - paragraph [ref=f2e2685]: 01KWP2GDDQ3PBP9DC3HW2SVF3W
+                - cell [ref=f2e2686]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2687]:
+                  - paragraph [ref=f2e2689]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2690]:
+                  - time [ref=f2e2693]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2694]
+                - cell "7/4/2026, 11:52:37 AM" [ref=f2e2696]:
+                  - time [ref=f2e2699]:
+                    - text: 7/4/2026, 11:52:37 AM
+                    - img [ref=f2e2700]
+              - row "Completed COMPLETED 01KWP2GDDRKEJ8Y9GJY5ARCQXZ Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:08:54 AM" [ref=f2e2702] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2703]:
+                  - generic [ref=f2e2705]:
+                    - generic "Completed" [ref=f2e2706]
+                    - paragraph [ref=f2e2707]: COMPLETED
+                - cell "01KWP2GDDRKEJ8Y9GJY5ARCQXZ" [ref=f2e2708]:
+                  - paragraph [ref=f2e2710]: 01KWP2GDDRKEJ8Y9GJY5ARCQXZ
+                - cell [ref=f2e2711]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2712]:
+                  - paragraph [ref=f2e2714]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2715]:
+                  - time [ref=f2e2718]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2719]
+                - cell "7/4/2026, 11:08:54 AM" [ref=f2e2721]:
+                  - time [ref=f2e2724]:
+                    - text: 7/4/2026, 11:08:54 AM
+                    - img [ref=f2e2725]
+              - row "Failed FAILED 01KWP2GDDRJC330VB6CDKWMAVA Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:38 AM" [ref=f2e2727] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2728]:
+                  - generic [ref=f2e2730]:
+                    - generic "Failed" [ref=f2e2731]
+                    - paragraph [ref=f2e2732]: FAILED
+                - cell "01KWP2GDDRJC330VB6CDKWMAVA" [ref=f2e2733]:
+                  - paragraph [ref=f2e2735]: 01KWP2GDDRJC330VB6CDKWMAVA
+                - cell [ref=f2e2736]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2737]:
+                  - paragraph [ref=f2e2739]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2740]:
+                  - time [ref=f2e2743]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2744]
+                - cell "7/4/2026, 11:52:38 AM" [ref=f2e2746]:
+                  - time [ref=f2e2749]:
+                    - text: 7/4/2026, 11:52:38 AM
+                    - img [ref=f2e2750]
+              - row "Completed COMPLETED 01KWP2GDDSQKDQJTWCFNQ7G1N0 Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:08:56 AM" [ref=f2e2752] [cursor=pointer]:
+                - cell "Completed COMPLETED" [ref=f2e2753]:
+                  - generic [ref=f2e2755]:
+                    - generic "Completed" [ref=f2e2756]
+                    - paragraph [ref=f2e2757]: COMPLETED
+                - cell "01KWP2GDDSQKDQJTWCFNQ7G1N0" [ref=f2e2758]:
+                  - paragraph [ref=f2e2760]: 01KWP2GDDSQKDQJTWCFNQ7G1N0
+                - cell [ref=f2e2761]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2762]:
+                  - paragraph [ref=f2e2764]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2765]:
+                  - time [ref=f2e2768]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2769]
+                - cell "7/4/2026, 11:08:56 AM" [ref=f2e2771]:
+                  - time [ref=f2e2774]:
+                    - text: 7/4/2026, 11:08:56 AM
+                    - img [ref=f2e2775]
+              - row "Failed FAILED 01KWP2GDDQ2MCRBBBQXVDX7ZCY Job Ingested — Trigger 3-Gate Funnel 7/4/2026, 10:04:20 AM 7/4/2026, 11:52:25 AM" [ref=f2e2777] [cursor=pointer]:
+                - cell "Failed FAILED" [ref=f2e2778]:
+                  - generic [ref=f2e2780]:
+                    - generic "Failed" [ref=f2e2781]
+                    - paragraph [ref=f2e2782]: FAILED
+                - cell "01KWP2GDDQ2MCRBBBQXVDX7ZCY" [ref=f2e2783]:
+                  - paragraph [ref=f2e2785]: 01KWP2GDDQ2MCRBBBQXVDX7ZCY
+                - cell [ref=f2e2786]
+                - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f2e2787]:
+                  - paragraph [ref=f2e2789]: Job Ingested — Trigger 3-Gate Funnel
+                - cell "7/4/2026, 10:04:20 AM" [ref=f2e2790]:
+                  - time [ref=f2e2793]:
+                    - text: 7/4/2026, 10:04:20 AM
+                    - img [ref=f2e2794]
+                - cell "7/4/2026, 11:52:25 AM" [ref=f2e2796]:
+                  - time [ref=f2e2799]:
+                    - text: 7/4/2026, 11:52:25 AM
+                    - img [ref=f2e2800]
+            - rowgroup [ref=f2e230]:
+              - row [ref=f2e231]:
+                - columnheader [ref=f2e232]
+                - columnheader [ref=f2e233]
+                - columnheader [ref=f2e234]
+                - columnheader [ref=f2e235]
+                - columnheader [ref=f2e236]
+                - columnheader [ref=f2e237]
+          - button "Refresh runs" [ref=f2e2802] [cursor=pointer]:
+            - img [ref=f2e2803]
+            - generic [ref=f2e2805]: Refresh runs
+  - contentinfo [ref=f2e244]:
+    - generic [ref=f2e245]:
+      - link "Support" [ref=f2e246] [cursor=pointer]:
+        - /url: https://support.inngest.com
+      - generic [ref=f2e247]: "|"
+      - link "Docs" [ref=f2e248] [cursor=pointer]:
+        - /url: https://www.inngest.com/docs?ref=dev-server-bottom-bar
+      - generic [ref=f2e249]: "|"
+      - link "Changelog" [ref=f2e250] [cursor=pointer]:
+        - /url: https://www.inngest.com/changelog

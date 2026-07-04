@@ -504,6 +504,74 @@ describe("buildGate3Prompt — work authorization directive", () => {
 
     expect(prompt).toContain("workAuthRiskFlag=true");
   });
+
+  // ── Global-remote exemption from risk flag ───────────────────────────────
+  // The location field alone is not enough to flag a job. Many ATS systems
+  // set the location to a specific city/country (e.g., "Delhi", "India")
+  // even for genuinely global remote roles. The prompt must instruct the LLM
+  // to check the JD text for global remote indicators before flagging.
+
+  it("prompt includes global-remote indicators list to check before flagging", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("global, remote-first");
+    expect(prompt).toContain("work from anywhere");
+    expect(prompt).toContain("worldwide");
+    expect(prompt).toContain("distributed team");
+    expect(prompt).toContain("across N countries");
+    expect(prompt).toContain("Remote, Global");
+  });
+
+  it("prompt says to check JD text before flagging (location field not sufficient)", () => {
+    // The explicit "location field alone is NOT sufficient" text is in the
+    // system prompt criterion 7, not the user prompt. The user prompt's
+    // evaluation section conveys the same meaning: "but first check the JD
+    // text for global remote indicators".
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("but first check the JD text");
+    expect(prompt).toContain("global remote indicators");
+  });
+
+  it("prompt instructs not to flag if JD text says global remote", () => {
+    // The "do NOT set" instruction is in the work-auth directive, which only
+    // renders when the applicant has work authorizations. Test with work auth.
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("do NOT set workAuthRiskFlag=true");
+    expect(prompt).toContain("global remote");
+  });
+
+  it("work-auth directive also includes global-remote exemption when applicant has work auth", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      applicant: {
+        ...mockContext.applicant,
+        workAuthorizations: ["eu_citizen"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("global remote indicators");
+    expect(prompt).toContain("global, remote-first");
+    expect(prompt).toContain("do NOT set workAuthRiskFlag=true");
+  });
+
+  it("evaluation section mentions checking JD text for global remote before flagging", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    expect(prompt).toContain("global remote indicators");
+    expect(prompt).toContain(
+      "if the JD says global remote, set workAuthRiskFlag=false",
+    );
+  });
 });
 
 // =============================================================================
@@ -535,7 +603,7 @@ describe("gate3VerdictSchema — workAuthRiskFlag", () => {
     expect(result.success).toBe(true);
   });
 
-  it("defaults workAuthRiskFlag to false when omitted", () => {
+  it("rejects verdict missing workAuthRiskFlag (required by OpenAI strict schema)", () => {
     const result = gate3VerdictSchema.safeParse({
       approved: true,
       matchConfidence: 0.85,
@@ -543,10 +611,9 @@ describe("gate3VerdictSchema — workAuthRiskFlag", () => {
       blockers: [],
     });
 
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.workAuthRiskFlag).toBe(false);
-    }
+    // workAuthRiskFlag is required (not defaulted) because OpenAI's strict
+    // JSON schema mode requires all properties in the `required` array.
+    expect(result.success).toBe(false);
   });
 });
 
@@ -637,6 +704,7 @@ describe("gate3VerdictSchema", () => {
       matchConfidence: 0.8,
       matchReasoning: "Good match",
       blockers: [],
+      workAuthRiskFlag: false,
     });
 
     expect(result.success).toBe(true);

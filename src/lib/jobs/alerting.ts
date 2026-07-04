@@ -20,6 +20,7 @@ import { type Alert, alerts } from "@/db/schemas/jobs/alerts";
 // Re-export the Alert type for consumers (admin dashboard components)
 export type { Alert };
 
+import { getNeonStorageInfo } from "@/lib/jobs/neon-api";
 import {
   getDatabaseSizeMb,
   STORAGE_CRITICAL_THRESHOLD,
@@ -167,15 +168,37 @@ export async function getRecentAlerts(daysBack = 7): Promise<Alert[]> {
 
 /**
  * Check storage and create/resolve alerts as needed.
- * Called by the daily health check Inngest function.
+ * Called by the hourly storage monitor Inngest function.
+ *
+ * Uses the Neon API to check `synthetic_storage_size` (the value Neon actually
+ * enforces against the 512 MB limit). Falls back to `pg_database_size()` with
+ * the lowered `STORAGE_LIMIT_MB` safety margin if the API is unavailable.
  *
  * - If storage > critical threshold → create "storage_critical" alert
  * - If storage > warning threshold → create "storage_near_limit" alert
  * - If storage < warning threshold → resolve any existing storage alerts
  */
 export async function checkStorageAlerts(): Promise<void> {
-  const sizeMb = await getDatabaseSizeMb();
-  const percentage = sizeMb / STORAGE_LIMIT_MB;
+  // Try the Neon API first — it gives the accurate synthetic_storage_size.
+  const neonInfo = await getNeonStorageInfo();
+
+  let sizeMb: number;
+  let limitMb: number;
+  let percentage: number;
+  let source: string;
+
+  if (neonInfo) {
+    sizeMb = neonInfo.syntheticStorageMb;
+    limitMb = neonInfo.limitMb;
+    percentage = neonInfo.percentage;
+    source = "synthetic_storage_size";
+  } else {
+    // Fallback: pg_database_size with the safety-margined STORAGE_LIMIT_MB.
+    sizeMb = await getDatabaseSizeMb();
+    limitMb = STORAGE_LIMIT_MB;
+    percentage = sizeMb / STORAGE_LIMIT_MB;
+    source = "pg_database_size (fallback — Neon API unavailable)";
+  }
 
   if (percentage >= STORAGE_CRITICAL_THRESHOLD) {
     // Create critical alert if none exists
@@ -183,11 +206,12 @@ export async function checkStorageAlerts(): Promise<void> {
       await createAlert({
         type: "storage_critical",
         severity: "critical",
-        message: `Neon storage at ${sizeMb.toFixed(0)}MB / ${STORAGE_LIMIT_MB}MB (${(percentage * 100).toFixed(1)}%) — immediate action required`,
+        message: `Neon storage at ${sizeMb.toFixed(0)}MB / ${limitMb}MB (${(percentage * 100).toFixed(1)}%) — immediate action required`,
         details: JSON.stringify({
           sizeMb,
-          limitMb: STORAGE_LIMIT_MB,
+          limitMb,
           percentage,
+          source,
         }),
       });
     }
@@ -197,11 +221,12 @@ export async function checkStorageAlerts(): Promise<void> {
       await createAlert({
         type: "storage_near_limit",
         severity: "warning",
-        message: `Neon storage at ${sizeMb.toFixed(0)}MB / ${STORAGE_LIMIT_MB}MB (${(percentage * 100).toFixed(1)}%) — batch refreshes are being skipped`,
+        message: `Neon storage at ${sizeMb.toFixed(0)}MB / ${limitMb}MB (${(percentage * 100).toFixed(1)}%) — batch refreshes are being skipped`,
         details: JSON.stringify({
           sizeMb,
-          limitMb: STORAGE_LIMIT_MB,
+          limitMb,
           percentage,
+          source,
         }),
       });
     }

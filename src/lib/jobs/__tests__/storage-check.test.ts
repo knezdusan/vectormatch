@@ -28,6 +28,7 @@ import {
   isStorageSafeForIngestion,
   isStorageSafeForRefresh,
   MAX_UNNORMALIZED_BACKLOG,
+  NEON_STORAGE_LIMIT_MB,
   STORAGE_CRITICAL_THRESHOLD,
   STORAGE_EARLY_WARNING_THRESHOLD,
   STORAGE_INGESTION_HALT_THRESHOLD,
@@ -55,8 +56,12 @@ function mockBacklog(count: number): void {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 describe("storage-check constants", () => {
-  it("STORAGE_LIMIT_MB is 512 (Neon Free tier)", () => {
-    expect(STORAGE_LIMIT_MB).toBe(512);
+  it("STORAGE_LIMIT_MB is 460 (safety-margined for pg_database_size)", () => {
+    expect(STORAGE_LIMIT_MB).toBe(460);
+  });
+
+  it("NEON_STORAGE_LIMIT_MB is 512 (Neon Free tier actual limit)", () => {
+    expect(NEON_STORAGE_LIMIT_MB).toBe(512);
   });
 
   it("STORAGE_WARNING_THRESHOLD is 0.88 for batch refresh guard", () => {
@@ -139,19 +144,19 @@ describe("isStorageSafeForRefresh", () => {
 
     expect(status.safe).toBe(true);
     expect(status.currentMb).toBe(200);
-    expect(status.limitMb).toBe(512);
-    expect(status.percentage).toBeCloseTo(200 / 512, 5);
+    expect(status.limitMb).toBe(460);
+    expect(status.percentage).toBeCloseTo(200 / 460, 5);
   });
 
   it("returns safe=true when storage is just below the warning threshold", async () => {
-    // 449MB is below 450MB (88% of 512)
-    mockDbSize(449);
+    // 404MB is below 405MB (88% of 460)
+    mockDbSize(404);
     const status = await isStorageSafeForRefresh();
     expect(status.safe).toBe(true);
   });
 
-  it("returns safe=false when storage exceeds the warning threshold (~450MB)", async () => {
-    mockDbSize(460);
+  it("returns safe=false when storage exceeds the warning threshold (~405MB)", async () => {
+    mockDbSize(410);
     const status = await isStorageSafeForRefresh();
 
     expect(status.safe).toBe(false);
@@ -182,15 +187,16 @@ describe("isStorageSafeForIngestion", () => {
 
     expect(status.allow).toBe(true);
     expect(status.currentMb).toBe(256);
-    expect(status.limitMb).toBe(512);
-    expect(status.percentage).toBeCloseTo(256 / 512, 5);
+    expect(status.limitMb).toBe(460);
+    expect(status.percentage).toBeCloseTo(256 / 460, 5);
     expect(status.unnormalizedCount).toBe(100);
     expect(status.maxUnnormalized).toBe(MAX_UNNORMALIZED_BACKLOG);
     expect(status.forced).toBe(false);
   });
 
   it("returns allow=false when storage exceeds the ingestion halt threshold", async () => {
-    mockDbSize(460);
+    // 410MB > 88% of 460 = 405MB
+    mockDbSize(410);
     mockBacklog(100);
     const status = await isStorageSafeForIngestion();
 

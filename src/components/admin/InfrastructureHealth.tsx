@@ -109,7 +109,12 @@ export async function InfrastructureHealth() {
   const degradedCount = sources.filter((s) => s.status === "degraded").length;
   const storagePct = infra?.storagePercentage ?? 0;
   const storageMb = infra?.storageMb ?? 0;
-  const storageLimit = infra?.storageLimitMb ?? 512;
+  const storageLimit = infra?.storageLimitMb ?? 460;
+  // Neon synthetic storage (what Neon actually enforces). Falls back to
+  // pg_database_size values if the Neon API is unavailable.
+  const neonPct = infra?.neonPercentage ?? storagePct;
+  const neonMb = infra?.neonSyntheticMb ?? storageMb;
+  const neonLimit = infra?.neonLimitMb ?? 512;
   const gate2 = infra?.gate2Threshold ?? 0;
   const unnormalizedCount = infra?.unnormalizedCount ?? 0;
   const maxUnnormalized = infra?.maxUnnormalized ?? 3000;
@@ -127,13 +132,11 @@ export async function InfrastructureHealth() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-baseline gap-2">
-              <span
-                className={`text-3xl font-bold ${storageColor(storagePct)}`}
-              >
-                {storageMb.toFixed(0)} MB
+              <span className={`text-3xl font-bold ${storageColor(neonPct)}`}>
+                {neonMb.toFixed(0)} MB
               </span>
               <span className="text-sm text-muted-foreground">
-                of {storageLimit} MB
+                of {neonLimit} MB
               </span>
             </div>
             <TooltipProvider delayDuration={100}>
@@ -141,29 +144,36 @@ export async function InfrastructureHealth() {
                 <TooltipTrigger asChild>
                   <div className="space-y-1">
                     <Progress
-                      value={Math.min(storagePct * 100, 100)}
+                      value={Math.min(neonPct * 100, 100)}
                       className={cn(
                         "h-2",
-                        storagePct >= 0.88
+                        neonPct >= 0.88
                           ? "**:data-[slot=progress-indicator]:bg-red-500"
-                          : storagePct >= 0.8
+                          : neonPct >= 0.8
                             ? "**:data-[slot=progress-indicator]:bg-yellow-500"
                             : "**:data-[slot=progress-indicator]:bg-emerald-500",
                       )}
                     />
                     <p className="text-xs text-muted-foreground">
-                      {(storagePct * 100).toFixed(1)}% used
+                      {(neonPct * 100).toFixed(1)}% used (synthetic)
                     </p>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p>Warning at 80%, ingestion halted at 88%.</p>
+                  <div className="space-y-1">
+                    <p>Synthetic storage — what Neon enforces.</p>
+                    <p className="text-muted-foreground">
+                      pg_database_size: {storageMb.toFixed(0)} MB /{" "}
+                      {storageLimit} MB ({(storagePct * 100).toFixed(1)}%)
+                    </p>
+                    <p>Warning at 80%, ingestion halted at 88%.</p>
+                  </div>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            {(storagePct >= 0.8 ||
+            {(neonPct >= 0.8 ||
               unnormalizedCount >= maxUnnormalized * 0.83) && (
-              <EmergencyPurgeButton storagePercentage={storagePct} />
+              <EmergencyPurgeButton storagePercentage={neonPct} />
             )}
           </CardContent>
         </Card>

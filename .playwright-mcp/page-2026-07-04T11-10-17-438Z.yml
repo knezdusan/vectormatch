@@ -1,0 +1,98 @@
+- generic [ref=f1e2]:
+  - banner [ref=f1e3]:
+    - generic [ref=f1e4]:
+      - link [ref=f1e5] [cursor=pointer]:
+        - /url: /
+        - img [ref=f1e7]
+      - generic [ref=f1e15]: DEVELOPMENT SERVER
+    - button "Settings" [ref=f1e18] [cursor=pointer]:
+      - img [ref=f1e19]
+  - generic [ref=f1e21]:
+    - navigation [ref=f1e22]:
+      - generic [ref=f1e23]:
+        - generic [ref=f1e24]:
+          - generic [ref=f1e25]:
+            - generic [ref=f1e26]: Workflow
+            - link "Apps" [ref=f1e27] [cursor=pointer]:
+              - /url: /functions
+              - generic [ref=f1e28]:
+                - img [ref=f1e30]
+                - generic [ref=f1e32]: Apps
+            - link "Functions" [ref=f1e33] [cursor=pointer]:
+              - /url: /functions
+              - generic [ref=f1e34]:
+                - img [ref=f1e36]
+                - generic [ref=f1e38]: Functions
+            - link "Runs" [ref=f1e39] [cursor=pointer]:
+              - /url: /functions
+              - generic [ref=f1e40]:
+                - img [ref=f1e42]
+                - generic [ref=f1e49]: Runs
+            - link "Events" [ref=f1e50] [cursor=pointer]:
+              - /url: /functions
+              - generic [ref=f1e51]:
+                - img [ref=f1e53]
+                - generic [ref=f1e55]: Events
+          - generic [ref=f1e56]:
+            - generic [ref=f1e57]: Setup
+            - link "MCP" [ref=f1e58] [cursor=pointer]:
+              - /url: /functions
+              - generic [ref=f1e59]:
+                - img [ref=f1e61]
+                - generic [ref=f1e67]: MCP
+        - generic [ref=f1e68]:
+          - generic:
+            - button "Collapse sidebar":
+              - img
+    - generic [ref=f1e70]:
+      - generic [ref=f1e73]:
+        - generic [ref=f1e75]: Functions
+        - button [ref=f1e76] [cursor=pointer]:
+          - img [ref=f1e77]
+      - generic [ref=f1e80]:
+        - img [ref=f1e81]
+        - textbox "Search by function name" [ref=f1e85]: Job Ingested
+        - button [ref=f1e1441] [cursor=pointer]:
+          - img [ref=f1e1442]
+      - main [ref=f1e86]:
+        - table [ref=f1e87]:
+          - rowgroup [ref=f1e88]:
+            - row "Function name Triggers App App URL" [ref=f1e89]:
+              - columnheader "Function name" [ref=f1e90] [cursor=pointer]:
+                - generic [ref=f1e91]:
+                  - generic [ref=f1e92]: Function name
+                  - img [ref=f1e93]
+              - columnheader "Triggers" [ref=f1e95]:
+                - generic [ref=f1e97]: Triggers
+              - columnheader "App" [ref=f1e98]:
+                - generic [ref=f1e100]: App
+              - columnheader "App URL" [ref=f1e101]:
+                - generic [ref=f1e103]: App URL
+              - columnheader [ref=f1e104]
+          - rowgroup [ref=f1e105]:
+            - row "Job Ingested — Trigger 3-Gate Funnel job/ingested vectormatch https://vectormatch.dev/api/inngest Invoke" [ref=f1e1026] [cursor=pointer]:
+              - cell "Job Ingested — Trigger 3-Gate Funnel" [ref=f1e1027]:
+                - paragraph [ref=f1e1028]: Job Ingested — Trigger 3-Gate Funnel
+              - cell "job/ingested" [ref=f1e1029]:
+                - generic [ref=f1e1034]:
+                  - img [ref=f1e1035]
+                  - paragraph [ref=f1e1037]: job/ingested
+              - cell "vectormatch" [ref=f1e1038]:
+                - generic [ref=f1e1041]:
+                  - img [ref=f1e1042]
+                  - paragraph [ref=f1e1044]: vectormatch
+              - cell "https://vectormatch.dev/api/inngest" [ref=f1e1045]:
+                - paragraph [ref=f1e1046]: https://vectormatch.dev/api/inngest
+              - cell "Invoke" [ref=f1e1047]:
+                - button "Invoke" [ref=f1e1048]:
+                  - generic [ref=f1e1049]: Invoke
+  - contentinfo [ref=f1e1434]:
+    - generic [ref=f1e1435]:
+      - link "Support" [ref=f1e1436] [cursor=pointer]:
+        - /url: https://support.inngest.com
+      - generic [ref=f1e1437]: "|"
+      - link "Docs" [ref=f1e1438] [cursor=pointer]:
+        - /url: https://www.inngest.com/docs?ref=dev-server-bottom-bar
+      - generic [ref=f1e1439]: "|"
+      - link "Changelog" [ref=f1e1440] [cursor=pointer]:
+        - /url: https://www.inngest.com/changelog

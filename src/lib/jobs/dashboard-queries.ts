@@ -17,7 +17,7 @@
 
 import "server-only";
 
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { applicant } from "@/db/schemas/jobs/applicant";
@@ -31,17 +31,15 @@ import { persona } from "@/db/schemas/jobs/persona";
 // TYPES
 // =============================================================================
 
-export const MATCH_STATUS_FILTERS = [
-  "approved",
-  "rejected",
-  "stale",
-  "pending",
-  "mark_read",
-  "mismatch",
-  "applied",
-  "all",
-] as const;
-export type MatchStatusFilter = (typeof MATCH_STATUS_FILTERS)[number];
+import {
+  MATCH_SORT_OPTIONS,
+  MATCH_STATUS_FILTERS,
+  type MatchSortOption,
+  type MatchStatusFilter,
+} from "./match-filters";
+
+export { MATCH_SORT_OPTIONS, MATCH_STATUS_FILTERS };
+export type { MatchSortOption, MatchStatusFilter };
 
 /** A match row joined with job + persona data for the dashboard list. */
 export type MatchRow = {
@@ -117,6 +115,7 @@ export type MatchDetail = {
  * @param status   Filter by status: 'approved', 'rejected', 'pending', or 'all'
  * @param limit    Page size (default 20)
  * @param offset   Pagination offset (default 0)
+ * @param sort     Sort order: 'best_match', 'newest', or 'oldest' (default 'best_match')
  * @returns        Array of match rows with job + persona data
  */
 export async function getMatches(
@@ -124,6 +123,7 @@ export async function getMatches(
   status: MatchStatusFilter = "approved",
   limit = 20,
   offset = 0,
+  sort: MatchSortOption = "best_match",
 ): Promise<MatchRow[]> {
   const staleCutoff = new Date();
   staleCutoff.setDate(staleCutoff.getDate() - 1);
@@ -289,7 +289,13 @@ export async function getMatches(
         ? and(eq(matchQueue.applicantId, userId), statusFilter)
         : eq(matchQueue.applicantId, userId),
     )
-    .orderBy(desc(matchScoreExpr), desc(matchQueue.createdAt))
+    .orderBy(
+      ...(sort === "newest"
+        ? [desc(matchQueue.createdAt)]
+        : sort === "oldest"
+          ? [asc(matchQueue.createdAt)]
+          : [desc(matchScoreExpr), desc(matchQueue.createdAt)]),
+    )
     .limit(limit)
     .offset(offset);
 
@@ -311,8 +317,9 @@ export async function getApprovedMatches(
   userId: string,
   limit = 20,
   offset = 0,
+  sort: MatchSortOption = "best_match",
 ): Promise<MatchRow[]> {
-  return getMatches(userId, "approved", limit, offset);
+  return getMatches(userId, "approved", limit, offset, sort);
 }
 
 /**
