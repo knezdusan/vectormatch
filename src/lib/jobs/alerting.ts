@@ -20,15 +20,11 @@ import { type Alert, alerts } from "@/db/schemas/jobs/alerts";
 // Re-export the Alert type for consumers (admin dashboard components)
 export type { Alert };
 
-import { sendStorageAlertEmail } from "@/lib/jobs/storage-alert";
 import {
   getDatabaseSizeMb,
-  getIngestionBacklog,
-  MAX_UNNORMALIZED_BACKLOG,
-  STORAGE_EARLY_WARNING_THRESHOLD,
-  STORAGE_INGESTION_HALT_THRESHOLD,
+  STORAGE_CRITICAL_THRESHOLD,
   STORAGE_LIMIT_MB,
-  UNNORMALIZED_BACKLOG_ALERT_THRESHOLD,
+  STORAGE_WARNING_THRESHOLD,
 } from "@/lib/jobs/storage-check";
 
 // ── Types ────────────────────────────────────────────────────────────────────
