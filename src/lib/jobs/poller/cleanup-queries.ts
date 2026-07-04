@@ -173,7 +173,10 @@ export async function vacuumAnalyze(): Promise<CleanupStepResult> {
 //                             Smaller batch size to limit WAL spikes.
 //
 // All tiers delete in batches with a LIMIT clause to avoid massive WAL spikes
-// on Neon. The caller runs VACUUM ANALYZE between tiers.
+// on Neon. VACUUM ANALYZE runs after each batch (not just between tiers) so
+// that pg_database_size() reflects the reclaimed space at the next recovery
+// check. Without per-batch VACUUM, dead tuples are still counted as used
+// space and the recovery threshold check never fires within a tier.
 //
 // WAL INFLATION PROTECTION (added July 2026):
 // Neon's synthetic_storage_size includes WAL retained for history. Large DELETE
@@ -470,6 +473,15 @@ export async function runEmergencyPurge(
       if (!batch.hadRows) {
         break; // Tier exhausted, move to next tier
       }
+
+      // VACUUM after each batch so the next storage check reflects the
+      // reclaimed space. Without this, pg_database_size() still counts
+      // dead tuples as used space, and the recovery check at the top of
+      // the loop never fires — causing a false "not recovered" result
+      // even though the actual storage dropped well below the threshold.
+      if (batch.deletedCount > 0) {
+        await db.execute(sql`VACUUM ANALYZE job`);
+      }
     }
 
     tiers.push({
@@ -478,12 +490,6 @@ export async function runEmergencyPurge(
       hadRows: tierHadRows,
     });
     totalDeleted += tierDeleted;
-
-    // VACUUM after each tier that deleted rows, so the next storage check
-    // reflects the reclaimed space.
-    if (tierDeleted > 0) {
-      await db.execute(sql`VACUUM ANALYZE job`);
-    }
 
     if (recovered || walInflationDetected) {
       break;

@@ -111,6 +111,23 @@ export const applicant = pgTable("applicant", {
   // inferred seniority against this list.
   seniorityLevels: seniorityLevelEnum("seniority_levels").array(),
 
+  // Work authorization permits the applicant holds (added July 4 2026).
+  // e.g. ["eu_citizen", "rwr_card_plus", "blue_card_eu"]. Empty/null when
+  // the user hasn't set it — Gate 3 soft-fail-opens on the work-auth check
+  // but may still set workAuthRiskFlag for hybrid/single-country-remote roles.
+  // Supported values: eu_citizen, rwr_card_plus, blue_card_eu, uk_settled,
+  // uk_pre_settled, us_green_card, us_citizen, canadian_pr, swiss_permit_c,
+  // other_permit. Migration 0040.
+  workAuthorizations: text("work_authorizations").array(),
+
+  // Expected minimum compensation (added July 2026 for Gate 0.5 check 4).
+  // Used by the compensation_mismatch pre-filter — soft-fail-open when NULL.
+  expectedCompMin: integer("expected_comp_min"),
+
+  // Years of experience (added July 2026 for Gate 0.5 check 5).
+  // Used by the experience_gap pre-filter — soft-fail-open when NULL.
+  yearsOfExperience: integer("years_of_experience"),
+
   // The global knowledge base for Gate 3 LLM evaluation
   allTags: text("all_tags").array().notNull().default(sql`'{}'::text[]`),
 
@@ -195,6 +212,24 @@ export const job = pgTable(
     // Set ONLY on terminal outcomes (success or rejection). Never set on
     // 'normalization_failed'. Null = never processed by Module C.
     normalizedAt: timestamp("normalized_at"),
+
+    // ── Gate 0.5 metadata (added July 2026, migration 0039) ──────────────────
+    // Parsed from job title and location during normalization. Used by the
+    // Gate 0.5 hard-blocker pre-filter to catch geo-fencing patterns.
+    titleRegionTag: text("title_region_tag"), // e.g., "Latam", "EU", "US"
+    locationCountries: text("location_countries").array(), // parsed country list
+    experienceMinYears: integer("experience_min_years"),
+    experienceMaxYears: integer("experience_max_years"),
+    compensationMin: integer("compensation_min"),
+    compensationMax: integer("compensation_max"),
+    compensationCurrency: text("compensation_currency"),
+    // Which Gate 0.5 check rejected this job (e.g., "title_region_tag",
+    // "location_country_list", "default_on_site"). NULL for non-rejected jobs.
+    rejectionPattern: text("rejection_pattern"),
+
+    // ── AI-generated short description (added July 2026, migration 0037) ─────
+    // One-sentence summary generated during normalization for dashboard display.
+    shortDescription: text("short_description"),
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
@@ -263,10 +298,20 @@ export const matchQueue = pgTable(
     // Values: "balanced" | "strict" | "thorough". Null for rows evaluated
     // before the A/B test feature was deployed.
     promptVariant: text("prompt_variant"),
+    // Work authorization risk flag (added July 4 2026). Set to true by Gate 3
+    // when the JD is silent on work authorization/visa/citizenship requirements
+    // BUT the role is hybrid or single-country-remote (not global). This warns
+    // the user to verify work authorization before applying — many employers
+    // hide citizenship/permit requirements in the application form, not the JD.
+    // The job is NOT rejected — the flag is advisory. Migration 0040.
+    workAuthRiskFlag: boolean("work_auth_risk_flag").default(false),
     // When Gate 3 ran. Null until Gate 3 completes.
     evaluatedAt: timestamp("evaluated_at"),
     // In-app notification badge. Defaults to false; set true when user views the match.
     isRead: boolean("is_read").notNull().default(false),
+    // When the match was marked stale (added July 2026, migration 0038).
+    // Set by stale cleanup when the underlying job transitions to stale/gone status.
+    staleAt: timestamp("stale_at"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
@@ -1790,6 +1835,42 @@ Updated `PipelineHealthMonitor.tsx` with new metric cards and alert display.
 
 **Verification:** 1,623 tests pass (86 files), 0 TS errors, 0 new migrations. Biome clean.
 
+#### 4.7.12 Sprint 9 — Storage Monitoring, Gate 0.5, Work Authorization & WAL Protection `[Status: Implemented — July 4 2026]`
+
+Six critical changes implemented across storage monitoring, matching pipeline, and emergency purge. These address a Neon synthetic storage alert, three geo-fencing false positive patterns, and work authorization compliance.
+
+**Gate 0.5 Geo-Fencing Pre-Filter:** New hard-blocker pre-filter (`src/lib/jobs/gate-zero-pre-filter.ts`) inserted between normalization (Step 1) and Gate 1+2 routing (Step 2) in `jobIngestedHandler`. Catches three geo-fencing patterns that the 3-Gate funnel could not detect:
+1. **Title region tags** — Companies embed regional restrictions in job titles (e.g., "Software Engineer - Latam"). The location field says "Remote" but the title geo-fences to a region excluding the applicant.
+2. **Location country lists** — Some jobs list specific allowed countries in the location field (e.g., "Mexico, Argentina, Colombia, India"). The applicant's country is not on the list.
+3. **No remote designation** — Greenhouse jobs with a location name but no remote/hybrid keywords were classified as `workplaceType = null`. In reality, absence of remote designation = on-site at the stated location.
+
+Five checks run in priority order (see §5.1.5 for full table). Checks 4-5 (compensation, experience) are soft-fail-open — only fire when both job and applicant data are available. Migration 0039 adds 8 columns to `job` and 2 columns to `applicant`. Full design in `docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md`.
+
+**Work Authorization Filtering + Risk Flagging:** New `applicant.workAuthorizations` (text array) and `matchQueue.workAuthRiskFlag` (boolean) columns (migration 0040). Gate 3 LLM now checks job work-auth requirements against the applicant's permits — hard blocker if required permit is missing. Supported permits: `eu_citizen`, `rwr_card_plus`, `blue_card_eu`, `uk_settled`, `uk_pre_settled`, `us_green_card`, `us_citizen`, `canadian_pr`, `swiss_permit_c`, `other_permit`. A dynamic Work Authorization Directive is injected into the prompt when the applicant has permits set. The `workAuthRiskFlag` is set to `true` when the JD is silent on work auth but the role is hybrid/single-country-remote (not global) — warns the user to verify before applying. See §5.3 for full implementation details.
+
+**Neon API Integration for Storage Monitoring:** New `src/lib/jobs/neon-api.ts` module fetches `synthetic_storage_size` from the Neon API — the enforced storage limit, which is ~12% larger than `pg_database_size()` because it includes WAL, history retention, and Neon overhead. Dual-threshold strategy:
+- **Hot-path ingestion guard** (`storage-check.ts`): Uses `pg_database_size()` with `STORAGE_LIMIT_MB = 460` (safety margin below 512 MB hard limit) — fast, no external API call.
+- **Hourly storage monitor** (`hourlyStorageMonitor` Inngest function): Uses Neon API `synthetic_storage_size` with the true 512 MB limit — accurate, runs hourly with a 60s Next.js cache.
+
+New env vars: `NEON_API_KEY`, `NEON_PROJECT_ID`. The Neon API endpoint is `GET https://console.neon.tech/api/v2/projects/{projectId}` with a Bearer token, returning `project.data.stores[0].size * 1024 * 1024` (bytes → MB).
+
+**Simplified Storage Alerting:** Removed unnormalized backlog checks and email notifications from `checkStorageAlerts()` in `src/lib/jobs/alerting.ts`. Alerts now create database records only (no email), focused solely on storage percentage. Thresholds: warning at 80%, critical at 88% of `STORAGE_LIMIT_MB`. Backlog monitoring is handled by the separate `pipelineHealthMonitor` Inngest function (Sprint 7). This simplification reduces alert noise and eliminates the need for `ADMIN_ALERT_EMAIL` in storage alerts.
+
+**WAL Inflation Protection in Emergency Purge:** The `runEmergencyPurge` function (`src/lib/jobs/poller/cleanup-queries.ts`) was enhanced to detect and abort when DELETE operations generate more WAL than they reclaim. This prevents a "death spiral" where aggressive purging exacerbates the storage problem:
+- **WAL inflation detection:** Storage is measured before and after each batch. If `synthetic_storage_size` increases for `PURGE_MAX_WAL_INFLATION_BATCHES = 2` consecutive checks, the purge aborts immediately with a specific alert message.
+- **`active_fifo` batch size reduced:** `PURGE_ACTIVE_FIFO_BATCH_SIZE` reduced from 1000 to 500 to limit per-batch WAL generation in the last-resort tier.
+- **Recovery threshold corrected:** Recovery checks now use `STORAGE_LIMIT_MB` (460 MB) instead of the hardcoded 512 MB — the purge should stop when storage drops below the safety margin, not the hard limit.
+- **Per-batch VACUUM (July 2026 fix):** VACUUM ANALYZE runs after each batch within a tier (not just between tiers). Without this, `pg_database_size()` still counts dead tuples as used space, and the recovery check at the top of the loop never fires within a tier — causing a false "not recovered" result even though actual storage dropped well below the threshold. This was the root cause of a misleading production alert that said "still above recovery threshold" when storage was actually at 35.2% (162MB / 460MB).
+- **Alert messages updated:** Storage alert emails and database records now reference `STORAGE_LIMIT_MB` and include specific messages for WAL inflation abort vs. normal purge completion.
+
+**Emergency Purge Button:** Admin dashboard `EmergencyPurgeButton.tsx` component triggers the purge manually via `triggerEmergencyPurge` Server Action. Shows confirmation dialog with tier descriptions before executing.
+
+**Migrations:**
+- `0039_reflective_caretaker.sql` — Gate 0.5 metadata: 8 job columns + 2 applicant columns + `job_title_region_tag_idx` index.
+- `0040_lazy_freak.sql` — Work authorization: `applicant.work_authorizations` (text array) + `match_queue.work_auth_risk_flag` (boolean).
+
+**Verification:** 1,760 tests pass (90 files), 0 TS errors, 2 new migrations (0039, 0040). Biome clean. New test files: `gate-zero-pre-filter.test.ts`, `neon-api.test.ts`, updated `storage-check.test.ts`, `alerting.test.ts`, `admin-queries.test.ts`, `cleanup-queries.test.ts` (including per-batch VACUUM regression test).
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
@@ -1798,16 +1879,18 @@ Updated `PipelineHealthMonitor.tsx` with new metric cards and alert display.
 
 **Implementation reference:** `docs/reports/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/reports/calibration-report.md`.
 
-**Feature breakdown (9 features, all implemented):**
-- **C0** — Schema & contracts hardening: `matchQueue` columns (including `promptVariant`), `job.status` values, `normalizedAt`, Module C event types (`match/gate-3-evaluate`, `match/approved`, `persona/updated`), `matching-config.ts`, `db.ts` pooler guard, `seniority_level` enum + `applicant.seniority_levels` column.
+**Feature breakdown (11 features, all implemented):**
+- **C0** — Schema & contracts hardening: `matchQueue` columns (including `promptVariant`, `workAuthRiskFlag`, `staleAt`), `job.status` values, `normalizedAt`, Module C event types (`match/gate-3-evaluate`, `match/approved`, `persona/updated`), `matching-config.ts`, `db.ts` pooler guard, `seniority_level` enum + `applicant.seniority_levels` column, `applicant.workAuthorizations` column.
 - **C1** — Job normalization: `job-normalizer.ts` + `job-embedder.ts`, wired into `jobIngestedHandler`.
 - **C5** — Seed script: `scripts/seed-routing-engine.ts` (synthetic data for calibration).
+- **C0.5** — Gate 0.5 hard-blocker pre-filter: `gate-zero-pre-filter.ts` (geo-fencing, compensation, experience checks), wired into `jobIngestedHandler` between normalization and Gate 1+2. Added July 2026.
 - **C2** — Gate 1+2 SQL router: `gate-1-2.ts` with workplace type pre-filter, wired into `jobIngestedHandler`.
-- **C3** — Gate 3 LLM evaluator: `gate-3.ts` (3 A/B test prompt variants, seniority-aware matching, country-specific remote checks) + `gate3Evaluator` Inngest function.
+- **C3** — Gate 3 LLM evaluator: `gate-3.ts` (3 A/B test prompt variants, seniority-aware matching, country-specific remote checks, work authorization filtering + risk flagging) + `gate3Evaluator` Inngest function.
 - **C3b** — Gate 3 feedback loop: `pendingQueueSweep` (cron every 30 min) + `personaUpdatedHandler` (event-driven re-evaluation + bulk reprocess trigger) + `matchBulkReprocess` (manual bulk reprocessing) + `matchRetrySweep` (daily re-matching sweep). Added June 28 2026, enhanced July 1 2026.
 - **C4** — Dashboard query layer + UI: `dashboard-queries.ts` (status-filtered queries, pagination, resilient unread badge) + `matches.ts` Server Actions + `/dashboard/jobs` list page + `/dashboard/jobs/[matchId]` detail page + sidebar unread badge.
 - **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/reports/calibration-report.md` + yield analysis (June 28 2026).
 - **C7** — Persona consolidation & diversification: 3 TypeScript personas consolidated to 2 distinct + 1 new PHP/Laravel persona. `CANONICAL_TAGS` expanded to 146 entries (added `wordpress`, `docker`). Added June 28 2026.
+- **C8** — Work authorization filtering + risk flagging: `applicant.workAuthorizations` permits, `matchQueue.workAuthRiskFlag` advisory flag, dynamic work authorization directive in Gate 3 prompt. Added July 4 2026.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -1942,8 +2025,15 @@ SELECT prompt_variant, COUNT(*) FILTER (WHERE status='approved') AS approved,
 FROM match_queue WHERE prompt_variant IS NOT NULL GROUP BY prompt_variant;
 ```
 
-**Country-specific remote restrictions (added June 28 2026):**
-All three prompt variants now explicitly instruct the LLM to scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's country doesn't match, this is a HARD BLOCKER. This addresses the yield analysis finding that location mismatch was the #1 rejection reason — many remote jobs restrict applications to specific countries/regions.
+**Country-specific remote restrictions (added June 28 2026, updated July 4 2026):**
+All three prompt variants now explicitly instruct the LLM to scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's country doesn't match, this is a HARD BLOCKER. This addresses the yield analysis finding that location mismatch was the #1 rejection reason — many remote jobs restrict applications to specific countries/regions. **Dynamic compliance directive (added July 4 2026):** When the applicant has `w8ben` or `ic_global` compliance, a dynamic directive is injected into the prompt that distinguishes contractor-friendly postings (approve — mentions "contractor", "1099", "B2B") from W-2-only postings (hard blocker — mentions "W-2", "employee", "visa sponsorship", "green card"). This prevents false rejections of US-only remote jobs that accept international contractors.
+
+**Work authorization filtering + risk flagging (added July 4 2026):**
+Gate 3 now supports work authorization permit checking. The `Gate3Context.applicant.workAuthorizations` field passes the applicant's permits to the LLM. Supported permits: `eu_citizen`, `rwr_card_plus`, `blue_card_eu`, `uk_settled`, `uk_pre_settled`, `us_green_card`, `us_citizen`, `canadian_pr`, `swiss_permit_c`, `other_permit`. The LLM checks job work-auth requirements against the applicant's permits — if the job requires a specific permit the applicant doesn't have, it's a HARD BLOCKER. A dynamic **Work Authorization Directive** is injected into the prompt when the applicant has permits set, explaining permit coverage (e.g., "eu_citizen: right to work in ALL EU/EEA member states").
+
+The `gate3VerdictSchema` now includes a `workAuthRiskFlag` boolean field. It is set to `true` when the JD is silent on work authorization but the role is hybrid or single-country-remote (not global) — this warns the user to verify before applying, as many employers hide citizenship/permit requirements in the application form. The LLM is instructed to check the JD text for global remote indicators ("global, remote-first", "work from anywhere", "worldwide", "distributed team") before flagging — if the JD says global remote, `workAuthRiskFlag` is set to `false` even if the location field says a specific country.
+
+**⚠️ CRITICAL schema note:** The `workAuthRiskFlag` field in `gate3VerdictSchema` must NOT use `.default(false)` — OpenAI's strict JSON schema mode requires all properties to be in the `required` array, and Zod's `.default()` marks the field as optional, causing a schema validation error (`Invalid schema for response_format 'response': Missing 'workAuthRiskFlag'`). The field must be a plain `z.boolean().describe(...)` without `.default()`.
 
 **Gate 3 feedback loop (added June 28 2026, ENHANCED July 1 2026):**
 Four Inngest functions provide resilience, re-evaluation, and bulk processing:
@@ -2147,7 +2237,30 @@ This is generated by the system when a match occurs, intended for the startup's 
 
 ## 7. MODULE E: INFRASTRUCTURE & DEPLOYMENT ARCHITECTURE
 
-Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coolify). Deployed and running (healthy) as of June 25, 2026.
+Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coolify). Deployed and running (healthy) as of July 4 2026.
+
+### 7.0 Self-Hosted Inngest (Sprint 5, June 30 2026)
+
+Inngest operations migrated from Inngest Cloud (free plan: 5 concurrent steps, 50K executions/month) to self-hosted Inngest on the existing Hetzner/Coolify infrastructure. Deployed as a 3-container Docker Compose service (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`) via Coolify REST API as a new service (UUID `otrzmmwzdh8z6hcg5at9yi03`) in the VectorMatch project, accessible at `https://inngest.vectormatch.dev` through Cloudflare → Traefik.
+
+Env vars (runtime-only, set via Coolify dashboard or REST API):
+- `INNGEST_DEV` — `1` for local dev, `0` or unset for production.
+- `INNGEST_BASE_URL` — Self-hosted Inngest URL (e.g., `https://inngest.vectormatch.dev`).
+- `INNGEST_EVENT_KEY` — Event authentication key (hex string).
+- `INNGEST_SIGNING_KEY` — Request signing key (hex string).
+- `INNGEST_SERVE_ORIGIN` — Public URL reachable from Inngest server (e.g., `https://vectormatch.dev`).
+
+`src/instrumentation.ts` auto-syncs all registered functions on server startup. Inngest Cloud project kept active for 48h rollback window post-migration.
+
+### 7.0a Neon API Integration (Sprint 9, July 4 2026)
+
+New `src/lib/jobs/neon-api.ts` module fetches `synthetic_storage_size` from the Neon API for accurate storage monitoring. Neon's `synthetic_storage_size` is the enforced storage limit — it is ~12% larger than `pg_database_size()` because it includes WAL, history retention, and Neon overhead.
+
+Env vars:
+- `NEON_API_KEY` — Neon API Bearer token (generate from Neon console → Account → API keys).
+- `NEON_PROJECT_ID` — Neon project ID (visible in Neon console URL or project settings).
+
+The module caches the API response for 60 seconds using Next.js `revalidate` to avoid hitting the Neon API on every storage check. The `hourlyStorageMonitor` Inngest function uses this module for accurate storage monitoring; the hot-path ingestion guard (`storage-check.ts`) continues using `pg_database_size()` with a 460 MB safety margin for speed (no external API call).
 
 ### 7.1 Infrastructure stack
 
