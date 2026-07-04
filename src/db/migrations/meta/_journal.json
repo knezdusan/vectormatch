@@ -288,6 +288,20 @@
       "when": 1783160468270,
       "tag": "0040_lazy_freak",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783183855973,
+      "tag": "0041_bouncy_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1783191103009,
+      "tag": "0042_conscious_juggernaut",
+      "breakpoints": true
     }
   ]
 }

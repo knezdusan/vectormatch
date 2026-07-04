@@ -172,6 +172,8 @@ export async function getMatches(
             + (
               CASE
                 WHEN ${applicant.country} IS NULL OR ${job.locationName} IS NULL OR ${job.locationName} = '' THEN 0.5
+                -- Remote scope: global remote gets perfect location score
+                WHEN ${job.remoteScope}::text = 'global' THEN 1.0
                 WHEN ${job.locationName} ~* 'remote|global|anywhere|worldwide' THEN
                   CASE
                     WHEN ${applicant.country} = 'RS' AND ${job.locationName} ~* 'serbia' THEN 1.0

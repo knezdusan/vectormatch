@@ -100,6 +100,7 @@ export async function runHnAlgoliaSeeder(
         rejected: [],
         insertedCompanyIds: [],
         insertedCompanies: [],
+        aggregatorFiltered: 0,
       },
       customUrls: [],
       discoveryContexts: [],

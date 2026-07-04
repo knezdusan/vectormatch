@@ -268,6 +268,7 @@ describe("runRedditRssSeeder", () => {
       rejected: [],
       insertedCompanyIds: ["id-1", "id-2"],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 

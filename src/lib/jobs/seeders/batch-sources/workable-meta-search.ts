@@ -392,6 +392,7 @@ export async function runWorkableMetaSearch(
         rejected: [],
         insertedCompanyIds: [],
         insertedCompanies: [],
+        aggregatorFiltered: 0,
       },
       validSlugs: 0,
       sluggerFallbacks: 0,

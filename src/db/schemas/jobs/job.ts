@@ -13,7 +13,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import type z from "zod";
 
-import { workplaceTypeEnum } from "./enums";
+import { remoteScopeEnum, workplaceTypeEnum } from "./enums";
 
 export const job = pgTable(
   "job",
@@ -119,6 +119,16 @@ export const job = pgTable(
     // 'explicit_on_site', 'compensation_mismatch', 'experience_gap',
     // 'inverted_experience_band'. NULL when not rejected by Gate 0.5.
     rejectionPattern: text("rejection_pattern"),
+
+    // ── Remote scope (added July 2026 — zero-match fix) ───────────────────────
+    // Distinguishes global remote from country-fenced remote. Only meaningful
+    // when workplace_type = 'remote' (or null but JD indicates remote).
+    //   global         — "Remote - Global", "work from anywhere", "distributed team"
+    //   country_fenced — "Remote - US Only", location lists specific countries
+    //   unknown        — couldn't be determined (Gate 3 LLM evaluates as fallback)
+    // Populated at normalization time via heuristics on locationName + content.
+    // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.2.
+    remoteScope: remoteScopeEnum("remote_scope").default("unknown"),
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
@@ -144,6 +154,8 @@ export const job = pgTable(
     titleRegionTagIdx: index("job_title_region_tag_idx").on(
       table.titleRegionTag,
     ),
+    // For remote-scope filtering (global vs country-fenced remote).
+    remoteScopeIdx: index("job_remote_scope_idx").on(table.remoteScope),
   }),
 );
 

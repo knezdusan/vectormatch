@@ -92,6 +92,7 @@ describe("processHnHits", () => {
       rejected: [],
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 

@@ -390,14 +390,15 @@ describe("extractJobMetadata — Greenhouse", () => {
     expect(meta.workplaceType).toBe("remote");
   });
 
-  it("defaults to on-site when location has no workplace keyword (Gate 0.5 Pattern 3 fix)", () => {
+  it("keeps null when location has no workplace keyword (zero-match fix)", () => {
     const rawJson = JSON.stringify({
       title: "Engineer",
       location: { name: "New York, NY" },
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
-    // Gate 0.5 Pattern 3: absence of remote designation = on-site at stated location
-    expect(meta.workplaceType).toBe("on-site");
+    // July 2026 fix: null workplaceType is kept (not defaulted to on-site).
+    // Gate 0.5 only hard-rejects EXPLICIT on-site. Null passes to Gate 3 (LLM).
+    expect(meta.workplaceType).toBe(null);
   });
 
   it("detects hybrid from location string heuristic", () => {
@@ -572,19 +573,20 @@ describe("extractJobMetadata — Greenhouse", () => {
       content: "<p>Experience with remote access systems required.</p>",
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
-    // Gate 0.5 Pattern 3: no remote keywords found → defaults to on-site
-    expect(meta.workplaceType).toBe("on-site");
+    // July 2026 fix: no remote keywords found → null (not defaulted to on-site)
+    expect(meta.workplaceType).toBe(null);
   });
 
-  it("defaults to on-site when content has no workplace keywords (Gate 0.5 Pattern 3 fix)", () => {
+  it("keeps null when content has no workplace keywords (zero-match fix)", () => {
     const rawJson = JSON.stringify({
       title: "Engineer",
       location: { name: "Bengaluru, India" },
       content: "<p>We are looking for a senior engineer to join our team.</p>",
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
-    // This is the CloudSEK pattern: location is stated, no remote designation
-    expect(meta.workplaceType).toBe("on-site");
+    // CloudSEK pattern: location is stated, no remote designation.
+    // July 2026 fix: kept as null, passed to Gate 3 (LLM) for evaluation.
+    expect(meta.workplaceType).toBe(null);
   });
 
   it("location heuristic takes precedence over content fallback", () => {
@@ -592,6 +594,58 @@ describe("extractJobMetadata — Greenhouse", () => {
       title: "Engineer",
       location: { name: "Remote - United States" },
       content: "<p>This is an in-office position in our SF office.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  // ── Expanded remote-detection patterns (July 2026 zero-match fix) ──────────
+
+  it("detects remote from 'global, remote-first' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "San Francisco, CA" },
+      content: "<p>We are a global, remote-first organization.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote from 'work from anywhere' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Berlin, Germany" },
+      content: "<p>Work from anywhere in the world.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote from 'distributed team' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "London, UK" },
+      content: "<p>We are a distributed team across 15 countries.</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote from 'Remote - Worldwide' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "New York, NY" },
+      content: "<p>Remote - Worldwide</p>",
+    });
+    const meta = extractJobMetadata("greenhouse", rawJson);
+    expect(meta.workplaceType).toBe("remote");
+  });
+
+  it("detects remote from 'team members across N countries' in content", () => {
+    const rawJson = JSON.stringify({
+      title: "Engineer",
+      location: { name: "Toronto, Canada" },
+      content: "<p>Our team members across 30 countries collaborate async.</p>",
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
     expect(meta.workplaceType).toBe("remote");

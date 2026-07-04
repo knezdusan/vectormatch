@@ -1454,6 +1454,7 @@ export const jobIngestedHandler = inngest.createFunction(
           compensationMin: job.compensationMin,
           compensationMax: job.compensationMax,
           compensationCurrency: job.compensationCurrency,
+          remoteScope: job.remoteScope,
         })
         .from(job)
         .where(eq(job.id, jobId))
@@ -1515,6 +1516,10 @@ export const jobIngestedHandler = inngest.createFunction(
                 ? Number(jobRow.compensationMax)
                 : null,
             compensationCurrency: jobRow.compensationCurrency,
+            remoteScope: (jobRow.remoteScope ?? "unknown") as
+              | "global"
+              | "country_fenced"
+              | "unknown",
           },
           applicant: {
             country: app.country,
@@ -3965,6 +3970,162 @@ export const emergencyStoragePurge = inngest.createFunction(
       triggered: true,
       manualTrigger: isManualTrigger,
       ...purgeResult,
+    };
+  },
+);
+
+// ── Inngest Health Monitor (Sprint 9) ────────────────────────────────────────
+// Runs every 5 minutes to check the Inngest server's health. This is a
+// self-monitoring function — it checks whether the Inngest server itself is
+// reachable, whether function runs are failing at a high rate, and whether
+// the pipeline has stalled (no jobs normalized in 4h).
+//
+// When an issue is detected:
+//   1. A critical alert is created in the alerts table (visible on the dashboard)
+//   2. An email is sent to ADMIN_ALERT_EMAIL with full diagnostics and
+//      acceptance criteria for resuming
+//
+// Alert types:
+//   - inngest_server_down: Health check fails or Coolify shows stopped/exited
+//   - inngest_function_failures: >50% function failure rate in 1h
+//   - inngest_pipeline_stall: No jobs normalized in 4h
+//
+// Note: This function runs on the Inngest server itself, so if the server is
+// down, this function won't run. The Coolify status check (via the Coolify
+// API) is the fallback — it works even when the Inngest server is down because
+// it's called from the Next.js server, not from Inngest. However, the cron
+// trigger won't fire if Inngest is down. For full coverage, the admin
+// dashboard's InngestStatusControl component also polls the Coolify API every
+// 30 seconds when an admin is viewing the page.
+export const inngestHealthMonitor = inngest.createFunction(
+  {
+    id: "inngest-health-monitor",
+    name: "Inngest Health Monitor",
+    triggers: [{ cron: "*/5 * * * *" }], // every 5 min
+  },
+  async ({ step, logger }) => {
+    // Step 1: Get Coolify container status
+    const coolifyStatus = await step.run("check-coolify-status", async () => {
+      const { getInngestStatus } = await import("@/lib/coolify/client");
+      return getInngestStatus();
+    });
+
+    // Step 2: Run health checks (HTTP + function failures + pipeline stall)
+    const healthReport = await step.run("run-health-checks", async () => {
+      const { getInngestHealthReport } = await import(
+        "@/lib/coolify/inngest-health"
+      );
+      return getInngestHealthReport();
+    });
+
+    // Step 3: Determine alert reason (if any)
+    const alertReason = await step.run("determine-alert", async () => {
+      if (!coolifyStatus.isRunning || !healthReport.healthCheck.reachable) {
+        return coolifyStatus.isPaused ? "server_paused" : "server_unreachable";
+      }
+      if (healthReport.functionFailures.thresholdExceeded) {
+        return "function_failure_spike";
+      }
+      if (healthReport.pipelineStall.stalled) {
+        return "pipeline_stall";
+      }
+      return null;
+    });
+
+    // Step 4: Create/resolve alerts and send email
+    await step.run("manage-alerts-and-email", async () => {
+      const { createAlert, hasActiveAlert, resolveAlertsByType } = await import(
+        "@/lib/jobs/alerting"
+      );
+      const { sendInngestAlertEmail } = await import(
+        "@/lib/coolify/inngest-alert-email"
+      );
+
+      if (alertReason) {
+        // Map reason to alert type
+        const alertType =
+          alertReason === "server_unreachable" ||
+          alertReason === "server_paused"
+            ? "inngest_server_down"
+            : alertReason === "function_failure_spike"
+              ? "inngest_function_failures"
+              : "inngest_pipeline_stall";
+
+        const severity =
+          alertReason === "server_unreachable" ||
+          alertReason === "server_paused"
+            ? "critical"
+            : "warning";
+
+        // Create alert if not already active (deduplicated)
+        let alertCreated = false;
+        if (!(await hasActiveAlert(alertType))) {
+          await createAlert({
+            type: alertType,
+            severity,
+            message: healthReport.alerts.join(" | "),
+            details: JSON.stringify({
+              reason: alertReason,
+              coolifyStatus: coolifyStatus.coolifyStatus,
+              healthCheck: healthReport.healthCheck,
+              functionFailures: healthReport.functionFailures,
+              pipelineStall: healthReport.pipelineStall,
+            }),
+          });
+          alertCreated = true;
+          logger.warn(
+            `Inngest health alert created: ${alertReason} — ${healthReport.alerts.join(", ")}`,
+          );
+        }
+
+        // Send email only if the alert was newly created (not on every check)
+        if (alertCreated) {
+          const dashboardUrl = process.env.NEXT_PUBLIC_SITE_URL
+            ? `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/admin?tab=pipeline`
+            : "/dashboard/admin?tab=pipeline";
+
+          await sendInngestAlertEmail({
+            reason: alertReason as
+              | "server_unreachable"
+              | "server_paused"
+              | "function_failure_spike"
+              | "pipeline_stall",
+            healthReport,
+            coolifyStatus,
+            dashboardUrl,
+          });
+        }
+      } else {
+        // All healthy — resolve any existing Inngest alerts
+        const resolved =
+          (await resolveAlertsByType("inngest_server_down")) +
+          (await resolveAlertsByType("inngest_function_failures")) +
+          (await resolveAlertsByType("inngest_pipeline_stall"));
+        if (resolved > 0) {
+          logger.info(
+            `Inngest health recovered — ${resolved} alert(s) resolved`,
+          );
+        }
+      }
+
+      return { alertReason, alertCreated: alertReason !== null };
+    });
+
+    logger.info("Inngest health monitor completed", {
+      coolifyStatus: coolifyStatus.label,
+      healthCheckReachable: healthReport.healthCheck.reachable,
+      overallHealthy: healthReport.overallHealthy,
+      alertReason,
+    });
+
+    return {
+      timestamp: new Date().toISOString(),
+      coolifyStatus: coolifyStatus.label,
+      healthCheck: healthReport.healthCheck,
+      functionFailures: healthReport.functionFailures,
+      pipelineStall: healthReport.pipelineStall,
+      overallHealthy: healthReport.overallHealthy,
+      alertReason,
     };
   },
 );

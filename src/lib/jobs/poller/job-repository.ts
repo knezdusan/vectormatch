@@ -140,6 +140,8 @@ export async function upsertJobs(
             ? String(j.metadata.compensationMax)
             : null,
         compensationCurrency: j.metadata.compensationCurrency,
+        // Remote scope (added July 2026 — zero-match fix)
+        remoteScope: j.metadata.remoteScope,
       })),
     )
     .onConflictDoUpdate({
@@ -179,6 +181,8 @@ export async function upsertJobs(
         compensationMin: sql`excluded.compensation_min`,
         compensationMax: sql`excluded.compensation_max`,
         compensationCurrency: sql`excluded.compensation_currency`,
+        // Remote scope refresh on re-poll
+        remoteScope: sql`excluded.remote_scope`,
       },
     })
     .returning({ id: job.id, externalJobId: job.externalJobId });

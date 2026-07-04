@@ -261,6 +261,7 @@ export async function runBigQuerySeeder(
         rejected: [],
         insertedCompanyIds: [],
         insertedCompanies: [],
+        aggregatorFiltered: 0,
       },
       error: error instanceof Error ? error.message : String(error),
     };

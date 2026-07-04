@@ -39,6 +39,7 @@ const EMPTY_METADATA: JobMetadata = {
   compensationMin: null,
   compensationMax: null,
   compensationCurrency: null,
+  remoteScope: "unknown",
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

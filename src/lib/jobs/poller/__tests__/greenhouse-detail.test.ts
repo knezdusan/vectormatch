@@ -40,6 +40,7 @@ const EMPTY_METADATA: JobMetadata = {
   compensationMin: null,
   compensationMax: null,
   compensationCurrency: null,
+  remoteScope: "unknown",
 };
 
 /** Create a Greenhouse list-endpoint job with empty content (short fullText). */

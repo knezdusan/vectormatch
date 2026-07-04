@@ -23,6 +23,7 @@ import type { AtsSource } from "@/lib/jobs/ats-endpoints";
 import { getAtsEndpoint } from "@/lib/jobs/ats-endpoints";
 import { recordDiscoverySource } from "@/lib/jobs/quality/fusion-score";
 import type { FetchFn } from "@/lib/jobs/types";
+import { isAggregator } from "./aggregator-blacklist";
 import {
   type CompanyTier,
   countGateZeroJobs,
@@ -263,6 +264,15 @@ async function insertResolvedCompany(
   result: { atsSource: AtsSource; atsSlug: string; canonicalName: string },
   initialTier: CompanyTier,
 ): Promise<string | null> {
+  // Aggregator blacklist — reject known job aggregators (Hirehangar, Ketryx,
+  // etc.) that re-host listings from other companies' ATSs.
+  if (isAggregator(result.atsSlug, result.canonicalName)) {
+    console.warn(
+      `[insertResolvedCompany] Rejected aggregator: atsSlug=${result.atsSlug}, name=${result.canonicalName}`,
+    );
+    return null;
+  }
+
   const inserted = await db
     .insert(company)
     .values({

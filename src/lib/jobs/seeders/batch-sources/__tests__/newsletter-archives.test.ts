@@ -313,6 +313,7 @@ describe("runNewsletterArchiveSeeder", () => {
       rejected: [],
       insertedCompanyIds: ["id-1", "id-2"],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
     vi.mocked(resolveSlugger).mockResolvedValue({
       success: true,

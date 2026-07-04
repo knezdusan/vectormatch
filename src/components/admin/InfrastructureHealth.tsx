@@ -142,7 +142,10 @@ export async function InfrastructureHealth() {
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="space-y-1">
+                  <button
+                    type="button"
+                    className="block w-full text-left space-y-1"
+                  >
                     <Progress
                       value={Math.min(neonPct * 100, 100)}
                       className={cn(
@@ -157,7 +160,7 @@ export async function InfrastructureHealth() {
                     <p className="text-xs text-muted-foreground">
                       {(neonPct * 100).toFixed(1)}% used (synthetic)
                     </p>
-                  </div>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   <div className="space-y-1">

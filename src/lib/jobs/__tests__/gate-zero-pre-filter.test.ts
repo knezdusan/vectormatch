@@ -35,6 +35,7 @@ function makeInput(
       compensationMin: null,
       compensationMax: null,
       compensationCurrency: null,
+      remoteScope: "unknown",
       ...overrides.job,
     },
     applicant: {
@@ -192,26 +193,62 @@ describe("Gate 0.5 — Pattern 2: Location country lists", () => {
     expect(result.passes).toBe(false);
     expect(result.patternDetected).toBe("explicit_on_site");
   });
+
+  it("PASSES remote job with country list excluding applicant when remoteScope is 'global'", () => {
+    // Key test for the remote_scope feature: a job with remoteScope='global'
+    // passes Check 2 even if locationCountries excludes the applicant.
+    // The JD explicitly says "global remote" — country lists are ignored.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Frontend Engineer",
+          locationName: "Remote",
+          workplaceType: "remote",
+          locationCountries: ["Mexico", "Argentina", "Colombia", "India"],
+          remoteScope: "global",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects remote job with country list excluding applicant when remoteScope is 'country_fenced'", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Frontend Engineer",
+          locationName: "Remote",
+          workplaceType: "remote",
+          locationCountries: ["Mexico", "Argentina", "Colombia", "India"],
+          remoteScope: "country_fenced",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("location_country_list");
+  });
 });
 
 // =============================================================================
-// PATTERN 3: NO REMOTE DESIGNATION = ON-SITE DEFAULT
+// PATTERN 3: EXPLICIT ON-SITE IN FOREIGN COUNTRY (revised July 2026)
 // =============================================================================
 
-describe("Gate 0.5 — Pattern 3: No remote designation", () => {
-  it("rejects on-site job in foreign country with null workplaceType (CloudSEK case)", () => {
+describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
+  it("PASSES null workplaceType job in foreign country (CloudSEK case — revised)", () => {
+    // Previously this was hard-rejected as "default_on_site". Now null
+    // workplaceType jobs are passed through to Gate 3 (LLM) which can
+    // read the full JD text to determine remote/on-site status.
+    // This is the zero-match root cause fix.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
           title: "SDE 2 - Fullstack",
           locationName: "Bengaluru, Karnataka, India",
-          workplaceType: null, // No designation — defaults to on-site
+          workplaceType: null, // Undetermined — passes to Gate 3
         },
       }),
     );
-    expect(result.passes).toBe(false);
-    expect(result.patternDetected).toBe("default_on_site");
-    expect(result.blockers[0]).toContain("Bengaluru");
+    expect(result.passes).toBe(true);
   });
 
   it("rejects explicitly on-site job in foreign country", () => {
@@ -273,6 +310,35 @@ describe("Gate 0.5 — Pattern 3: No remote designation", () => {
         job: {
           title: "Software Engineer",
           locationName: null,
+          workplaceType: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("passes null workplaceType with foreign location (zero-match fix)", () => {
+    // This is the critical test: a Greenhouse job with a non-remote location
+    // field (e.g., "Berlin, Germany") and no detected workplaceType should
+    // PASS Gate 0.5 and go to Gate 3. Previously this was hard-rejected.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Frontend Engineer",
+          locationName: "Berlin, Germany",
+          workplaceType: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("passes null workplaceType with US location (zero-match fix)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Full Stack Engineer",
+          locationName: "New York, NY",
           workplaceType: null,
         },
       }),

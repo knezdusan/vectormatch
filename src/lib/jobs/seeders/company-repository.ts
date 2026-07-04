@@ -18,6 +18,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { company } from "@/db/schemas/jobs/company";
 import { recordDiscoverySource } from "@/lib/jobs/quality/fusion-score";
+import { isAggregator } from "./aggregator-blacklist";
 import type { SeedCompanyInput } from "./schemas";
 import { seedCompanyInputSchema } from "./schemas";
 
@@ -26,12 +27,14 @@ import { seedCompanyInputSchema } from "./schemas";
 export interface InsertResult {
   inserted: number;
   skipped: number;
-  /** The inputs that were rejected by Zod validation (should not happen if the seeder is correct). */
+  /** The inputs that were rejected by Zod validation or aggregator blacklist. */
   rejected: SeedCompanyInput[];
   /** The IDs of newly inserted companies (for bootstrap poll events). */
   insertedCompanyIds: string[];
   /** The ATS source + slug of newly inserted companies (for bootstrap poll events). */
   insertedCompanies: { id: string; atsSource: string; atsSlug: string }[];
+  /** Count of companies filtered by the aggregator blacklist. */
+  aggregatorFiltered: number;
 }
 
 // ── Insert ───────────────────────────────────────────────────────────────────
@@ -59,14 +62,24 @@ export async function insertDiscoveredCompanies(
       rejected: [],
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     };
   }
 
   // Validate all inputs. Collect valid ones; track rejected ones.
+  // Also filter out known job aggregators (Hirehangar, Ketryx, etc.) — they
+  // re-host listings from other companies' ATSs and conflict with the core
+  // mission of discovering untapped opportunities.
   const valid: SeedCompanyInput[] = [];
   const rejected: SeedCompanyInput[] = [];
+  let aggregatorFiltered = 0;
 
   for (const input of inputs) {
+    // Aggregator blacklist check (before Zod validation — cheaper)
+    if (isAggregator(input.atsSlug, input.companyName)) {
+      aggregatorFiltered++;
+      continue;
+    }
     const result = seedCompanyInputSchema.safeParse(input);
     if (result.success) {
       valid.push(result.data);
@@ -82,6 +95,7 @@ export async function insertDiscoveredCompanies(
       rejected,
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered,
     };
   }
 
@@ -160,6 +174,7 @@ export async function insertDiscoveredCompanies(
       atsSource: r.atsSource,
       atsSlug: r.atsSlug,
     })),
+    aggregatorFiltered,
   };
 }
 

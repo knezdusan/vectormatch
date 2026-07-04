@@ -21,9 +21,19 @@
 // ── Three geo-fencing patterns (discovered July 2026) ───────────────────────
 // Pattern 1: Title region tags (e.g., "Software Engineer - Latam")
 // Pattern 2: Location country lists (e.g., Mexico, Argentina, Colombia...)
-// Pattern 3: No remote designation = on-site at stated location
+// Pattern 3: Explicitly on-site in a foreign country (hard reject)
 //
-// See docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md for the full design.
+// ── Revision July 2026 (zero-match root cause fix) ──────────────────────────
+// Check 3 previously treated workplaceType=null (undetermined) the same as
+// workplaceType="on-site" (explicit) and hard-rejected both. This caused the
+// ~85% of Greenhouse jobs with undetermined workplaceType to be tombstoned
+// before Gate 3 (LLM) could evaluate them — producing zero matches for
+// remote-only applicants. Now Check 3 ONLY fires on explicit "on-site".
+// Jobs with null workplaceType are passed through to Gate 3, which is
+// explicitly designed to detect remote indicators in JD text.
+//
+// See docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md for the original design.
+// See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.1 for root cause.
 
 // =============================================================================
 // TYPES
@@ -43,6 +53,10 @@ export interface PreFilterInput {
     compensationMin: number | null;
     compensationMax: number | null;
     compensationCurrency: string | null;
+    // Remote scope (added July 2026 — zero-match fix)
+    // "global" = worldwide remote, "country_fenced" = restricted to specific
+    // countries/regions, "unknown" = couldn't be determined (Gate 3 evaluates)
+    remoteScope: "global" | "country_fenced" | "unknown";
   };
   applicant: {
     country: string | null; // ISO 3166-1 alpha-2
@@ -214,6 +228,14 @@ function checkLocationCountryList(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
+  // Global remote jobs pass regardless of any country list — the JD explicitly
+  // indicates worldwide remote (e.g., "Remote - Global", "work from anywhere").
+  // This is the key benefit of the remote_scope field: it lets us distinguish
+  // global remote from country-fenced remote at the pre-filter stage.
+  if (job.remoteScope === "global") {
+    return { blocker: null, pattern: null };
+  }
+
   // Structured country list from ATS API
   if (job.locationCountries && job.locationCountries.length > 0) {
     const isAllowed = job.locationCountries.some(
@@ -257,13 +279,25 @@ function checkLocationCountryList(input: PreFilterInput): {
 }
 
 // =============================================================================
-// CHECK 3: NO REMOTE DESIGNATION = ON-SITE DEFAULT (Pattern 3)
+// CHECK 3: EXPLICIT ON-SITE IN FOREIGN COUNTRY (Pattern 3 — revised)
 // =============================================================================
 
 /**
- * Check if the job is on-site (explicitly or by default) in a location that
- * excludes the applicant. This catches the CloudSEK pattern where a job has
- * a location name but no remote/hybrid designation.
+ * Check if the job is EXPLICITLY on-site in a location that excludes the
+ * applicant. Only fires when workplaceType === "on-site" (detected from
+ * explicit keywords in the location or job description).
+ *
+ * Jobs with workplaceType === null (undetermined) are NOT hard-rejected here —
+ * they are passed through to Gate 3 (LLM), which is better equipped to
+ * determine whether the job is genuinely on-site or remote by reading the
+ * full job description text. This prevents the zero-match problem where
+ * ~85% of Greenhouse jobs (which have no structured workplaceType field)
+ * were being tombstoned before the LLM could evaluate them.
+ *
+ * The original CloudSEK case (null workplaceType + "Bengaluru, India") will
+ * now be evaluated by Gate 3 instead of being hard-rejected. Gate 3's prompt
+ * criterion 3 explicitly handles null workplaceType: "If Workplace Type is
+ * null, infer from the location and description but do not assume remote."
  */
 function checkOnSiteDefault(input: PreFilterInput): {
   blocker: string | null;
@@ -277,21 +311,19 @@ function checkOnSiteDefault(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
-  // If workplaceType is remote or hybrid, this check doesn't apply
-  if (job.workplaceType === "remote" || job.workplaceType === "hybrid") {
+  // Only fire on EXPLICIT on-site. Remote, hybrid, and null (undetermined)
+  // all pass through — null is handled by Gate 3 (LLM).
+  if (job.workplaceType !== "on-site") {
     return { blocker: null, pattern: null };
   }
 
-  // If workplaceType is on-site OR null (defaulting to on-site per Pattern 3 fix)
-  // check if the location matches the applicant's country
+  // workplaceType is explicitly "on-site" — check if location matches applicant
   const locationMatches = locationMentionsCountry(locationName, country);
 
   if (!locationMatches) {
-    const pattern =
-      job.workplaceType === "on-site" ? "explicit_on_site" : "default_on_site";
     return {
       blocker: `Job is on-site at ${locationName}, applicant is in ${country}`,
-      pattern,
+      pattern: "explicit_on_site",
     };
   }
 

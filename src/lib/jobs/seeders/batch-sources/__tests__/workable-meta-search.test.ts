@@ -254,6 +254,7 @@ describe("runWorkableMetaSearch", () => {
         { id: "id-1", atsSource: "workable", atsSlug: "acme" },
         { id: "id-2", atsSource: "workable", atsSlug: "foobar" },
       ],
+      aggregatorFiltered: 0,
     });
   });
 
@@ -490,6 +491,7 @@ describe("runWorkableMetaSearch — slug validation + Slugger fallback", () => {
       rejected: [],
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 

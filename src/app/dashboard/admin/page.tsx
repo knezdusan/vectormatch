@@ -5,6 +5,7 @@ import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AlertsPanel } from "@/components/admin/AlertsPanel";
 import { BulkReprocessButton } from "@/components/admin/BulkReprocessButton";
 import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
+import { InngestStatusControl } from "@/components/admin/InngestStatusControl";
 import { MatchingFunnel } from "@/components/admin/MatchingFunnel";
 import { PipelineHealthMonitor } from "@/components/admin/PipelineHealthMonitor";
 import { PipelineStatus } from "@/components/admin/PipelineStatus";
@@ -109,6 +110,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
           <RejectionPatternAnalysis range={range} />
         </TabsContent>
         <TabsContent value="pipeline" className="space-y-4">
+          <InngestStatusControl />
           <PipelineHealthMonitor />
           <PipelineStatus />
         </TabsContent>

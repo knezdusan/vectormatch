@@ -251,6 +251,7 @@ async function runBraveSearchInternal(
         rejected: [],
         insertedCompanyIds: [],
         insertedCompanies: [],
+        aggregatorFiltered: 0,
       },
       error: error instanceof Error ? error.message : String(error),
     };

@@ -36,6 +36,9 @@ export const alertTypeEnum = pgEnum("alert_type", [
   "schema_validation_spike",
   "circuit_breaker_trip",
   "pipeline_health", // Sprint 7: pipeline health monitor alerts
+  "inngest_server_down", // Sprint 9: Inngest server unreachable or paused
+  "inngest_function_failures", // Sprint 9: Inngest function failure rate spike
+  "inngest_pipeline_stall", // Sprint 9: No jobs normalized in 4h
 ]);
 
 // ── Table ────────────────────────────────────────────────────────────────────

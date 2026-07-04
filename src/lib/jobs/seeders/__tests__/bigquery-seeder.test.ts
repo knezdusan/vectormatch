@@ -158,6 +158,7 @@ describe("processBigQueryRows — slug probe resolution", () => {
       rejected: [],
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 
@@ -315,6 +316,7 @@ describe("processBigQueryRows — edge cases", () => {
       rejected: [],
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 
@@ -364,6 +366,7 @@ describe("runBigQuerySeeder", () => {
       rejected: [],
       insertedCompanyIds: [],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 

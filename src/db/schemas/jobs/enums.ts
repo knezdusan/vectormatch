@@ -26,6 +26,28 @@ export const workplaceTypeEnum = pgEnum("workplace_type", [
   "hybrid",
   "on-site",
 ]);
+
+// Remote scope — distinguishes global remote from country-fenced remote.
+// Only meaningful when workplace_type = 'remote' (or when workplace_type is
+// null but the JD text indicates remote). Solves the schema gap where all
+// remote jobs were treated identically regardless of geographic restrictions.
+//
+// Values:
+//   global          — "Remote - Global", "work from anywhere", "distributed team"
+//   country_fenced  — "Remote - US Only", "Remote within EU", location lists
+//                     specific countries/regions that exclude some applicants
+//   unknown         — workplace_type is null or remote scope couldn't be
+//                     determined from available metadata (Gate 3 LLM will
+//                     evaluate the JD text as fallback)
+//
+// Populated at normalization time via heuristics on locationName + JD content.
+// See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.2 for the gap this
+// addresses.
+export const remoteScopeEnum = pgEnum("remote_scope", [
+  "global",
+  "country_fenced",
+  "unknown",
+]);
 export const complianceEnum = pgEnum("compliance", [
   // --- Employee / Payroll Options ---
   "w2", // US Corporate Employment

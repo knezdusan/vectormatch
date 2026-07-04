@@ -257,6 +257,7 @@ describe("runGoogleCseBatch", () => {
       rejected: [],
       insertedCompanyIds: ["id-1", "id-2"],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 
@@ -366,6 +367,7 @@ describe("runGoogleCseDaily", () => {
       rejected: [],
       insertedCompanyIds: ["id-1"],
       insertedCompanies: [],
+      aggregatorFiltered: 0,
     });
   });
 

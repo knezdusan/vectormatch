@@ -469,6 +469,13 @@ export type JobMetadata = {
   compensationMin: number | null;
   compensationMax: number | null;
   compensationCurrency: string | null;
+  // ── Remote scope (added July 2026 — zero-match fix) ──────────────────────
+  /** Distinguishes global remote from country-fenced remote.
+   *  - "global": JD/location indicates worldwide remote (no country restriction)
+   *  - "country_fenced": JD/location restricts to specific countries/regions
+   *  - "unknown": couldn't be determined (Gate 3 LLM evaluates as fallback)
+   * Only meaningful when workplaceType is "remote" or null. */
+  remoteScope: "global" | "country_fenced" | "unknown";
 };
 
 /**
@@ -515,6 +522,7 @@ export function extractJobMetadata(
     compensationMin: null,
     compensationMax: null,
     compensationCurrency: null,
+    remoteScope: "unknown",
   };
 
   if (rawJson === null) return empty;
@@ -608,7 +616,27 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
         /\bwork\s+remotely\b/i.test(content) ||
         /\bremote\s+(?:work|position|opportunity|role|job|eligible|arrangement)\b/i.test(
           content,
-        )
+        ) ||
+        // ── Expanded patterns (July 2026 zero-match fix) ──────────────────
+        // These match the global-remote indicators that Gate 3's LLM looks
+        // for. Adding them at normalization time reduces the number of jobs
+        // with null workplaceType that need LLM evaluation, improving
+        // metadata quality and reducing Gate 3 cost.
+        /\b(?:global[,\s]+remote|remote[,\s]+global)\b/i.test(content) ||
+        /\bremote[- ]first\s+(?:organization|company|team|startup)\b/i.test(
+          content,
+        ) ||
+        /\bwork\s+from\s+anywhere\b/i.test(content) ||
+        /\bwork\s+from\s+any\s+location\b/i.test(content) ||
+        /\bany\s+country\b/i.test(content) ||
+        /\bany\s+location\b/i.test(content) ||
+        /\bworldwide\b/i.test(content) ||
+        /\bdistributed\s+(?:team|workforce|company|organization)\b/i.test(
+          content,
+        ) ||
+        /\bteam\s+members\s+across\s+\d+\s+countries\b/i.test(content) ||
+        /\boperates?\s+in\s+\d+\s+countries\b/i.test(content) ||
+        /\bremote\s*[-–]\s*(?:global|worldwide|anywhere)\b/i.test(content)
       ) {
         workplaceType = "remote";
       } else if (
@@ -622,13 +650,19 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     }
   }
 
-  // Gate 0.5 Pattern 3 fix: if we STILL have null after both the location
-  // heuristic and content fallback, default to "on-site" when a location name
-  // exists. Absence of remote designation = on-site at the stated location.
-  // Only null if we truly have no location info at all.
-  if (workplaceType === null && locationName && locationName.length > 0) {
-    workplaceType = "on-site";
-  }
+  // ── Revision July 2026 (zero-match root cause fix) ──────────────────────
+  // Previously, if workplaceType was still null after both heuristics, we
+  // defaulted to "on-site" when a location name existed. This caused ~85% of
+  // Greenhouse jobs to be classified as on-site and then hard-rejected by
+  // Gate 0.5 Check 3 for remote-only applicants — producing zero matches.
+  //
+  // Now we KEEP null when undetermined. Gate 0.5 Check 3 only hard-rejects
+  // EXPLICIT on-site jobs. Jobs with null workplaceType are passed to Gate 3
+  // (LLM), which reads the full JD text to determine remote/on-site status.
+  // This trades a small increase in Gate 3 LLM cost for a large increase in
+  // recall — critical for the core "10+ daily matches" promise.
+  //
+  // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.1 for root cause.
 
   // Company name — undocumented but present in 100% of Greenhouse responses
   const companyName =
@@ -674,6 +708,11 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     compensationMin: null, // Greenhouse public API doesn't provide compensation
     compensationMax: null,
     compensationCurrency: null,
+    remoteScope: inferRemoteScope(
+      locationName,
+      typeof obj.content === "string" ? obj.content : null,
+      workplaceType,
+    ),
   };
 }
 
@@ -749,6 +788,11 @@ function extractLeverMetadata(obj: Record<string, unknown>): JobMetadata {
     compensationMin: compensation.min,
     compensationMax: compensation.max,
     compensationCurrency: compensation.currency,
+    remoteScope: inferRemoteScope(
+      locationName,
+      descPlain || descHtml,
+      workplaceType,
+    ),
   };
 }
 
@@ -824,6 +868,11 @@ function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
     compensationMin: compensation.min,
     compensationMax: compensation.max,
     compensationCurrency: compensation.currency,
+    remoteScope: inferRemoteScope(
+      locationName,
+      descPlain || descHtml,
+      workplaceType,
+    ),
   };
 }
 
@@ -901,6 +950,7 @@ function extractSmartRecruitersMetadata(
     compensationMin: null,
     compensationMax: null,
     compensationCurrency: null,
+    remoteScope: inferRemoteScope(locationName, titleStr, workplaceType),
   };
 }
 
@@ -980,6 +1030,7 @@ function extractWorkableMetadata(obj: Record<string, unknown>): JobMetadata {
     compensationMin: null,
     compensationMax: null,
     compensationCurrency: null,
+    remoteScope: inferRemoteScope(locationName, descStr, workplaceType),
   };
 }
 
@@ -1055,6 +1106,11 @@ function extractRecruiteeMetadata(obj: Record<string, unknown>): JobMetadata {
     compensationMin: null,
     compensationMax: null,
     compensationCurrency: null,
+    remoteScope: inferRemoteScope(
+      locationName,
+      `${descStr} ${reqStr}`,
+      workplaceType,
+    ),
   };
 }
 
@@ -1090,6 +1146,103 @@ const TITLE_REGION_PATTERNS: readonly { pattern: RegExp; region: string }[] = [
   },
   { pattern: /-?\s*(Canada[- ]?Only)\b/i, region: "Canada Only" },
 ];
+
+// =============================================================================
+// REMOTE SCOPE INFERENCE (July 2026 — zero-match fix)
+// =============================================================================
+
+/**
+ * Global remote indicator patterns. If the location name or job content
+ * matches any of these, the job is classified as `remote_scope = "global"`.
+ * These match the same indicators that Gate 3's LLM looks for in JD text.
+ */
+const GLOBAL_REMOTE_PATTERNS: RegExp[] = [
+  /\bremote\s*[-–]\s*(?:global|worldwide|anywhere)\b/i,
+  /\b(?:global[,\s]+remote|remote[,\s]+global)\b/i,
+  /\bremote[- ]first\s+(?:organization|company|team|startup)\b/i,
+  /\bwork\s+from\s+anywhere\b/i,
+  /\bwork\s+from\s+any\s+location\b/i,
+  /\bany\s+country\b/i,
+  /\bany\s+location\b/i,
+  /\bworldwide\b/i,
+  /\bdistributed\s+(?:team|workforce|company|organization)\b/i,
+  /\bteam\s+members\s+across\s+\d+\s+countries\b/i,
+  /\boperates?\s+in\s+\d+\s+countries\b/i,
+];
+
+/**
+ * Country-fenced remote indicator patterns. If the location name matches any
+ * of these, the job is classified as `remote_scope = "country_fenced"`.
+ * These detect remote jobs that restrict applications to specific countries
+ * or regions (e.g., "Remote - US Only", "Remote within EU").
+ */
+const COUNTRY_FENCED_REMOTE_PATTERNS: RegExp[] = [
+  /\bremote\s*[-–]\s*(?:us|usa|united\s+states|u\.s\.)\b/i,
+  /\bremote\s*[-–]\s*(?:uk|united\s+kingdom|england)\b/i,
+  /\bremote\s*[-–]\s*(?:eu|europe|european\s+union)\b/i,
+  /\bremote\s*[-–]\s*(?:germany|france|spain|italy|netherlands|poland|portugal)\b/i,
+  /\bremote\s*[-–]\s*(?:canada|australia|india|brazil|mexico|argentina|colombia)\b/i,
+  /\bremote\s*[-–]\s*(?:latam|apac|emea|balkans|eastern\s+europe)\b/i,
+  /\bremote\s+(?:within|in|only|restricted)\b/i,
+  /\bmust\s+(?:be\s+)?(?:located|reside)\s+in\b/i,
+  /\b(?:us|uk|eu)\s+only\b/i,
+  /\bnorth\s+america\s+only\b/i,
+];
+
+/**
+ * Infer the remote scope (global vs country-fenced vs unknown) from the
+ * job's location name and content text.
+ *
+ * This is a heuristic — it cannot be perfect because ATS location fields
+ * are free-text and inconsistent. When the heuristic is uncertain, it
+ * returns "unknown" and Gate 3 (LLM) will evaluate the JD text as fallback.
+ *
+ * @param locationName The raw location string from the ATS
+ * @param content The job description content (HTML or plain text), nullable
+ * @param workplaceType The detected workplace type (remote/hybrid/on-site/null)
+ * @returns "global" | "country_fenced" | "unknown"
+ */
+export function inferRemoteScope(
+  locationName: string | null,
+  content: string | null,
+  workplaceType: "remote" | "hybrid" | "on-site" | null,
+): "global" | "country_fenced" | "unknown" {
+  // Only infer scope for remote or undetermined jobs.
+  // Explicit on-site jobs don't have a "remote scope".
+  if (workplaceType === "on-site") {
+    return "unknown";
+  }
+
+  const locationText = locationName ?? "";
+  const contentText = content ?? "";
+  const combined = `${locationText} ${contentText}`;
+
+  // Check for global remote indicators first (higher priority — if the JD
+  // explicitly says "global remote", it's global even if the location field
+  // mentions a specific country, because many ATS systems set the location
+  // to a company HQ city even for global remote roles).
+  for (const pattern of GLOBAL_REMOTE_PATTERNS) {
+    if (pattern.test(combined)) {
+      return "global";
+    }
+  }
+
+  // Check for country-fenced remote indicators.
+  for (const pattern of COUNTRY_FENCED_REMOTE_PATTERNS) {
+    if (pattern.test(combined)) {
+      return "country_fenced";
+    }
+  }
+
+  // If the job is remote but location is just "Remote" (no country/region
+  // qualifier), treat it as global — a bare "Remote" location with no
+  // geographic restriction is the most inclusive interpretation.
+  if (workplaceType === "remote" && /^\s*remote\s*$/i.test(locationText)) {
+    return "global";
+  }
+
+  return "unknown";
+}
 
 /**
  * Parse a job title for a region tag suffix. Returns the matched tag string
