@@ -32,6 +32,13 @@ const EMPTY_METADATA: JobMetadata = {
   applyUrl: null,
   publishedAt: null,
   companyName: null,
+  titleRegionTag: null,
+  locationCountries: null,
+  experienceMinYears: null,
+  experienceMaxYears: null,
+  compensationMin: null,
+  compensationMax: null,
+  compensationCurrency: null,
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

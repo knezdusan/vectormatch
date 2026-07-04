@@ -17,6 +17,7 @@ vi.mock("@/db/db", () => ({
   },
 }));
 
+import { db } from "@/db/db";
 import {
   deleteExhaustedSluggerRetries,
   deleteGoneJobs,
@@ -24,6 +25,12 @@ import {
   deleteOldIngestionLogs,
   deleteOldTerminalMatches,
   deleteRejectedJobs,
+  purgeActiveFifo,
+  purgeGone,
+  purgeNormalizationFailed,
+  purgeRejected,
+  purgeStale,
+  runEmergencyPurge,
   vacuumAnalyze,
 } from "@/lib/jobs/poller/cleanup-queries";
 
@@ -122,7 +129,7 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
 
   // ── Step 1c — Normalization-failed jobs ───────────────────────────────────
   describe("deleteNormalizationFailedJobs", () => {
-    it("issues a DELETE against normalization_failed jobs older than 7 days using normalized_at", async () => {
+    it("issues a DELETE against normalization_failed jobs older than 7 days using detected_at (bugfix)", async () => {
       const { db } = await import("@/db/db");
       const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
       executeMock.mockResolvedValueOnce({ rowCount: 3 });
@@ -133,7 +140,10 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
       const sqlText = getSqlText(executeMock.mock.calls[0][0]);
       expect(sqlText).toContain("DELETE FROM job");
       expect(sqlText).toContain("'normalization_failed'");
-      expect(sqlText).toContain("normalized_at");
+      // Sprint 8 bugfix: uses detected_at, NOT normalized_at (which is never
+      // set on normalization_failed jobs per the schema contract).
+      expect(sqlText).toContain("detected_at");
+      expect(sqlText).not.toContain("normalized_at");
       expect(sqlText).toContain("7 days");
       expect(result).toEqual({ deletedCount: 3 });
     });
@@ -219,6 +229,209 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
       // Must NOT use VACUUM FULL (exclusive lock) in the weekly job
       expect(sqlText).not.toContain("VACUUM FULL");
       expect(result).toEqual({ deletedCount: 0 });
+    });
+  });
+
+  // ── Sprint 8: Emergency Storage Purge ─────────────────────────────────────
+  describe("Emergency Storage Purge — Tiered Functions", () => {
+    beforeEach(() => {
+      // Use mockReset (not clearAllMocks) to clear the mockResolvedValueOnce
+      // queue left over from the first runEmergencyPurge test. clearAllMocks
+      // only clears call history, not the one-time return value queue.
+      (db.execute as unknown as ReturnType<typeof vi.fn>).mockReset();
+    });
+
+    describe("purgeNormalizationFailed", () => {
+      it("deletes normalization_failed jobs ordered by detected_at with LIMIT", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+        executeMock.mockResolvedValueOnce({ rowCount: 500 });
+
+        const result = await purgeNormalizationFailed(1000);
+
+        const sqlText = getSqlText(executeMock.mock.calls[0][0]);
+        expect(sqlText).toContain("DELETE FROM job");
+        expect(sqlText).toContain("'normalization_failed'");
+        expect(sqlText).toContain("ORDER BY detected_at ASC");
+        expect(sqlText).toContain("LIMIT");
+        expect(result.deletedCount).toBe(500);
+        expect(result.hadRows).toBe(true);
+        expect(result.tier).toBe("normalization_failed");
+      });
+
+      it("reports hadRows=false when no rows match", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+        executeMock.mockResolvedValueOnce({ rowCount: 0 });
+
+        const result = await purgeNormalizationFailed();
+        expect(result.hadRows).toBe(false);
+        expect(result.deletedCount).toBe(0);
+      });
+    });
+
+    describe("purgeRejected", () => {
+      it("deletes rejected jobs ordered by normalized_at with LIMIT", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+        executeMock.mockResolvedValueOnce({ rowCount: 200 });
+
+        const result = await purgeRejected(500);
+
+        const sqlText = getSqlText(executeMock.mock.calls[0][0]);
+        expect(sqlText).toContain("'rejected'");
+        expect(sqlText).toContain("ORDER BY normalized_at ASC NULLS LAST");
+        expect(sqlText).toContain("LIMIT");
+        expect(result.deletedCount).toBe(200);
+        expect(result.tier).toBe("rejected");
+      });
+    });
+
+    describe("purgeGone", () => {
+      it("deletes gone jobs ordered by last_seen_at with LIMIT", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+        executeMock.mockResolvedValueOnce({ rowCount: 300 });
+
+        const result = await purgeGone();
+
+        const sqlText = getSqlText(executeMock.mock.calls[0][0]);
+        expect(sqlText).toContain("'gone'");
+        expect(sqlText).toContain("ORDER BY last_seen_at ASC");
+        expect(result.deletedCount).toBe(300);
+        expect(result.tier).toBe("gone");
+      });
+    });
+
+    describe("purgeStale", () => {
+      it("deletes stale jobs ordered by last_seen_at with LIMIT", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+        executeMock.mockResolvedValueOnce({ rowCount: 150 });
+
+        const result = await purgeStale();
+
+        const sqlText = getSqlText(executeMock.mock.calls[0][0]);
+        expect(sqlText).toContain("'stale'");
+        expect(sqlText).toContain("ORDER BY last_seen_at ASC");
+        expect(result.deletedCount).toBe(150);
+        expect(result.tier).toBe("stale");
+      });
+    });
+
+    describe("purgeActiveFifo", () => {
+      it("deletes active jobs by FIFO excluding approved matches", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+        executeMock.mockResolvedValueOnce({ rowCount: 50 });
+
+        const result = await purgeActiveFifo(100);
+
+        const sqlText = getSqlText(executeMock.mock.calls[0][0]);
+        expect(sqlText).toContain("'active'");
+        expect(sqlText).toContain("ORDER BY j.detected_at ASC");
+        // Must exclude jobs with approved matches
+        expect(sqlText).toContain("match_queue");
+        expect(sqlText).toContain("'approved'");
+        expect(sqlText).toContain("LIMIT");
+        expect(result.deletedCount).toBe(50);
+        expect(result.tier).toBe("active_fifo");
+      });
+    });
+
+    describe("runEmergencyPurge", () => {
+      it("runs tiers in order and stops when storage recovers", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+
+        // Storage check mock: starts at 460MB (90%), drops to 350MB (68%)
+        // after tier 1 deletes. This simulates recovery after tier 1.
+        let storageCalls = 0;
+        const storageCheckMb = async () => {
+          storageCalls++;
+          // Before purge: 460MB (90%)
+          // After tier 1 batch 1: still 460 (not yet vacuumed)
+          // After tier 1 batch 2 (empty): 350MB (recovered)
+          if (storageCalls <= 2) return 460;
+          return 350;
+        };
+
+        // Tier 1 batch 1: deletes 1000, batch 2: deletes 0 (tier empty)
+        executeMock
+          .mockResolvedValueOnce({ rowCount: 1000 }) // purgeNormalizationFailed batch 1
+          .mockResolvedValueOnce({ rowCount: 0 }) // purgeNormalizationFailed batch 2 (empty)
+          .mockResolvedValueOnce({}); // VACUUM ANALYZE job
+
+        const result = await runEmergencyPurge(storageCheckMb);
+
+        expect(result.totalDeleted).toBe(1000);
+        expect(result.recovered).toBe(true);
+        expect(result.tiers[0].tier).toBe("normalization_failed");
+        expect(result.tiers[0].deletedCount).toBe(1000);
+        // Should not have reached tier 2 (rejected)
+        expect(result.tiers.length).toBe(1);
+        expect(result.stopReason).toContain("recovered");
+      });
+
+      it("exhausts all tiers when storage does not recover", async () => {
+        const { db } = await import("@/db/db");
+        const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+
+        // Storage stays at 460MB (90%) — never recovers
+        const storageCheckMb = async () => 460;
+
+        // Use mockImplementation with SQL inspection to distinguish purge
+        // calls from VACUUM calls. This avoids mock queue ordering issues.
+        const purgeResults: Record<string, number[]> = {
+          normalization_failed: [100, 0],
+          rejected: [50, 0],
+          gone: [200, 0],
+          stale: [300, 0],
+          active_fifo: [500, 0],
+        };
+        const tierCallCounts: Record<string, number> = {};
+
+        executeMock.mockImplementation(async (sqlObj: unknown) => {
+          const sqlText = getSqlText(sqlObj);
+          if (sqlText.includes("VACUUM")) {
+            return {};
+          }
+          // Match tier by status string in the SQL
+          if (sqlText.includes("'normalization_failed'")) {
+            const i = tierCallCounts.normalization_failed ?? 0;
+            tierCallCounts.normalization_failed = i + 1;
+            return { rowCount: purgeResults.normalization_failed[i] ?? 0 };
+          }
+          if (sqlText.includes("'rejected'")) {
+            const i = tierCallCounts.rejected ?? 0;
+            tierCallCounts.rejected = i + 1;
+            return { rowCount: purgeResults.rejected[i] ?? 0 };
+          }
+          if (sqlText.includes("'gone'")) {
+            const i = tierCallCounts.gone ?? 0;
+            tierCallCounts.gone = i + 1;
+            return { rowCount: purgeResults.gone[i] ?? 0 };
+          }
+          if (sqlText.includes("'stale'")) {
+            const i = tierCallCounts.stale ?? 0;
+            tierCallCounts.stale = i + 1;
+            return { rowCount: purgeResults.stale[i] ?? 0 };
+          }
+          if (sqlText.includes("'active'")) {
+            const i = tierCallCounts.active_fifo ?? 0;
+            tierCallCounts.active_fifo = i + 1;
+            return { rowCount: purgeResults.active_fifo[i] ?? 0 };
+          }
+          return { rowCount: 0 };
+        });
+
+        const result = await runEmergencyPurge(storageCheckMb);
+
+        expect(result.totalDeleted).toBe(100 + 50 + 200 + 300 + 500);
+        expect(result.recovered).toBe(false);
+        expect(result.tiers.length).toBe(5);
+        expect(result.stopReason).toBe("all tiers exhausted");
+      });
     });
   });
 });

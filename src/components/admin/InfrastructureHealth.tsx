@@ -10,6 +10,7 @@
 
 import { AlertTriangle, CheckCircle, Database, HardDrive } from "lucide-react";
 
+import { EmergencyPurgeButton } from "@/components/admin/EmergencyPurgeButton";
 import { SourceToggleButton } from "@/components/admin/SourceToggleButton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,8 +62,15 @@ function statusBadge(status: string) {
 }
 
 function storageColor(percentage: number) {
-  if (percentage >= 0.94) return "text-red-500";
-  if (percentage >= 0.88) return "text-yellow-500";
+  if (percentage >= 0.88) return "text-red-500";
+  if (percentage >= 0.8) return "text-yellow-500";
+  return "text-emerald-500";
+}
+
+function backlogColor(count: number, max: number) {
+  const ratio = max > 0 ? count / max : 0;
+  if (ratio >= 1) return "text-red-500";
+  if (ratio >= 0.83) return "text-yellow-500"; // ~2,500 / 3,000
   return "text-emerald-500";
 }
 
@@ -103,11 +111,13 @@ export async function InfrastructureHealth() {
   const storageMb = infra?.storageMb ?? 0;
   const storageLimit = infra?.storageLimitMb ?? 512;
   const gate2 = infra?.gate2Threshold ?? 0;
+  const unnormalizedCount = infra?.unnormalizedCount ?? 0;
+  const maxUnnormalized = infra?.maxUnnormalized ?? 3000;
 
   return (
     <div className="space-y-4">
       {/* Key infra metrics */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -134,9 +144,9 @@ export async function InfrastructureHealth() {
                       value={Math.min(storagePct * 100, 100)}
                       className={cn(
                         "h-2",
-                        storagePct >= 0.94
+                        storagePct >= 0.88
                           ? "**:data-[slot=progress-indicator]:bg-red-500"
-                          : storagePct >= 0.88
+                          : storagePct >= 0.8
                             ? "**:data-[slot=progress-indicator]:bg-yellow-500"
                             : "**:data-[slot=progress-indicator]:bg-emerald-500",
                       )}
@@ -147,13 +157,14 @@ export async function InfrastructureHealth() {
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p>
-                    Warning at {(0.88 * 100).toFixed(0)}%, critical at{" "}
-                    {(0.94 * 100).toFixed(0)}%.
-                  </p>
+                  <p>Warning at 80%, ingestion halted at 88%.</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+            {(storagePct >= 0.8 ||
+              unnormalizedCount >= maxUnnormalized * 0.83) && (
+              <EmergencyPurgeButton storagePercentage={storagePct} />
+            )}
           </CardContent>
         </Card>
 
@@ -196,6 +207,30 @@ export async function InfrastructureHealth() {
                 after {HARD_CIRCUIT_BREAKER_THRESHOLD}.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <AlertTriangle className="size-4" />
+              <span>Normalizer Backlog</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-3xl font-bold ${backlogColor(unnormalizedCount, maxUnnormalized)}`}
+              >
+                {unnormalizedCount}
+              </span>
+              <span className="text-sm text-muted-foreground">
+                / {maxUnnormalized} jobs
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Ingestion pauses at {maxUnnormalized} unnormalized jobs.
+            </p>
           </CardContent>
         </Card>
       </div>

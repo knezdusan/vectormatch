@@ -10,9 +10,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock the storage-check module (used by getInfraStats)
 vi.mock("@/lib/jobs/storage-check", () => ({
   getDatabaseSizeMb: vi.fn().mockResolvedValue(256),
+  getIngestionBacklog: vi.fn().mockResolvedValue(42),
   STORAGE_LIMIT_MB: 512,
   STORAGE_WARNING_THRESHOLD: 0.88,
   STORAGE_CRITICAL_THRESHOLD: 0.94,
+  STORAGE_INGESTION_HALT_THRESHOLD: 0.88,
+  STORAGE_EARLY_WARNING_THRESHOLD: 0.8,
+  MAX_UNNORMALIZED_BACKLOG: 3000,
+  UNNORMALIZED_BACKLOG_ALERT_THRESHOLD: 2500,
 }));
 
 // Mock the matching-config module (used by getInfraStats)
@@ -75,12 +80,14 @@ function mockExecuteReturn(rows: unknown[]): void {
 describe("getInfraStats", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("returns storage stats and gate2 threshold", async () => {
+  it("returns storage stats, gate2 threshold, and backlog", async () => {
     const stats = await getInfraStats();
     expect(stats.storageMb).toBe(256);
     expect(stats.storageLimitMb).toBe(512);
     expect(stats.storagePercentage).toBeCloseTo(0.5, 5);
     expect(stats.gate2Threshold).toBe(0.5);
+    expect(stats.unnormalizedCount).toBe(42);
+    expect(stats.maxUnnormalized).toBe(3000);
   });
 });
 

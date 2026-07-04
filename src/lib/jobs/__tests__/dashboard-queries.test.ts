@@ -20,6 +20,12 @@ import { vi } from "vitest";
 // Mock server-only
 vi.mock("server-only", () => ({}));
 
+// Mock Next.js cache revalidation so server actions can call revalidatePath
+// without the static-generation store that is only present at runtime.
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 // Mock the db module with chainable query builders
 // Drizzle's .select().from().where().orderBy().limit().offset() returns
 // an array directly (not { rows: [] }).
@@ -68,7 +74,11 @@ vi.mock("@/lib/auth", () => ({
 // IMPORTS (after mocks)
 // =============================================================================
 
-import { markAllMatchesRead, markMatchRead } from "@/actions/matches";
+import {
+  markAllMatchesRead,
+  markMatchRead,
+  updateMatchStatus,
+} from "@/actions/matches";
 import { db } from "@/db/db";
 import { getAuthSession } from "@/lib/auth";
 import {
@@ -144,6 +154,24 @@ describe("getMatches", () => {
 
   it("accepts 'pending' status filter", async () => {
     await getMatches("user-123", "pending");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'mark_read' status filter", async () => {
+    await getMatches("user-123", "mark_read");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'mismatch' status filter", async () => {
+    await getMatches("user-123", "mismatch");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("accepts 'applied' status filter", async () => {
+    await getMatches("user-123", "applied");
 
     expect(db.select).toHaveBeenCalled();
   });
@@ -390,6 +418,65 @@ describe("markMatchRead", () => {
     ).mockResolvedValueOnce(null);
 
     const result = await markMatchRead("mq-1");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Not authenticated");
+  });
+});
+
+// =============================================================================
+// updateMatchStatus (Server Action)
+// =============================================================================
+
+describe("updateMatchStatus", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns success for an allowed user-facing status", async () => {
+    const updateMock = db.update as unknown as ReturnType<typeof vi.fn>;
+    updateMock.mockReturnValueOnce({
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn(() => [{ id: "mq-1" }]),
+        })),
+      })),
+    });
+
+    const result = await updateMatchStatus("mq-1", "mismatch");
+
+    expect(result.success).toBe(true);
+  });
+
+  it("returns error for a disallowed status", async () => {
+    const result = await updateMatchStatus("mq-1", "approved" as "mismatch");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe("Invalid status");
+  });
+
+  it("returns error when match is not found or not owned", async () => {
+    const updateMock = db.update as unknown as ReturnType<typeof vi.fn>;
+    updateMock.mockReturnValueOnce({
+      set: vi.fn(() => ({
+        where: vi.fn(() => ({
+          returning: vi.fn(() => []),
+        })),
+      })),
+    });
+
+    const result = await updateMatchStatus("mq-1", "applied");
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("not found");
+  });
+
+  it("returns error when not authenticated", async () => {
+    (
+      getAuthSession as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce(null);
+
+    const result = await updateMatchStatus("mq-1", "mark_read");
 
     expect(result.success).toBe(false);
     expect(result.error).toBe("Not authenticated");

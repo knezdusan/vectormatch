@@ -2,19 +2,21 @@
 // src/app/dashboard/jobs/page.tsx
 //
 // Server Component that fetches matches from the 3-Gate funnel and renders
-// the match list with status filter tabs. This is the primary calibration
+// the match list with a status filter dropdown. This is the primary calibration
 // interface — cosine distance, overlap score, LLM confidence, and LLM
 // reasoning are all visible on the cards.
 //
 // (MODULE_C_DECISIONS.md §8)
 
 import { redirect } from "next/navigation";
-import { MatchList, StatusFilterTabs } from "@/components/dashboard/MatchList";
+import { MatchList } from "@/components/dashboard/MatchList";
 import { getAuthSession } from "@/lib/auth";
 import {
   getMatches,
   getMatchesCount,
   getUnreadBadgeCount,
+  MATCH_STATUS_FILTERS,
+  type MatchStatusFilter,
 } from "@/lib/jobs/dashboard-queries";
 
 export const metadata = {
@@ -23,14 +25,7 @@ export const metadata = {
 };
 
 const PAGE_SIZE = 10;
-const VALID_STATUSES = [
-  "approved",
-  "rejected",
-  "stale",
-  "pending",
-  "all",
-] as const;
-type StatusFilter = (typeof VALID_STATUSES)[number];
+const VALID_STATUSES: readonly MatchStatusFilter[] = MATCH_STATUS_FILTERS;
 
 export default async function JobsPage({
   searchParams,
@@ -47,46 +42,38 @@ export default async function JobsPage({
 
   // Parse query params
   const statusParam = params.status ?? "approved";
-  const statusFilter: StatusFilter = VALID_STATUSES.includes(
-    statusParam as StatusFilter,
+  const statusFilter: MatchStatusFilter = VALID_STATUSES.includes(
+    statusParam as MatchStatusFilter,
   )
-    ? (statusParam as StatusFilter)
+    ? (statusParam as MatchStatusFilter)
     : "approved";
   const currentPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
   const offset = (currentPage - 1) * PAGE_SIZE;
 
-  // Fetch data in parallel
-  const [
-    matches,
-    totalCount,
-    unreadCount,
-    approvedCount,
-    rejectedCount,
-    staleCount,
-    pendingCount,
-    allCount,
-  ] = await Promise.all([
-    getMatches(userId, statusFilter, PAGE_SIZE, offset),
-    getMatchesCount(userId, statusFilter),
-    getUnreadBadgeCount(userId),
-    getMatchesCount(userId, "approved"),
-    getMatchesCount(userId, "rejected"),
-    getMatchesCount(userId, "stale"),
-    getMatchesCount(userId, "pending"),
-    getMatchesCount(userId, "all"),
-  ]);
+  // Fetch per-status counts for the filter dropdown.
+  const statusCountPromises = MATCH_STATUS_FILTERS.map((status) =>
+    getMatchesCount(userId, status),
+  );
 
-  const counts = {
-    approved: approvedCount,
-    rejected: rejectedCount,
-    stale: staleCount,
-    pending: pendingCount,
-    all: allCount,
-  };
+  // Fetch data in parallel
+  const [matches, totalCount, unreadCount, ...statusCounts] = await Promise.all(
+    [
+      getMatches(userId, statusFilter, PAGE_SIZE, offset),
+      getMatchesCount(userId, statusFilter),
+      getUnreadBadgeCount(userId),
+      ...statusCountPromises,
+    ],
+  );
+
+  const counts = Object.fromEntries(
+    MATCH_STATUS_FILTERS.map((status, index) => [
+      status,
+      statusCounts[index] ?? 0,
+    ]),
+  ) as Record<MatchStatusFilter, number>;
 
   return (
     <div className="flex flex-col gap-6">
-      <StatusFilterTabs current={statusFilter} counts={counts} />
       <MatchList
         matches={matches}
         totalCount={totalCount}
@@ -94,6 +81,7 @@ export default async function JobsPage({
         pageSize={PAGE_SIZE}
         statusFilter={statusFilter}
         unreadCount={unreadCount}
+        counts={counts}
       />
     </div>
   );

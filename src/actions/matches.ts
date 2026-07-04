@@ -13,6 +13,7 @@
 // (MODULE_C_DECISIONS.md §8.2)
 
 import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 import { db } from "@/db/db";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
@@ -27,33 +28,46 @@ export type MatchActionState = {
   error?: string;
 };
 
+// User-facing match statuses that can be set from the dashboard job card.
+const USER_ACTIONABLE_STATUSES = ["mark_read", "mismatch", "applied"] as const;
+type UserActionableStatus = (typeof USER_ACTIONABLE_STATUSES)[number];
+
 // =============================================================================
 // ACTIONS
 // =============================================================================
 
 /**
- * Mark a single match as read (isRead = true).
+ * Update a match to a user-facing status.
  *
- * Called when the user clicks on a match in the dashboard list. Clears the
- * unread badge for that specific match.
+ * Allowed statuses are "mark_read", "mismatch", and "applied". Setting a match
+ * to one of these statuses removes it from the default "approved" listing and
+ * makes it available through the corresponding status filter.
+ *
+ * "mark_read" also sets isRead = true so the unread badge stays consistent.
  *
  * Security: the update is scoped to both matchQueue.id AND applicant_id =
- * session.user.id — a user cannot mark another user's match as read.
+ * session.user.id — a user cannot modify another user's match.
  *
- * @param matchQueueId  The match queue row ID to mark as read
+ * @param matchQueueId  The match queue row ID to update
+ * @param status        One of the user-actionable statuses
  * @returns             { success: true } or { success: false, error: "..." }
  */
-export async function markMatchRead(
+export async function updateMatchStatus(
   matchQueueId: string,
+  status: UserActionableStatus,
 ): Promise<MatchActionState> {
   const session = await getAuthSession();
   if (!session) {
     return { success: false, error: "Not authenticated" };
   }
 
+  if (!USER_ACTIONABLE_STATUSES.includes(status)) {
+    return { success: false, error: "Invalid status" };
+  }
+
   const result = await db
     .update(matchQueue)
-    .set({ isRead: true })
+    .set(status === "mark_read" ? { status, isRead: true } : { status })
     .where(
       and(
         eq(matchQueue.id, matchQueueId),
@@ -66,7 +80,27 @@ export async function markMatchRead(
     return { success: false, error: "Match not found or not owned by user" };
   }
 
+  // Re-render the dashboard so the sidebar badge and the jobs page header
+  // reflect the updated match status immediately.
+  revalidatePath("/dashboard/jobs");
+  revalidatePath("/dashboard");
+
   return { success: true };
+}
+
+/**
+ * Mark a single match as read.
+ *
+ * Convenience wrapper around updateMatchStatus that stores the read state as
+ * the "mark_read" status and clears the unread badge.
+ *
+ * @param matchQueueId  The match queue row ID to mark as read
+ * @returns             { success: true } or { success: false, error: "..." }
+ */
+export async function markMatchRead(
+  matchQueueId: string,
+): Promise<MatchActionState> {
+  return updateMatchStatus(matchQueueId, "mark_read");
 }
 
 /**
@@ -96,6 +130,11 @@ export async function markAllMatchesRead(): Promise<
       ),
     )
     .returning({ id: matchQueue.id });
+
+  // Re-render the dashboard so the sidebar badge and the jobs page header
+  // reflect the updated unread count immediately.
+  revalidatePath("/dashboard/jobs");
+  revalidatePath("/dashboard");
 
   return { success: true, count: result.length };
 }

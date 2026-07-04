@@ -112,6 +112,10 @@
     {
       "file": "src/app/api/admin/diagnostic/openai/route.ts",
       "exports": ["OpenAIDiagnosticResponse"]
+    },
+    {
+      "file": "src/lib/jobs/storage-check.ts",
+      "exports": ["STORAGE_WARNING_THRESHOLD", "STORAGE_CRITICAL_THRESHOLD"]
     }
   ],
   "duplicates": {

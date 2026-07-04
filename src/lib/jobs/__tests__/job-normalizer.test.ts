@@ -390,13 +390,14 @@ describe("extractJobMetadata — Greenhouse", () => {
     expect(meta.workplaceType).toBe("remote");
   });
 
-  it("returns null workplaceType when location has no workplace keyword", () => {
+  it("defaults to on-site when location has no workplace keyword (Gate 0.5 Pattern 3 fix)", () => {
     const rawJson = JSON.stringify({
       title: "Engineer",
       location: { name: "New York, NY" },
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
-    expect(meta.workplaceType).toBeNull();
+    // Gate 0.5 Pattern 3: absence of remote designation = on-site at stated location
+    expect(meta.workplaceType).toBe("on-site");
   });
 
   it("detects hybrid from location string heuristic", () => {
@@ -571,17 +572,19 @@ describe("extractJobMetadata — Greenhouse", () => {
       content: "<p>Experience with remote access systems required.</p>",
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
-    expect(meta.workplaceType).toBeNull();
+    // Gate 0.5 Pattern 3: no remote keywords found → defaults to on-site
+    expect(meta.workplaceType).toBe("on-site");
   });
 
-  it("returns null when content has no workplace keywords", () => {
+  it("defaults to on-site when content has no workplace keywords (Gate 0.5 Pattern 3 fix)", () => {
     const rawJson = JSON.stringify({
       title: "Engineer",
       location: { name: "Bengaluru, India" },
       content: "<p>We are looking for a senior engineer to join our team.</p>",
     });
     const meta = extractJobMetadata("greenhouse", rawJson);
-    expect(meta.workplaceType).toBeNull();
+    // This is the CloudSEK pattern: location is stated, no remote designation
+    expect(meta.workplaceType).toBe("on-site");
   });
 
   it("location heuristic takes precedence over content fallback", () => {

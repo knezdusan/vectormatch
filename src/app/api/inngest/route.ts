@@ -48,6 +48,7 @@ import {
   dailySourceD11TechNewsRss,
   dailySourceD12NpmRegistry,
   dailySourceD13MetaAds,
+  emergencyStoragePurge,
   gate3Evaluator,
   hnAlgoliaSeeder,
   jobIngestedHandler,
@@ -65,6 +66,7 @@ import {
   sluggerRetryProcessor,
   staleCleanup,
   staleJobVerifier,
+  storageMonitor,
   tierRecalc,
   vacuumAnalyze,
 } from "@/inngest/functions";
@@ -108,6 +110,8 @@ export const { GET, POST, PUT } = serve({
     cleanupOrphanedCvUploads,
     vacuumAnalyze,
     sluggerRetryProcessor,
+    storageMonitor,
+    emergencyStoragePurge,
     // Daily source functions (TDD §2.2 — staggered cron schedule)
     // Sprint 3 Task 7: D1 replaced Google CSE with Brave Search API.
     dailySourceD1BraveSearch,

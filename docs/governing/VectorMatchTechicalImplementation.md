@@ -1822,6 +1822,38 @@ Updated `PipelineHealthMonitor.tsx` with new metric cards and alert display.
 *   **Error logging (Sprint 7, July 1 2026):** Normalization failures are now logged with `console.error` including `jobId`, `atsSource`, and the error message. Previously silently swallowed — making it impossible to diagnose OpenAI API key issues, rate limiting, or malformed SmartRecruiters detail data. The error is logged but does NOT change control flow (the job is still marked `normalization_failed` and remains retryable).
 *   **Retry sweep (Sprint 7, July 1 2026):** The `normalizationRetrySweep` Inngest function (cron `0 6 * * *`) now processes TWO categories of stuck jobs: (1) `status = 'normalization_failed'` (retryable failures), AND (2) `status = 'active' AND normalizedAt IS NULL` (never normalized — the batchPollTier timeout/retry failure mode). Limit raised from 50 to 200 jobs per run. Both categories are re-emitted as `job/ingested` events; the idempotency guard ensures safe re-processing. See §4.7.10 for full details.
 
+### 5.1.5 Step 1.5: Gate 0.5 Hard-Blocker Pre-Filter `[Status: Implemented — July 2026]`
+
+After normalization succeeds but before Gate 1+2 routing, a new hard-blocker pre-filter runs to catch jobs that are fundamentally ineligible regardless of technical match. This addresses three geo-fencing patterns discovered in production that the 3-Gate funnel could not detect:
+
+1. **Title region tags** — Companies embed regional restrictions in job titles (e.g., "Software Engineer - Latam"). The location field says "Remote" but the title geo-fences to a region excluding the applicant.
+2. **Location country lists** — Some jobs list specific allowed countries in the location field (e.g., "Mexico, Argentina, Colombia, India"). The applicant's country is not on the list.
+3. **No remote designation** — Greenhouse jobs with a location name but no remote/hybrid keywords were classified as `workplaceType = null`. In reality, absence of remote designation = on-site at the stated location.
+
+**Why scoring couldn't fix this:** The display score's 8% location weight was insufficient to suppress these false positives — a perfect technical match (55% from similarity + overlap) overwhelms the 8% location penalty. Hard blockers require hard rejection, not soft scoring penalties.
+
+**Implementation:** `src/lib/jobs/gate-zero-pre-filter.ts` — pure logic, no DB access, fully unit-testable. Five checks run in priority order:
+
+| Check | Pattern | Soft-fail-open? | Description |
+|---|---|---|---|
+| 1 | `title_region_tag` | No | Parse job title for region suffixes. Reject if region is not friendly to applicant's country. |
+| 2 | `location_country_list` | No | Check structured `locationCountries` or parse `locationName` for a country list. Reject if applicant's country is not included. |
+| 3 | `default_on_site` / `explicit_on_site` | No | If `workplaceType` is null/on-site and location doesn't mention applicant's country, reject. |
+| 4 | `compensation_mismatch` | Yes | If both job compensation and applicant expected minimum are available, reject if max < 70% of minimum. |
+| 5 | `experience_gap` / `inverted_experience_band` | Yes | If both job experience range and applicant years are available, reject if applicant is significantly overqualified. |
+
+Checks 4 and 5 are **soft-fail-open**: they only fire when both job and applicant data are available. This prevents blocking jobs just because we don't have compensation or experience data yet.
+
+**Normalizer fix (Pattern 3):** The Greenhouse `extractGreenhouseMetadata()` function was fixed — when a job has a location name but no remote/hybrid keywords are found, `workplaceType` now defaults to `'on-site'` instead of `null`. This is the correct assumption: if a job doesn't say it's remote, it isn't.
+
+**Integration:** Gate 0.5 is a new step (`gate-0-5-pre-filter`) in the `jobIngestedHandler` Inngest function, between `write-normalization` and `gate-1-2-router`. It is a **job-level** filter (not job-persona-pair) — it checks whether the job is fundamentally eligible for the applicant(s) regardless of persona. Jobs that fail are tombstoned (`status='rejected'`, `rejectionPattern` set) and never enter the matching pipeline.
+
+**Schema changes:** 8 new columns on `job` (`title_region_tag`, `location_countries`, `experience_min_years`, `experience_max_years`, `compensation_min`, `compensation_max`, `compensation_currency`, `rejection_pattern`) and 2 new columns on `applicant` (`expected_comp_min`, `years_of_experience`). See migration `0039_reflective_caretaker.sql`.
+
+**Backward compatibility:** Existing jobs have NULL for all new columns — Checks 4 and 5 are skipped (soft-fail-open). The workplace type fix only affects NEW jobs. Existing approved matches are not automatically re-evaluated. The applicant's new fields are NULL until set via onboarding/profile management — until then, Checks 4 and 5 are no-ops.
+
+**Full design document:** `docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md`
+
 ### 5.2 Step 2: Gate 1 & 2 (The SQL Router) `[Status: Implemented]`
 Run a single SQL query (`src/lib/jobs/gate-1-2.ts`, `runGateSQLRouter`) to narrow all personas down to ~8 candidates in under 20ms.
 

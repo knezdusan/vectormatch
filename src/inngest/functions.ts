@@ -352,6 +352,43 @@ export const batchPollTier = inngest.createFunction(
     const tier = cronToTier((event.data as { cron?: string }).cron ?? "");
     const startedAt = new Date();
 
+    // Sprint 8 storage guard: check storage and backlog before polling. If the
+    // database is near the Neon limit or the normalizer is behind, skip this
+    // entire poll cycle to avoid adding more unnormalized jobs.
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForIngestion } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForIngestion();
+    });
+    if (!storage.allow) {
+      console.warn(
+        `[storage guard] batchPollTier ${tier} skipped: ${storage.reason}`,
+      );
+      await step.run("write-log-storage-blocked", async () => {
+        return writeIngestionLog({
+          type: "batch_poll",
+          status: "partial",
+          source: `batch_poll_${tier}`,
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          errorMessage: storage.reason,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return {
+        tier,
+        polled: 0,
+        newJobs: 0,
+        eventsEmitted: 0,
+        storageBlocked: true,
+      };
+    }
+
     // Step 1: Get batch of companies for this tier
     const companies = await step.run("get-batch", async () => {
       const { getBatchForTier } = await import(
@@ -1383,6 +1420,161 @@ export const jobIngestedHandler = inngest.createFunction(
         jobId,
         normalizationStatus: normalization.status,
         error: normalization.error,
+        queued: 0,
+      };
+    }
+
+    // ── Step 4.5: Gate 0.5 hard-blocker pre-filter ─────────────────────────
+    // Runs after normalization succeeds but before Gate 1+2 routing. Checks
+    // for hard blockers (geo-fencing, compensation tier, experience band)
+    // that make the job fundamentally ineligible regardless of tech match.
+    // Jobs that fail are tombstoned (status='rejected') and never enter the
+    // matching pipeline — saving Gate 1+2 query cost and Gate 3 LLM cost.
+    // See docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md.
+    const preFilterResult = await step.run("gate-0-5-pre-filter", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { applicant } = await import("@/db/schemas/jobs/applicant");
+      const { eq } = await import("drizzle-orm");
+      const { runHardBlockerPreFilter } = await import(
+        "@/lib/jobs/gate-zero-pre-filter"
+      );
+
+      // Fetch the job with Gate 0.5 metadata fields
+      const jobRows = await db
+        .select({
+          title: job.title,
+          locationName: job.locationName,
+          workplaceType: job.workplaceType,
+          normalizedText: job.normalizedText,
+          titleRegionTag: job.titleRegionTag,
+          locationCountries: job.locationCountries,
+          experienceMinYears: job.experienceMinYears,
+          experienceMaxYears: job.experienceMaxYears,
+          compensationMin: job.compensationMin,
+          compensationMax: job.compensationMax,
+          compensationCurrency: job.compensationCurrency,
+        })
+        .from(job)
+        .where(eq(job.id, jobId))
+        .limit(1);
+
+      if (jobRows.length === 0) {
+        return {
+          passes: true,
+          blockers: [] as string[],
+          patternDetected: null,
+        };
+      }
+
+      // Fetch ALL applicants — Gate 0.5 is job-level, not persona-level.
+      // The job passes if it passes for at least one applicant.
+      const applicants = await db
+        .select({
+          country: applicant.country,
+          assignmentTypes: applicant.assignmentTypes,
+          preferredCompliance: applicant.preferredCompliance,
+          expectedCompMin: applicant.expectedCompMin,
+          yearsOfExperience: applicant.yearsOfExperience,
+        })
+        .from(applicant);
+
+      if (applicants.length === 0) {
+        return {
+          passes: true,
+          blockers: [] as string[],
+          patternDetected: null,
+        };
+      }
+
+      const jobRow = jobRows[0];
+
+      // Check against all applicants. If any applicant passes, the job proceeds.
+      const results = applicants.map((app) =>
+        runHardBlockerPreFilter({
+          job: {
+            title: jobRow.title,
+            locationName: jobRow.locationName,
+            workplaceType: jobRow.workplaceType as
+              | "remote"
+              | "hybrid"
+              | "on-site"
+              | null,
+            normalizedText: jobRow.normalizedText,
+            titleRegionTag: jobRow.titleRegionTag,
+            locationCountries: jobRow.locationCountries,
+            experienceMinYears: jobRow.experienceMinYears,
+            experienceMaxYears: jobRow.experienceMaxYears,
+            // numeric columns return strings — parse to numbers
+            compensationMin:
+              jobRow.compensationMin !== null
+                ? Number(jobRow.compensationMin)
+                : null,
+            compensationMax:
+              jobRow.compensationMax !== null
+                ? Number(jobRow.compensationMax)
+                : null,
+            compensationCurrency: jobRow.compensationCurrency,
+          },
+          applicant: {
+            country: app.country,
+            assignmentTypes: app.assignmentTypes ?? [],
+            preferredCompliance: app.preferredCompliance ?? [],
+            expectedCompMin:
+              app.expectedCompMin !== null ? Number(app.expectedCompMin) : null,
+            yearsOfExperience: app.yearsOfExperience,
+          },
+        }),
+      );
+
+      // If any applicant passes, the job proceeds to Gate 1+2
+      const anyPass = results.some((r) => r.passes);
+      if (anyPass) {
+        return {
+          passes: true,
+          blockers: [] as string[],
+          patternDetected: null,
+        };
+      }
+
+      // All applicants failed — tombstone the job with the first failure's info
+      const firstFailure = results.find((r) => !r.passes);
+      if (!firstFailure) {
+        // Defensive: should never happen since anyPass is false
+        return {
+          passes: true,
+          blockers: [] as string[],
+          patternDetected: null,
+        };
+      }
+
+      await db
+        .update(job)
+        .set({
+          status: "rejected",
+          rejectionPattern: firstFailure.patternDetected,
+          normalizedAt: new Date(), // Terminal state
+        })
+        .where(eq(job.id, jobId));
+
+      return {
+        passes: false,
+        blockers: firstFailure.blockers,
+        patternDetected: firstFailure.patternDetected,
+      };
+    });
+
+    if (!preFilterResult.passes) {
+      console.log(
+        `[jobIngestedHandler] Gate 0.5 rejected job ${jobId}: ` +
+          `${preFilterResult.patternDetected} — ${preFilterResult.blockers.join("; ")}`,
+      );
+      return {
+        jobId,
+        normalizationStatus: "normalized",
+        gate05Rejected: true,
+        pattern: preFilterResult.patternDetected,
+        blockers: preFilterResult.blockers,
         queued: 0,
       };
     }
@@ -3505,6 +3697,45 @@ export const dailyHealthCheck = inngest.createFunction(
   },
 );
 
+// ── Hourly Storage Monitor (Sprint 8) ───────────────────────────────────────
+// Runs every hour to catch sudden storage spikes and normalization backlogs.
+// It calls the same checkStorageAlerts logic used by the daily health check,
+// so alerts are deduplicated and emails are only sent when the state changes.
+export const storageMonitor = inngest.createFunction(
+  {
+    id: "storage-monitor",
+    name: "Hourly Storage Monitor",
+    triggers: [{ cron: "0 * * * *" }],
+  },
+  async ({ step, logger }) => {
+    const status = await step.run("check-storage-alerts", async () => {
+      const { checkStorageAlerts } = await import("@/lib/jobs/alerting");
+      await checkStorageAlerts();
+      const { isStorageSafeForIngestion } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForIngestion();
+    });
+
+    logger.info("Storage monitor completed", {
+      allow: status.allow,
+      currentMb: status.currentMb,
+      percentage: status.percentage,
+      unnormalizedCount: status.unnormalizedCount,
+      forced: status.forced,
+    });
+
+    return {
+      allow: status.allow,
+      currentMb: status.currentMb,
+      percentage: status.percentage,
+      unnormalizedCount: status.unnormalizedCount,
+      forced: status.forced,
+      reason: status.reason,
+    };
+  },
+);
+
 // ── Pipeline Health Monitor (Sprint 7 Task 6) ────────────────────────────────
 // Runs every 30 minutes to check critical pipeline parameters and create alerts
 // when thresholds are breached. This is the monitoring guardrail that prevents
@@ -3589,6 +3820,141 @@ export const pipelineHealthMonitor = inngest.createFunction(
       timestamp: new Date().toISOString(),
       ...metrics,
       alerts,
+    };
+  },
+);
+
+// ── Emergency Storage Purge (Sprint 8) ───────────────────────────────────────
+// Triggered automatically by the storage monitor when storage crosses the 88%
+// ingestion halt threshold, or manually via the admin dashboard.
+//
+// Runs a tiered purge that deletes jobs with zero matching impact first
+// (normalization_failed → rejected → gone → stale), only touching the active
+// corpus (FIFO by detected_at) as a last resort. Stops when storage drops
+// below 75%. Sends an email alert with the purge summary.
+//
+// The `purge/event` trigger allows manual invocation from the admin dashboard
+// without waiting for the cron to fire.
+export const emergencyStoragePurge = inngest.createFunction(
+  {
+    id: "emergency-storage-purge",
+    name: "Emergency Storage Purge — Tiered Job Deletion",
+    triggers: [
+      { event: "purge/emergency-storage" },
+      { cron: "*/15 * * * *" }, // check every 15 min if purge is needed
+    ],
+  },
+  async ({ event, step, logger }) => {
+    const isManualTrigger = event.name === "purge/emergency-storage";
+
+    // Step 1: Check if purge is needed (skip for manual trigger — always run)
+    const storageStatus = await step.run("check-storage", async () => {
+      const { isStorageSafeForIngestion } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForIngestion();
+    });
+
+    if (
+      !isManualTrigger &&
+      storageStatus.allow &&
+      storageStatus.percentage < 0.88
+    ) {
+      // Auto-trigger: storage is fine, no purge needed
+      return {
+        triggered: false,
+        reason: "storage below halt threshold — no purge needed",
+        currentMb: storageStatus.currentMb,
+        percentage: storageStatus.percentage,
+      };
+    }
+
+    logger.warn("Emergency storage purge triggered", {
+      manual: isManualTrigger,
+      currentMb: storageStatus.currentMb,
+      percentage: storageStatus.percentage,
+      reason: storageStatus.reason,
+    });
+
+    // Step 2: Run the tiered purge
+    const purgeResult = await step.run("run-tiered-purge", async () => {
+      const { runEmergencyPurge } = await import(
+        "@/lib/jobs/poller/cleanup-queries"
+      );
+      const { getDatabaseSizeMb } = await import("@/lib/jobs/storage-check");
+      return runEmergencyPurge(getDatabaseSizeMb);
+    });
+
+    // Step 3: Write an ingestion log entry
+    await step.run("write-log", async () => {
+      const { writeIngestionLog } = await import(
+        "@/lib/jobs/poller/ingestion-log"
+      );
+      return writeIngestionLog({
+        type: "stale_cleanup",
+        status: "success",
+        source: "emergency_storage_purge",
+        itemsProcessed: purgeResult.totalDeleted,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        errorDetails: {
+          tiers: purgeResult.tiers,
+          storageBeforeMb: purgeResult.storageBeforeMb,
+          storageAfterMb: purgeResult.storageAfterMb,
+          recovered: purgeResult.recovered,
+          stopReason: purgeResult.stopReason,
+          manualTrigger: isManualTrigger,
+        },
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      });
+    });
+
+    // Step 4: Send alert email with purge summary
+    await step.run("send-purge-alert", async () => {
+      const { sendStorageAlertEmail } = await import(
+        "@/lib/jobs/storage-alert"
+      );
+      const tierSummary = purgeResult.tiers
+        .map((t) => `${t.tier}: ${t.deletedCount}`)
+        .join(", ");
+
+      await sendStorageAlertEmail({
+        severity: purgeResult.recovered ? "warning" : "critical",
+        currentMb: purgeResult.storageAfterMb,
+        limitMb: 512,
+        percentage: purgeResult.storageAfterMb / 512,
+        unnormalizedCount: storageStatus.unnormalizedCount,
+        maxUnnormalized: storageStatus.maxUnnormalized,
+        reason: purgeResult.recovered
+          ? `Emergency purge completed — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage recovered from ${purgeResult.storageBeforeMb.toFixed(0)}MB to ${purgeResult.storageAfterMb.toFixed(0)}MB.`
+          : `Emergency purge completed but storage still above recovery threshold — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. Manual intervention required.`,
+        ingestionHalted: !purgeResult.recovered,
+      });
+      return { sent: true };
+    });
+
+    // Step 5: Resolve the storage_critical alert if recovered
+    if (purgeResult.recovered) {
+      await step.run("resolve-critical-alert", async () => {
+        const { resolveAlertsByType } = await import("@/lib/jobs/alerting");
+        return resolveAlertsByType("storage_critical");
+      });
+    }
+
+    logger.info("Emergency storage purge completed", {
+      totalDeleted: purgeResult.totalDeleted,
+      storageBeforeMb: purgeResult.storageBeforeMb,
+      storageAfterMb: purgeResult.storageAfterMb,
+      recovered: purgeResult.recovered,
+    });
+
+    return {
+      triggered: true,
+      manualTrigger: isManualTrigger,
+      ...purgeResult,
     };
   },
 );

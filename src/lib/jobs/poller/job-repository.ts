@@ -11,6 +11,7 @@
 import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
+import { isStorageSafeForIngestion } from "@/lib/jobs/storage-check";
 import type { NormalizedJob } from "./ats-adapters";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -23,6 +24,10 @@ export interface UpsertResult {
   newJobIds: string[];
   /** Jobs that already existed (updated lastSeenAt + title + rawJson). */
   updatedCount: number;
+  /** True when the storage/backlog guard prevented any writes. */
+  storageBlocked?: boolean;
+  /** Human-readable reason when storageBlocked is true. */
+  storageReason?: string;
 }
 
 // ── Upsert ───────────────────────────────────────────────────────────────────
@@ -52,6 +57,24 @@ export async function upsertJobs(
 ): Promise<UpsertResult> {
   if (jobs.length === 0) {
     return { totalUpserted: 0, newJobIds: [], updatedCount: 0 };
+  }
+
+  // Sprint 8 storage guard: pause new job ingestion when the database is near
+  // the Neon Free tier limit or when the normalizer backlog is too large. This
+  // prevents a sudden burst of job discovery from filling the DB before
+  // normalization can reclaim raw_json storage. FORCE_INGESTION=1 overrides.
+  const storage = await isStorageSafeForIngestion();
+  if (!storage.allow) {
+    console.warn(
+      `[storage guard] blocked upsert for ${atsSource}/${atsSlug}: ${storage.reason}`,
+    );
+    return {
+      totalUpserted: 0,
+      newJobIds: [],
+      updatedCount: 0,
+      storageBlocked: true,
+      storageReason: storage.reason,
+    };
   }
 
   // Check which externalJobIds already exist (to detect new jobs).
@@ -102,6 +125,21 @@ export async function upsertJobs(
         applyUrl: j.metadata.applyUrl,
         publishedAt: j.metadata.publishedAt,
         companyName: j.metadata.companyName,
+        // Gate 0.5 metadata (added July 2026)
+        titleRegionTag: j.metadata.titleRegionTag,
+        locationCountries: j.metadata.locationCountries,
+        experienceMinYears: j.metadata.experienceMinYears,
+        experienceMaxYears: j.metadata.experienceMaxYears,
+        // numeric columns expect strings — convert from number | null
+        compensationMin:
+          j.metadata.compensationMin !== null
+            ? String(j.metadata.compensationMin)
+            : null,
+        compensationMax:
+          j.metadata.compensationMax !== null
+            ? String(j.metadata.compensationMax)
+            : null,
+        compensationCurrency: j.metadata.compensationCurrency,
       })),
     )
     .onConflictDoUpdate({
@@ -133,6 +171,14 @@ export async function upsertJobs(
         applyUrl: sql`excluded.apply_url`,
         publishedAt: sql`excluded.published_at`,
         companyName: sql`excluded.company_name`,
+        // Gate 0.5 metadata refresh on re-poll
+        titleRegionTag: sql`excluded.title_region_tag`,
+        locationCountries: sql`excluded.location_countries`,
+        experienceMinYears: sql`excluded.experience_min_years`,
+        experienceMaxYears: sql`excluded.experience_max_years`,
+        compensationMin: sql`excluded.compensation_min`,
+        compensationMax: sql`excluded.compensation_max`,
+        compensationCurrency: sql`excluded.compensation_currency`,
       },
     })
     .returning({ id: job.id, externalJobId: job.externalJobId });

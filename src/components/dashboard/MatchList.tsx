@@ -1,19 +1,26 @@
 "use client";
 
-import { CheckCheck, ExternalLink, Eye } from "lucide-react";
+import { Check, CheckCheck, ExternalLink, Eye, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { markAllMatchesRead, markMatchRead } from "@/actions/matches";
+import { markAllMatchesRead, updateMatchStatus } from "@/actions/matches";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { StarRating } from "@/components/ui/star-rating";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
-import type { MatchRow } from "@/lib/jobs/dashboard-queries";
+import type { MatchRow, MatchStatusFilter } from "@/lib/jobs/dashboard-queries";
 
 // =============================================================================
 // HELPERS
@@ -33,11 +40,43 @@ function statusBadgeVariant(
     case "approved":
       return "default";
     case "rejected":
+    case "mismatch":
       return "destructive";
     case "pending":
+    case "mark_read":
       return "secondary";
+    case "applied":
+      return "outline";
+    case "stale":
+      return "outline";
     default:
       return "outline";
+  }
+}
+
+const STATUS_OPTIONS: { value: MatchStatusFilter; label: string }[] = [
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "stale", label: "Closed" },
+  { value: "pending", label: "Pending" },
+  { value: "mark_read", label: "Read" },
+  { value: "mismatch", label: "Mismatch" },
+  { value: "applied", label: "Applied" },
+  { value: "all", label: "All statuses" },
+];
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case "mark_read":
+      return "Read";
+    case "mismatch":
+      return "Mismatch";
+    case "applied":
+      return "Applied";
+    case "stale":
+      return "Closed";
+    default:
+      return status;
   }
 }
 
@@ -89,18 +128,29 @@ function prepareDescriptionExcerpt(
 
 function MatchCard({ match }: { match: MatchRow }) {
   const router = useRouter();
-  const [marking, setMarking] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    "read" | "mismatch" | "applied" | null
+  >(null);
 
-  async function handleMarkRead(e: React.MouseEvent) {
+  async function handleAction(
+    action: "read" | "mismatch" | "applied",
+    e: React.MouseEvent,
+  ) {
     e.preventDefault();
     e.stopPropagation();
-    setMarking(true);
-    const result = await markMatchRead(match.matchQueueId);
-    setMarking(false);
+    setPendingAction(action);
+    const result =
+      action === "read"
+        ? await updateMatchStatus(match.matchQueueId, "mark_read")
+        : await updateMatchStatus(
+            match.matchQueueId,
+            action === "mismatch" ? "mismatch" : "applied",
+          );
+    setPendingAction(null);
     if (result.success) {
       router.refresh();
     } else {
-      toast.error(result.error ?? "Failed to mark as read");
+      toast.error(result.error ?? "Failed to update match");
     }
   }
 
@@ -133,7 +183,7 @@ function MatchCard({ match }: { match: MatchRow }) {
             <div className="flex shrink-0 items-center gap-2">
               <StarRating score={match.matchScore} />
               <Badge variant={statusBadgeVariant(match.status)}>
-                {match.status}
+                {statusLabel(match.status)}
               </Badge>
             </div>
           </div>
@@ -218,23 +268,59 @@ function MatchCard({ match }: { match: MatchRow }) {
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
-            {!match.isRead && match.status === "approved" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleMarkRead}
-                disabled={marking}
-                className="h-7 text-xs"
-              >
-                {marking ? (
-                  <Spinner className="size-3" />
-                ) : (
-                  <>
-                    <Eye className="size-3" />
-                    Mark read
-                  </>
+            {match.status === "approved" && (
+              <>
+                {!match.isRead && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => handleAction("read", e)}
+                    disabled={pendingAction !== null}
+                    className="h-7 text-xs"
+                  >
+                    {pendingAction === "read" ? (
+                      <Spinner className="size-3" />
+                    ) : (
+                      <>
+                        <Eye className="size-3" />
+                        Mark read
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleAction("mismatch", e)}
+                  disabled={pendingAction !== null}
+                  className="h-7 text-xs"
+                >
+                  {pendingAction === "mismatch" ? (
+                    <Spinner className="size-3" />
+                  ) : (
+                    <>
+                      <X className="size-3" />
+                      Mismatch
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => handleAction("applied", e)}
+                  disabled={pendingAction !== null}
+                  className="h-7 text-xs"
+                >
+                  {pendingAction === "applied" ? (
+                    <Spinner className="size-3" />
+                  ) : (
+                    <>
+                      <Check className="size-3" />
+                      Applied
+                    </>
+                  )}
+                </Button>
+              </>
             )}
             <span className="ml-auto text-xs text-muted-foreground group-hover:text-primary">
               View details →
@@ -255,8 +341,9 @@ interface MatchListProps {
   totalCount: number;
   currentPage: number;
   pageSize: number;
-  statusFilter: "approved" | "rejected" | "stale" | "pending" | "all";
+  statusFilter: MatchStatusFilter;
   unreadCount: number;
+  counts: Record<MatchStatusFilter, number>;
 }
 
 export function MatchList({
@@ -266,6 +353,7 @@ export function MatchList({
   pageSize,
   statusFilter,
   unreadCount,
+  counts,
 }: MatchListProps) {
   const router = useRouter();
   const [markingAll, setMarkingAll] = useState(false);
@@ -308,23 +396,26 @@ export function MatchList({
             {unreadCount > 0 && ` · ${unreadCount} unread`}
           </p>
         </div>
-        {showMarkAllRead && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleMarkAllRead}
-            disabled={markingAll}
-          >
-            {markingAll ? (
-              <Spinner className="size-4" />
-            ) : (
-              <>
-                <CheckCheck className="size-4" />
-                Mark all read
-              </>
-            )}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <StatusFilterSelect current={statusFilter} counts={counts} />
+          {showMarkAllRead && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+            >
+              {markingAll ? (
+                <Spinner className="size-4" />
+              ) : (
+                <>
+                  <CheckCheck className="size-4" />
+                  Mark all read
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Empty state */}
@@ -340,7 +431,7 @@ export function MatchList({
                 ? "When the 3-Gate funnel finds jobs matching your personas, they'll appear here."
                 : statusFilter === "stale"
                   ? "No jobs were closed in the last 24 hours."
-                  : `No ${statusFilter} matches found. Try a different filter.`}
+                  : `No ${statusLabel(statusFilter).toLowerCase()} matches found. Try a different filter.`}
             </p>
           </div>
           <Link href="/dashboard/profile-management">
@@ -389,27 +480,22 @@ export function MatchList({
 }
 
 // =============================================================================
-// STATUS FILTER TABS
+// STATUS FILTER SELECT
 // =============================================================================
 
-const STATUS_TABS = [
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
-  { value: "stale", label: "Closed" },
-  { value: "pending", label: "Pending" },
-  { value: "all", label: "All" },
-] as const;
-
-export function StatusFilterTabs({
+function StatusFilterSelect({
   current,
   counts,
 }: {
-  current: string;
-  counts: Record<string, number>;
+  current: MatchStatusFilter;
+  counts: Record<MatchStatusFilter, number>;
 }) {
   const router = useRouter();
+  const currentOption = STATUS_OPTIONS.find(
+    (option) => option.value === current,
+  );
 
-  function handleTabChange(value: string) {
+  function handleChange(value: string) {
     const params = new URLSearchParams();
     params.set("status", value);
     params.set("page", "1");
@@ -417,33 +503,24 @@ export function StatusFilterTabs({
   }
 
   return (
-    <div className="flex items-center gap-1 border-b border-border pb-px">
-      {STATUS_TABS.map((tab) => {
-        const isActive = current === tab.value;
-        const count = counts[tab.value] ?? 0;
-        return (
-          <button
-            key={tab.value}
-            type="button"
-            onClick={() => handleTabChange(tab.value)}
-            className={`relative px-3 py-2 text-sm font-medium transition-colors ${
-              isActive
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {count > 0 && (
+    <Select value={current} onValueChange={handleChange}>
+      <SelectTrigger size="sm" className="w-44">
+        <SelectValue>
+          {currentOption?.label ?? statusLabel(current)}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {STATUS_OPTIONS.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+            {counts[option.value] > 0 && (
               <span className="ml-1.5 text-xs text-muted-foreground">
-                ({count})
+                ({counts[option.value]})
               </span>
             )}
-            {isActive && (
-              <span className="absolute -bottom-px left-0 right-0 h-0.5 bg-primary" />
-            )}
-          </button>
-        );
-      })}
-    </div>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

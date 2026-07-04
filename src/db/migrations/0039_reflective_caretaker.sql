@@ -1,0 +1,11 @@
+ALTER TABLE "applicant" ADD COLUMN "expected_comp_min" numeric;--> statement-breakpoint
+ALTER TABLE "applicant" ADD COLUMN "years_of_experience" integer;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "title_region_tag" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "location_countries" text[];--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "experience_min_years" integer;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "experience_max_years" integer;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "compensation_min" numeric;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "compensation_max" numeric;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "compensation_currency" text;--> statement-breakpoint
+ALTER TABLE "job" ADD COLUMN "rejection_pattern" text;--> statement-breakpoint
+CREATE INDEX "job_title_region_tag_idx" ON "job" USING btree ("title_region_tag");

@@ -27,6 +27,15 @@ vi.mock("@/lib/jobs/storage-check", () => ({
     currentMb: 145,
     limitMb: 450,
   }),
+  getDatabaseSizeMb: vi.fn().mockResolvedValue(145),
+  getIngestionBacklog: vi.fn().mockResolvedValue(0),
+  STORAGE_LIMIT_MB: 512,
+  STORAGE_WARNING_THRESHOLD: 0.88,
+  STORAGE_CRITICAL_THRESHOLD: 0.94,
+  STORAGE_INGESTION_HALT_THRESHOLD: 0.88,
+  STORAGE_EARLY_WARNING_THRESHOLD: 0.8,
+  MAX_UNNORMALIZED_BACKLOG: 3000,
+  UNNORMALIZED_BACKLOG_ALERT_THRESHOLD: 2500,
 }));
 
 vi.mock("@/lib/jobs/poller/ingestion-log", () => ({

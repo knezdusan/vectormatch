@@ -662,3 +662,69 @@ Module C is implemented as 7 isolated features, each independently shippable and
 5. **`defer()` and checkpointing migration:** When Inngest stabilizes `defer()` (no longer EXPERIMENTAL) and checkpointing (no longer developer preview), revisit both as a paired item. Migrate the `match/approved` emission from `step.sendEvent()` to `defer()` for fire-and-forget semantics with independent retries. Enable checkpointing on `gate3Evaluator` if the inter-step latency win is measurable.
 6. **Gate 3 error recovery sweep:** The Gate 3 error path (§6.5) leaves `matchQueue` rows at `status = 'pending'` with `llmVerdict = 'error'` when the LLM returns unparseable output or all retries exhaust. These rows are recoverable only by a future sweep that re-emits `match/gate-3-evaluate` for `pending` rows older than N hours. This sweep does not exist in MVP — it's acceptable because error rows are rare (LLM parse failures are uncommon with `generateObject` + Zod enforcement), but the sweep should be built before scale to prevent error rows from accumulating invisibly.
 7. **Experience gap signal:** Jobs rejected for requiring more years of experience than the persona has (e.g., "8+ years" vs. persona inferred at "7+ years") still score high because the formula has no experience component. Post-MVP: extract `min_experience_years` from job descriptions via regex or LLM, compare to persona-inferred experience, and add a negative signal.
+
+---
+
+## 16. Gate 0.5 — Hard-Blocker Pre-Filter (added July 2026)
+
+**Status:** Implemented
+**Date:** July 2026
+**Reference:** `docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md`
+
+### 16.1 Problem
+
+Three production jobs were identified that should have been hard-rejected but instead ranked in the top 3 of the approved dashboard. Analysis revealed three distinct geo-fencing patterns that the existing 3-gate pipeline cannot detect:
+
+1. **Title region tags**: Companies embed regional restrictions in job titles (e.g., "Software Engineer - Latam"). The location field says "Remote" but the title geo-fences to a region excluding the applicant.
+2. **Location country lists**: Some jobs list specific allowed countries in the location field (e.g., "Mexico, Argentina, Colombia, India"). The applicant's country is not on the list.
+3. **No remote designation**: Greenhouse jobs with a location name but no remote/hybrid keywords were classified as `workplaceType = null` (treated as neutral). In reality, absence of remote designation = on-site at the stated location.
+
+The display score's 8% location weight was insufficient to suppress these false positives — a perfect technical match (55% from similarity + overlap) overwhelms the 8% location penalty. Scoring cannot fix hard blockers.
+
+### 16.2 Solution
+
+A new **Gate 0.5** hard-blocker pre-filter runs after normalization succeeds but before Gate 1+2 routing. Jobs that fail Gate 0.5 are tombstoned (`status='rejected'`) and never enter the matching pipeline — saving Gate 1+2 query cost and Gate 3 LLM cost.
+
+### 16.3 Five Checks
+
+| Check | Pattern | Soft-fail-open? | Description |
+|---|---|---|---|
+| 1 | `title_region_tag` | No | Parse job title for region suffixes ("- Latam", "- APAC", "- EMEA"). Reject if the region is not friendly to the applicant's country. |
+| 2 | `location_country_list` | No | Check structured `locationCountries` array or parse `locationName` for a comma-separated country list. Reject if applicant's country is not included. |
+| 3 | `default_on_site` / `explicit_on_site` | No | If `workplaceType` is null or on-site and the location doesn't mention the applicant's country, reject. |
+| 4 | `compensation_mismatch` | Yes | If `compensationMax` and `applicant.expectedCompMin` are both available, reject if max < 70% of minimum. Monthly figures are normalized to annual. |
+| 5 | `experience_gap` / `inverted_experience_band` | Yes | If `experienceMaxYears` and `applicant.yearsOfExperience` are both available, reject if applicant is significantly overqualified or the band is inverted. |
+
+Checks 4 and 5 are **soft-fail-open**: they only fire when both job and applicant data are available. If either side is missing data, the check is skipped. This prevents blocking jobs just because we don't have compensation or experience data yet.
+
+### 16.4 Schema Changes
+
+**`job` table** — 8 new columns:
+- `title_region_tag` (text) — parsed region tag from title
+- `location_countries` (text[]) — structured country list from ATS
+- `experience_min_years`, `experience_max_years` (integer) — parsed from description
+- `compensation_min`, `compensation_max` (numeric) — from ATS API
+- `compensation_currency` (text) — USD, EUR, etc.
+- `rejection_pattern` (text) — which Gate 0.5 pattern triggered rejection
+
+**`applicant` table** — 2 new columns:
+- `expected_comp_min` (numeric) — minimum acceptable annual USD
+- `years_of_experience` (integer) — total years of professional experience
+
+### 16.5 Normalizer Fix (Pattern 3)
+
+The Greenhouse `extractGreenhouseMetadata()` function was fixed: when a job has a location name but no remote/hybrid keywords are found (in either the location name or the content fallback), `workplaceType` now defaults to `'on-site'` instead of `null`. This is the correct assumption — if a job doesn't say it's remote, it isn't.
+
+### 16.6 Integration Point
+
+Gate 0.5 is inserted as a new step (`gate-0-5-pre-filter`) in the `jobIngestedHandler` Inngest function, between the `write-normalization` step and the `gate-1-2-router` step. It is a **job-level** filter (not job-persona-pair) — it checks whether the job is fundamentally eligible for the applicant(s) regardless of persona.
+
+### 16.7 Backward Compatibility
+
+- Existing jobs have NULL for all new columns — Checks 4 and 5 are skipped (soft-fail-open).
+- The workplace type fix (Pattern 3) only affects NEW jobs going through the pipeline. Existing approved matches are not automatically re-evaluated.
+- The applicant's new fields (`expectedCompMin`, `yearsOfExperience`) are NULL until the user sets them via onboarding/profile management. Until then, Checks 4 and 5 are no-ops.
+
+### 16.8 Resolution of Open Question #7
+
+This implementation directly resolves Open Question #7 ("Experience gap signal") from §15. The experience band check (Check 5) extracts `experienceMinYears` and `experienceMaxYears` from job descriptions during normalization and compares them against the applicant's `yearsOfExperience`. The inverted band detection also catches the Reacher pattern (2-6 years + "senior ownership expected" = cost-optimization red flag).

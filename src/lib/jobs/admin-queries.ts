@@ -22,7 +22,12 @@ import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { sourceHealth } from "@/db/schemas/jobs/sourceHealth";
 import { GATE2_MAX_COSINE_DISTANCE } from "@/lib/jobs/matching-config";
-import { getDatabaseSizeMb, STORAGE_LIMIT_MB } from "@/lib/jobs/storage-check";
+import {
+  getDatabaseSizeMb,
+  getIngestionBacklog,
+  MAX_UNNORMALIZED_BACKLOG,
+  STORAGE_LIMIT_MB,
+} from "@/lib/jobs/storage-check";
 
 // =============================================================================
 // TYPES
@@ -33,6 +38,8 @@ export interface InfraStats {
   storageLimitMb: number;
   storagePercentage: number;
   gate2Threshold: number;
+  unnormalizedCount: number;
+  maxUnnormalized: number;
 }
 
 export interface SourceHealthStats {
@@ -130,12 +137,17 @@ export async function getAllSourceHealth(): Promise<SourceHealthStats[]> {
  * storage limit, usage percentage, and the current Gate 2 threshold.
  */
 export async function getInfraStats(): Promise<InfraStats> {
-  const storageMb = await getDatabaseSizeMb();
+  const [storageMb, unnormalizedCount] = await Promise.all([
+    getDatabaseSizeMb(),
+    getIngestionBacklog(),
+  ]);
   return {
     storageMb,
     storageLimitMb: STORAGE_LIMIT_MB,
     storagePercentage: storageMb / STORAGE_LIMIT_MB,
     gate2Threshold: GATE2_MAX_COSINE_DISTANCE,
+    unnormalizedCount,
+    maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,
   };
 }
 

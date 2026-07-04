@@ -31,6 +31,18 @@ import { persona } from "@/db/schemas/jobs/persona";
 // TYPES
 // =============================================================================
 
+export const MATCH_STATUS_FILTERS = [
+  "approved",
+  "rejected",
+  "stale",
+  "pending",
+  "mark_read",
+  "mismatch",
+  "applied",
+  "all",
+] as const;
+export type MatchStatusFilter = (typeof MATCH_STATUS_FILTERS)[number];
+
 /** A match row joined with job + persona data for the dashboard list. */
 export type MatchRow = {
   matchQueueId: string;
@@ -104,7 +116,7 @@ export type MatchDetail = {
  */
 export async function getMatches(
   userId: string,
-  status: "approved" | "rejected" | "pending" | "stale" | "all" = "approved",
+  status: MatchStatusFilter = "approved",
   limit = 20,
   offset = 0,
 ): Promise<MatchRow[]> {
@@ -306,7 +318,7 @@ export async function getApprovedMatches(
  */
 export async function getMatchesCount(
   userId: string,
-  status: "approved" | "rejected" | "pending" | "stale" | "all" = "approved",
+  status: MatchStatusFilter = "approved",
 ): Promise<number> {
   const staleCutoff = new Date();
   staleCutoff.setDate(staleCutoff.getDate() - 1);

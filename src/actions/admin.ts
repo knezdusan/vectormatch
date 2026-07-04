@@ -130,3 +130,28 @@ export async function triggerBulkReprocessAction(
     return { success: false, error: e instanceof Error ? e.message : "Failed" };
   }
 }
+
+// ── Sprint 8: Emergency Storage Purge ────────────────────────────────────────
+
+/**
+ * Manually trigger the emergency storage purge from the admin dashboard.
+ * Sends a `purge/emergency-storage` event to Inngest, which runs the tiered
+ * purge (normalization_failed → rejected → gone → stale → active FIFO) until
+ * storage drops below 75%.
+ *
+ * This bypasses the auto-trigger check — the purge runs unconditionally.
+ */
+export async function triggerEmergencyPurgeAction(): Promise<AdminActionState> {
+  await requireRole("admin");
+  try {
+    await inngest.send({
+      id: `purge-emergency-storage-admin-${Date.now()}`,
+      name: "purge/emergency-storage",
+      data: { triggeredBy: "admin-dashboard" },
+    });
+    revalidatePath("/dashboard/admin");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed" };
+  }
+}

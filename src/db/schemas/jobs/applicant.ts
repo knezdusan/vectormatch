@@ -1,5 +1,12 @@
 import { sql } from "drizzle-orm";
-import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  integer,
+  numeric,
+  pgTable,
+  text,
+  timestamp,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import type { z } from "zod";
 
@@ -34,6 +41,15 @@ export const applicant = pgTable("applicant", {
 
   // The global knowledge base for Gate 3 LLM evaluation
   allTags: text("all_tags").array().notNull().default(sql`'{}'::text[]`),
+
+  // ── Gate 0.5 hard-blocker preferences (added July 2026) ──────────────────
+  // Minimum acceptable annual compensation in USD. NULL until the user sets
+  // it via onboarding/profile management. When NULL, the compensation check
+  // in Gate 0.5 is skipped (soft-fail-open). See GATE_0_5_GEO_FENCING_HANDOFF.md.
+  expectedCompMin: numeric("expected_comp_min"),
+  // Total years of professional experience. NULL until the user sets it.
+  // When NULL, the experience band check in Gate 0.5 is skipped.
+  yearsOfExperience: integer("years_of_experience"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")

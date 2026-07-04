@@ -18,9 +18,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // Mock the storage-check module
 vi.mock("@/lib/jobs/storage-check", () => ({
   getDatabaseSizeMb: vi.fn().mockResolvedValue(200),
+  getIngestionBacklog: vi.fn().mockResolvedValue(0),
   STORAGE_LIMIT_MB: 512,
   STORAGE_WARNING_THRESHOLD: 0.88,
   STORAGE_CRITICAL_THRESHOLD: 0.94,
+  STORAGE_INGESTION_HALT_THRESHOLD: 0.88,
+  STORAGE_EARLY_WARNING_THRESHOLD: 0.8,
+  MAX_UNNORMALIZED_BACKLOG: 3000,
+  UNNORMALIZED_BACKLOG_ALERT_THRESHOLD: 2500,
+}));
+
+// Mock the storage-alert emailer so tests never hit Resend
+vi.mock("@/lib/jobs/storage-alert", () => ({
+  sendStorageAlertEmail: vi.fn().mockResolvedValue(true),
 }));
 
 // Mock the db module
@@ -45,7 +55,11 @@ import {
   resolveAlertsByType,
   resolveAllAlerts,
 } from "@/lib/jobs/alerting";
-import { getDatabaseSizeMb } from "@/lib/jobs/storage-check";
+import { sendStorageAlertEmail } from "@/lib/jobs/storage-alert";
+import {
+  getDatabaseSizeMb,
+  getIngestionBacklog,
+} from "@/lib/jobs/storage-check";
 
 // ── Mock helpers ─────────────────────────────────────────────────────────────
 
@@ -192,10 +206,13 @@ describe("getActiveAlerts", () => {
 // ── checkStorageAlerts ───────────────────────────────────────────────────────
 
 describe("checkStorageAlerts", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getIngestionBacklog).mockResolvedValue(0);
+  });
 
-  it("creates a critical alert when storage exceeds critical threshold", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(490); // 490/512 = 95.7%
+  it("creates a critical alert when storage exceeds ingestion halt threshold", async () => {
+    vi.mocked(getDatabaseSizeMb).mockResolvedValue(460); // 460/512 = 89.8%
     // hasActiveAlert returns false (no existing alert)
     mockSelectChain([]);
     mockInsertReturning([{ id: "uuid-1", status: "active" }]);
@@ -203,19 +220,45 @@ describe("checkStorageAlerts", () => {
     await checkStorageAlerts();
 
     expect(db.insert).toHaveBeenCalled();
+    expect(sendStorageAlertEmail).toHaveBeenCalled();
   });
 
-  it("creates a warning alert when storage exceeds warning threshold", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(460); // 460/512 = 89.8%
+  it("creates a warning alert when storage exceeds early warning threshold", async () => {
+    vi.mocked(getDatabaseSizeMb).mockResolvedValue(410); // 410/512 = 80.1%
     mockSelectChain([]);
     mockInsertReturning([{ id: "uuid-2", status: "active" }]);
 
     await checkStorageAlerts();
 
     expect(db.insert).toHaveBeenCalled();
+    expect(sendStorageAlertEmail).toHaveBeenCalled();
   });
 
-  it("resolves storage alerts when storage is healthy", async () => {
+  it("creates a critical alert when the unnormalized backlog exceeds the limit", async () => {
+    vi.mocked(getDatabaseSizeMb).mockResolvedValue(200);
+    vi.mocked(getIngestionBacklog).mockResolvedValue(3001);
+    mockSelectChain([]);
+    mockInsertReturning([{ id: "uuid-3", status: "active" }]);
+
+    await checkStorageAlerts();
+
+    expect(db.insert).toHaveBeenCalled();
+    expect(sendStorageAlertEmail).toHaveBeenCalled();
+  });
+
+  it("creates a warning alert when the unnormalized backlog is near the limit", async () => {
+    vi.mocked(getDatabaseSizeMb).mockResolvedValue(200);
+    vi.mocked(getIngestionBacklog).mockResolvedValue(2500);
+    mockSelectChain([]);
+    mockInsertReturning([{ id: "uuid-4", status: "active" }]);
+
+    await checkStorageAlerts();
+
+    expect(db.insert).toHaveBeenCalled();
+    expect(sendStorageAlertEmail).toHaveBeenCalled();
+  });
+
+  it("resolves storage alerts when storage and backlog are healthy", async () => {
     vi.mocked(getDatabaseSizeMb).mockResolvedValue(200); // 200/512 = 39%
     mockUpdateChain([{ id: "uuid-1" }]);
 
@@ -224,16 +267,19 @@ describe("checkStorageAlerts", () => {
     expect(db.update).toHaveBeenCalled();
     // Should NOT insert any new alerts
     expect(db.insert).not.toHaveBeenCalled();
+    expect(sendStorageAlertEmail).not.toHaveBeenCalled();
   });
 
   it("does not create duplicate alerts when one already exists", async () => {
-    vi.mocked(getDatabaseSizeMb).mockResolvedValue(490); // critical
+    vi.mocked(getDatabaseSizeMb).mockResolvedValue(460); // critical
     // hasActiveAlert returns true (existing alert)
     mockSelectChain([{ id: "existing-alert" }]);
 
     await checkStorageAlerts();
 
     expect(db.insert).not.toHaveBeenCalled();
+    // Email should still not be sent for deduplicated alerts
+    expect(sendStorageAlertEmail).not.toHaveBeenCalled();
   });
 });
 

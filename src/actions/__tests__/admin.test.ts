@@ -26,6 +26,7 @@ const {
   mockResolveAlert,
   mockResolveAllAlerts,
   mockRevalidatePath,
+  mockInngestSend,
 } = vi.hoisted(() => ({
   mockRequireRole: vi.fn(),
   mockDisableSource: vi.fn(),
@@ -33,6 +34,7 @@ const {
   mockResolveAlert: vi.fn(),
   mockResolveAllAlerts: vi.fn(),
   mockRevalidatePath: vi.fn(),
+  mockInngestSend: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -56,11 +58,18 @@ vi.mock("next/cache", () => ({
   revalidatePath: (path: string) => mockRevalidatePath(path),
 }));
 
+vi.mock("@/inngest/client", () => ({
+  inngest: {
+    send: (event: unknown) => mockInngestSend(event),
+  },
+}));
+
 import {
   disableSourceAction,
   enableSourceAction,
   resolveAlertAction,
   resolveAllAlertsAction,
+  triggerEmergencyPurgeAction,
 } from "@/actions/admin";
 
 // --- Helpers ---
@@ -95,6 +104,7 @@ describe("admin Server Actions", () => {
     mockEnableSource.mockResolvedValue(undefined);
     mockResolveAlert.mockResolvedValue(undefined);
     mockResolveAllAlerts.mockResolvedValue(3);
+    mockInngestSend.mockResolvedValue({ ids: ["event-1"] });
   });
 
   // ── disableSourceAction ───────────────────────────────────────────────────
@@ -244,6 +254,42 @@ describe("admin Server Actions", () => {
     it("throws when user is not admin", async () => {
       mockNonAdminAuth();
       await expect(resolveAllAlertsAction()).rejects.toThrow("NEXT_REDIRECT");
+    });
+  });
+
+  // ── triggerEmergencyPurgeAction (Sprint 8) ──────────────────────────────────
+
+  describe("triggerEmergencyPurgeAction", () => {
+    it("calls requireRole with admin", async () => {
+      await triggerEmergencyPurgeAction();
+      expect(mockRequireRole).toHaveBeenCalledWith("admin", undefined);
+    });
+
+    it("sends purge/emergency-storage event and revalidates", async () => {
+      const result = await triggerEmergencyPurgeAction();
+      expect(mockInngestSend).toHaveBeenCalledTimes(1);
+      const event = mockInngestSend.mock.calls[0][0] as {
+        name: string;
+        data: Record<string, unknown>;
+      };
+      expect(event.name).toBe("purge/emergency-storage");
+      expect(event.data.triggeredBy).toBe("admin-dashboard");
+      expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/admin");
+      expect(result).toEqual({ success: true });
+    });
+
+    it("returns error when inngest.send throws", async () => {
+      mockInngestSend.mockRejectedValue(new Error("Inngest unavailable"));
+      const result = await triggerEmergencyPurgeAction();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Inngest unavailable");
+    });
+
+    it("throws when user is not admin", async () => {
+      mockNonAdminAuth();
+      await expect(triggerEmergencyPurgeAction()).rejects.toThrow(
+        "NEXT_REDIRECT",
+      );
     });
   });
 });

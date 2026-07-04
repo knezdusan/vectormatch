@@ -434,8 +434,9 @@ export function extractJobUrl(
 /** The standardized metadata extracted from rawJson, independent of ATS source. */
 export type JobMetadata = {
   /** Normalized to "remote" | "hybrid" | "on-site" | null.
-   *  NULL when the ATS doesn't provide it (notably Greenhouse) or it can't be
-   *  determined. The matching pipeline lets NULL through to Gate 3 LLM. */
+   *  NULL only when the ATS provides no workplace designation AND no location
+   *  name (truly unknown). When a location name exists but no remote/hybrid
+   *  keywords are found, defaults to "on-site" (Gate 0.5 Pattern 3 fix). */
   workplaceType: "remote" | "hybrid" | "on-site" | null;
   /** Normalized to "full-time" | "part-time" | "contract" | "internship" | null.
    *  NULL when the ATS doesn't provide it. */
@@ -452,6 +453,22 @@ export type JobMetadata = {
   publishedAt: Date | null;
   /** Company name (Greenhouse only — Lever/Ashby don't include it in the job object). */
   companyName: string | null;
+  // ── Gate 0.5 hard-blocker fields (added July 2026) ──────────────────────
+  /** Region tag parsed from the job title (e.g., "- Latam", "- APAC"). NULL
+   *  when the title has no region suffix. Drives Gate 0.5 Pattern 1. */
+  titleRegionTag: string | null;
+  /** Structured country list from ATS APIs (Ashby). NULL when not available —
+   *  Gate 0.5 falls back to locationName parsing. Drives Pattern 2. */
+  locationCountries: string[] | null;
+  /** Experience range parsed from the job description. NULL when no explicit
+   *  years requirement is found. Drives Gate 0.5 Check 5. */
+  experienceMinYears: number | null;
+  experienceMaxYears: number | null;
+  /** Compensation range from ATS APIs (Ashby compensation, Lever salaryRange).
+   *  NULL when the ATS doesn't provide it. Drives Gate 0.5 Check 4. */
+  compensationMin: number | null;
+  compensationMax: number | null;
+  compensationCurrency: string | null;
 };
 
 /**
@@ -491,6 +508,13 @@ export function extractJobMetadata(
     applyUrl: null,
     publishedAt: null,
     companyName: null,
+    titleRegionTag: null,
+    locationCountries: null,
+    experienceMinYears: null,
+    experienceMaxYears: null,
+    compensationMin: null,
+    compensationMax: null,
+    compensationCurrency: null,
   };
 
   if (rawJson === null) return empty;
@@ -546,6 +570,12 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     }
   }
 
+  // Gate 0.5 Pattern 3 fix: when a Greenhouse job has a location name but no
+  // remote/hybrid keywords were found, default to "on-site" rather than null.
+  // This catches jobs like "Bengaluru, Karnataka, India" that are on-site but
+  // don't explicitly say so. The content fallback below may still override
+  // this if it finds explicit remote/hybrid language in the description.
+
   // Fallback: scan the job description content for workplace-type phrases.
   // Greenhouse has no structured workplace field, so 84.9% of jobs had NULL
   // workplace_type with the location heuristic alone (location names like
@@ -592,6 +622,14 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     }
   }
 
+  // Gate 0.5 Pattern 3 fix: if we STILL have null after both the location
+  // heuristic and content fallback, default to "on-site" when a location name
+  // exists. Absence of remote designation = on-site at the stated location.
+  // Only null if we truly have no location info at all.
+  if (workplaceType === null && locationName && locationName.length > 0) {
+    workplaceType = "on-site";
+  }
+
   // Company name — undocumented but present in 100% of Greenhouse responses
   const companyName =
     typeof obj.company_name === "string" && obj.company_name.length > 0
@@ -609,6 +647,17 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     if (typeof first?.name === "string") department = first.name;
   }
 
+  // Gate 0.5: Extract title region tag and experience range
+  const titleStr = typeof obj.title === "string" ? obj.title : "";
+  const titleRegionTag = parseTitleRegionTag(titleStr);
+  const contentForExp =
+    typeof obj.content === "string" && obj.content.length > 0
+      ? obj.content
+      : "";
+  const experienceRange = parseExperienceRange(
+    `${titleStr} ${stripHtml(contentForExp)}`,
+  );
+
   return {
     workplaceType,
     employmentType: null, // Not reliably available for Greenhouse
@@ -618,6 +667,13 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     applyUrl: null, // Not in the list endpoint
     publishedAt,
     companyName,
+    titleRegionTag,
+    locationCountries: null, // Greenhouse doesn't provide structured country lists
+    experienceMinYears: experienceRange?.min ?? null,
+    experienceMaxYears: experienceRange?.max ?? null,
+    compensationMin: null, // Greenhouse public API doesn't provide compensation
+    compensationMax: null,
+    compensationCurrency: null,
   };
 }
 
@@ -666,6 +722,17 @@ function extractLeverMetadata(obj: Record<string, unknown>): JobMetadata {
   // Published date — createdAt is epoch milliseconds (confirmed via GitHub #35)
   const publishedAt = parseEpochMs(obj.createdAt);
 
+  // Gate 0.5: Extract title region tag, experience range, and compensation
+  const titleStr = typeof obj.text === "string" ? obj.text : "";
+  const titleRegionTag = parseTitleRegionTag(titleStr);
+  const descPlain =
+    typeof obj.descriptionPlain === "string" ? obj.descriptionPlain : "";
+  const descHtml = typeof obj.description === "string" ? obj.description : "";
+  const experienceRange = parseExperienceRange(
+    `${titleStr} ${descPlain || stripHtml(descHtml)}`,
+  );
+  const compensation = extractLeverCompensation(obj);
+
   return {
     workplaceType,
     employmentType,
@@ -675,6 +742,13 @@ function extractLeverMetadata(obj: Record<string, unknown>): JobMetadata {
     applyUrl,
     publishedAt,
     companyName: null, // Lever v0 doesn't include company name in the job object
+    titleRegionTag,
+    locationCountries: null, // Lever doesn't provide structured country lists
+    experienceMinYears: experienceRange?.min ?? null,
+    experienceMaxYears: experienceRange?.max ?? null,
+    compensationMin: compensation.min,
+    compensationMax: compensation.max,
+    compensationCurrency: compensation.currency,
   };
 }
 
@@ -722,6 +796,18 @@ function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
   // Published date — publishedAt is ISO 8601
   const publishedAt = parseDate(obj.publishedAt);
 
+  // Gate 0.5: Extract title region tag, experience range, and compensation
+  const titleStr = typeof obj.title === "string" ? obj.title : "";
+  const titleRegionTag = parseTitleRegionTag(titleStr);
+  const descPlain =
+    typeof obj.descriptionPlain === "string" ? obj.descriptionPlain : "";
+  const descHtml =
+    typeof obj.descriptionHtml === "string" ? obj.descriptionHtml : "";
+  const experienceRange = parseExperienceRange(
+    `${titleStr} ${descPlain || stripHtml(descHtml)}`,
+  );
+  const compensation = extractAshbyCompensation(obj);
+
   return {
     workplaceType,
     employmentType,
@@ -731,6 +817,13 @@ function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
     applyUrl,
     publishedAt,
     companyName: null, // Ashby Public API doesn't include company name
+    titleRegionTag,
+    locationCountries: null, // Ashby Public API location is a string, not a structured list
+    experienceMinYears: experienceRange?.min ?? null,
+    experienceMaxYears: experienceRange?.max ?? null,
+    compensationMin: compensation.min,
+    compensationMax: compensation.max,
+    compensationCurrency: compensation.currency,
   };
 }
 
@@ -787,6 +880,11 @@ function extractSmartRecruitersMetadata(
   // Published date — releasedDate (ISO 8601)
   const publishedAt = parseDate(obj.releasedDate);
 
+  // Gate 0.5: Extract title region tag and experience range
+  const titleStr = typeof obj.name === "string" ? obj.name : "";
+  const titleRegionTag = parseTitleRegionTag(titleStr);
+  const experienceRange = parseExperienceRange(titleStr);
+
   return {
     workplaceType,
     employmentType,
@@ -796,6 +894,13 @@ function extractSmartRecruitersMetadata(
     applyUrl: null,
     publishedAt,
     companyName,
+    titleRegionTag,
+    locationCountries: null,
+    experienceMinYears: experienceRange?.min ?? null,
+    experienceMaxYears: experienceRange?.max ?? null,
+    compensationMin: null,
+    compensationMax: null,
+    compensationCurrency: null,
   };
 }
 
@@ -853,6 +958,12 @@ function extractWorkableMetadata(obj: Record<string, unknown>): JobMetadata {
   // Published date — publishedAt (ISO date or YYYY-MM-DD)
   const publishedAt = parseDate(obj.publishedAt);
 
+  // Gate 0.5: Extract title region tag and experience range
+  const titleStr = typeof obj.title === "string" ? obj.title : "";
+  const titleRegionTag = parseTitleRegionTag(titleStr);
+  const descStr = typeof obj.description === "string" ? obj.description : "";
+  const experienceRange = parseExperienceRange(`${titleStr} ${descStr}`);
+
   return {
     workplaceType,
     employmentType,
@@ -862,6 +973,13 @@ function extractWorkableMetadata(obj: Record<string, unknown>): JobMetadata {
     applyUrl,
     publishedAt,
     companyName,
+    titleRegionTag,
+    locationCountries: null,
+    experienceMinYears: experienceRange?.min ?? null,
+    experienceMaxYears: experienceRange?.max ?? null,
+    compensationMin: null,
+    compensationMax: null,
+    compensationCurrency: null,
   };
 }
 
@@ -912,6 +1030,15 @@ function extractRecruiteeMetadata(obj: Record<string, unknown>): JobMetadata {
   // Published date — published_at (e.g. "20**-09-26 10:46:21 UTC")
   const publishedAt = parseDate(obj.published_at);
 
+  // Gate 0.5: Extract title region tag and experience range
+  const titleStr = typeof obj.title === "string" ? obj.title : "";
+  const titleRegionTag = parseTitleRegionTag(titleStr);
+  const descStr = typeof obj.description === "string" ? obj.description : "";
+  const reqStr = typeof obj.requirements === "string" ? obj.requirements : "";
+  const experienceRange = parseExperienceRange(
+    `${titleStr} ${descStr} ${reqStr}`,
+  );
+
   return {
     workplaceType,
     employmentType,
@@ -921,6 +1048,149 @@ function extractRecruiteeMetadata(obj: Record<string, unknown>): JobMetadata {
     applyUrl,
     publishedAt,
     companyName,
+    titleRegionTag,
+    locationCountries: null,
+    experienceMinYears: experienceRange?.min ?? null,
+    experienceMaxYears: experienceRange?.max ?? null,
+    compensationMin: null,
+    compensationMax: null,
+    compensationCurrency: null,
+  };
+}
+
+// =============================================================================
+// GATE 0.5 METADATA EXTRACTION HELPERS (added July 2026)
+// =============================================================================
+// These helpers extract the new Gate 0.5 fields from job titles, descriptions,
+// and ATS-specific raw JSON structures. They are called from the per-ATS
+// extraction functions above. See docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md.
+
+/**
+ * Region tag patterns found in job titles. Companies use these as suffixes
+ * to geo-fence roles (e.g., "Software Engineer - Latam"). Only suffix patterns
+ * (after a dash) are matched to avoid false positives like "India Engineer".
+ */
+const TITLE_REGION_PATTERNS: readonly { pattern: RegExp; region: string }[] = [
+  // Latin America
+  { pattern: /-?\s*(Latam|LatAm|Latin\s*America)\b/i, region: "Latam" },
+  // Asia-Pacific
+  { pattern: /-?\s*(APAC|Asia[- ]?Pacific)\b/i, region: "APAC" },
+  // Europe/Middle East/Africa
+  {
+    pattern: /-?\s*(EMEA|Europe[- ]?Middle[- ]?East[- ]?Africa)\b/i,
+    region: "EMEA",
+  },
+  // Sub-regions
+  { pattern: /-?\s*(Balkans|Eastern\s*Europe)\b/i, region: "Eastern Europe" },
+  // Single-country suffixes (common in geo-fenced postings)
+  { pattern: /-?\s*India\b/i, region: "India" },
+  {
+    pattern: /-?\s*(US[- ]?Only|United\s*States[- ]?Only)\b/i,
+    region: "US Only",
+  },
+  { pattern: /-?\s*(Canada[- ]?Only)\b/i, region: "Canada Only" },
+];
+
+/**
+ * Parse a job title for a region tag suffix. Returns the matched tag string
+ * (e.g., "Latam", "APAC") or null if no region suffix is found.
+ *
+ * Only matches suffixes after a dash or at the end of the title to avoid
+ * false positives (e.g., "India Engineer" as a prefix is not a region tag,
+ * but "Software Engineer - India" is).
+ */
+export function parseTitleRegionTag(title: string): string | null {
+  // Require a dash separator before the region tag to reduce false positives.
+  // This matches patterns like "Software Engineer - Latam" or "SDE - India"
+  // but not "Latam Software Engineer" or "India-based Engineer".
+  const dashMatch = title.match(/\s[-–—]\s+(.+)$/);
+  if (!dashMatch) return null;
+  const suffix = dashMatch[1];
+  for (const { pattern, region } of TITLE_REGION_PATTERNS) {
+    if (pattern.test(suffix)) return region;
+  }
+  return null;
+}
+
+/**
+ * Parse experience year requirements from job description text.
+ * Matches common patterns:
+ *   - "3+ years of experience" → { min: 3, max: null }
+ *   - "2-6 years" → { min: 2, max: 6 }
+ *   - "minimum 5 years" → { min: 5, max: null }
+ *   - "at least 3 years" → { min: 3, max: null }
+ *
+ * Returns null when no explicit year requirement is found. Does NOT infer
+ * experience from seniority words — that's Gate 3's job.
+ */
+export function parseExperienceRange(
+  text: string,
+): { min: number; max: number | null } | null {
+  // Range pattern: "2-6 years", "3–5 years" (en-dash), "2 to 6 years"
+  const rangeMatch = text.match(/(\d+)\s*[-–—]|to\s*(\d+)\s*years?/i);
+  if (rangeMatch) {
+    const min = parseInt(rangeMatch[1], 10);
+    const max = parseInt(rangeMatch[2], 10);
+    if (!Number.isNaN(min) && !Number.isNaN(max) && max >= min) {
+      return { min, max };
+    }
+  }
+
+  // Minimum-only patterns: "3+ years", "minimum 5 years", "at least 3 years"
+  const minMatch = text.match(
+    /(?:minimum|at\s+least)?\s*(\d+)\+?\s*years?\s*(?:of\s*experience)?/i,
+  );
+  if (minMatch) {
+    const min = parseInt(minMatch[1], 10);
+    if (!Number.isNaN(min)) {
+      return { min, max: null };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Extract compensation data from an Ashby job object. The Ashby Public API
+ * returns a `compensation` object with `min`, `max`, `currency` fields when
+ * `includeCompensation=true` is passed (which it is — see ats-endpoints.ts).
+ */
+function extractAshbyCompensation(obj: Record<string, unknown>): {
+  min: number | null;
+  max: number | null;
+  currency: string | null;
+} {
+  const comp = obj.compensation;
+  if (typeof comp !== "object" || comp === null) {
+    return { min: null, max: null, currency: null };
+  }
+  const compObj = comp as Record<string, unknown>;
+  return {
+    min: typeof compObj.min === "number" ? compObj.min : null,
+    max: typeof compObj.max === "number" ? compObj.max : null,
+    currency: typeof compObj.currency === "string" ? compObj.currency : null,
+  };
+}
+
+/**
+ * Extract compensation data from a Lever job object. Lever provides a
+ * `salaryRange` object with `min`, `max`, `currency`, and `interval` fields.
+ * The interval may be "per-year-salary", "per-month-salary", etc.
+ */
+function extractLeverCompensation(obj: Record<string, unknown>): {
+  min: number | null;
+  max: number | null;
+  currency: string | null;
+} {
+  const range = obj.salaryRange;
+  if (typeof range !== "object" || range === null) {
+    return { min: null, max: null, currency: null };
+  }
+  const rangeObj = range as Record<string, unknown>;
+  return {
+    min: typeof rangeObj.min === "number" ? rangeObj.min : null,
+    max: typeof rangeObj.max === "number" ? rangeObj.max : null,
+    currency: typeof rangeObj.currency === "string" ? rangeObj.currency : null,
   };
 }
 
