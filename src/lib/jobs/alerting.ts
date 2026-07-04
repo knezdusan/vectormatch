@@ -170,106 +170,47 @@ export async function getRecentAlerts(daysBack = 7): Promise<Alert[]> {
 // ── Storage Alert Check ──────────────────────────────────────────────────────
 
 /**
- * Check storage and the unnormalized backlog, then create/resolve alerts as
- * needed. Called by the daily health check and the hourly storage monitor.
+ * Check storage and create/resolve alerts as needed.
+ * Called by the daily health check Inngest function.
  *
- * Thresholds:
- *   - Early warning: storage >= 80% OR backlog >= 2,500 → "storage_near_limit"
- *   - Critical: storage >= 88% OR backlog >= 3,000 → "storage_critical"
- *   - Healthy: below all thresholds → resolve existing storage alerts
- *
- * Sends an email alert to ADMIN_ALERT_EMAIL when a new alert is created.
+ * - If storage > critical threshold → create "storage_critical" alert
+ * - If storage > warning threshold → create "storage_near_limit" alert
+ * - If storage < warning threshold → resolve any existing storage alerts
  */
 export async function checkStorageAlerts(): Promise<void> {
   const sizeMb = await getDatabaseSizeMb();
   const percentage = sizeMb / STORAGE_LIMIT_MB;
-  const unnormalizedCount = await getIngestionBacklog();
-  const storageCritical = percentage >= STORAGE_INGESTION_HALT_THRESHOLD;
-  const storageWarning =
-    percentage >= STORAGE_EARLY_WARNING_THRESHOLD && !storageCritical;
-  const backlogCritical = unnormalizedCount >= MAX_UNNORMALIZED_BACKLOG;
-  const backlogWarning =
-    unnormalizedCount >= UNNORMALIZED_BACKLOG_ALERT_THRESHOLD &&
-    !backlogCritical;
-  const critical = storageCritical || backlogCritical;
-  const warning = storageWarning || backlogWarning;
 
-  if (critical) {
-    const storagePart = storageCritical
-      ? `storage at ${(percentage * 100).toFixed(1)}% (${sizeMb.toFixed(0)}MB / ${STORAGE_LIMIT_MB}MB)`
-      : "";
-    const backlogPart = backlogCritical
-      ? `normalization backlog at ${unnormalizedCount} jobs`
-      : "";
-    const reason = [storagePart, backlogPart].filter(Boolean).join(" + ");
-    const message = `Neon ${reason} — ingestion is halted`;
-
+  if (percentage >= STORAGE_CRITICAL_THRESHOLD) {
+    // Create critical alert if none exists
     if (!(await hasActiveAlert("storage_critical"))) {
       await createAlert({
         type: "storage_critical",
         severity: "critical",
-        message,
+        message: `Neon storage at ${sizeMb.toFixed(0)}MB / ${STORAGE_LIMIT_MB}MB (${(percentage * 100).toFixed(1)}%) — immediate action required`,
         details: JSON.stringify({
           sizeMb,
           limitMb: STORAGE_LIMIT_MB,
           percentage,
-          unnormalizedCount,
-          maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,
-          ingestionHalted: true,
         }),
       });
-      await sendStorageAlertEmail({
-        severity: "critical",
-        currentMb: sizeMb,
-        limitMb: STORAGE_LIMIT_MB,
-        percentage,
-        unnormalizedCount,
-        maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,
-        reason: message,
-        ingestionHalted: true,
-      });
     }
-    // Resolve any warning alert because critical supersedes it.
-    await resolveAlertsByType("storage_near_limit");
-  } else if (warning) {
-    const storagePart = storageWarning
-      ? `storage at ${(percentage * 100).toFixed(1)}% (${sizeMb.toFixed(0)}MB / ${STORAGE_LIMIT_MB}MB)`
-      : "";
-    const backlogPart = backlogWarning
-      ? `normalization backlog at ${unnormalizedCount} jobs`
-      : "";
-    const reason = [storagePart, backlogPart].filter(Boolean).join(" + ");
-    const message = `Neon ${reason} — ingestion will halt soon`;
-
+  } else if (percentage >= STORAGE_WARNING_THRESHOLD) {
+    // Create warning alert if none exists
     if (!(await hasActiveAlert("storage_near_limit"))) {
       await createAlert({
         type: "storage_near_limit",
         severity: "warning",
-        message,
+        message: `Neon storage at ${sizeMb.toFixed(0)}MB / ${STORAGE_LIMIT_MB}MB (${(percentage * 100).toFixed(1)}%) — batch refreshes are being skipped`,
         details: JSON.stringify({
           sizeMb,
           limitMb: STORAGE_LIMIT_MB,
           percentage,
-          unnormalizedCount,
-          maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,
-          ingestionHalted: false,
         }),
       });
-      await sendStorageAlertEmail({
-        severity: "warning",
-        currentMb: sizeMb,
-        limitMb: STORAGE_LIMIT_MB,
-        percentage,
-        unnormalizedCount,
-        maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,
-        reason: message,
-        ingestionHalted: false,
-      });
     }
-    // Resolve critical alerts if the condition dropped below critical.
-    await resolveAlertsByType("storage_critical");
   } else {
-    // Storage and backlog are healthy — resolve any existing storage alerts.
+    // Storage is healthy — resolve any existing storage alerts
     await resolveAlertsByType("storage_critical");
     await resolveAlertsByType("storage_near_limit");
   }
