@@ -59,7 +59,7 @@ function unhealthyReport(): InngestHealthReport {
     overallHealthy: false,
     alerts: [
       "INNGEST_UNREACHABLE: Health check failed — ECONNREFUSED",
-      "INNGEST_FAILURE_SPIKE: 67% failure rate (20/30 runs in 1h)",
+      "INGESTION_FAILURE_SPIKE: 67% ingestion run failure rate (20/30 runs in 1h)",
       "INNGEST_PIPELINE_STALL: No jobs normalized in 4h",
     ],
   };
@@ -135,7 +135,7 @@ describe("Inngest Alert Email — sendInngestAlertEmail", () => {
     expect(html).toContain("started via Coolify");
   });
 
-  it("includes function failure details for function_failure_spike", async () => {
+  it("includes ingestion run failure details for function_failure_spike", async () => {
     vi.stubEnv("ADMIN_ALERT_EMAIL", "admin@test.com");
 
     const { sendEmailViaResend } = await import("@/lib/mail");
@@ -150,7 +150,7 @@ describe("Inngest Alert Email — sendInngestAlertEmail", () => {
     });
 
     const html = mockSend.mock.calls[0]?.[0]?.html ?? "";
-    expect(html).toContain("function failure spike");
+    expect(html).toContain("Ingestion run failure spike detected");
     expect(html).toContain("job-ingested-handler");
     expect(html).toContain("67%");
   });

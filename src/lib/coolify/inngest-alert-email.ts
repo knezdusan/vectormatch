@@ -49,7 +49,7 @@ function reasonTitle(reason: InngestAlertReason): string {
     case "server_paused":
       return "Inngest server is paused";
     case "function_failure_spike":
-      return "Inngest function failure spike detected";
+      return "Ingestion run failure spike detected";
     case "pipeline_stall":
       return "Inngest pipeline has stalled";
   }
@@ -62,7 +62,7 @@ function reasonDescription(reason: InngestAlertReason): string {
     case "server_paused":
       return "The Inngest server container has been stopped or exited. This may have been triggered manually, by a Coolify deployment, or by a resource constraint. No background jobs will run until the server is restarted.";
     case "function_failure_spike":
-      return "The Inngest function failure rate exceeded 50% in the last hour. This indicates a systemic issue — likely a code bug, a database connectivity problem, or an external API outage affecting multiple functions.";
+      return "The ingestion run failure rate exceeded 50% in the last hour. This indicates a systemic issue — likely a code bug, a database connectivity problem, or an external API outage affecting multiple ingestion sources.";
     case "pipeline_stall":
       return "No jobs have been normalized in the last 4 hours. This could mean the Inngest server is down, the normalization function is failing, or there are no jobs to process (check the job queue).";
   }
@@ -85,9 +85,9 @@ function acceptanceCriteria(reason: InngestAlertReason): string[] {
       ];
     case "function_failure_spike":
       return [
-        "The function failure rate drops below 10% for at least 1 hour",
-        "The top failing functions are investigated and the root cause is fixed",
-        "Any stuck or failed function runs are retried or cancelled from the Inngest dashboard",
+        "The ingestion run failure rate drops below 10% for at least 1 hour",
+        "The top failing sources are investigated and the root cause is fixed",
+        "Any stuck or failed ingestion runs are retried or cancelled from the Inngest dashboard",
       ];
     case "pipeline_stall":
       return [
@@ -139,20 +139,20 @@ function buildDiagnosticsTable(payload: InngestAlertEmailPayload): string {
       </tr>`);
   }
 
-  // Function failures
+  // Ingestion run failures
   rows.push(`
     <tr style="border-bottom: 1px solid #e5e7eb;">
-      <td style="padding: 8px 0;">Function runs (1h)</td>
+      <td style="padding: 8px 0;">Ingestion runs (1h)</td>
       <td style="padding: 8px 0; text-align: right; font-weight: 600;">${healthReport.functionFailures.totalRuns}</td>
     </tr>
     <tr style="border-bottom: 1px solid #e5e7eb;">
-      <td style="padding: 8px 0;">Failed runs (1h)</td>
+      <td style="padding: 8px 0;">Failed ingestion runs (1h)</td>
       <td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${healthReport.functionFailures.failedRuns > 0 ? "#dc2626" : "#16a34a"};">${healthReport.functionFailures.failedRuns}</td>
     </tr>`);
   if (healthReport.functionFailures.totalRuns > 0) {
     rows.push(`
       <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px 0;">Failure rate</td>
+        <td style="padding: 8px 0;">Ingestion run failure rate</td>
         <td style="padding: 8px 0; text-align: right; font-weight: 600; color: ${healthReport.functionFailures.failureRate >= 0.5 ? "#dc2626" : "#16a34a"};">${(healthReport.functionFailures.failureRate * 100).toFixed(0)}%</td>
       </tr>`);
   }
@@ -162,7 +162,7 @@ function buildDiagnosticsTable(payload: InngestAlertEmailPayload): string {
       .join(", ");
     rows.push(`
       <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 8px 0;">Top failing functions</td>
+        <td style="padding: 8px 0;">Top failing sources</td>
         <td style="padding: 8px 0; text-align: right; font-weight: 600;">${topFns}</td>
       </tr>`);
   }
@@ -210,10 +210,10 @@ function buildActionsSection(payload: InngestAlertEmailPayload): string {
       <div style="margin-bottom: 16px;">
         <h3 style="font-size: 14px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 12px;">What to do</h3>
         <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 20px; color: #374151;">
-          <li style="margin-bottom: 8px;">Check the Inngest dashboard for failed function runs and their error messages</li>
+          <li style="margin-bottom: 8px;">Check the Inngest dashboard for failed ingestion runs and their error messages</li>
           <li style="margin-bottom: 8px;">Identify the root cause — common causes: database connectivity issues, OpenAI API outages, rate limiting, code bugs in recently deployed functions</li>
           <li style="margin-bottom: 8px;">Fix the root cause and redeploy if needed</li>
-          <li style="margin-bottom: 8px;">Retry or cancel stuck function runs from the Inngest dashboard</li>
+          <li style="margin-bottom: 8px;">Retry or cancel stuck ingestion runs from the Inngest dashboard</li>
           <li style="margin-bottom: 8px;">Monitor the failure rate for 1 hour to confirm it drops below 10%</li>
         </ol>
       </div>`;

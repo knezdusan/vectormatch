@@ -37,7 +37,7 @@ export const alertTypeEnum = pgEnum("alert_type", [
   "circuit_breaker_trip",
   "pipeline_health", // Sprint 7: pipeline health monitor alerts
   "inngest_server_down", // Sprint 9: Inngest server unreachable or paused
-  "inngest_function_failures", // Sprint 9: Inngest function failure rate spike
+  "inngest_function_failures", // Sprint 9: Ingestion run failure rate spike
   "inngest_pipeline_stall", // Sprint 9: No jobs normalized in 4h
   // v2 Corpus Expansion (Criterion 3, Circuit Breaker):
   "v2_breaker_per_source", // Tier 1+2: per-source early-warning / backlog throttle

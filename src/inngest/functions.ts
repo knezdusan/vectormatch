@@ -4189,7 +4189,7 @@ export const emergencyStoragePurge = inngest.createFunction(
 //
 // Alert types:
 //   - inngest_server_down: Health check fails or Coolify shows stopped/exited
-//   - inngest_function_failures: >50% function failure rate in 1h
+//   - inngest_function_failures: >50% ingestion run failure rate in 1h
 //   - inngest_pipeline_stall: No jobs normalized in 4h
 //
 // Note: This function runs on the Inngest server itself, so if the server is
@@ -4243,6 +4243,8 @@ export const inngestHealthMonitor = inngest.createFunction(
         "@/lib/coolify/inngest-alert-email"
       );
 
+      let alertCreated = false;
+
       if (alertReason) {
         // Map reason to alert type
         const alertType =
@@ -4260,7 +4262,6 @@ export const inngestHealthMonitor = inngest.createFunction(
             : "warning";
 
         // Create alert if not already active (deduplicated)
-        let alertCreated = false;
         if (!(await hasActiveAlert(alertType))) {
           await createAlert({
             type: alertType,
@@ -4310,7 +4311,7 @@ export const inngestHealthMonitor = inngest.createFunction(
         }
       }
 
-      return { alertReason, alertCreated: alertReason !== null };
+      return { alertReason, alertCreated };
     });
 
     logger.info("Inngest health monitor completed", {

@@ -122,23 +122,23 @@ export async function checkInngestHealth(): Promise<HealthCheckResult> {
 // ── Function Failure Rate ────────────────────────────────────────────────────
 
 /**
- * Check Inngest function failure rate over the last hour.
- * Queries the ingestion_log table for function run outcomes.
+ * Check ingestion run failure rate over the last hour.
+ * Queries the ingestion_log table for seed/poll/batch run outcomes.
  * If the failure rate exceeds the threshold, returns details about
- * the top failing functions.
+ * the top failing sources.
  */
 export async function checkFunctionFailureRate(): Promise<FunctionFailureResult> {
-  // Query ingestion_log for function runs in the last hour
-  // The ingestion_log table records all pipeline events including failures
+  // ingestion_log tracks ingestion runs (seed, poll, batch_poll, etc.)
+  // with status success | partial | failed. We use this as a proxy for
+  // pipeline health because the table does not store per-function events.
   const result = await db.execute(sql`
     WITH runs AS (
       SELECT
-        event_type,
-        metadata->>'functionName' AS function_name,
-        metadata->>'status' AS status
+        type,
+        source,
+        status
       FROM ingestion_log
       WHERE created_at > NOW() - INTERVAL '1 hour'
-        AND event_type IN ('function.completed', 'function.failed')
     )
     SELECT
       count(*)::int AS total_runs,
@@ -170,16 +170,15 @@ export async function checkFunctionFailureRate(): Promise<FunctionFailureResult>
     };
   }
 
-  // Get top failing functions
+  // Get top failing sources (function_name is kept for the public interface)
   const topFailing = await db.execute(sql`
     SELECT
-      metadata->>'functionName' AS function_name,
+      COALESCE(source, type::text) AS function_name,
       count(*)::int AS failures
     FROM ingestion_log
     WHERE created_at > NOW() - INTERVAL '1 hour'
-      AND event_type = 'function.failed'
-      AND metadata->>'functionName' IS NOT NULL
-    GROUP BY metadata->>'functionName'
+      AND status = 'failed'
+    GROUP BY COALESCE(source, type::text)
     ORDER BY failures DESC
     LIMIT 5
   `);
@@ -252,7 +251,7 @@ export async function getInngestHealthReport(): Promise<InngestHealthReport> {
       .map((f) => `${f.name} (${f.failures})`)
       .join(", ");
     alerts.push(
-      `INNGEST_FAILURE_SPIKE: ${(functionFailures.failureRate * 100).toFixed(0)}% failure rate (${functionFailures.failedRuns}/${functionFailures.totalRuns} runs in 1h). Top failures: ${topFns}`,
+      `INGESTION_FAILURE_SPIKE: ${(functionFailures.failureRate * 100).toFixed(0)}% ingestion run failure rate (${functionFailures.failedRuns}/${functionFailures.totalRuns} runs in 1h). Top failures: ${topFns}`,
     );
   }
 

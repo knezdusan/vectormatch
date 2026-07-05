@@ -1,9 +1,9 @@
 /**
  * Unit tests for Inngest Health Monitor — health check logic
  *
- * Tests the HTTP health check function with mocked fetch.
- * The DB query functions (function failure rate, pipeline stall) are
- * tested via integration tests since they require a database connection.
+ * Tests the HTTP health check function and the ingestion run failure rate
+ * function with mocked fetch/database. The pipeline stall query is a simple
+ * count over the job table and is exercised by integration tests.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,9 +12,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 // Mock the database module so imports don't fail
+const { mockExecute } = vi.hoisted(() => ({ mockExecute: vi.fn() }));
 vi.mock("@/db/db", () => ({
   db: {
-    execute: vi.fn().mockResolvedValue({ rows: [{ cnt: 0 }] }),
+    execute: mockExecute,
   },
 }));
 
@@ -102,6 +103,61 @@ describe("Inngest Health — checkInngestHealth", () => {
     expect(vi.mocked(globalThis.fetch).mock.calls[0]?.[0]).toBe(
       "http://inngest:8288/health",
     );
+  });
+});
+
+describe("Inngest Health — checkFunctionFailureRate", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockExecute.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns empty metrics when there are not enough runs", async () => {
+    mockExecute.mockResolvedValueOnce({
+      rows: [{ total_runs: 3, failed_runs: 1, failure_rate: 0.33 }],
+    });
+
+    const { checkFunctionFailureRate } = await import(
+      "@/lib/coolify/inngest-health"
+    );
+    const result = await checkFunctionFailureRate();
+
+    expect(result.totalRuns).toBe(3);
+    expect(result.failedRuns).toBe(1);
+    expect(result.failureRate).toBe(0.33);
+    expect(result.thresholdExceeded).toBe(false);
+    expect(result.topFailingFunctions).toEqual([]);
+  });
+
+  it("returns threshold exceeded and top failing sources when failure rate is high", async () => {
+    mockExecute
+      .mockResolvedValueOnce({
+        rows: [{ total_runs: 20, failed_runs: 12, failure_rate: 0.6 }],
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          { function_name: "hn_algolia", failures: 7 },
+          { function_name: "greenhouse", failures: 5 },
+        ],
+      });
+
+    const { checkFunctionFailureRate } = await import(
+      "@/lib/coolify/inngest-health"
+    );
+    const result = await checkFunctionFailureRate();
+
+    expect(result.totalRuns).toBe(20);
+    expect(result.failedRuns).toBe(12);
+    expect(result.failureRate).toBe(0.6);
+    expect(result.thresholdExceeded).toBe(true);
+    expect(result.topFailingFunctions).toEqual([
+      { name: "hn_algolia", failures: 7 },
+      { name: "greenhouse", failures: 5 },
+    ]);
   });
 });
 
