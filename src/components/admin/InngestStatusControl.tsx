@@ -27,22 +27,36 @@ import {
 
 // ── Status Badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ label }: { label: string; reachable: boolean }) {
+function StatusBadge({
+  label,
+  reachable,
+}: {
+  label: string;
+  reachable: boolean;
+}) {
+  // When Coolify can't tell us the status but the Inngest HTTP endpoint is
+  // still responding, show a yellow "Reachable" badge instead of the red
+  // "Unknown" badge. The health check is a more reliable signal than a
+  // missing or read-only Coolify API configuration.
+  const effectiveLabel = label === "Unknown" && reachable ? "Reachable" : label;
+
   const color =
-    label === "Running"
+    effectiveLabel === "Running"
       ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/30"
-      : label === "Paused"
+      : effectiveLabel === "Reachable"
         ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
-        : label === "Restarting"
-          ? "bg-blue-500/15 text-blue-600 border-blue-500/30"
-          : "bg-red-500/15 text-red-600 border-red-500/30";
+        : effectiveLabel === "Paused"
+          ? "bg-amber-500/15 text-amber-600 border-amber-500/30"
+          : effectiveLabel === "Restarting"
+            ? "bg-blue-500/15 text-blue-600 border-blue-500/30"
+            : "bg-red-500/15 text-red-600 border-red-500/30";
 
   const icon =
-    label === "Running" ? (
+    effectiveLabel === "Running" ? (
       <CheckCircle2 className="size-3.5" />
-    ) : label === "Paused" ? (
+    ) : effectiveLabel === "Paused" ? (
       <Pause className="size-3.5" />
-    ) : label === "Restarting" ? (
+    ) : effectiveLabel === "Restarting" ? (
       <RotateCw className="size-3.5 animate-spin" />
     ) : (
       <AlertCircle className="size-3.5" />
@@ -53,7 +67,7 @@ function StatusBadge({ label }: { label: string; reachable: boolean }) {
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${color}`}
     >
       {icon}
-      {label}
+      {effectiveLabel}
     </span>
   );
 }
@@ -178,9 +192,9 @@ export function InngestStatusControl() {
         </div>
 
         {/* Error display */}
-        {state?.error && (
+        {(state?.error || status?.error) && (
           <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600">
-            {state.error}
+            {state?.error ?? status?.error}
           </div>
         )}
 
