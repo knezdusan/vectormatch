@@ -151,19 +151,21 @@ export async function getInngestStatus(): Promise<InngestStatusResult> {
   }
 
   try {
-    const data = await coolifyFetch<{
-      data?: CoolifyServiceInfo;
-    }>(`/api/v1/services/${getInngestServiceUuid()}`);
+    // The Coolify API returns the service object directly, not wrapped in a
+    // `data` property. The SDK/MCP wrappers add that wrapping, but the raw
+    // REST endpoint returns: { uuid, name, status, ... }.
+    const service = await coolifyFetch<CoolifyServiceInfo>(
+      `/api/v1/services/${getInngestServiceUuid()}`,
+    );
 
-    const service = data.data;
-    if (!service) {
+    if (!service || typeof service.status !== "string") {
       return {
         coolifyStatus: "unknown",
         isRunning: false,
         isPaused: false,
         label: "Unknown",
         checkedAt: new Date().toISOString(),
-        error: "Service not found in Coolify",
+        error: "Service not found in Coolify or missing status field",
       };
     }
 

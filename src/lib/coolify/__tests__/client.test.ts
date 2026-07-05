@@ -70,14 +70,12 @@ describe("Coolify Client — getInngestStatus", () => {
 
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       mockResponse({
-        data: {
-          uuid: "test-service-uuid",
-          name: "inngest",
-          status: "running:healthy",
-          description: "Inngest server",
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z",
-        },
+        uuid: "test-service-uuid",
+        name: "inngest",
+        status: "running:healthy",
+        description: "Inngest server",
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
       }),
     );
 
@@ -93,14 +91,12 @@ describe("Coolify Client — getInngestStatus", () => {
   it("parses exited status as paused", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       mockResponse({
-        data: {
-          uuid: "test-service-uuid",
-          name: "inngest",
-          status: "exited",
-          description: null,
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z",
-        },
+        uuid: "test-service-uuid",
+        name: "inngest",
+        status: "exited",
+        description: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
       }),
     );
 
@@ -116,14 +112,12 @@ describe("Coolify Client — getInngestStatus", () => {
   it("parses running:unhealthy status correctly", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       mockResponse({
-        data: {
-          uuid: "test-service-uuid",
-          name: "inngest",
-          status: "running:unhealthy",
-          description: null,
-          created_at: "2024-01-01T00:00:00Z",
-          updated_at: "2024-01-01T00:00:00Z",
-        },
+        uuid: "test-service-uuid",
+        name: "inngest",
+        status: "running:unhealthy",
+        description: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-01T00:00:00Z",
       }),
     );
 
