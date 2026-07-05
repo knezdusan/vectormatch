@@ -11,6 +11,7 @@
 // See docs/reports/inngest-agent-resources.md for patterns and debugging.
 
 import type { Gate3Context } from "@/lib/jobs/gate-3";
+import { shouldSkipEmergencyPurge } from "@/lib/jobs/storage-check";
 import { inngest } from "./client";
 import { runSourceFunction } from "./source-helpers";
 
@@ -3833,8 +3834,13 @@ export const pipelineHealthMonitor = inngest.createFunction(
 );
 
 // ── Emergency Storage Purge (Sprint 8) ───────────────────────────────────────
-// Triggered automatically by the storage monitor when storage crosses the 88%
-// ingestion halt threshold, or manually via the admin dashboard.
+// Triggered automatically when storage crosses the 88% ingestion halt
+// threshold, or manually via the admin dashboard.
+//
+// The auto-trigger is based on storage percentage only — a high unnormalized
+// backlog blocks ingestion but does NOT run this purge. The purge is meant to
+// reclaim space, and deleting unnormalized jobs would destroy data the
+// normalizer is still processing.
 //
 // Runs a tiered purge that deletes jobs with zero matching impact first
 // (normalization_failed → rejected → gone → stale), only touching the active
@@ -3863,11 +3869,7 @@ export const emergencyStoragePurge = inngest.createFunction(
       return isStorageSafeForIngestion();
     });
 
-    if (
-      !isManualTrigger &&
-      storageStatus.allow &&
-      storageStatus.percentage < 0.88
-    ) {
+    if (shouldSkipEmergencyPurge(isManualTrigger, storageStatus.percentage)) {
       // Auto-trigger: storage is fine, no purge needed
       return {
         triggered: false,
@@ -3943,8 +3945,6 @@ export const emergencyStoragePurge = inngest.createFunction(
         currentMb: purgeResult.storageAfterMb,
         limitMb: STORAGE_LIMIT_MB,
         percentage: purgeResult.storageAfterMb / STORAGE_LIMIT_MB,
-        unnormalizedCount: storageStatus.unnormalizedCount,
-        maxUnnormalized: storageStatus.maxUnnormalized,
         reason,
         ingestionHalted: !purgeResult.recovered,
       });

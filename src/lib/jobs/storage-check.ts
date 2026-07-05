@@ -58,14 +58,24 @@ export const STORAGE_CRITICAL_THRESHOLD = 0.94;
 /** Storage fraction at which new job ingestion is halted (88% = ~450MB). */
 export const STORAGE_INGESTION_HALT_THRESHOLD = 0.88;
 
-/** Storage fraction at which an early-warning alert is sent (80% = ~410MB). */
-export const STORAGE_EARLY_WARNING_THRESHOLD = 0.8;
-
 /** Maximum unnormalized jobs allowed before ingestion pauses. */
 export const MAX_UNNORMALIZED_BACKLOG = 3000;
 
-/** Backlog level at which a warning alert is sent before the hard limit. */
-export const UNNORMALIZED_BACKLOG_ALERT_THRESHOLD = 2500;
+/**
+ * Determine whether the emergency storage purge should be skipped.
+ *
+ * The purge is a space-reclamation tool. It should run automatically only when
+ * storage is above the ingestion halt threshold. A high unnormalized backlog
+ * pauses ingestion but does NOT trigger the purge — deleting unnormalized jobs
+ * would destroy data the normalizer is still processing.
+ */
+export function shouldSkipEmergencyPurge(
+  isManualTrigger: boolean,
+  storagePercentage: number,
+): boolean {
+  if (isManualTrigger) return false;
+  return storagePercentage < STORAGE_INGESTION_HALT_THRESHOLD;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

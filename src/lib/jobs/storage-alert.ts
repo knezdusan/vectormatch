@@ -1,9 +1,9 @@
-// Storage Alert Emailer — Resend notifications for storage/backlog events
+// Storage Alert Emailer — Resend notification for emergency purge events
 // src/lib/jobs/storage-alert.ts
 //
-// Sends a single email to ADMIN_ALERT_EMAIL when the database crosses the
-// early-warning or critical thresholds, or when the unnormalized backlog
-// crosses its alert limit. The email is intentionally simple and actionable.
+// Sends a single email to ADMIN_ALERT_EMAIL after the emergency storage purge
+// runs, summarizing the purge result and current storage usage. The email is
+// intentionally simple and actionable.
 //
 // If ADMIN_ALERT_EMAIL is not set, the function returns without sending.
 // Resend failures are logged but not thrown, so a broken alert email never
@@ -26,23 +26,13 @@ export interface StorageAlertPayload {
   currentMb: number;
   limitMb: number;
   percentage: number;
-  unnormalizedCount: number;
-  maxUnnormalized: number;
   reason: string;
   ingestionHalted: boolean;
 }
 
 function buildEmailHtml(payload: StorageAlertPayload): string {
-  const {
-    severity,
-    currentMb,
-    limitMb,
-    percentage,
-    unnormalizedCount,
-    maxUnnormalized,
-    reason,
-    ingestionHalted,
-  } = payload;
+  const { severity, currentMb, limitMb, percentage, reason, ingestionHalted } =
+    payload;
   const statusColor = severity === "critical" ? "#dc2626" : "#ca8a04";
   const statusLabel = severity === "critical" ? "CRITICAL" : "WARNING";
   const haltedLine = ingestionHalted
@@ -67,13 +57,9 @@ function buildEmailHtml(payload: StorageAlertPayload): string {
             <td style="padding: 8px 0;">Database size</td>
             <td style="padding: 8px 0; text-align: right; font-weight: 600;">${currentMb.toFixed(0)} MB / ${limitMb} MB</td>
           </tr>
-          <tr style="border-bottom: 1px solid #e5e7eb;">
+          <tr>
             <td style="padding: 8px 0;">Usage</td>
             <td style="padding: 8px 0; text-align: right; font-weight: 600;">${(percentage * 100).toFixed(1)}%</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0;">Unnormalized backlog</td>
-            <td style="padding: 8px 0; text-align: right; font-weight: 600;">${unnormalizedCount} / ${maxUnnormalized}</td>
           </tr>
         </table>
         ${haltedLine}

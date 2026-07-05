@@ -174,8 +174,7 @@ export async function InfrastructureHealth() {
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            {(neonPct >= 0.8 ||
-              unnormalizedCount >= maxUnnormalized * 0.83) && (
+            {neonPct >= 0.8 && (
               <EmergencyPurgeButton storagePercentage={neonPct} />
             )}
           </CardContent>

@@ -30,10 +30,10 @@ import {
   MAX_UNNORMALIZED_BACKLOG,
   NEON_STORAGE_LIMIT_MB,
   STORAGE_CRITICAL_THRESHOLD,
-  STORAGE_EARLY_WARNING_THRESHOLD,
   STORAGE_INGESTION_HALT_THRESHOLD,
   STORAGE_LIMIT_MB,
   STORAGE_WARNING_THRESHOLD,
+  shouldSkipEmergencyPurge,
 } from "@/lib/jobs/storage-check";
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
@@ -76,12 +76,28 @@ describe("storage-check constants", () => {
     expect(STORAGE_INGESTION_HALT_THRESHOLD).toBe(0.88);
   });
 
-  it("STORAGE_EARLY_WARNING_THRESHOLD is 0.80 for alert emails", () => {
-    expect(STORAGE_EARLY_WARNING_THRESHOLD).toBe(0.8);
-  });
-
   it("MAX_UNNORMALIZED_BACKLOG is 3000", () => {
     expect(MAX_UNNORMALIZED_BACKLOG).toBe(3000);
+  });
+});
+
+// ── shouldSkipEmergencyPurge ────────────────────────────────────────────────────
+
+describe("shouldSkipEmergencyPurge", () => {
+  it("skips auto purge when storage is below the halt threshold", () => {
+    expect(shouldSkipEmergencyPurge(false, 0.4)).toBe(true);
+  });
+
+  it("runs auto purge when storage is at or above the halt threshold", () => {
+    expect(
+      shouldSkipEmergencyPurge(false, STORAGE_INGESTION_HALT_THRESHOLD),
+    ).toBe(false);
+    expect(shouldSkipEmergencyPurge(false, 0.95)).toBe(false);
+  });
+
+  it("always runs on manual trigger regardless of storage percentage", () => {
+    expect(shouldSkipEmergencyPurge(true, 0.4)).toBe(false);
+    expect(shouldSkipEmergencyPurge(true, 0.95)).toBe(false);
   });
 });
 
