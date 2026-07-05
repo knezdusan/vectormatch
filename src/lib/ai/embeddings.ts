@@ -36,6 +36,7 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
   const { embeddings } = await embedMany({
     model: openai.embedding("text-embedding-3-small"),
     values: texts,
+    abortSignal: AbortSignal.timeout(30000),
   });
 
   return embeddings;

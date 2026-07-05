@@ -1616,6 +1616,7 @@ export async function extractTagsLLM(fullText: string): Promise<string[]> {
     schema: llmTagExtractionSchema,
     system: LLM_TAG_SYSTEM_PROMPT,
     prompt: fullText,
+    abortSignal: AbortSignal.timeout(30000),
   });
 
   // Filter to only valid canonical slugs (defensive — the LLM should obey the
@@ -1671,6 +1672,7 @@ export async function summarizeJobLLM(
     schema: llmSummarySchema,
     system: LLM_SUMMARY_SYSTEM_PROMPT,
     prompt: `Job title: ${title}\n\n${fullText}`,
+    abortSignal: AbortSignal.timeout(30000),
   });
 
   return object.shortDescription ?? null;
