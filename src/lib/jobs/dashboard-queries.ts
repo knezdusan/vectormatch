@@ -105,6 +105,125 @@ export type MatchDetail = {
 // QUERIES
 // =============================================================================
 
+// Composite match score (0–100) used for ranking and the 5-star rating.
+//   25% semantic similarity (1 - cosine distance)
+//   30% must-have tag overlap (capped at 5, non-linear so the first
+//       matching tags contribute more than the marginal ones)
+//   12% workplace/modality alignment
+//    8% location alignment (global remote > country-specific remote)
+//    8% seniority alignment (inferred from job title vs persona levels)
+//   17% company quality score (default 50 if missing)
+//   subtract up to 10% for blocklist tag hits
+//   subtract up to 10% for coverage gap (fraction of persona must-have
+//       tags not matched by the job)
+//   subtract up to 10% for secondary domain mismatch (alternative
+//       framework/language tags present in the job but not in the persona)
+export const matchScoreExpr = sql<number>`
+  ROUND(
+    GREATEST(
+      0,
+      LEAST(
+        1,
+        (
+          (1 - COALESCE(${matchQueue.cosineDistance}, 1)) * 0.25
+          + (1 - EXP(-0.4 * LEAST(COALESCE(${matchQueue.overlapScore}, 0), 5))) * 0.30
+          + (
+            CASE
+              WHEN ${job.workplaceType} IS NULL OR COALESCE(array_length(${applicant.assignmentTypes}, 1), 0) = 0 THEN 0.5
+              WHEN ${job.workplaceType}::text = ANY(${applicant.assignmentTypes}::text[]) THEN 1.0
+              WHEN ${job.workplaceType}::text = 'hybrid' AND ('remote' = ANY(${applicant.assignmentTypes}::text[]) OR 'remote_local' = ANY(${applicant.assignmentTypes}::text[])) THEN 0.5
+              WHEN ${job.workplaceType}::text = 'remote' AND 'hybrid' = ANY(${applicant.assignmentTypes}::text[]) THEN 0.5
+              WHEN ${job.workplaceType}::text = 'on-site' AND 'hybrid' = ANY(${applicant.assignmentTypes}::text[]) THEN 0.5
+              ELSE 0.0
+            END
+          ) * 0.12
+          + (
+            CASE
+              WHEN ${applicant.country} IS NULL OR ${job.locationName} IS NULL OR ${job.locationName} = '' THEN 0.5
+              -- Remote scope: global remote gets perfect location score
+              WHEN ${job.remoteScope}::text = 'global' THEN 1.0
+              WHEN ${job.locationName} ~* 'remote|global|anywhere|worldwide' THEN
+                CASE
+                  WHEN ${applicant.country} = 'RS' AND ${job.locationName} ~* 'serbia' THEN 1.0
+                  WHEN ${applicant.country} = 'US' AND ${job.locationName} ~* '(united states|u\.s\.|usa| america)' THEN 1.0
+                  WHEN ${applicant.country} = 'BR' AND ${job.locationName} ~* 'brazil' THEN 1.0
+                  WHEN ${applicant.country} = 'CA' AND ${job.locationName} ~* 'canada' THEN 1.0
+                  WHEN ${applicant.country} = 'GB' AND ${job.locationName} ~* '(uk|united kingdom|england|scotland|wales)' THEN 1.0
+                  WHEN ${applicant.country} = 'AU' AND ${job.locationName} ~* '(australia|aest)' THEN 1.0
+                  WHEN ${applicant.country} = 'TW' AND ${job.locationName} ~* 'taiwan' THEN 1.0
+                  WHEN ${applicant.country} = 'MY' AND ${job.locationName} ~* 'malaysia' THEN 1.0
+                  WHEN ${applicant.country} = 'CO' AND ${job.locationName} ~* 'colombia' THEN 1.0
+                  WHEN ${applicant.country} = 'NG' AND ${job.locationName} ~* 'nigeria' THEN 1.0
+                  WHEN ${applicant.country} = 'PT' AND ${job.locationName} ~* 'portugal' THEN 1.0
+                  WHEN ${applicant.country} = 'MT' AND ${job.locationName} ~* 'malta' THEN 1.0
+                  WHEN ${applicant.country} = 'CH' AND ${job.locationName} ~* 'switzerland' THEN 1.0
+                  WHEN ${applicant.country} = 'DE' AND ${job.locationName} ~* 'germany' THEN 1.0
+                  WHEN ${applicant.country} = 'RO' AND ${job.locationName} ~* 'romania' THEN 1.0
+                  WHEN ${applicant.country} = 'UA' AND ${job.locationName} ~* 'ukraine' THEN 1.0
+                  WHEN ${applicant.country} = 'IE' AND ${job.locationName} ~* 'ireland' THEN 1.0
+                  WHEN ${applicant.country} = 'FR' AND ${job.locationName} ~* 'france' THEN 1.0
+                  WHEN ${applicant.country} = 'IN' AND ${job.locationName} ~* 'india' THEN 1.0
+                  WHEN ${applicant.country} = 'AR' AND ${job.locationName} ~* 'argentina' THEN 1.0
+                  WHEN ${applicant.country} = 'MX' AND ${job.locationName} ~* 'mexico' THEN 1.0
+                  WHEN ${job.locationName} ~* '(united states|u\.s\.|usa| america|brazil|canada|argentina|mexico|uk|united kingdom|england|scotland|wales|australia|aest|taiwan|malaysia|colombia|nigeria|portugal|malta|switzerland|germany|romania|ukraine|ireland|france|india|serbia)' THEN 0.0
+                  ELSE 1.0
+                END
+              ELSE 0.5
+            END
+          ) * 0.08
+          + (
+            CASE
+              WHEN COALESCE(array_length(${persona.seniorityLevels}, 1), 0) = 0 THEN 0.5
+              WHEN ${job.title} ~* '(junior|associate|entry|intern|trainee)' THEN
+                CASE WHEN 'junior' = ANY(${persona.seniorityLevels}::text[]) THEN 1.0 ELSE 0.0 END
+              WHEN ${job.title} ~* '(senior|sr\.|sr )' THEN
+                CASE WHEN 'senior' = ANY(${persona.seniorityLevels}::text[]) THEN 1.0 ELSE 0.0 END
+              WHEN ${job.title} ~* '(lead|staff|principal|architect|manager|director|head|expert)' THEN
+                CASE WHEN ('lead' = ANY(${persona.seniorityLevels}::text[]) OR 'staff' = ANY(${persona.seniorityLevels}::text[]) OR 'principal' = ANY(${persona.seniorityLevels}::text[])) THEN 1.0 ELSE 0.0 END
+              ELSE 0.5
+            END
+          ) * 0.08
+          -- v2 Corpus Expansion (Criterion 3): company_size_score is a clamped
+          -- [-0.30, +0.30] offset applied WITHIN the existing 0.17 companyQuality
+          -- weight bucket — NOT a separate weight bucket. The locked weighting
+          -- scheme must not change. companySizeScore is clamped at write time
+          -- (see src/lib/jobs/company-scorer.ts SCORE_CLAMP_MIN/MAX), so the
+          -- combined term ranges from (0.20 * 0.17) to (1.30 * 0.17).
+          + (COALESCE(${companyQualityScore.score}, 50) / 100.0 + COALESCE(${companyQualityScore.companySizeScore}::numeric, 0)) * 0.17
+        )
+        - (
+          CASE
+            WHEN COALESCE(array_length(${persona.blocklistTags}, 1), 0) = 0 OR COALESCE(array_length(${job.extractedTags}, 1), 0) = 0 THEN 0.0
+            WHEN ${persona.blocklistTags} && ${job.extractedTags} THEN 1.0
+            ELSE 0.0
+          END
+        ) * 0.10
+        - (
+          CASE
+            WHEN COALESCE(array_length(${persona.mustHaveTags}, 1), 0) = 0 OR COALESCE(array_length(${job.extractedTags}, 1), 0) = 0 THEN 0.0
+            WHEN COALESCE(${matchQueue.overlapScore}, 0) = 0 THEN 1.0
+            ELSE 1.0 - (COALESCE(${matchQueue.overlapScore}, 0)::float / LEAST(array_length(${persona.mustHaveTags}, 1), array_length(${job.extractedTags}, 1)))
+          END
+        ) * 0.10
+        - (
+          LEAST(
+            COALESCE(array_length(
+              ARRAY(
+                SELECT unnest(${job.extractedTags})
+                INTERSECT
+                SELECT unnest(ARRAY['wordpress','vue','nuxt','angular','svelte','solidjs','php','laravel','ruby','rails','csharp','dotnet','aspnet','swift','kotlin','flutter','ios','android'])
+                EXCEPT
+                SELECT unnest(${persona.mustHaveTags})
+              ), 1
+            ), 0)::float / 3,
+            1.0
+          )
+        ) * 0.08
+      )
+    ) * 100
+  )
+`;
+
 /**
  * Get matches for the dashboard list (paginated, applicant-scoped, status-filtered).
  *
@@ -136,125 +255,6 @@ export async function getMatches(
         : status === "stale"
           ? sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${staleCutoff}`
           : eq(matchQueue.status, status);
-
-  // Composite match score (0–100) used for ranking and the 5-star rating.
-  //   25% semantic similarity (1 - cosine distance)
-  //   30% must-have tag overlap (capped at 5, non-linear so the first
-  //       matching tags contribute more than the marginal ones)
-  //   12% workplace/modality alignment
-  //    8% location alignment (global remote > country-specific remote)
-  //    8% seniority alignment (inferred from job title vs persona levels)
-  //   17% company quality score (default 50 if missing)
-  //   subtract up to 10% for blocklist tag hits
-  //   subtract up to 10% for coverage gap (fraction of persona must-have
-  //       tags not matched by the job)
-  //   subtract up to 10% for secondary domain mismatch (alternative
-  //       framework/language tags present in the job but not in the persona)
-  const matchScoreExpr = sql<number>`
-    ROUND(
-      GREATEST(
-        0,
-        LEAST(
-          1,
-          (
-            (1 - COALESCE(${matchQueue.cosineDistance}, 1)) * 0.25
-            + (1 - EXP(-0.4 * LEAST(COALESCE(${matchQueue.overlapScore}, 0), 5))) * 0.30
-            + (
-              CASE
-                WHEN ${job.workplaceType} IS NULL OR COALESCE(array_length(${applicant.assignmentTypes}, 1), 0) = 0 THEN 0.5
-                WHEN ${job.workplaceType}::text = ANY(${applicant.assignmentTypes}::text[]) THEN 1.0
-                WHEN ${job.workplaceType}::text = 'hybrid' AND ('remote' = ANY(${applicant.assignmentTypes}::text[]) OR 'remote_local' = ANY(${applicant.assignmentTypes}::text[])) THEN 0.5
-                WHEN ${job.workplaceType}::text = 'remote' AND 'hybrid' = ANY(${applicant.assignmentTypes}::text[]) THEN 0.5
-                WHEN ${job.workplaceType}::text = 'on-site' AND 'hybrid' = ANY(${applicant.assignmentTypes}::text[]) THEN 0.5
-                ELSE 0.0
-              END
-            ) * 0.12
-            + (
-              CASE
-                WHEN ${applicant.country} IS NULL OR ${job.locationName} IS NULL OR ${job.locationName} = '' THEN 0.5
-                -- Remote scope: global remote gets perfect location score
-                WHEN ${job.remoteScope}::text = 'global' THEN 1.0
-                WHEN ${job.locationName} ~* 'remote|global|anywhere|worldwide' THEN
-                  CASE
-                    WHEN ${applicant.country} = 'RS' AND ${job.locationName} ~* 'serbia' THEN 1.0
-                    WHEN ${applicant.country} = 'US' AND ${job.locationName} ~* '(united states|u\.s\.|usa| america)' THEN 1.0
-                    WHEN ${applicant.country} = 'BR' AND ${job.locationName} ~* 'brazil' THEN 1.0
-                    WHEN ${applicant.country} = 'CA' AND ${job.locationName} ~* 'canada' THEN 1.0
-                    WHEN ${applicant.country} = 'GB' AND ${job.locationName} ~* '(uk|united kingdom|england|scotland|wales)' THEN 1.0
-                    WHEN ${applicant.country} = 'AU' AND ${job.locationName} ~* '(australia|aest)' THEN 1.0
-                    WHEN ${applicant.country} = 'TW' AND ${job.locationName} ~* 'taiwan' THEN 1.0
-                    WHEN ${applicant.country} = 'MY' AND ${job.locationName} ~* 'malaysia' THEN 1.0
-                    WHEN ${applicant.country} = 'CO' AND ${job.locationName} ~* 'colombia' THEN 1.0
-                    WHEN ${applicant.country} = 'NG' AND ${job.locationName} ~* 'nigeria' THEN 1.0
-                    WHEN ${applicant.country} = 'PT' AND ${job.locationName} ~* 'portugal' THEN 1.0
-                    WHEN ${applicant.country} = 'MT' AND ${job.locationName} ~* 'malta' THEN 1.0
-                    WHEN ${applicant.country} = 'CH' AND ${job.locationName} ~* 'switzerland' THEN 1.0
-                    WHEN ${applicant.country} = 'DE' AND ${job.locationName} ~* 'germany' THEN 1.0
-                    WHEN ${applicant.country} = 'RO' AND ${job.locationName} ~* 'romania' THEN 1.0
-                    WHEN ${applicant.country} = 'UA' AND ${job.locationName} ~* 'ukraine' THEN 1.0
-                    WHEN ${applicant.country} = 'IE' AND ${job.locationName} ~* 'ireland' THEN 1.0
-                    WHEN ${applicant.country} = 'FR' AND ${job.locationName} ~* 'france' THEN 1.0
-                    WHEN ${applicant.country} = 'IN' AND ${job.locationName} ~* 'india' THEN 1.0
-                    WHEN ${applicant.country} = 'AR' AND ${job.locationName} ~* 'argentina' THEN 1.0
-                    WHEN ${applicant.country} = 'MX' AND ${job.locationName} ~* 'mexico' THEN 1.0
-                    WHEN ${job.locationName} ~* '(united states|u\.s\.|usa| america|brazil|canada|argentina|mexico|uk|united kingdom|england|scotland|wales|australia|aest|taiwan|malaysia|colombia|nigeria|portugal|malta|switzerland|germany|romania|ukraine|ireland|france|india|serbia)' THEN 0.0
-                    ELSE 1.0
-                  END
-                ELSE 0.5
-              END
-            ) * 0.08
-            + (
-              CASE
-                WHEN COALESCE(array_length(${persona.seniorityLevels}, 1), 0) = 0 THEN 0.5
-                WHEN ${job.title} ~* '(junior|associate|entry|intern|trainee)' THEN
-                  CASE WHEN 'junior' = ANY(${persona.seniorityLevels}::text[]) THEN 1.0 ELSE 0.0 END
-                WHEN ${job.title} ~* '(senior|sr\.|sr )' THEN
-                  CASE WHEN 'senior' = ANY(${persona.seniorityLevels}::text[]) THEN 1.0 ELSE 0.0 END
-                WHEN ${job.title} ~* '(lead|staff|principal|architect|manager|director|head|expert)' THEN
-                  CASE WHEN ('lead' = ANY(${persona.seniorityLevels}::text[]) OR 'staff' = ANY(${persona.seniorityLevels}::text[]) OR 'principal' = ANY(${persona.seniorityLevels}::text[])) THEN 1.0 ELSE 0.0 END
-                ELSE 0.5
-              END
-            ) * 0.08
-            // v2 Corpus Expansion (Criterion 3): company_size_score is a clamped
-            // [-0.30, +0.30] offset applied WITHIN the existing 0.17 companyQuality
-            // weight bucket — NOT a separate weight bucket. The locked weighting
-            // scheme must not change. companySizeScore is clamped at write time
-            // (see src/lib/jobs/company-scorer.ts SCORE_CLAMP_MIN/MAX), so the
-            // combined term ranges from (0.20 * 0.17) to (1.30 * 0.17).
-            + (COALESCE(${companyQualityScore.score}, 50) / 100.0 + COALESCE(${companyQualityScore.companySizeScore}::numeric, 0)) * 0.17
-          )
-          - (
-            CASE
-              WHEN COALESCE(array_length(${persona.blocklistTags}, 1), 0) = 0 OR COALESCE(array_length(${job.extractedTags}, 1), 0) = 0 THEN 0.0
-              WHEN ${persona.blocklistTags} && ${job.extractedTags} THEN 1.0
-              ELSE 0.0
-            END
-          ) * 0.10
-          - (
-            CASE
-              WHEN COALESCE(array_length(${persona.mustHaveTags}, 1), 0) = 0 OR COALESCE(array_length(${job.extractedTags}, 1), 0) = 0 THEN 0.0
-              WHEN COALESCE(${matchQueue.overlapScore}, 0) = 0 THEN 1.0
-              ELSE 1.0 - (COALESCE(${matchQueue.overlapScore}, 0)::float / LEAST(array_length(${persona.mustHaveTags}, 1), array_length(${job.extractedTags}, 1)))
-            END
-          ) * 0.10
-          - (
-            LEAST(
-              COALESCE(array_length(
-                ARRAY(
-                  SELECT unnest(${job.extractedTags})
-                  INTERSECT
-                  SELECT unnest(ARRAY['wordpress','vue','nuxt','angular','svelte','solidjs','php','laravel','ruby','rails','csharp','dotnet','aspnet','swift','kotlin','flutter','ios','android'])
-                  EXCEPT
-                  SELECT unnest(${persona.mustHaveTags})
-                ), 1
-              ), 0)::float / 3,
-              1.0
-            )
-          ) * 0.08
-        )
-      ) * 100
-    )
-  `;
 
   const rows = await db
     .select({

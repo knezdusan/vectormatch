@@ -257,9 +257,15 @@ describe("extractStaticHtmlJobContent", () => {
     expect(result?.email).toBeNull();
   });
 
-  it("returns null for content below MIN_CONTENT_LENGTH", () => {
+  it("returns short content (not null) for content below MIN_CONTENT_LENGTH", () => {
+    // Task A3: extractStaticHtmlJobContent now returns short content instead
+    // of null, so the caller can distinguish "no content" (cheerio failure)
+    // from "content too short" (cleanedText.length < MIN_CONTENT_LENGTH).
     const html = `<html><body><main>Short</main></body></html>`;
-    expect(extractStaticHtmlJobContent(html)).toBeNull();
+    const result = extractStaticHtmlJobContent(html);
+    expect(result).not.toBeNull();
+    expect(result?.cleanedText).toBe("Short");
+    expect(result?.cleanedText.length).toBeLessThan(200);
   });
 
   it("returns null for empty HTML", () => {
@@ -516,9 +522,109 @@ describe("probeDomain", () => {
     );
 
     expect(result.jobs).toHaveLength(0);
-    // content_too_short causes the path to be skipped, not a direct discard.
-    // After all paths are exhausted with no jobs, the discard is "no_job_text".
-    expect(result.discardReason).toBe("no_job_text");
+    // Task A3: content_too_short is now tracked as a granular discard reason
+    // (previously collapsed to "no_job_text"). This enables distinguishing
+    // "need new Cheerio selector" from "need regex adjustment".
+    expect(result.discardReason).toBe("content_too_short");
+  });
+
+  it("discards with 'no_content' when Cheerio extracts nothing", async () => {
+    // Page responds 200 but body has no extractable content (empty main, only nav/footer)
+    const html = `<html><body><nav>Menu</nav><footer>Copyright</footer></body></html>`;
+
+    const result = await probeDomain(
+      "acme.com",
+      makeMockFetch({
+        "https://acme.com/robots.txt": { status: 404, body: "" },
+        "https://acme.com/jobs": { status: 200, body: html },
+      }),
+    );
+
+    expect(result.jobs).toHaveLength(0);
+    // Granular reason: Cheerio selector extracted no content — selector gap
+    expect(result.discardReason).toBe("no_content");
+  });
+
+  it("discards with 'no_title_match' when content is long but no job title", async () => {
+    // Content ≥200 chars but no job title pattern matches — regex gap
+    const longText =
+      "This is a company page about our values and mission. ".repeat(10);
+    const html = `<html><body><main>${longText}</main></body></html>`;
+
+    const result = await probeDomain(
+      "acme.com",
+      makeMockFetch({
+        "https://acme.com/robots.txt": { status: 404, body: "" },
+        "https://acme.com/jobs": { status: 200, body: html },
+      }),
+    );
+
+    expect(result.jobs).toHaveLength(0);
+    // Granular reason: content was long enough but no job title pattern matched
+    expect(result.discardReason).toBe("no_title_match");
+  });
+
+  it("discards with 'below_word_threshold' when JSON-LD description is thin", async () => {
+    // JSON-LD JobPosting with <50 word description
+    const html = `<html><head>
+      <script type="application/ld+json">
+      {"@type": "JobPosting", "title": "Engineer",
+       "description": "We are hiring an engineer. Apply now."}
+      </script>
+    </head></html>`;
+
+    const result = await probeDomain(
+      "acme.com",
+      makeMockFetch({
+        "https://acme.com/robots.txt": { status: 404, body: "" },
+        "https://acme.com/jobs": { status: 200, body: html },
+      }),
+    );
+
+    expect(result.jobs).toHaveLength(0);
+    // Granular reason: JSON-LD found but description below 50-word threshold
+    expect(result.discardReason).toBe("below_word_threshold");
+  });
+
+  it("discards with 'mailto_only_no_role' when only mailto found", async () => {
+    // Content ≥200 chars, no job title, but has mailto link
+    const longText =
+      "Welcome to our careers page. Contact us for opportunities. ".repeat(10);
+    const html = `<html><body><main>${longText}<a href="mailto:jobs@acme.com">Apply</a></main></body></html>`;
+
+    const result = await probeDomain(
+      "acme.com",
+      makeMockFetch({
+        "https://acme.com/robots.txt": { status: 404, body: "" },
+        "https://acme.com/jobs": { status: 200, body: html },
+      }),
+    );
+
+    expect(result.jobs).toHaveLength(0);
+    // Granular reason: mailto found but no job title context
+    expect(result.discardReason).toBe("mailto_only_no_role");
+  });
+
+  it("uses most specific granular reason when multiple paths fail differently", async () => {
+    // Path 1: no_content (empty page), Path 2: no_title_match (long text, no title)
+    const emptyHtml = `<html><body><nav>Menu</nav></body></html>`;
+    const longText =
+      "This is a company page about our values and mission. ".repeat(10);
+    const longHtml = `<html><body><main>${longText}</main></body></html>`;
+
+    const result = await probeDomain(
+      "acme.com",
+      makeMockFetch({
+        "https://acme.com/robots.txt": { status: 404, body: "" },
+        "https://acme.com/jobs": { status: 200, body: emptyHtml },
+        "https://acme.com/careers": { status: 200, body: longHtml },
+      }),
+    );
+
+    expect(result.jobs).toHaveLength(0);
+    // Priority: no_title_match > no_content → should return no_title_match
+    // (no_title_match is more actionable: "need regex adjustment" vs "selector gap")
+    expect(result.discardReason).toBe("no_title_match");
   });
 
   it("stops probing after finding jobs on the first successful path", async () => {

@@ -106,14 +106,26 @@ export interface ProbeResult {
   error?: string;
 }
 
-/** The reason a domain was discarded (per governing doc discard criteria). */
+/**
+ * The reason a domain was discarded (per governing doc discard criteria).
+ *
+ * Granular reasons (Task A3) distinguish "need new Cheerio selector" from
+ * "need regex adjustment" from "content genuinely missing" — enabling
+ * targeted selector expansion based on production data patterns.
+ */
 export type DiscardReason =
-  | "no_job_text" // No job-like text after 3 path attempts
+  // Pre-existing reasons
+  | "no_job_text" // No job-like text after 3 path attempts (fallback)
   | "mailto_only_no_role" // Mailto links but no role context
   | "http_error" // 4xx/5xx response on all paths
   | "content_too_short" // Content < 200 chars after cleaning
   | "aggregator_domain" // Aggregator domain detected
-  | "no_paths_found"; // No job paths returned 200
+  | "no_paths_found" // No job paths returned 200
+  // Granular reasons (Task A3) — logged to ingestion_log.errorDetails
+  // to distinguish "need new Cheerio selector" from "need regex adjustment"
+  | "no_content" // Page responded 200 but body was empty/no extractable text
+  | "no_title_match" // Content ≥200 chars but no job title pattern matched (regex gap)
+  | "below_word_threshold"; // Content found but <50 word description (thin posting)
 
 // ── Pure function: normalize a domain to a base URL ──────────────────────────
 
@@ -361,7 +373,10 @@ export function extractStaticHtmlJobContent(html: string): {
     bestText = $("body").text().replace(/\s+/g, " ").trim();
   }
 
-  if (bestText.length < MIN_CONTENT_LENGTH) {
+  // Return the extracted text regardless of length — the caller distinguishes
+  // "no content" (null return from cheerio failure) from "content too short"
+  // (cleanedText.length < MIN_CONTENT_LENGTH) for granular discard reasons.
+  if (!bestText || bestText.length === 0) {
     return null;
   }
 
@@ -482,6 +497,11 @@ export async function probeDomain(
   let pathsAttempted = 0;
   let httpErrorCount = 0;
 
+  // Track per-path skip reasons for granular discard diagnostics (Task A3).
+  // When no jobs are found, the most specific skip reason becomes the final
+  // discard reason — enabling targeted selector/regex expansion.
+  const pathSkipReasons: DiscardReason[] = [];
+
   try {
     // ── Step 1: robots.txt ──────────────────────────────────────────────────
     let disallows: string[] = [];
@@ -541,7 +561,10 @@ export async function probeDomain(
             .replace(/<[^>]+>/g, " ")
             .replace(/\s+/g, " ")
             .trim();
-          if (countWords(cleanedText) < MIN_DESCRIPTION_WORDS) continue;
+          if (countWords(cleanedText) < MIN_DESCRIPTION_WORDS) {
+            pathSkipReasons.push("below_word_threshold");
+            continue;
+          }
           jobs.push({
             title: posting.title,
             htmlSnippet: posting.description,
@@ -559,29 +582,31 @@ export async function probeDomain(
       // ── Step 4: Static HTML fallback ──────────────────────────────────────
       if (jobs.length === 0) {
         const staticContent = extractStaticHtmlJobContent(body);
-        if (staticContent !== null) {
-          if (staticContent.cleanedText.length < MIN_CONTENT_LENGTH) {
-            continue; // content_too_short — try next path
-          }
-          if (staticContent.hasJobTitle || staticContent.email) {
-            // If mailto-only with no job title → discard reason
-            if (!staticContent.hasJobTitle && staticContent.email !== null) {
-              // mailto_only_no_role — but continue probing other paths
-              continue;
-            }
-            jobs.push({
-              title:
-                extractTitleFromText(staticContent.cleanedText) ??
-                "Untitled Role",
-              htmlSnippet: body.slice(0, 5000), // cap snippet size
-              cleanedText: staticContent.cleanedText,
-              email: staticContent.email,
-              sourceUrl: url,
-              discoveredBy: "step4_static_html",
-            });
-            if (resolvedByStep === null) {
-              resolvedByStep = 4;
-            }
+        if (staticContent === null) {
+          // No extractable content at all — Cheerio selector gap
+          pathSkipReasons.push("no_content");
+        } else if (staticContent.cleanedText.length < MIN_CONTENT_LENGTH) {
+          // Content extracted but too short — possible selector gap or thin page
+          pathSkipReasons.push("content_too_short");
+        } else if (!staticContent.hasJobTitle && staticContent.email === null) {
+          // Content ≥200 chars but no job title pattern matched — regex gap
+          pathSkipReasons.push("no_title_match");
+        } else if (!staticContent.hasJobTitle && staticContent.email !== null) {
+          // Mailto-only with no role context
+          pathSkipReasons.push("mailto_only_no_role");
+        } else if (staticContent.hasJobTitle || staticContent.email) {
+          jobs.push({
+            title:
+              extractTitleFromText(staticContent.cleanedText) ??
+              "Untitled Role",
+            htmlSnippet: body.slice(0, 5000), // cap snippet size
+            cleanedText: staticContent.cleanedText,
+            email: staticContent.email,
+            sourceUrl: url,
+            discoveredBy: "step4_static_html",
+          });
+          if (resolvedByStep === null) {
+            resolvedByStep = 4;
           }
         }
       }
@@ -620,10 +645,27 @@ export async function probeDomain(
         discardReason = "http_error";
       } else if (pathsAttempted === 0) {
         discardReason = "no_paths_found";
-      } else if (pathsAttempted >= 3) {
-        discardReason = "no_job_text";
       } else {
-        discardReason = "no_job_text";
+        // Use the most specific per-path skip reason if available (Task A3).
+        // Priority is based on actionability: reasons that indicate content
+        // was found but didn't match patterns are more actionable than "couldn't
+        // extract anything" (which is a selector gap).
+        //   no_title_match → "need regex adjustment" (content was there)
+        //   below_word_threshold → "thin posting" (content was there but short)
+        //   mailto_only_no_role → "mailto-only careers page" (email found)
+        //   content_too_short → "selector extracted too little" (some content)
+        //   no_content → "selector gap" (nothing extracted — try new selectors)
+        const priorityOrder: DiscardReason[] = [
+          "no_title_match",
+          "below_word_threshold",
+          "mailto_only_no_role",
+          "content_too_short",
+          "no_content",
+        ];
+        const specificReason = priorityOrder.find((r) =>
+          pathSkipReasons.includes(r),
+        );
+        discardReason = specificReason ?? "no_job_text";
       }
       return {
         domain,

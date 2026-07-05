@@ -147,6 +147,9 @@ export const { GET, POST, PUT } = serve({
     // v2 Corpus Expansion: Provisional Job Lifecycle (Criterion 1)
     normalizeProvisionalJob,
     retryInFlightSweeper,
+    // v2 Corpus Expansion: Circuit Breaker (Criterion 3 — 5-tier action chain)
+    breakerCheck,
+    sourceBanRecoveryCheck,
     // Batch source functions (TDD §2.1 — event-triggered for one-time flush)
     // Sprint 3 Task 7: B2 replaced Google CSE with Brave Search API.
     batchSourceB1Workable,

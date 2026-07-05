@@ -13,20 +13,19 @@
  */
 
 import { describe, expect, it } from "vitest";
-
+import { step1RegexHardSignals } from "@/lib/jobs/remote-scope-extractor";
 import {
   COUNTRY_CODE_MAP,
+  COUNTRY_FENCED_HIGH,
   extractCountryCodesFromText,
   extractCountryFromCapture,
   GLOBAL_HIGH,
-  COUNTRY_FENCED_HIGH,
-  REGION_FENCED_HIGH,
-  MEDIUM_CONFIDENCE,
-  NEGATIVE_SIGNALS,
   HIGH_CONFIDENCE_SIGNALS,
+  MEDIUM_CONFIDENCE,
   matchUtcRange,
+  NEGATIVE_SIGNALS,
+  REGION_FENCED_HIGH,
 } from "@/lib/jobs/remote-scope-patterns";
-import { step1RegexHardSignals } from "@/lib/jobs/remote-scope-extractor";
 
 // =============================================================================
 // PATTERN TABLE STRUCTURE TESTS
@@ -40,8 +39,8 @@ describe("Pattern table structure", () => {
   it("COUNTRY_FENCED_HIGH has patterns for major countries", () => {
     expect(COUNTRY_FENCED_HIGH.length).toBeGreaterThan(20);
     // Verify US, UK, Canada, Germany patterns exist
-    const usPatterns = COUNTRY_FENCED_HIGH.filter(
-      (s) => s.allowedCountries?.includes("US"),
+    const usPatterns = COUNTRY_FENCED_HIGH.filter((s) =>
+      s.allowedCountries?.includes("US"),
     );
     expect(usPatterns.length).toBeGreaterThan(3);
   });
@@ -60,7 +59,9 @@ describe("Pattern table structure", () => {
 
   it("HIGH_CONFIDENCE_SIGNALS is the union of global + country + region", () => {
     expect(HIGH_CONFIDENCE_SIGNALS.length).toBe(
-      GLOBAL_HIGH.length + COUNTRY_FENCED_HIGH.length + REGION_FENCED_HIGH.length,
+      GLOBAL_HIGH.length +
+        COUNTRY_FENCED_HIGH.length +
+        REGION_FENCED_HIGH.length,
     );
   });
 
@@ -100,7 +101,10 @@ describe("GLOBAL_HIGH patterns", () => {
     ["No location restrictions for this role", "no location restrictions"],
     ["Location independent — work from home", "location independent"],
     ["Borderless hiring — we hire from any country", "borderless"],
-    ["Our team members across 30 countries", "team members across 30 countries"],
+    [
+      "Our team members across 30 countries",
+      "team members across 30 countries",
+    ],
     ["We operates in 50 countries", "operates in 50 countries"],
   ];
 
@@ -112,7 +116,9 @@ describe("GLOBAL_HIGH patterns", () => {
   }
 
   it("does NOT match 'remote within US' as global", () => {
-    const matched = GLOBAL_HIGH.some((s) => s.pattern.test("Remote within US only"));
+    const matched = GLOBAL_HIGH.some((s) =>
+      s.pattern.test("Remote within US only"),
+    );
     expect(matched).toBe(false);
   });
 });
@@ -123,12 +129,16 @@ describe("GLOBAL_HIGH patterns", () => {
 
 describe("COUNTRY_FENCED_HIGH patterns", () => {
   it("matches 'US only'", () => {
-    const matched = COUNTRY_FENCED_HIGH.some((s) => s.pattern.test("This is US only"));
+    const matched = COUNTRY_FENCED_HIGH.some((s) =>
+      s.pattern.test("This is US only"),
+    );
     expect(matched).toBe(true);
   });
 
   it("matches 'W-2 only' (US-specific tax)", () => {
-    const matched = COUNTRY_FENCED_HIGH.some((s) => s.pattern.test("W-2 only, no C2C"));
+    const matched = COUNTRY_FENCED_HIGH.some((s) =>
+      s.pattern.test("W-2 only, no C2C"),
+    );
     expect(matched).toBe(true);
   });
 
@@ -147,7 +157,9 @@ describe("COUNTRY_FENCED_HIGH patterns", () => {
   });
 
   it("matches 'UK only'", () => {
-    const matched = COUNTRY_FENCED_HIGH.some((s) => s.pattern.test("UK only position"));
+    const matched = COUNTRY_FENCED_HIGH.some((s) =>
+      s.pattern.test("UK only position"),
+    );
     expect(matched).toBe(true);
   });
 
@@ -187,8 +199,8 @@ describe("COUNTRY_FENCED_HIGH patterns", () => {
   });
 
   it("US patterns declare allowedCountries=['US']", () => {
-    const usPattern = COUNTRY_FENCED_HIGH.find(
-      (s) => s.allowedCountries?.includes("US"),
+    const usPattern = COUNTRY_FENCED_HIGH.find((s) =>
+      s.allowedCountries?.includes("US"),
     );
     expect(usPattern).toBeDefined();
     expect(usPattern?.allowedCountries).toEqual(["US"]);
@@ -201,7 +213,9 @@ describe("COUNTRY_FENCED_HIGH patterns", () => {
 
 describe("REGION_FENCED_HIGH patterns", () => {
   it("matches 'EU only'", () => {
-    const matched = REGION_FENCED_HIGH.some((s) => s.pattern.test("EU only position"));
+    const matched = REGION_FENCED_HIGH.some((s) =>
+      s.pattern.test("EU only position"),
+    );
     expect(matched).toBe(true);
   });
 
@@ -255,8 +269,8 @@ describe("REGION_FENCED_HIGH patterns", () => {
   });
 
   it("EU patterns declare EU country codes as allowedCountries", () => {
-    const euPattern = REGION_FENCED_HIGH.find(
-      (s) => s.allowedCountries?.includes("DE"),
+    const euPattern = REGION_FENCED_HIGH.find((s) =>
+      s.allowedCountries?.includes("DE"),
     );
     expect(euPattern).toBeDefined();
     expect(euPattern?.allowedCountries).toContain("FR");
@@ -269,7 +283,9 @@ describe("REGION_FENCED_HIGH patterns", () => {
 
 describe("MEDIUM_CONFIDENCE patterns", () => {
   it("matches 'Remote - US' (ATS label, medium)", () => {
-    const matched = MEDIUM_CONFIDENCE.some((s) => s.pattern.test("Remote - US"));
+    const matched = MEDIUM_CONFIDENCE.some((s) =>
+      s.pattern.test("Remote - US"),
+    );
     expect(matched).toBe(true);
   });
 
@@ -401,7 +417,9 @@ describe("extractCountryCodesFromText", () => {
   });
 
   it("returns null for no country mentions", () => {
-    const codes = extractCountryCodesFromText("Remote position, no location specified");
+    const codes = extractCountryCodesFromText(
+      "Remote position, no location specified",
+    );
     expect(codes).toBeNull();
   });
 
@@ -508,10 +526,7 @@ describe("step1RegexHardSignals — expanded pattern integration", () => {
   });
 
   it("resolves 'EMEA only' as region_fenced (new pattern)", () => {
-    const result = step1RegexHardSignals(
-      "EMEA only remote role.",
-      "remote",
-    );
+    const result = step1RegexHardSignals("EMEA only remote role.", "remote");
     expect(result?.remoteScope).toBe("region_fenced");
     expect(result?.confidence).toBe(1.0);
   });
@@ -535,14 +550,16 @@ describe("step1RegexHardSignals — expanded pattern integration", () => {
     expect(result?.allowedCountries).toContain("US");
   });
 
-  it("medium-confidence 'must be based in Germany' extracts DE from capture", () => {
+  it("medium-confidence 'must be based in Malaysia' extracts MY from capture", () => {
+    // Malaysia is in COUNTRY_CODE_MAP but NOT in the high-confidence list,
+    // so it only matches the medium-confidence capture-group pattern.
     const result = step1RegexHardSignals(
-      "You must be based in Germany for this role.",
+      "You must be based in Malaysia for this role.",
       "remote",
     );
     expect(result?.remoteScope).toBe("country_fenced");
     expect(result?.confidence).toBe(0.7);
-    expect(result?.allowedCountries).toContain("DE");
+    expect(result?.allowedCountries).toContain("MY");
   });
 
   it("negative signal 'relocation required' blocks global medium-confidence", () => {
@@ -558,15 +575,72 @@ describe("step1RegexHardSignals — expanded pattern integration", () => {
     expect(result).toBeNull();
   });
 
-  it("negative signal 'hybrid' blocks all remote scopes", () => {
+  it("'fully remote' (no country qualifier) resolves as global (medium)", () => {
+    const result = step1RegexHardSignals(
+      "This is a fully remote role. We are looking for a senior engineer.",
+      "remote",
+    );
+    expect(result?.remoteScope).toBe("global");
+    expect(result?.confidence).toBe(0.7);
+  });
+
+  it("'100% remote' resolves as global (medium)", () => {
+    const result = step1RegexHardSignals(
+      "100% remote — we are hiring across the globe.",
+      "remote",
+    );
+    expect(result?.remoteScope).toBe("global");
+    expect(result?.confidence).toBe(0.7);
+  });
+
+  it("'fully remote' with 'relocation required' is blocked by negative signal", () => {
+    const result = step1RegexHardSignals(
+      "Fully remote role but relocation required to Berlin after 6 months.",
+      "remote",
+    );
+    // "relocation required" negates global → should not return global
+    expect(result).toBeNull();
+  });
+
+  it("negative signal 'hybrid' with workplaceType=null classifies as onsite", () => {
+    const result = step1RegexHardSignals(
+      "Hybrid work model — 2 days in office. Remote - US.",
+      null,
+    );
+    // "hybrid" negates all_remote + workplaceType is null → classify as onsite
+    // (avoids unnecessary LLM call for the ~26% of jobs that mention hybrid/onsite)
+    expect(result?.remoteScope).toBe("onsite");
+    expect(result?.confidence).toBe(1.0);
+    expect(result?.resolvedBy).toBe("step1_regex");
+  });
+
+  it("negative signal 'hybrid' with workplaceType=remote blocks remote scopes", () => {
     const result = step1RegexHardSignals(
       "Hybrid work model — 2 days in office. Remote - US.",
       "remote",
     );
-    // "hybrid" negates all_remote → should not return country_fenced
-    // But "Remote - US" is medium confidence, checked after negative signals
-    // The "all_remote" negation returns null before medium confidence is checked
+    // ATS says remote but text says hybrid — don't override to onsite,
+    // but block all remote scope matches. Route to LLM for disambiguation.
     expect(result).toBeNull();
+  });
+
+  it("negative signal 'hybrid' with workplaceType=hybrid classifies as onsite", () => {
+    const result = step1RegexHardSignals(
+      "Hybrid work model — 2 days in office. Remote - US.",
+      "hybrid",
+    );
+    // ATS says hybrid + text says hybrid → classify as onsite
+    expect(result?.remoteScope).toBe("onsite");
+    expect(result?.confidence).toBe(1.0);
+  });
+
+  it("negative signal 'on-site' with workplaceType=on-site classifies as onsite", () => {
+    const result = step1RegexHardSignals(
+      "On-site position in our Berlin office. Some remote work possible.",
+      "on-site",
+    );
+    expect(result?.remoteScope).toBe("onsite");
+    expect(result?.confidence).toBe(1.0);
   });
 
   it("high-confidence global still matches even with 'local candidates only'", () => {
@@ -601,7 +675,10 @@ describe("step1RegexHardSignals — expanded pattern integration", () => {
 
   // Regression: MVP patterns still work
   it("regression: 'worldwide' still resolves as global", () => {
-    const result = step1RegexHardSignals("Worldwide remote position.", "remote");
+    const result = step1RegexHardSignals(
+      "Worldwide remote position.",
+      "remote",
+    );
     expect(result?.remoteScope).toBe("global");
   });
 

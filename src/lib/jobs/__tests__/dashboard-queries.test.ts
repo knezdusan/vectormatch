@@ -87,6 +87,7 @@ import {
   getMatches,
   getMatchesCount,
   getUnreadBadgeCount,
+  matchScoreExpr,
 } from "@/lib/jobs/dashboard-queries";
 
 // =============================================================================
@@ -200,6 +201,41 @@ describe("getMatches", () => {
     expect(Array.isArray(result)).toBe(true);
   });
 });
+
+// =============================================================================
+// matchScoreExpr
+// =============================================================================
+
+describe("matchScoreExpr", () => {
+  it("stringifies to valid SQL without JavaScript-style comments", () => {
+    const rawStrings = collectSqlStrings(matchScoreExpr);
+    const sqlString = rawStrings.join("");
+
+    expect(sqlString).not.toContain("//");
+  });
+});
+
+function collectSqlStrings(sqlObj: unknown): string[] {
+  const sql = sqlObj as { queryChunks?: unknown[] };
+  const strings: string[] = [];
+  if (!sql?.queryChunks) return strings;
+  for (const chunk of sql.queryChunks) {
+    if (typeof chunk === "string") {
+      strings.push(chunk);
+    } else if (chunk && typeof chunk === "object") {
+      const c = chunk as { queryChunks?: unknown[]; value?: unknown[] };
+      if (Array.isArray(c.value)) {
+        for (const value of c.value) {
+          if (typeof value === "string") strings.push(value);
+        }
+      }
+      if (Array.isArray(c.queryChunks)) {
+        strings.push(...collectSqlStrings(chunk));
+      }
+    }
+  }
+  return strings;
+}
 
 // =============================================================================
 // getMatchesCount

@@ -42,8 +42,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  type BreakerRetryMetrics,
   type CorpusRatioMetrics,
   getAllSourceHealth,
+  getBreakerRetryMetrics,
   getCorpusRatioMetrics,
   getInfraStats,
   getSourceOrphanedCompanies,
@@ -96,15 +98,18 @@ export async function InfrastructureHealth() {
   let sources: SourceHealthStats[] = [];
   let corpusMetrics: CorpusRatioMetrics | null = null;
   let orphanedCompanies: SourceOrphanedCompany[] = [];
+  let retryMetrics: BreakerRetryMetrics | null = null;
   let error: string | null = null;
 
   try {
-    [infra, sources, corpusMetrics, orphanedCompanies] = await Promise.all([
-      getInfraStats(),
-      getAllSourceHealth(),
-      getCorpusRatioMetrics(),
-      getSourceOrphanedCompanies(),
-    ]);
+    [infra, sources, corpusMetrics, orphanedCompanies, retryMetrics] =
+      await Promise.all([
+        getInfraStats(),
+        getAllSourceHealth(),
+        getCorpusRatioMetrics(),
+        getSourceOrphanedCompanies(),
+        getBreakerRetryMetrics(),
+      ]);
   } catch (e) {
     error =
       e instanceof Error ? e.message : "Failed to load infrastructure data";
@@ -399,6 +404,81 @@ export async function InfrastructureHealth() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Breaker halts ingestion below 50%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* v2 Circuit Breaker Retry Monitoring (Task A4) */}
+      {retryMetrics && retryMetrics.totalTrips > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-5 text-muted-foreground" />
+              <CardTitle>Breaker Retry Monitoring (v2)</CardTitle>
+            </div>
+            <CardDescription>
+              Single-test retry success ratio (last 7 days). &gt;80% = breaker
+              catching blips correctly; &lt;50% = sources genuinely broken.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Retry Success</p>
+                <p
+                  className={`text-3xl font-bold ${
+                    retryMetrics.retrySuccessRatio >= 0.8
+                      ? "text-emerald-500"
+                      : retryMetrics.retrySuccessRatio >= 0.5
+                        ? "text-yellow-500"
+                        : "text-red-500"
+                  }`}
+                >
+                  {(retryMetrics.retrySuccessRatio * 100).toFixed(0)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {retryMetrics.autoResolved} auto-recovered /{" "}
+                  {retryMetrics.totalTrips} total trips
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Escalations</p>
+                <p className="text-3xl font-bold">{retryMetrics.escalations}</p>
+                <p className="text-xs text-muted-foreground">
+                  Tier 5 bans from retry failure
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Active Alerts</p>
+                <p
+                  className={`text-3xl font-bold ${
+                    retryMetrics.activeAlerts > 0
+                      ? "text-yellow-500"
+                      : "text-emerald-500"
+                  }`}
+                >
+                  {retryMetrics.activeAlerts}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Unresolved breaker alerts
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Active Bans</p>
+                <p
+                  className={`text-3xl font-bold ${
+                    retryMetrics.activeBans > 0
+                      ? "text-red-500"
+                      : "text-emerald-500"
+                  }`}
+                >
+                  {retryMetrics.activeBans}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Sources in 24hr cooldown
                 </p>
               </div>
             </div>

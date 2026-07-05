@@ -15,6 +15,7 @@ import { count, desc, eq, gte, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { user } from "@/db/schemas/auth/user";
+import { alerts } from "@/db/schemas/jobs/alerts";
 import { applicant } from "@/db/schemas/jobs/applicant";
 import { company } from "@/db/schemas/jobs/company";
 import { companyQualityScore } from "@/db/schemas/jobs/companyQualityScore";
@@ -688,4 +689,94 @@ export async function getSourceOrphanedCompanies(
     discoverySource: r.discoverySource,
     tier: r.tier,
   }));
+}
+
+// =============================================================================
+// v2 Circuit Breaker Retry Monitoring (Task A4)
+// =============================================================================
+
+export interface BreakerRetryMetrics {
+  /** Total Tier 1 per-source breaker trips in the window. */
+  totalTrips: number;
+  /** Of those, how many escalated to Tier 5 source bans. */
+  escalations: number;
+  /** Of those, how many were auto-resolved (source recovered). */
+  autoResolved: number;
+  /** Ratio of trips that recovered without escalation: 1 - (escalations / totalTrips).
+   *  Per governing doc: >80% = breaker correctly catching blips;
+   *  <50% = sources genuinely broken, bans are correct. */
+  retrySuccessRatio: number;
+  /** Total active (unresolved) breaker alerts. */
+  activeAlerts: number;
+  /** Active source bans (Tier 5). */
+  activeBans: number;
+}
+
+/**
+ * Get circuit breaker retry success metrics for the admin dashboard.
+ *
+ * Per governing doc Open Tuning Items:
+ *   "Monitor the ratio of single-test retry success vs single-test retry
+ *   failure in the alerts table — if retries succeed >80%, the breaker is
+ *   correctly catching blips; if retries fail >50%, sources are genuinely
+ *   broken and bans are correct."
+ *
+ * This query aggregates v2_breaker_per_source and v2_source_banned alerts
+ * to compute the retry success ratio.
+ *
+ * @param daysBack  Lookback window in days (default: 7)
+ */
+export async function getBreakerRetryMetrics(
+  daysBack = 7,
+): Promise<BreakerRetryMetrics> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - daysBack);
+
+  const result = await db.execute(sql`
+    SELECT
+      COUNT(*) FILTER (
+        WHERE ${alerts.type} = 'v2_breaker_per_source'
+        AND ${alerts.createdAt} >= ${cutoff}
+      ) AS total_trips,
+      COUNT(*) FILTER (
+        WHERE ${alerts.type} = 'v2_source_banned'
+        AND ${alerts.createdAt} >= ${cutoff}
+      ) AS escalations,
+      COUNT(*) FILTER (
+        WHERE ${alerts.type} = 'v2_breaker_per_source'
+        AND ${alerts.createdAt} >= ${cutoff}
+        AND ${alerts.status} = 'resolved'
+        AND ${alerts.resolvedBy} = 'auto'
+      ) AS auto_resolved,
+      COUNT(*) FILTER (
+        WHERE ${alerts.type} IN ('v2_breaker_per_source', 'v2_breaker_corpus_ratio')
+        AND ${alerts.status} = 'active'
+      ) AS active_alerts,
+      COUNT(*) FILTER (
+        WHERE ${alerts.type} = 'v2_source_banned'
+        AND ${alerts.status} = 'active'
+      ) AS active_bans
+    FROM ${alerts}
+  `);
+
+  const row = result.rows?.[0] ?? {};
+  const totalTrips = Number(row.total_trips ?? 0);
+  const escalations = Number(row.escalations ?? 0);
+  const autoResolved = Number(row.auto_resolved ?? 0);
+  const activeAlerts = Number(row.active_alerts ?? 0);
+  const activeBans = Number(row.active_bans ?? 0);
+
+  // retrySuccessRatio = trips that didn't escalate / total trips
+  // (escalation means retry failed → source was genuinely broken)
+  const retrySuccessRatio =
+    totalTrips > 0 ? (totalTrips - escalations) / totalTrips : 1.0;
+
+  return {
+    totalTrips,
+    escalations,
+    autoResolved,
+    retrySuccessRatio,
+    activeAlerts,
+    activeBans,
+  };
 }

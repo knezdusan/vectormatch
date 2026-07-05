@@ -1,6 +1,12 @@
 // Big-Tech Registry — Curated employee-count + public-listing signal
 // src/lib/jobs/company-enrichment/big-tech-registry.ts
 //
+// Last reviewed: July 5, 2026. Review quarterly against IPO calendar and
+// major acquisitions. Short-term rot is minimal (FAANG-scale companies don't
+// change size category frequently). See governing doc "Big-tech registry
+// review cadence" for long-term transition plan (Clearbit/Crunchbase API
+// enrichment that populates company.employeeCount directly).
+//
 // Provides the fallback employee-count + isPublic signal for the Job Scoring
 // Matrix (Criterion 3) when `company.employeeCount` is null. Covers the
 // ~120 highest-impact public tech companies plus a handful of large private

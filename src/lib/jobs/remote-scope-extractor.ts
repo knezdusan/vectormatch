@@ -34,6 +34,16 @@ import { generateObject } from "ai";
 import * as cheerio from "cheerio";
 import { z } from "zod";
 
+import {
+  extractCountryCodesFromText,
+  extractCountryFromCapture,
+  HIGH_CONFIDENCE_SIGNALS,
+  MEDIUM_CONFIDENCE,
+  matchUtcRange,
+  NEGATIVE_SIGNALS,
+  type ScopeSignal,
+} from "@/lib/jobs/remote-scope-patterns";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -231,64 +241,14 @@ function cleanText(text: string): string {
 }
 
 // =============================================================================
-// STEP 1c — REGEX HARD-SIGNALS WITH CONFIDENCE SCORING
+// STEP 1c — REGEX HARD-SIGNALS WITH CONFIDENCE SCORING (pattern-table-driven)
 // =============================================================================
 
 /**
- * High-confidence global remote indicators. Exact phrase hits — if any of
- * these match, the job is classified as `global` with confidence 1.0.
- *
- * Per governing doc: `\b(anywhere|worldwide|global|remote-first)\b` → candidate `global`.
- */
-const GLOBAL_HARD_SIGNALS: readonly RegExp[] = [
-  /\bremote\s*[-–]\s*(?:global|worldwide|anywhere)\b/i,
-  /\b(?:global[,\s]+remote|remote[,\s]+global)\b/i,
-  /\bwork\s+from\s+anywhere\b/i,
-  /\bwork\s+from\s+any\s+location\b/i,
-  /\bany\s+country\b/i,
-  /\bany\s+location\b/i,
-  /\bworldwide\b/i,
-  /\bremote[- ]first\b/i,
-  /\bdistributed\s+(?:team|workforce|company|organization)\b/i,
-  /\bteam\s+members\s+across\s+\d+\s+countries\b/i,
-  /\boperates?\s+in\s+\d+\s+countries\b/i,
-];
-
-/**
- * High-confidence country-fenced indicators. If any of these match, the job
- * is classified as `country_fenced` with confidence 1.0.
- *
- * Per governing doc: `\b(US-only|must reside in|authorized to work in US)\b`
- * → candidate `country_fenced`.
- */
-const COUNTRY_FENCED_HARD_SIGNALS: readonly RegExp[] = [
-  /\bremote\s*[-–]\s*(?:us|usa|united\s+states|u\.s\.)\b/i,
-  /\bremote\s*[-–]\s*(?:uk|united\s+kingdom|england)\b/i,
-  /\bremote\s*[-–]\s*(?:eu|europe|european\s+union)\b/i,
-  /\bremote\s*[-–]\s*(?:germany|france|spain|italy|netherlands|poland|portugal)\b/i,
-  /\bremote\s*[-–]\s*(?:canada|australia|india|brazil|mexico|argentina|colombia)\b/i,
-  /\bremote\s+(?:within|in|only|restricted)\b/i,
-  /\bmust\s+(?:be\s+)?(?:located|reside)\s+in\b/i,
-  /\b(?:us|uk|eu)\s+only\b/i,
-  /\bnorth\s+america\s+only\b/i,
-  /\bauthorized\s+to\s+work\s+in\s+(?:the\s+)?(?:us|u\.s\.|united\s+states)\b/i,
-];
-
-/**
- * Region-fenced indicators. These fence to a broad region (Latam, APAC, EMEA)
- * rather than specific countries. Gate 0.5 cannot hard-block on a single
- * country match for region_fenced — region membership is fuzzy.
- */
-const REGION_FENCED_HARD_SIGNALS: readonly RegExp[] = [
-  /\bremote\s*[-–]\s*(?:latam|latin\s+america)\b/i,
-  /\bremote\s*[-–]\s*(?:apac|asia[- ]?pacific)\b/i,
-  /\bremote\s*[-–]\s*(?:emea|europe[- ]?middle[- ]?east[- ]?africa)\b/i,
-  /\bremote\s*[-–]\s*(?:balkans|eastern\s+europe)\b/i,
-];
-
-/**
  * On-site hard indicators. If workplaceType is null but these match, the job
- * is likely on-site (not remote).
+ * is likely on-site (not remote). Kept inline (not in remote-scope-patterns.ts)
+ * because `onsite` is not part of the ScopeSignal type (it's handled as a
+ * separate path — only relevant when workplaceType is null).
  */
 const ONSITE_HARD_SIGNALS: readonly RegExp[] = [
   /\bon[- ]site\s+(?:position|role|job|work)\b/i,
@@ -299,16 +259,77 @@ const ONSITE_HARD_SIGNALS: readonly RegExp[] = [
 /** Confidence threshold for accepting Step 1 regex results. */
 const STEP1_CONFIDENCE_THRESHOLD = 0.8;
 
+/** Confidence assigned to medium-confidence pattern matches (below threshold
+ *  for direct accept, but accepted if no negative signals contradict). */
+const MEDIUM_CONFIDENCE_VALUE = 0.7;
+
+/**
+ * Check if any negative signal matches the text and negates the given scope.
+ *
+ * @param text The cleaned JD text.
+ * @param candidateScope The scope we're considering accepting.
+ * @returns The matching NegativeSignal if the candidate should be rejected,
+ *          null otherwise.
+ */
+function checkNegativeSignals(
+  text: string,
+  candidateScope: "global" | "country_fenced" | "region_fenced",
+): (typeof NEGATIVE_SIGNALS)[number] | null {
+  for (const signal of NEGATIVE_SIGNALS) {
+    if (signal.pattern.test(text)) {
+      // "all_remote" negates everything (hybrid/onsite/in-office)
+      if (signal.negates === "all_remote") return signal;
+      // "global" negates only global candidates
+      if (signal.negates === "global" && candidateScope === "global") {
+        return signal;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve allowedCountries for a ScopeSignal match. If the signal declares
+ * explicit allowedCountries, use those. Otherwise, extract from the text.
+ *
+ * For medium-confidence patterns with capture groups (e.g., "must be based in
+ * Germany"), extract the country from the capture group.
+ */
+function resolveAllowedCountries(
+  signal: ScopeSignal,
+  text: string,
+): string[] | null {
+  if (signal.allowedCountries) {
+    return signal.allowedCountries;
+  }
+
+  // Try capture group extraction (for "must be based in [Country]" patterns)
+  const match = text.match(signal.pattern);
+  if (match?.[1]) {
+    const code = extractCountryFromCapture(match[1]);
+    if (code) return [code];
+  }
+
+  // Fall back to full-text country extraction
+  return extractCountryCodesFromText(text);
+}
+
 /**
  * Step 1c — Regex hard-signal matching with confidence scoring.
  *
- * Scans the cleaned text for high-confidence remote-scope indicators. Returns
- * a result only if confidence ≥ STEP1_CONFIDENCE_THRESHOLD; otherwise returns
- * null to indicate the LLM fallback (Step 2) should run.
+ * Uses the expanded pattern dictionary from `remote-scope-patterns.ts`:
+ *   1. Check HIGH-CONFIDENCE signals (global → country_fenced → region_fenced).
+ *      If any match → return immediately with confidence 1.0.
+ *   2. Check on-site signals (only when workplaceType is null).
+ *   3. Check NEGATIVE_SIGNALS. If "all_remote" negates → return null (onsite/hybrid).
+ *   4. Check MEDIUM-CONFIDENCE signals. If any match AND no negative signal
+ *      contradicts → return with confidence 0.7 (above threshold).
+ *   5. Check UTC timezone range matcher.
+ *   6. If nothing matched → return null (route to Step 2 LLM).
  *
  * @param cleanedText The main-content text from extractMainContent().
  * @param workplaceType The ATS-native workplace type (for context).
- * @returns RemoteScopeResult if high-confidence, null if inconclusive.
+ * @returns RemoteScopeResult if at/above confidence threshold, null if inconclusive.
  */
 export function step1RegexHardSignals(
   cleanedText: string,
@@ -316,44 +337,19 @@ export function step1RegexHardSignals(
 ): RemoteScopeResult | null {
   const text = cleanedText ?? "";
 
-  // Check global signals first (highest priority — if the JD explicitly says
-  // "global remote", it's global even if the location mentions a country).
-  for (const pattern of GLOBAL_HARD_SIGNALS) {
-    if (pattern.test(text)) {
+  // Phase 1: Check HIGH-CONFIDENCE signals (evaluation order: global → country → region).
+  for (const signal of HIGH_CONFIDENCE_SIGNALS) {
+    if (signal.pattern.test(text)) {
       return {
-        remoteScope: "global",
-        allowedCountries: null,
+        remoteScope: signal.scope,
+        allowedCountries: resolveAllowedCountries(signal, text),
         resolvedBy: "step1_regex",
         confidence: 1.0,
       };
     }
   }
 
-  // Check country-fenced signals.
-  for (const pattern of COUNTRY_FENCED_HARD_SIGNALS) {
-    if (pattern.test(text)) {
-      return {
-        remoteScope: "country_fenced",
-        allowedCountries: extractCountryCodes(text),
-        resolvedBy: "step1_regex",
-        confidence: 1.0,
-      };
-    }
-  }
-
-  // Check region-fenced signals.
-  for (const pattern of REGION_FENCED_HARD_SIGNALS) {
-    if (pattern.test(text)) {
-      return {
-        remoteScope: "region_fenced",
-        allowedCountries: null,
-        resolvedBy: "step1_regex",
-        confidence: 1.0,
-      };
-    }
-  }
-
-  // Check on-site signals (only relevant when workplaceType is null).
+  // Phase 2: Check on-site signals (only when workplaceType is null).
   if (workplaceType === null) {
     for (const pattern of ONSITE_HARD_SIGNALS) {
       if (pattern.test(text)) {
@@ -367,58 +363,67 @@ export function step1RegexHardSignals(
     }
   }
 
-  // Inconclusive — route to Step 2.
-  return null;
-}
+  // Phase 3: Check negative signals. If "all_remote" negates (hybrid/onsite/
+  // in-office), the job requires physical presence and is not remote.
+  // When workplaceType is null OR 'hybrid'/'on-site' (ATS provided it but the
+  // trust path was skipped, e.g., greenhouse), classify as onsite deterministically
+  // — avoids an unnecessary LLM call for the ~26% of jobs that mention
+  // hybrid/onsite in their text.
+  // When workplaceType is "remote" (ATS explicitly says remote), don't
+  // override to onsite — the on-site text may refer to something else (client
+  // site, legacy phrase). Instead, block all remote scope matches and route
+  // to LLM for disambiguation.
+  const allRemoteNegation = checkNegativeSignals(text, "country_fenced");
+  if (allRemoteNegation?.negates === "all_remote") {
+    if (
+      workplaceType === null ||
+      workplaceType === "hybrid" ||
+      workplaceType === "on-site"
+    ) {
+      return {
+        remoteScope: "onsite",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: 1.0,
+      };
+    }
+    // workplaceType is "remote" — don't classify as onsite, but block remote
+    // scope matches (the hybrid/onsite text contradicts the ATS label).
+    return null;
+  }
 
-/**
- * Extract ISO 3166-1 alpha-2 country codes from text. Used to populate
- * allowedCountries for country_fenced results from Step 1.
- *
- * This is a best-effort heuristic — the LLM (Step 2) produces more accurate
- * country lists. For Step 1, we only extract when the regex hard-signals
- * already confirmed country_fenced.
- */
-function extractCountryCodes(text: string): string[] | null {
-  const codes = new Set<string>();
-  const countryMap: Record<string, string> = {
-    us: "US",
-    usa: "US",
-    "u.s.": "US",
-    "united states": "US",
-    america: "US",
-    uk: "GB",
-    "united kingdom": "GB",
-    england: "GB",
-    britain: "GB",
-    eu: "EU",
-    europe: "EU",
-    "european union": "EU",
-    germany: "DE",
-    france: "FR",
-    spain: "ES",
-    italy: "IT",
-    netherlands: "NL",
-    poland: "PL",
-    portugal: "PT",
-    canada: "CA",
-    australia: "AU",
-    india: "IN",
-    brazil: "BR",
-    mexico: "MX",
-    argentina: "AR",
-    colombia: "CO",
-  };
-
-  const lower = text.toLowerCase();
-  for (const [name, code] of Object.entries(countryMap)) {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    if (new RegExp(`(^|[^a-z])${escaped}(?=$|[^a-z])`).test(lower)) {
-      codes.add(code);
+  // Phase 4: Check MEDIUM-CONFIDENCE signals. Accept if no negative signal
+  // contradicts the candidate scope.
+  for (const signal of MEDIUM_CONFIDENCE) {
+    if (signal.pattern.test(text)) {
+      const negation = checkNegativeSignals(text, signal.scope);
+      if (negation === null) {
+        return {
+          remoteScope: signal.scope,
+          allowedCountries: resolveAllowedCountries(signal, text),
+          resolvedBy: "step1_regex",
+          confidence: MEDIUM_CONFIDENCE_VALUE,
+        };
+      }
     }
   }
 
-  return codes.size > 0 ? [...codes] : null;
+  // Phase 5: Check UTC timezone range matcher.
+  const utcResult = matchUtcRange(text);
+  if (utcResult) {
+    const negation = checkNegativeSignals(text, utcResult.scope);
+    if (negation === null) {
+      return {
+        remoteScope: utcResult.scope,
+        allowedCountries: utcResult.allowedCountries ?? null,
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
+    }
+  }
+
+  // Inconclusive — route to Step 2.
+  return null;
 }
 
 // =============================================================================

@@ -104,6 +104,28 @@ export const normalizeProvisionalJob = inngest.createFunction(
     // (5/15/45/90min), success→active, failure→normalization_failed at 4hr SLA."
     // Inngest retries the entire function on uncaught errors.
     retries: 4,
+    // On final failure, trigger the sweeper to clean up the retryInFlight flag.
+    // Per governing doc A6: event-driven sweep fires after each normalization
+    // attempt, including failures. Without this, a crashed normalizer would
+    // leave stale flags until the 30min safety-net cron catches them.
+    onFailure: async ({ event, step }) => {
+      // The failure event payload has shape { function_id, run_id, error, event }
+      // where `event` is the original triggering event with its data.
+      const originalEvent = (
+        event?.data as { event?: { data?: { jobId?: string } } } | undefined
+      )?.event;
+      const jobId = originalEvent?.data?.jobId;
+      if (!jobId) return { triggered: false, reason: "no_jobId" };
+      await step.run("trigger-sweeper-on-failure", async () => {
+        const { inngest } = await import("@/inngest/client");
+        await inngest.send({
+          name: "job/normalization-attempt-completed",
+          data: { jobId },
+        });
+        return { triggered: true };
+      });
+      return { triggered: true };
+    },
   },
   async ({ event, step }) => {
     const { jobId, retryGeneration } = event.data;
@@ -358,6 +380,19 @@ export const normalizeProvisionalJob = inngest.createFunction(
       });
     }
 
+    // ── Trigger event-driven sweeper ────────────────────────────────────────
+    // Per governing doc: event-driven sweep fires after each normalization
+    // attempt. This provides immediate cleanup of stale retryInFlight flags
+    // without waiting for the 30min safety-net cron.
+    await step.run("trigger-sweeper", async () => {
+      const { inngest } = await import("@/inngest/client");
+      await inngest.send({
+        name: "job/normalization-attempt-completed",
+        data: { jobId },
+      });
+      return { triggered: true };
+    });
+
     return {
       jobId,
       normalizationStatus: "active",
@@ -367,20 +402,35 @@ export const normalizeProvisionalJob = inngest.createFunction(
   },
 );
 
-// ── retryInFlightSweeper — cron to clear stale retryInFlight flags ───────────
+// ── retryInFlightSweeper — event-driven + safety-net cron ───────────────────
 //
-// Runs every 3 minutes to find jobs where retry_in_flight = true but
-// source_fetched_at is older than 10 minutes (indicating a crashed/hung
-// HTTP client). Clears the flag and stamps cleared_generation = retry_generation
-// so future persists with that generation are rejected as zombie writes.
+// Per governing doc "retryInFlight sweeper cadence (UPDATED)":
+//   "Changed from fixed 2-3min cron to event-driven sweep (fires after each
+//    normalizeProvisionalJob attempt) + 30min safety-net cron with conditional
+//    skip. Monitor Neon CU-hour consumption — if the 30min safety net still
+//    contributes meaningfully, increase to 1hr or remove it entirely if the
+//    event-driven path proves reliable."
 //
-// Per governing doc "retryInFlight Fencing": "5-7min step (every 3 minutes)
-// sweep clears stale flags and stamps cleared_generation."
+// Triggers:
+//   1. Event: job/normalization-attempt-completed — fired after each
+//      normalizeProvisionalJob attempt (success or failure). This is the
+//      primary trigger — provides immediate cleanup of stale flags.
+//   2. Cron: */30 * * * * — 30min safety net. Catches stale flags that the
+//      event-driven path missed (e.g., if the normalizer crashed before
+//      sending the event). The sweep query is fast (indexed on
+//      retry_in_flight + source_fetched_at) so the 30min cron is cheap.
+//
+// The sweep logic is the same for both triggers: find jobs where
+// retry_in_flight = true but source_fetched_at is older than 10 minutes,
+// clear the flag, and stamp cleared_generation = retry_generation.
 export const retryInFlightSweeper = inngest.createFunction(
   {
     id: "retry-in-flight-sweeper",
     name: "Retry In-Flight Sweeper (v2)",
-    triggers: [{ cron: "*/3 * * * *" }],
+    triggers: [
+      { event: "job/normalization-attempt-completed" },
+      { cron: "*/30 * * * *" },
+    ],
   },
   async ({ step }) => {
     const swept = await step.run("sweep-stale-flags", async () => {
