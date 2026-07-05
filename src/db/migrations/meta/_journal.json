@@ -302,6 +302,20 @@
       "when": 1783191103009,
       "tag": "0042_conscious_juggernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1783251425405,
+      "tag": "0043_milky_secret_warriors",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1783265512086,
+      "tag": "0044_modern_scarlet_spider",
+      "breakpoints": true
     }
   ]
 }

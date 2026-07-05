@@ -469,13 +469,23 @@ export type JobMetadata = {
   compensationMin: number | null;
   compensationMax: number | null;
   compensationCurrency: string | null;
-  // ── Remote scope (added July 2026 — zero-match fix) ──────────────────────
-  /** Distinguishes global remote from country-fenced remote.
+  // ── Remote scope (added July 2026 — zero-match fix, extended v2) ──────────
+  /** Distinguishes global remote from country-fenced remote. v2 adds
+   *  region_fenced, onsite, and undetermined (see remoteScopeEnum).
    *  - "global": JD/location indicates worldwide remote (no country restriction)
-   *  - "country_fenced": JD/location restricts to specific countries/regions
-   *  - "unknown": couldn't be determined (Gate 3 LLM evaluates as fallback)
+   *  - "country_fenced": JD/location restricts to specific countries
+   *  - "region_fenced": JD/location restricts to a broad region (Latam, APAC)
+   *  - "onsite": JD or ATS metadata indicates on-site/hybrid, no remote option
+   *  - "unknown": couldn't be determined (legacy — Gate 3 LLM evaluates)
+   *  - "undetermined": v2 terminal — Step 1 + Step 2 ladder exhausted retries
    * Only meaningful when workplaceType is "remote" or null. */
-  remoteScope: "global" | "country_fenced" | "unknown";
+  remoteScope:
+    | "global"
+    | "country_fenced"
+    | "region_fenced"
+    | "onsite"
+    | "unknown"
+    | "undetermined";
 };
 
 /**
@@ -1148,8 +1158,17 @@ const TITLE_REGION_PATTERNS: readonly { pattern: RegExp; region: string }[] = [
 ];
 
 // =============================================================================
-// REMOTE SCOPE INFERENCE (July 2026 — zero-match fix)
+// REMOTE SCOPE INFERENCE (July 2026 — zero-match fix, extended v2)
 // =============================================================================
+// v2 (company-corpus-expansion-new.md Criterion 2): The full extraction ladder
+// (Step 1 deterministic → Step 2 LLM → hard-fail) lives in
+// remote-scope-extractor.ts. This function is the synchronous Step 1-only
+// path used during metadata extraction — it returns a best-effort scope
+// without calling the LLM. The full ladder (with Step 2 LLM fallback) is
+// invoked asynchronously from the normalizer's main flow.
+//
+// The v2 enum adds region_fenced, onsite, and undetermined. This function
+// returns the Step 1 subset; the full ladder may produce any value.
 
 /**
  * Global remote indicator patterns. If the location name or job content
@@ -1190,27 +1209,34 @@ const COUNTRY_FENCED_REMOTE_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Infer the remote scope (global vs country-fenced vs unknown) from the
- * job's location name and content text.
+ * Infer the remote scope (global vs country-fenced vs region_fenced vs onsite
+ * vs unknown) from the job's location name and content text.
  *
- * This is a heuristic — it cannot be perfect because ATS location fields
- * are free-text and inconsistent. When the heuristic is uncertain, it
- * returns "unknown" and Gate 3 (LLM) will evaluate the JD text as fallback.
+ * This is the synchronous Step 1-only path (deterministic regex, zero LLM
+ * cost). The full Step 1 → Step 2 ladder (with LLM fallback) lives in
+ * remote-scope-extractor.ts and is invoked asynchronously from the
+ * normalizer's main flow for jobs where Step 1 is inconclusive.
+ *
+ * When the heuristic is uncertain, it returns "unknown" (legacy default) —
+ * the full ladder may later upgrade this to "undetermined" (v2 terminal) if
+ * Step 2 also fails. Gate 0.5 treats both as pass-through to Gate 3.
  *
  * @param locationName The raw location string from the ATS
  * @param content The job description content (HTML or plain text), nullable
  * @param workplaceType The detected workplace type (remote/hybrid/on-site/null)
- * @returns "global" | "country_fenced" | "unknown"
+ * @returns "global" | "country_fenced" | "region_fenced" | "onsite" | "unknown"
  */
 export function inferRemoteScope(
   locationName: string | null,
   content: string | null,
   workplaceType: "remote" | "hybrid" | "on-site" | null,
-): "global" | "country_fenced" | "unknown" {
-  // Only infer scope for remote or undetermined jobs.
-  // Explicit on-site jobs don't have a "remote scope".
-  if (workplaceType === "on-site") {
-    return "unknown";
+): "global" | "country_fenced" | "region_fenced" | "onsite" | "unknown" {
+  // v2: Explicit on-site jobs now return "onsite" instead of "unknown".
+  // This is the ATS-native trust path for workplaceType (Step 1a in the
+  // full ladder). The full ladder in remote-scope-extractor.ts handles this
+  // for Lever/Ashby; this synchronous path handles it for all sources.
+  if (workplaceType === "on-site" || workplaceType === "hybrid") {
+    return "onsite";
   }
 
   const locationText = locationName ?? "";
@@ -1232,6 +1258,20 @@ export function inferRemoteScope(
     if (pattern.test(combined)) {
       return "country_fenced";
     }
+  }
+
+  // v2: Check for region-fenced indicators (Latam, APAC, EMEA, Balkans).
+  // These are fenced to a broad region, not specific countries — Gate 0.5
+  // cannot hard-block on a single country match for region_fenced.
+  if (
+    /\bremote\s*[-–]\s*(?:latam|latin\s+america)\b/i.test(combined) ||
+    /\bremote\s*[-–]\s*(?:apac|asia[- ]?pacific)\b/i.test(combined) ||
+    /\bremote\s*[-–]\s*(?:emea|europe[- ]?middle[- ]?east[- ]?africa)\b/i.test(
+      combined,
+    ) ||
+    /\bremote\s*[-–]\s*(?:balkans|eastern\s+europe)\b/i.test(combined)
+  ) {
+    return "region_fenced";
   }
 
   // If the job is remote but location is just "Remote" (no country/region

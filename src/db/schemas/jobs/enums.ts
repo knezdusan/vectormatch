@@ -36,17 +36,34 @@ export const workplaceTypeEnum = pgEnum("workplace_type", [
 //   global          — "Remote - Global", "work from anywhere", "distributed team"
 //   country_fenced  — "Remote - US Only", "Remote within EU", location lists
 //                     specific countries/regions that exclude some applicants
+//   region_fenced   — "Remote - Latam", "Remote - APAC", "Remote - EMEA":
+//                     fenced to a broad region (not a country list). Distinct
+//                     from country_fenced because Gate 0.5 cannot hard-block
+//                     on a single country match — region membership is fuzzy.
+//   onsite          — JD or ATS metadata indicates on-site/hybrid with no
+//                     remote option. Distinct from remote_* values.
 //   unknown         — workplace_type is null or remote scope couldn't be
 //                     determined from available metadata (Gate 3 LLM will
-//                     evaluate the JD text as fallback)
+//                     evaluate the JD text as fallback). Legacy value retained
+//                     for pre-v2 jobs.
+//   undetermined    — v2 terminal value: the Step 1 + Step 2 extraction ladder
+//                     exhausted all retries without resolving scope. Gate 0.5
+//                     treats this as pass-through to Gate 3 (never hard-reject
+//                     on parsing failure — the anti-pattern that caused the
+//                     original zero-match bug). Distinct from `unknown` which
+//                     is the pre-normalization default.
 //
 // Populated at normalization time via heuristics on locationName + JD content.
 // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.2 for the gap this
-// addresses.
+// addresses. See docs/governing/company-corpus-expansion-new.md Criterion 2
+// for the v2 extraction ladder (Step 1 deterministic → Step 2 LLM → hard-fail).
 export const remoteScopeEnum = pgEnum("remote_scope", [
   "global",
   "country_fenced",
+  "region_fenced",
+  "onsite",
   "unknown",
+  "undetermined",
 ]);
 export const complianceEnum = pgEnum("compliance", [
   // --- Employee / Payroll Options ---
@@ -144,6 +161,9 @@ export const discoverySourceEnum = pgEnum("discovery_source", [
   "rapid7_fdns", // B8: Rapid7 FDNS v2 CNAME reversal
   "cross_pollination", // B9: Cross-pollination from job descriptions
   "sitemap_probe", // B10: Sitemap.xml probing
+  // v2 corpus expansion (company-corpus-expansion-new.md Criterion 1):
+  "github_probe", // GitHub Events API poller for YC/VC-funded orgs
+  "funding_signal", // RSS/Atom funding feed sourcing (TechCrunch, etc.)
 ]);
 
 // Type of ingestion log entry — distinguishes seeder runs, poller runs, batch

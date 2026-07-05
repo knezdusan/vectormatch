@@ -39,6 +39,10 @@ export const alertTypeEnum = pgEnum("alert_type", [
   "inngest_server_down", // Sprint 9: Inngest server unreachable or paused
   "inngest_function_failures", // Sprint 9: Inngest function failure rate spike
   "inngest_pipeline_stall", // Sprint 9: No jobs normalized in 4h
+  // v2 Corpus Expansion (Criterion 3, Circuit Breaker):
+  "v2_breaker_per_source", // Tier 1+2: per-source early-warning / backlog throttle
+  "v2_breaker_corpus_ratio", // Tier 4: corpus-ratio breaker (global < 50%)
+  "v2_source_banned", // Tier 5: daily source ban (escalation_count >= 3)
 ]);
 
 // ── Table ────────────────────────────────────────────────────────────────────

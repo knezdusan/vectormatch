@@ -15,6 +15,10 @@
 //   INNGEST_SIGNING_KEY→ production function authentication
 
 import { serve } from "inngest/next";
+import {
+  breakerCheck,
+  sourceBanRecoveryCheck,
+} from "@/inngest/circuit-breaker-functions";
 import { inngest } from "@/inngest/client";
 import {
   aggregatorJobHandler,
@@ -58,6 +62,7 @@ import {
   layoffSignalChecker,
   matchBulkReprocess,
   matchRetrySweep,
+  nightlyResurrectionSweep,
   normalizationRetrySweep,
   pendingQueueSweep,
   personaUpdatedHandler,
@@ -69,8 +74,14 @@ import {
   staleJobVerifier,
   storageMonitor,
   tierRecalc,
+  v2FundingSignalRss,
+  v2GithubEventsProbe,
   vacuumAnalyze,
 } from "@/inngest/functions";
+import {
+  normalizeProvisionalJob,
+  retryInFlightSweeper,
+} from "@/inngest/normalize-provisional-job";
 
 /**
  * Max duration for the Inngest endpoint.
@@ -99,6 +110,7 @@ export const { GET, POST, PUT } = serve({
     staleJobVerifier,
     companyRevivalSweep,
     normalizationRetrySweep,
+    nightlyResurrectionSweep,
     jobIngestedHandler,
     jobSummarizeHandler,
     jobSummaryBackfill,
@@ -129,6 +141,12 @@ export const { GET, POST, PUT } = serve({
     dailySourceD11TechNewsRss,
     dailySourceD12NpmRegistry,
     dailySourceD13MetaAds,
+    // v2 Corpus Expansion: Funding-Signal Seeders (Criterion 1 Discovery Layer)
+    v2FundingSignalRss,
+    v2GithubEventsProbe,
+    // v2 Corpus Expansion: Provisional Job Lifecycle (Criterion 1)
+    normalizeProvisionalJob,
+    retryInFlightSweeper,
     // Batch source functions (TDD §2.1 — event-triggered for one-time flush)
     // Sprint 3 Task 7: B2 replaced Google CSE with Brave Search API.
     batchSourceB1Workable,

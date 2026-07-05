@@ -8,7 +8,13 @@
 //
 // Data is fetched server-side via admin-queries.ts.
 
-import { AlertTriangle, CheckCircle, Database, HardDrive } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Database,
+  HardDrive,
+  ShieldAlert,
+} from "lucide-react";
 
 import { EmergencyPurgeButton } from "@/components/admin/EmergencyPurgeButton";
 import { SourceToggleButton } from "@/components/admin/SourceToggleButton";
@@ -36,10 +42,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  type CorpusRatioMetrics,
   getAllSourceHealth,
+  getCorpusRatioMetrics,
   getInfraStats,
+  getSourceOrphanedCompanies,
   type InfraStats,
   type SourceHealthStats,
+  type SourceOrphanedCompany,
 } from "@/lib/jobs/admin-queries";
 import {
   DEGRADED_FAILURE_THRESHOLD,
@@ -48,6 +58,13 @@ import {
 import { cn } from "@/lib/utils";
 
 function statusBadge(status: string) {
+  if (status === "banned") {
+    return (
+      <Badge className="bg-red-500/20 text-red-700 dark:text-red-400">
+        {status}
+      </Badge>
+    );
+  }
   if (status === "disabled") {
     return <Badge variant="destructive">{status}</Badge>;
   }
@@ -77,12 +94,16 @@ function backlogColor(count: number, max: number) {
 export async function InfrastructureHealth() {
   let infra: InfraStats | null = null;
   let sources: SourceHealthStats[] = [];
+  let corpusMetrics: CorpusRatioMetrics | null = null;
+  let orphanedCompanies: SourceOrphanedCompany[] = [];
   let error: string | null = null;
 
   try {
-    [infra, sources] = await Promise.all([
+    [infra, sources, corpusMetrics, orphanedCompanies] = await Promise.all([
       getInfraStats(),
       getAllSourceHealth(),
+      getCorpusRatioMetrics(),
+      getSourceOrphanedCompanies(),
     ]);
   } catch (e) {
     error =
@@ -107,6 +128,7 @@ export async function InfrastructureHealth() {
 
   const disabledCount = sources.filter((s) => s.status === "disabled").length;
   const degradedCount = sources.filter((s) => s.status === "degraded").length;
+  const bannedCount = sources.filter((s) => s.status === "banned").length;
   const storagePct = infra?.storagePercentage ?? 0;
   const storageMb = infra?.storageMb ?? 0;
   const storageLimit = infra?.storageLimitMb ?? 460;
@@ -209,6 +231,11 @@ export async function InfrastructureHealth() {
                 disabled
               </span>
             </p>
+            {bannedCount > 0 && (
+              <p className="text-sm text-red-500">
+                {bannedCount} banned (24hr cooldown)
+              </p>
+            )}
             {degradedCount > 0 ? (
               <p className="text-sm text-yellow-500">
                 {degradedCount} degraded
@@ -315,6 +342,116 @@ export async function InfrastructureHealth() {
           )}
         </CardContent>
       </Card>
+
+      {/* v2 Corpus Ratio Metrics (Circuit Breaker Tier 3 + 4) */}
+      {corpusMetrics && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-5 text-muted-foreground" />
+              <CardTitle>Corpus Ratio Metrics (v2)</CardTitle>
+            </div>
+            <CardDescription>
+              Circuit breaker Tier 3 (unknown sub-floor) and Tier 4 (global
+              ratio)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Global Remote</p>
+                <p className="text-2xl font-bold">
+                  {corpusMetrics.globalCount}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Country Fenced</p>
+                <p className="text-2xl font-bold">
+                  {corpusMetrics.countryFencedCount}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Unknown</p>
+                <p
+                  className={`text-2xl font-bold ${
+                    corpusMetrics.unknownSubFloorRatio >= 0.3
+                      ? "text-red-500"
+                      : "text-emerald-500"
+                  }`}
+                >
+                  {corpusMetrics.unknownCount}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {(corpusMetrics.unknownSubFloorRatio * 100).toFixed(1)}% of
+                  corpus (breaker at 30%)
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Global Ratio</p>
+                <p
+                  className={`text-2xl font-bold ${
+                    corpusMetrics.knownScopeRatio < 0.5
+                      ? "text-red-500"
+                      : "text-emerald-500"
+                  }`}
+                >
+                  {(corpusMetrics.knownScopeRatio * 100).toFixed(1)}%
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Breaker halts ingestion below 50%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Source-Orphaned Companies (Circuit Breaker Tier 5) */}
+      {orphanedCompanies.length > 0 && (
+        <Card className="border-yellow-500/30">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="size-5 text-yellow-500" />
+              <CardTitle>
+                Source-Orphaned Companies ({orphanedCompanies.length})
+              </CardTitle>
+            </div>
+            <CardDescription>
+              Companies whose only discovery source was banned. They remain in
+              the corpus but cannot receive new job postings until the source
+              recovers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Company</TableHead>
+                    <TableHead>ATS Slug</TableHead>
+                    <TableHead>Discovery Source</TableHead>
+                    <TableHead>Tier</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orphanedCompanies.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell>{c.companyName ?? "—"}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {c.atsSlug}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        {c.discoverySource ?? "—"}
+                      </TableCell>
+                      <TableCell>{statusBadge(c.tier)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

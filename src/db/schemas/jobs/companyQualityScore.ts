@@ -13,6 +13,7 @@
 import {
   index,
   integer,
+  numeric,
   pgTable,
   timestamp,
   uniqueIndex,
@@ -34,6 +35,15 @@ export const companyQualityScore = pgTable(
     rejectedMatches: integer("rejected_matches").notNull().default(0),
     totalJobsProcessed: integer("total_jobs_processed").notNull().default(0),
     lastApprovedAt: timestamp("last_approved_at"),
+
+    // ── v2 Corpus Expansion: Company Size Score (Criterion 3) ───────────────
+    // The clamped [-0.30, +0.30] score from the Job Scoring Matrix (employee
+    // count + agency flag + public flag + source origin + maturity). Computed
+    // at normalization time in job-normalizer.ts and fed into the existing
+    // companyQuality component (0.17 weight in dashboard-queries.ts). Nullable
+    // for companies scored before the v2 scoring matrix was implemented.
+    // See docs/governing/company-corpus-expansion-new.md Criterion 3.
+    companySizeScore: numeric("company_size_score"),
 
     // ── Timestamps ────────────────────────────────────────────────────────────
     calculatedAt: timestamp("calculated_at").defaultNow().notNull(),

@@ -38,6 +38,9 @@ export const discoverySourceSchema = z.enum([
   "rapid7_fdns",
   "cross_pollination",
   "sitemap_probe",
+  // v2 corpus expansion (company-corpus-expansion-new.md Criterion 1):
+  "github_probe", // GitHub Events API poller for YC/VC-funded orgs
+  "funding_signal", // RSS/Atom funding feed sourcing (TechCrunch, etc.)
 ]);
 
 // Input to the company insert function — used by all seeders. This is the
@@ -46,6 +49,15 @@ export const discoverySourceSchema = z.enum([
 // Required fields: atsSlug, atsSource, discoverySource.
 // Optional fields: companyName (filled in by poller from ATS metadata),
 // rootDomain (for cross-seeder dedup), discoveryContext (provenance URL).
+//
+// v2 Corpus Expansion optional fields (Criterion 3 scoring signals):
+//   - employeeCount: from funding-signal metadata (round/stage estimate).
+//     Null when unknown. Drives the startup filter (<50) and the scoring
+//     matrix employee_count signal.
+//   - isPublic: true for publicly-listed companies (detected from funding
+//     feed metadata — IPO/stock-exchange mentions). Defaults to false.
+//   - isAgency: true for known agencies/aggregators. Usually set by
+//     aggregator-blacklist.ts at insert time, but seeders may pre-flag.
 //
 // The seeder does NOT set tier, health, pollingEnabled, or polling state —
 // those have sensible defaults in the DB schema (tier=dormant, health=healthy,
@@ -59,6 +71,10 @@ export const seedCompanyInputSchema = z.object({
   // Provenance: HN comment URL, BQ query date, etc. Stored in
   // company.discoveryContext for auditability.
   discoveryContext: z.string().optional(),
+  // v2: scoring-signal fields (optional — legacy seeders omit them).
+  employeeCount: z.number().int().nonnegative().optional(),
+  isPublic: z.boolean().optional(),
+  isAgency: z.boolean().optional(),
 });
 
 // ── TYPE EXPORTS ─────────────────────────────────────────────────────────────

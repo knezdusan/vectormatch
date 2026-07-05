@@ -78,6 +78,24 @@ export const company = pgTable(
     // get priority for polling. See CORPUS_EXPANSION_TDD §3.4.
     fusionScore: integer("fusion_score").notNull().default(1),
 
+    // ── v2 Corpus Expansion: Job Scoring Matrix signals (Criterion 3) ────────
+    // Agency/aggregator flag for the scoring matrix. Set from
+    // aggregator-blacklist.ts (isAggregator) at discovery time. Triggers
+    // −40 score + tier = 'dead' in the company_size_score computation.
+    isAgency: boolean("is_agency").notNull().default(false),
+    // Public/listed company flag. Populated from the curated big-tech registry
+    // for the ~100-200 entry set; false for others. Triggers −20 score.
+    isPublic: boolean("is_public").notNull().default(false),
+    // Employee count for the scoring matrix + startup filter (<50 enforced
+    // before registry insert for funding-signal-sourced companies). Populated
+    // from funding-signal metadata at discovery time, or from the big-tech
+    // registry fallback at scoring time. Nullable when unknown.
+    employeeCount: integer("employee_count"),
+    // Set when the company's only discovery source is banned (Tier 5 daily
+    // source ban). Surfaces in admin UI for visibility — does NOT set
+    // tier = 'dead' (companies may be multi-source).
+    sourceOrphaned: boolean("source_orphaned").notNull().default(false),
+
     // ── Timestamps ──────────────────────────────────────────────────────────
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

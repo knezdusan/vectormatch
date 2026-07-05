@@ -57,6 +57,11 @@ export interface SluggerInput {
   atsHint?: AtsSource; // optional — if from BigQuery, probe only this ATS
   discoverySource?: DiscoverySource; // for retry queue provenance
   discoveryContext?: string; // for retry queue provenance
+  // v2 Corpus Expansion: scoring-signal fields (optional — legacy seeders omit).
+  // Passed through to the company row on insert. See governing doc Criterion 3.
+  employeeCount?: number; // estimated from funding-signal metadata
+  isPublic?: boolean; // true for publicly-listed companies
+  isAgency?: boolean; // pre-flagged agencies (usually set by blacklist at insert)
 }
 
 export type SluggerResult =
@@ -283,6 +288,12 @@ async function insertResolvedCompany(
       discoverySource: (input.discoverySource ?? "manual") as DiscoverySource,
       discoveryContext: input.discoveryContext,
       tier: initialTier,
+      // v2: pass through scoring-signal fields when the seeder provides them.
+      ...(input.employeeCount !== undefined
+        ? { employeeCount: input.employeeCount }
+        : {}),
+      ...(input.isPublic !== undefined ? { isPublic: input.isPublic } : {}),
+      ...(input.isAgency !== undefined ? { isAgency: input.isAgency } : {}),
     })
     .onConflictDoNothing({
       target: [company.atsSource, company.atsSlug],

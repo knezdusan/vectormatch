@@ -1233,6 +1233,111 @@ export const normalizationRetrySweep = inngest.createFunction(
   },
 );
 
+// ── v2 Corpus Expansion: Nightly Resurrection Sweep (Criterion 2) ───────────
+
+/**
+ * Nightly Resurrection Sweep — re-runs Step 2 LLM extraction on jobs with
+ * `remoteScope = 'undetermined'` or `remoteScope = 'unknown'` when Gate 3
+ * capacity allows.
+ *
+ * Per governing doc (company-corpus-expansion-new.md Criterion 2):
+ * "Re-run Step 2 on undetermined / normalization_failed jobs when Gate 3
+ * capacity allows. A single LLM miss should not cause permanent exclusion."
+ *
+ * Triggered by: cron "0 3 * * *" (daily at 03:00 UTC — low-traffic window).
+ *
+ * This sweep targets jobs that exhausted the Step 1 + Step 2 extraction
+ * ladder during initial normalization. The LLM may have failed due to a
+ * transient OpenAI outage, rate limit, or ambiguous JD text that a fresh
+ * pass with improved prompts can resolve. Jobs that remain undetermined
+ * after this sweep stay as undetermined (Gate 0.5 passes them through to
+ * Gate 3, which evaluates the JD text directly as fallback).
+ *
+ * Limit: 500 jobs per run (bounded to stay within Inngest step time limits
+ * and OpenAI rate limits). Prioritizes the oldest undetermined jobs first
+ * — they've been waiting the longest for a second chance.
+ */
+export const nightlyResurrectionSweep = inngest.createFunction(
+  {
+    id: "nightly-resurrection-sweep",
+    name: "Nightly Resurrection Sweep (v2 Remote-Scope)",
+    triggers: [{ cron: "0 3 * * *" }],
+  },
+  async ({ step }) => {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("@/db/db");
+    const { job } = await import("@/db/schemas/jobs/job");
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    const resurrectionCandidates = await step.run(
+      "get-undetermined-jobs",
+      async () => {
+        // Select up to 500 jobs with undetermined or unknown remoteScope that
+        // have rawJson (needed for content extraction) or normalizedText
+        // (G7 fast path — the cleaned text is already available). Prioritize
+        // the oldest jobs (detectedAt ascending).
+        //
+        // Both rawJson and normalizedText are checked because:
+        //   - Pre-G7 jobs: rawJson is present, normalizedText may be null.
+        //   - Post-G7 jobs: rawJson is NULLed, normalizedText is present.
+        // The remote-scope extractor works with either input.
+        const result = await db
+          .select({
+            id: job.id,
+            atsSource: job.atsSource,
+            atsSlug: job.atsSlug,
+          })
+          .from(job)
+          .where(
+            sql`(${job.remoteScope} = 'undetermined' OR ${job.remoteScope} = 'unknown') AND (${job.rawJson} IS NOT NULL OR ${job.normalizedText} IS NOT NULL) AND ${job.status} = 'active'`,
+          )
+          .orderBy(job.detectedAt)
+          .limit(500);
+
+        return result;
+      },
+    );
+
+    if (resurrectionCandidates.length > 0) {
+      await step.sendEvent(
+        "resurrect-normalization",
+        resurrectionCandidates.map((j) => ({
+          id: `job-resurrect-${j.id}-${Date.now()}`,
+          name: "job/ingested",
+          data: {
+            jobId: j.id,
+            atsSource: j.atsSource,
+            atsSlug: j.atsSlug,
+            isNew: false,
+            isResurrection: true,
+          },
+        })),
+      );
+    }
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: "success",
+        source: "nightly_resurrection_sweep",
+        itemsProcessed: resurrectionCandidates.length,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return { resurrected: resurrectionCandidates.length };
+  },
+);
+
 // ── Module C Trigger (Event-Driven) ─────────────────────────────────────────
 
 /**
@@ -3305,6 +3410,88 @@ export const dailySourceD13MetaAds = inngest.createFunction(
   },
 );
 
+// ── v2 Corpus Expansion: Funding-Signal Seeders (Criterion 1 Discovery Layer) ──
+//
+// These two seeders replace the v1 bulk-undifferentiated seeders with
+// funding-signal-driven company discovery. They use the new
+// `discoverySource` enum values `funding_signal` and `github_probe` (added
+// in Phase 1) and populate the v2 scoring-signal fields (`employeeCount`,
+// `isPublic`) on the company row.
+//
+// See docs/governing/company-corpus-expansion-new.md Criterion 1 "Discovery
+// Layer" and docs/reports/CORPUS_EXPANSION_V2_HANDOFF.md Session 2.
+
+/**
+ * v2 Funding-Signal RSS — parses RSS/Atom funding feeds (TechCrunch, etc.)
+ * for funding-round announcements, estimates employee count from the stage,
+ * applies the startup filter (< 50 employees), and inserts surviving
+ * companies with `discoverySource = "funding_signal"`.
+ *
+ * Runs at 13:00 UTC (after D11 Tech News RSS at 08:00 — avoids overlap).
+ */
+export const v2FundingSignalRss = inngest.createFunction(
+  {
+    id: "v2-funding-signal-rss",
+    name: "v2 Funding-Signal RSS Seeder",
+    triggers: [{ cron: "0 13 * * *" }],
+  },
+  async ({ step }) => {
+    const { runFundingSignalRssSeeder } = await import(
+      "@/lib/jobs/seeders/daily-sources/funding-signal-rss"
+    );
+    return runSourceFunction({
+      step,
+      sourceName: "v2-funding-signal-rss",
+      logSource: "funding_signal_rss",
+      execute: () =>
+        step.run("fetch-and-process", async () =>
+          runFundingSignalRssSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.fundingArticles,
+        itemsInserted: r.resolved,
+        itemsRejected: r.filteredByStartupThreshold,
+        itemsSkipped: r.unresolved,
+      }),
+    });
+  },
+);
+
+/**
+ * v2 GitHub Events Probe — polls the GitHub Events API for a curated list of
+ * YC/VC-funded orgs, checks for recent activity, and inserts active orgs
+ * with `discoverySource = "github_probe"`.
+ *
+ * Runs at 14:00 UTC (after the funding-signal RSS seeder at 13:00).
+ */
+export const v2GithubEventsProbe = inngest.createFunction(
+  {
+    id: "v2-github-events-probe",
+    name: "v2 GitHub Events API Probe Seeder",
+    triggers: [{ cron: "0 14 * * *" }],
+  },
+  async ({ step }) => {
+    const { runGithubEventsProbeSeeder } = await import(
+      "@/lib/jobs/seeders/daily-sources/github-events-probe"
+    );
+    return runSourceFunction({
+      step,
+      sourceName: "v2-github-events-probe",
+      logSource: "github_events_probe",
+      execute: () =>
+        step.run("fetch-and-probe", async () =>
+          runGithubEventsProbeSeeder(fetch),
+        ),
+      buildLogEntry: (r) => ({
+        itemsProcessed: r.totalOrgs,
+        itemsInserted: r.resolved,
+        itemsRejected: r.inactiveOrgs,
+        itemsSkipped: r.unresolved,
+      }),
+    });
+  },
+);
+
 // ── Batch Source Functions (TDD §2.1 — event-triggered for one-time flush) ───
 //
 // Batch sources are triggered manually via `inngest.send()` or the Inngest
@@ -3922,12 +4109,27 @@ export const emergencyStoragePurge = inngest.createFunction(
       });
     });
 
-    // Step 4: Send alert email with purge summary
+    // Step 4: Send alert email with purge summary only when something actionable
+    // happened. Skip the email when the auto-triggered purge deleted nothing and
+    // storage was already below the recovery threshold — that scenario produces
+    // noise and usually means the trigger condition itself was misconfigured.
     await step.run("send-purge-alert", async () => {
       const { sendStorageAlertEmail } = await import(
         "@/lib/jobs/storage-alert"
       );
       const { STORAGE_LIMIT_MB } = await import("@/lib/jobs/storage-check");
+
+      const meaningfulRun =
+        isManualTrigger ||
+        purgeResult.totalDeleted > 0 ||
+        !purgeResult.recovered ||
+        purgeResult.walInflationDetected ||
+        purgeResult.corpusGuardTriggered;
+
+      if (!meaningfulRun) {
+        return { sent: false, reason: "nothing to report — no jobs deleted" };
+      }
+
       const tierSummary = purgeResult.tiers
         .map((t) => `${t.tier}: ${t.deletedCount}`)
         .join(", ");

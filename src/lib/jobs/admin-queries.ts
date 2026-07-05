@@ -61,6 +61,9 @@ export interface SourceHealthStats {
   totalFailures: number;
   disabledAt: Date | null;
   disabledReason: string | null;
+  // v2 Corpus Expansion (Criterion 3, Circuit Breaker Tier 5):
+  escalationCount: number;
+  lastEscalatedAt: Date | null;
 }
 
 export interface FunnelStats {
@@ -600,5 +603,89 @@ export async function getApprovalByAtsSource(
     total: Number(r.total),
     approved: Number(r.approved),
     approvalRate: Number(r.approval_rate ?? 0),
+  }));
+}
+
+// =============================================================================
+// v2 Corpus Expansion — Circuit Breaker Admin Queries (Criterion 3)
+// =============================================================================
+
+export interface CorpusRatioMetrics {
+  globalCount: number;
+  countryFencedCount: number;
+  unknownCount: number;
+  provisionalCount: number;
+  /** global / (global + country_fenced). Excludes unknown. */
+  knownScopeRatio: number;
+  /** unknown / (global + country_fenced + unknown). */
+  unknownSubFloorRatio: number;
+}
+
+/**
+ * Get corpus-wide remote-scope ratio metrics for the admin dashboard.
+ * Used to display the circuit breaker Tier 3 + Tier 4 status.
+ */
+export async function getCorpusRatioMetrics(): Promise<CorpusRatioMetrics> {
+  const result = await db.execute(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE ${job.remoteScope} = 'global') AS global_count,
+      COUNT(*) FILTER (WHERE ${job.remoteScope} = 'country_fenced') AS country_fenced_count,
+      COUNT(*) FILTER (WHERE ${job.remoteScope} IN ('unknown', 'undetermined')) AS unknown_count,
+      COUNT(*) FILTER (WHERE ${job.status} = 'provisional') AS provisional_count
+    FROM ${job}
+    WHERE ${job.status} IN ('active', 'provisional')
+  `);
+  const row = result.rows?.[0] ?? {};
+  const globalCount = Number(row.global_count ?? 0);
+  const countryFencedCount = Number(row.country_fenced_count ?? 0);
+  const unknownCount = Number(row.unknown_count ?? 0);
+  const provisionalCount = Number(row.provisional_count ?? 0);
+  const knownScopeTotal = globalCount + countryFencedCount;
+  const totalWithUnknown = knownScopeTotal + unknownCount;
+
+  return {
+    globalCount,
+    countryFencedCount,
+    unknownCount,
+    provisionalCount,
+    knownScopeRatio: knownScopeTotal > 0 ? globalCount / knownScopeTotal : 0,
+    unknownSubFloorRatio:
+      totalWithUnknown > 0 ? unknownCount / totalWithUnknown : 0,
+  };
+}
+
+export interface SourceOrphanedCompany {
+  id: string;
+  atsSlug: string;
+  companyName: string | null;
+  discoverySource: string | null;
+  tier: string;
+}
+
+/**
+ * Get companies flagged as source_orphaned (their only discovery source was banned).
+ * Displayed in the admin infrastructure health dashboard for visibility.
+ */
+export async function getSourceOrphanedCompanies(
+  limit = 50,
+): Promise<SourceOrphanedCompany[]> {
+  const rows = await db
+    .select({
+      id: company.id,
+      atsSlug: company.atsSlug,
+      companyName: company.companyName,
+      discoverySource: company.discoverySource,
+      tier: company.tier,
+    })
+    .from(company)
+    .where(eq(company.sourceOrphaned, true))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    id: r.id,
+    atsSlug: r.atsSlug,
+    companyName: r.companyName,
+    discoverySource: r.discoverySource,
+    tier: r.tier,
   }));
 }

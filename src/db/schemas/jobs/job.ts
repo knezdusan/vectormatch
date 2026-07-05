@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   numeric,
@@ -129,6 +130,47 @@ export const job = pgTable(
     // Populated at normalization time via heuristics on locationName + content.
     // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.2.
     remoteScope: remoteScopeEnum("remote_scope").default("unknown"),
+
+    // ── v2 Corpus Expansion: Provisional lifecycle + fencing (Criterion 1) ────
+    // See docs/governing/company-corpus-expansion-new.md "Provisional Job
+    // Lifecycle" + "retryInFlight Fencing" sections.
+    //
+    // Fencing flag for in-flight retry attempts. Set true when a
+    // normalizeProvisionalJob retry begins; force-cleared by the
+    // retryInFlightSweeper cron after 10min of inactivity (zombie-write
+    // prevention for process death / hung HTTP clients).
+    retryInFlight: boolean("retry_in_flight").notNull().default(false),
+    // Monotonic counter incremented on every retry attempt. Stamped into the
+    // attempt's context. Any persist carrying generation ≤ clearedGeneration
+    // is rejected as a zombie write.
+    retryGeneration: integer("retry_generation").notNull().default(0),
+    // Last retryGeneration force-cleared by the sweeper. NULL until the first
+    // sweep clears a stale flag. Writes with generation ≤ this value are
+    // rejected; only generation > clearedGeneration counts as legitimate.
+    clearedGeneration: integer("cleared_generation"),
+    // SHA-256 hash of cleaned JD text. Used by the dedup guard (identical
+    // textHash on retry → skip re-embedding, retry only the failed step) and
+    // the staleness gate (textHash change → full re-normalization, not retry).
+    textHash: text("text_hash"),
+    // When the source was fetched for this job record. Compared against
+    // company.lastPolledAt by the staleness gate on retry to decide whether
+    // to resume single-step or pull the upserted row (zero HTTP).
+    sourceFetchedAt: timestamp("source_fetched_at"),
+    // Incremented on material content drift (cosine-distance above threshold
+    // on re-normalization). Triggers a fresh Gate 1–3 run; never mutates an
+    // already-scored match.
+    jobVersion: integer("job_version").notNull().default(1),
+
+    // ── Timestamps ──────────────────────────────────────────────────────────
+    // updatedAt is bumped on every row mutation (including retryInFlight flag
+    // changes). The retryInFlightSweeper cron scans
+    // `retry_in_flight = true AND updated_at < now() - 10min` to find zombie
+    // flags left by process death / hung HTTP clients. Matches the company
+    // table's $onUpdate pattern.
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
@@ -156,6 +198,14 @@ export const job = pgTable(
     ),
     // For remote-scope filtering (global vs country-fenced remote).
     remoteScopeIdx: index("job_remote_scope_idx").on(table.remoteScope),
+    // v2: Partial index for the retryInFlightSweeper cron (every 2-3min scans
+    // retry_in_flight = true AND updated_at < now() - 10min). Only rows with
+    // retry_in_flight = true are indexed — a handful at any time, not the full
+    // table. Avoids sequential scans on Neon 512MB. See governing doc
+    // "retryInFlight Fencing" + Open Tuning Items (sweeper cadence).
+    retryInFlightSweeperIdx: index("job_retry_in_flight_sweeper_idx")
+      .on(table.updatedAt)
+      .where(sql`${table.retryInFlight} = true`),
   }),
 );
 

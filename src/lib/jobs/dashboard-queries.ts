@@ -215,7 +215,13 @@ export async function getMatches(
                 ELSE 0.5
               END
             ) * 0.08
-            + (COALESCE(${companyQualityScore.score}, 50) / 100.0) * 0.17
+            // v2 Corpus Expansion (Criterion 3): company_size_score is a clamped
+            // [-0.30, +0.30] offset applied WITHIN the existing 0.17 companyQuality
+            // weight bucket — NOT a separate weight bucket. The locked weighting
+            // scheme must not change. companySizeScore is clamped at write time
+            // (see src/lib/jobs/company-scorer.ts SCORE_CLAMP_MIN/MAX), so the
+            // combined term ranges from (0.20 * 0.17) to (1.30 * 0.17).
+            + (COALESCE(${companyQualityScore.score}, 50) / 100.0 + COALESCE(${companyQualityScore.companySizeScore}::numeric, 0)) * 0.17
           )
           - (
             CASE

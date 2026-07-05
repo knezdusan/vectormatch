@@ -145,6 +145,9 @@ describe("Gate 0.5 — Pattern 2: Location country lists", () => {
           title: "Senior Frontend Engineer",
           locationName: "Remote",
           workplaceType: "remote",
+          // v2: remoteScope = "country_fenced" triggers Check 2 hard-block.
+          // "unknown" now passes through to Gate 3 per governing doc.
+          remoteScope: "country_fenced",
           locationCountries: [
             "Mexico",
             "Argentina",
@@ -171,6 +174,8 @@ describe("Gate 0.5 — Pattern 2: Location country lists", () => {
           title: "Software Engineer",
           locationName: "Remote",
           workplaceType: "remote",
+          // v2: remoteScope = "country_fenced" triggers Check 2.
+          remoteScope: "country_fenced",
           locationCountries: ["Serbia", "Germany", "France"],
         },
       }),
@@ -340,6 +345,79 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
           title: "Full Stack Engineer",
           locationName: "New York, NY",
           workplaceType: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  // ── v2 Corpus Expansion: new remoteScope values ──────────────────────────
+
+  it("PASSES job with remoteScope='undetermined' (v2 — never hard-reject)", () => {
+    // Per governing doc: "undetermined → pass through to Gate 3, never
+    // hard-reject on parsing failure." This is the anti-pattern that caused
+    // the original zero-match bug.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Some City, Some Country",
+          workplaceType: null,
+          remoteScope: "undetermined",
+          locationCountries: ["US", "CA"], // Even with a country list
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("PASSES job with remoteScope='region_fenced' (Gate 3 evaluates region)", () => {
+    // region_fenced jobs are fenced to a broad region (Latam, APAC, EMEA).
+    // Gate 0.5 cannot hard-block on a single country match because region
+    // membership is fuzzy. Gate 3 (LLM) evaluates whether the applicant's
+    // country is within the region.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - APAC",
+          workplaceType: "remote",
+          remoteScope: "region_fenced",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("REJECTS job with remoteScope='onsite' in foreign country (v2 classification)", () => {
+    // v2: remoteScope='onsite' is set by the extraction ladder when the JD
+    // indicates on-site even if workplaceType was null (e.g., Greenhouse
+    // jobs with "must work on-site" in the description). Check 3 should
+    // fire on this.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Tokyo, Japan",
+          workplaceType: null, // Null — but remoteScope says onsite
+          remoteScope: "onsite",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("explicit_on_site");
+  });
+
+  it("PASSES job with remoteScope='unknown' (legacy — pass-through to Gate 3)", () => {
+    // Per governing doc: "unknown (existing) is retained for legacy jobs;
+    // Gate 0.5 treats both [unknown and undetermined] as pass-through to Gate 3."
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Berlin, Germany",
+          workplaceType: null,
+          remoteScope: "unknown",
         },
       }),
     );
@@ -729,6 +807,8 @@ describe("Gate 0.5 — country matching substring regression", () => {
           title: "Senior Frontend Engineer",
           locationName: "Remote",
           workplaceType: "remote",
+          // v2: remoteScope = "country_fenced" triggers Check 2 hard-block.
+          remoteScope: "country_fenced",
           locationCountries: ["Mexico", "Argentina", "Colombia", "India"],
         },
       }),
@@ -744,6 +824,8 @@ describe("Gate 0.5 — country matching substring regression", () => {
           title: "Software Engineer",
           locationName: "Remote",
           workplaceType: "remote",
+          // v2: remoteScope = "country_fenced" triggers Check 2.
+          remoteScope: "country_fenced",
           locationCountries: ["Serbia", "Germany", "France"],
         },
       }),

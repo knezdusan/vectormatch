@@ -113,6 +113,10 @@ export async function insertDiscoveredCompanies(
 
   // Insert with onConflictDoNothing — the DB unique index handles cross-batch
   // dedup. We count inserted vs skipped using the returning() clause.
+  //
+  // v2: pass through the scoring-signal fields (employeeCount, isPublic,
+  // isAgency) when provided by funding-signal seeders. Legacy seeders omit
+  // these fields — they default to null/false at the DB level.
   const insertedRows = await db
     .insert(company)
     .values(
@@ -123,6 +127,12 @@ export async function insertDiscoveredCompanies(
         rootDomain: item.rootDomain,
         discoverySource: item.discoverySource,
         discoveryContext: item.discoveryContext,
+        // v2 scoring signals — only set when the seeder provides them.
+        ...(item.employeeCount !== undefined
+          ? { employeeCount: item.employeeCount }
+          : {}),
+        ...(item.isPublic !== undefined ? { isPublic: item.isPublic } : {}),
+        ...(item.isAgency !== undefined ? { isAgency: item.isAgency } : {}),
       })),
     )
     .onConflictDoNothing({

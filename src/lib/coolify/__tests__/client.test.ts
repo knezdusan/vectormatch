@@ -17,7 +17,10 @@ vi.mock("server-only", () => ({}));
  */
 function setEnv(env: Record<string, string | undefined>) {
   vi.stubEnv("COOLIFY_API_TOKEN", env.COOLIFY_API_TOKEN ?? "test-token");
-  vi.stubEnv("COOLIFY_BASE_URL", env.COOLIFY_BASE_URL ?? "https://coolify.test");
+  vi.stubEnv(
+    "COOLIFY_BASE_URL",
+    env.COOLIFY_BASE_URL ?? "https://coolify.test",
+  );
   vi.stubEnv(
     "COOLIFY_INNGEST_SERVICE_UUID",
     env.COOLIFY_INNGEST_SERVICE_UUID ?? "test-service-uuid",
@@ -27,11 +30,7 @@ function setEnv(env: Record<string, string | undefined>) {
 /**
  * Create a mock fetch response.
  */
-function mockResponse(
-  body: unknown,
-  status = 200,
-  ok = true,
-): Response {
+function mockResponse(body: unknown, status = 200, ok = true): Response {
   return {
     ok,
     status,
@@ -66,10 +65,7 @@ describe("Coolify Client — getInngestStatus", () => {
   });
 
   it("parses running:healthy status correctly", async () => {
-    vi.stubEnv(
-      "COOLIFY_BASE_URL",
-      "https://coolify.test",
-    );
+    vi.stubEnv("COOLIFY_BASE_URL", "https://coolify.test");
     vi.stubEnv("COOLIFY_API_TOKEN", "test-token");
 
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -151,9 +147,7 @@ describe("Coolify Client — getInngestStatus", () => {
   });
 
   it("handles network errors gracefully", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(
-      new Error("ECONNREFUSED"),
-    );
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("ECONNREFUSED"));
 
     const { getInngestStatus } = await import("@/lib/coolify/client");
     const result = await getInngestStatus();

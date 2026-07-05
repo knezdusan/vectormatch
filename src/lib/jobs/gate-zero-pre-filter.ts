@@ -53,10 +53,20 @@ export interface PreFilterInput {
     compensationMin: number | null;
     compensationMax: number | null;
     compensationCurrency: string | null;
-    // Remote scope (added July 2026 — zero-match fix)
+    // Remote scope (added July 2026 — zero-match fix, extended v2)
     // "global" = worldwide remote, "country_fenced" = restricted to specific
-    // countries/regions, "unknown" = couldn't be determined (Gate 3 evaluates)
-    remoteScope: "global" | "country_fenced" | "unknown";
+    // countries, "region_fenced" = restricted to a broad region (Latam/APAC),
+    // "onsite" = on-site/hybrid, no remote option,
+    // "unknown" = couldn't be determined (legacy — Gate 3 evaluates),
+    // "undetermined" = v2 terminal — Step 1+2 ladder exhausted retries
+    // (Gate 3 evaluates — never hard-reject on parsing failure)
+    remoteScope:
+      | "global"
+      | "country_fenced"
+      | "region_fenced"
+      | "onsite"
+      | "unknown"
+      | "undetermined";
   };
   applicant: {
     country: string | null; // ISO 3166-1 alpha-2
@@ -236,6 +246,24 @@ function checkLocationCountryList(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
+  // v2: region_fenced and undetermined pass through to Gate 3.
+  // - region_fenced: fenced to a broad region (Latam, APAC, EMEA) — Gate 0.5
+  //   cannot hard-block on a single country match because region membership
+  //   is fuzzy. Gate 3 (LLM) evaluates whether the applicant's country is
+  //   within the region.
+  // - undetermined: the Step 1 + Step 2 extraction ladder exhausted retries
+  //   without resolving scope. Per governing doc: "undetermined → pass
+  //   through to Gate 3, never hard-reject on parsing failure." This is the
+  //   anti-pattern that caused the original zero-match bug.
+  // - unknown: legacy value for pre-v2 jobs — same pass-through behavior.
+  if (
+    job.remoteScope === "region_fenced" ||
+    job.remoteScope === "undetermined" ||
+    job.remoteScope === "unknown"
+  ) {
+    return { blocker: null, pattern: null };
+  }
+
   // Structured country list from ATS API
   if (job.locationCountries && job.locationCountries.length > 0) {
     const isAllowed = job.locationCountries.some(
@@ -313,7 +341,10 @@ function checkOnSiteDefault(input: PreFilterInput): {
 
   // Only fire on EXPLICIT on-site. Remote, hybrid, and null (undetermined)
   // all pass through — null is handled by Gate 3 (LLM).
-  if (job.workplaceType !== "on-site") {
+  // v2: Also fire when remoteScope = "onsite" (the v2 extraction ladder
+  // classified this job as on-site from JD text even if workplaceType was
+  // null — e.g., Greenhouse jobs with "must work on-site" in the description).
+  if (job.workplaceType !== "on-site" && job.remoteScope !== "onsite") {
     return { blocker: null, pattern: null };
   }
 

@@ -1,0 +1,636 @@
+// Remote-Scope Extractor — v2 Corpus Expansion Criterion 2
+// src/lib/jobs/remote-scope-extractor.ts
+//
+// Implements the two-step remote-scope extraction ladder from the governing
+// document (company-corpus-expansion-new.md Criterion 2):
+//
+//   Step 1 — Deterministic pre-pass (zero LLM cost):
+//     1a. ATS-native workplaceType trust path (Lever/Ashby only).
+//     1b. cheerio-based main-content extraction for HTML/markdown sources.
+//     1c. Regex hard-signals with confidence-scoring.
+//     1d. Strip company HQ from scope inference.
+//     → High-confidence → accept. Inconclusive → route to Step 2.
+//
+//   Step 2 — LLM extraction (gpt-4o-mini, sync path):
+//     Structured Zod output: { remoteScope, allowedCountries, workAuthRequired,
+//     confidence }. workAuthRequired is extracted for LLM reasoning quality
+//     but NOT persisted (no consumer in the current strategy — Gate 3
+//     evaluates work auth from JD text directly).
+//     → Persist remoteScope + allowedCountries to job row.
+//
+//   Hard-fail path: undetermined + normalization_failed (retryable).
+//   Never default to restrictive interpretation (onsite/country_fenced) —
+//   this is the anti-pattern that caused the original zero-match bug.
+//
+// Sync/Batch split: The sync path (this module) serves SLA-critical
+// first-time normalization inside the 4hr provisional window. The batch
+// path (batch-llm-client.ts, wired in Phase 3) serves SLA-indifferent
+// paths (content-drift re-normalization, dormant-tier, backlog catch-up).
+
+import "server-only";
+
+import { openai } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import * as cheerio from "cheerio";
+import { z } from "zod";
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+/** The remote scope values matching the pgEnum (minus legacy 'unknown'). */
+export type RemoteScope =
+  | "global"
+  | "country_fenced"
+  | "region_fenced"
+  | "onsite"
+  | "undetermined";
+
+/** The full result of the remote-scope extraction ladder. */
+export interface RemoteScopeResult {
+  remoteScope: RemoteScope;
+  /** ISO 3166-1 alpha-2 country codes the job is fenced to. Null for global /
+   *  onsite / undetermined. Populated for country_fenced and region_fenced
+   *  when the LLM or regex can identify specific countries. */
+  allowedCountries: string[] | null;
+  /** Which step produced this result — for observability and cost tracking. */
+  resolvedBy: "step1_ats_native" | "step1_regex" | "step2_llm" | "hard_fail";
+  /** Confidence 0.0–1.0. Step 1 high-confidence = 1.0; Step 2 = LLM-reported. */
+  confidence: number;
+}
+
+/** Injectable LLM scope extractor — tests pass a mock. */
+export type LlmScopeExtractor = (cleanedText: string) => Promise<{
+  remoteScope: RemoteScope;
+  allowedCountries: string[] | null;
+  confidence: number;
+}>;
+
+// =============================================================================
+// STEP 1a — ATS-NATIVE WORKPLACE TYPE TRUST PATH
+// =============================================================================
+
+/**
+ * ATS-native workplaceType trust path. Lever and Ashby provide structured
+ * workplaceType fields that are reliable. Greenhouse has no structured field
+ * (~85% miss rate) and must go through the content-based path.
+ *
+ * Per governing doc: "ATS-native workplaceType (Lever/Ashby only) → trust
+ * directly, zero LLM cost." This means:
+ *   - workplaceType = "remote" → still need scope (global vs fenced), so
+ *     proceed to regex/LLM for scope classification.
+ *   - workplaceType = "on-site" → remoteScope = "onsite", no further work.
+ *   - workplaceType = "hybrid" → remoteScope = "onsite" (hybrid requires
+ *     physical presence, not global remote).
+ *   - workplaceType = null → skip to regex/LLM (Greenhouse case).
+ *
+ * @returns RemoteScopeResult if the ATS-native path resolved the scope,
+ *          null if it couldn't (workplaceType is null or "remote" — needs
+ *          further classification).
+ */
+export function step1AtsNativeTrust(
+  workplaceType: "remote" | "hybrid" | "on-site" | null,
+  atsSource: string,
+): RemoteScopeResult | null {
+  // Greenhouse has no structured workplaceType — skip the trust path entirely.
+  // The ~85% miss rate means we can't trust the location heuristic either.
+  if (atsSource === "greenhouse") {
+    return null;
+  }
+
+  if (workplaceType === "on-site" || workplaceType === "hybrid") {
+    return {
+      remoteScope: "onsite",
+      allowedCountries: null,
+      resolvedBy: "step1_ats_native",
+      confidence: 1.0,
+    };
+  }
+
+  // workplaceType = "remote" → need to determine global vs fenced.
+  // workplaceType = null → need full extraction.
+  return null;
+}
+
+// =============================================================================
+// STEP 1b — CHEERIO-BASED MAIN-CONTENT EXTRACTION
+// =============================================================================
+
+/**
+ * Tags to strip entirely (content + element) — navigation, boilerplate, and
+ * non-job-content sections that pollute scope inference.
+ */
+const STRIP_TAGS = new Set([
+  "nav",
+  "footer",
+  "header",
+  "aside",
+  "script",
+  "style",
+  "noscript",
+  "iframe",
+  "svg",
+  "form",
+  "button",
+]);
+
+/**
+ * Semantic containers that likely hold the job description body. Checked in
+ * priority order — the first match wins.
+ */
+const SEMANTIC_CONTAINERS = [
+  "main",
+  '[role="main"]',
+  "article",
+  ".jobs",
+  ".careers",
+  ".job-listing",
+  ".job-description",
+  '[class*="job-description"]',
+  '[class*="jd-content"]',
+  '[id*="job-description"]',
+];
+
+/**
+ * Extract the main job-description text from an HTML string using cheerio.
+ *
+ * Strategy (per governing doc "HTML Cleaning"):
+ *   1. Strip nav/footer/header/aside/script/style entirely.
+ *   2. Target semantic containers (main, [role="main"], article, .jobs,
+ *      .careers, .job-listing).
+ *   3. Fall back to text-density scoring on top-level divs.
+ *
+ * For plain text or markdown input (non-HTML), returns the input as-is after
+ * trimming — no HTML parsing needed.
+ *
+ * @param html The raw HTML or plain text from the ATS / probe pipeline.
+ * @returns Cleaned plain text suitable for regex + LLM processing.
+ */
+export function extractMainContent(html: string | null): string {
+  if (!html || typeof html !== "string") {
+    return "";
+  }
+
+  // Detect HTML — if there are no HTML tags, treat as plain text.
+  if (!/<[a-z][\s\S]*>/i.test(html)) {
+    return html.replace(/\s+/g, " ").trim();
+  }
+
+  const $ = cheerio.load(html, undefined, false);
+
+  // Step 1: Strip boilerplate tags entirely.
+  for (const tag of STRIP_TAGS) {
+    $(tag).remove();
+  }
+
+  // Step 2: Try semantic containers in priority order.
+  for (const selector of SEMANTIC_CONTAINERS) {
+    const el = $(selector).first();
+    if (el.length > 0) {
+      const text = el.text();
+      if (text.length > 200) {
+        return cleanText(text);
+      }
+    }
+  }
+
+  // Step 3: Fall back to text-density scoring on top-level divs.
+  // Score each top-level div by text length / element count ratio — the div
+  // with the highest text density is likely the job description body.
+  let bestText = "";
+  let bestScore = 0;
+
+  $("body > div, div").each((_, el) => {
+    const $el = $(el);
+    const text = $el.text();
+    if (text.length < 200) return;
+
+    // Text density = text length / number of child elements.
+    // Higher density = more text per element = likely content, not layout.
+    const childCount = $el.children().length;
+    const density = childCount > 0 ? text.length / childCount : text.length;
+
+    if (density > bestScore) {
+      bestScore = density;
+      bestText = text;
+    }
+  });
+
+  if (bestText.length > 200) {
+    return cleanText(bestText);
+  }
+
+  // Last resort: return the full body text.
+  const fullText = $("body").text() || $.root().text();
+  return cleanText(fullText);
+}
+
+/** Collapse whitespace, trim. Used after cheerio text extraction. */
+function cleanText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+// =============================================================================
+// STEP 1c — REGEX HARD-SIGNALS WITH CONFIDENCE SCORING
+// =============================================================================
+
+/**
+ * High-confidence global remote indicators. Exact phrase hits — if any of
+ * these match, the job is classified as `global` with confidence 1.0.
+ *
+ * Per governing doc: `\b(anywhere|worldwide|global|remote-first)\b` → candidate `global`.
+ */
+const GLOBAL_HARD_SIGNALS: readonly RegExp[] = [
+  /\bremote\s*[-–]\s*(?:global|worldwide|anywhere)\b/i,
+  /\b(?:global[,\s]+remote|remote[,\s]+global)\b/i,
+  /\bwork\s+from\s+anywhere\b/i,
+  /\bwork\s+from\s+any\s+location\b/i,
+  /\bany\s+country\b/i,
+  /\bany\s+location\b/i,
+  /\bworldwide\b/i,
+  /\bremote[- ]first\b/i,
+  /\bdistributed\s+(?:team|workforce|company|organization)\b/i,
+  /\bteam\s+members\s+across\s+\d+\s+countries\b/i,
+  /\boperates?\s+in\s+\d+\s+countries\b/i,
+];
+
+/**
+ * High-confidence country-fenced indicators. If any of these match, the job
+ * is classified as `country_fenced` with confidence 1.0.
+ *
+ * Per governing doc: `\b(US-only|must reside in|authorized to work in US)\b`
+ * → candidate `country_fenced`.
+ */
+const COUNTRY_FENCED_HARD_SIGNALS: readonly RegExp[] = [
+  /\bremote\s*[-–]\s*(?:us|usa|united\s+states|u\.s\.)\b/i,
+  /\bremote\s*[-–]\s*(?:uk|united\s+kingdom|england)\b/i,
+  /\bremote\s*[-–]\s*(?:eu|europe|european\s+union)\b/i,
+  /\bremote\s*[-–]\s*(?:germany|france|spain|italy|netherlands|poland|portugal)\b/i,
+  /\bremote\s*[-–]\s*(?:canada|australia|india|brazil|mexico|argentina|colombia)\b/i,
+  /\bremote\s+(?:within|in|only|restricted)\b/i,
+  /\bmust\s+(?:be\s+)?(?:located|reside)\s+in\b/i,
+  /\b(?:us|uk|eu)\s+only\b/i,
+  /\bnorth\s+america\s+only\b/i,
+  /\bauthorized\s+to\s+work\s+in\s+(?:the\s+)?(?:us|u\.s\.|united\s+states)\b/i,
+];
+
+/**
+ * Region-fenced indicators. These fence to a broad region (Latam, APAC, EMEA)
+ * rather than specific countries. Gate 0.5 cannot hard-block on a single
+ * country match for region_fenced — region membership is fuzzy.
+ */
+const REGION_FENCED_HARD_SIGNALS: readonly RegExp[] = [
+  /\bremote\s*[-–]\s*(?:latam|latin\s+america)\b/i,
+  /\bremote\s*[-–]\s*(?:apac|asia[- ]?pacific)\b/i,
+  /\bremote\s*[-–]\s*(?:emea|europe[- ]?middle[- ]?east[- ]?africa)\b/i,
+  /\bremote\s*[-–]\s*(?:balkans|eastern\s+europe)\b/i,
+];
+
+/**
+ * On-site hard indicators. If workplaceType is null but these match, the job
+ * is likely on-site (not remote).
+ */
+const ONSITE_HARD_SIGNALS: readonly RegExp[] = [
+  /\bon[- ]site\s+(?:position|role|job|work)\b/i,
+  /\bin[- ]office\s+(?:position|role|required)\b/i,
+  /\bmust\s+(?:work|be)\s+(?:on[- ]site|in[- ]office)\b/i,
+];
+
+/** Confidence threshold for accepting Step 1 regex results. */
+const STEP1_CONFIDENCE_THRESHOLD = 0.8;
+
+/**
+ * Step 1c — Regex hard-signal matching with confidence scoring.
+ *
+ * Scans the cleaned text for high-confidence remote-scope indicators. Returns
+ * a result only if confidence ≥ STEP1_CONFIDENCE_THRESHOLD; otherwise returns
+ * null to indicate the LLM fallback (Step 2) should run.
+ *
+ * @param cleanedText The main-content text from extractMainContent().
+ * @param workplaceType The ATS-native workplace type (for context).
+ * @returns RemoteScopeResult if high-confidence, null if inconclusive.
+ */
+export function step1RegexHardSignals(
+  cleanedText: string,
+  workplaceType: "remote" | "hybrid" | "on-site" | null,
+): RemoteScopeResult | null {
+  const text = cleanedText ?? "";
+
+  // Check global signals first (highest priority — if the JD explicitly says
+  // "global remote", it's global even if the location mentions a country).
+  for (const pattern of GLOBAL_HARD_SIGNALS) {
+    if (pattern.test(text)) {
+      return {
+        remoteScope: "global",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: 1.0,
+      };
+    }
+  }
+
+  // Check country-fenced signals.
+  for (const pattern of COUNTRY_FENCED_HARD_SIGNALS) {
+    if (pattern.test(text)) {
+      return {
+        remoteScope: "country_fenced",
+        allowedCountries: extractCountryCodes(text),
+        resolvedBy: "step1_regex",
+        confidence: 1.0,
+      };
+    }
+  }
+
+  // Check region-fenced signals.
+  for (const pattern of REGION_FENCED_HARD_SIGNALS) {
+    if (pattern.test(text)) {
+      return {
+        remoteScope: "region_fenced",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: 1.0,
+      };
+    }
+  }
+
+  // Check on-site signals (only relevant when workplaceType is null).
+  if (workplaceType === null) {
+    for (const pattern of ONSITE_HARD_SIGNALS) {
+      if (pattern.test(text)) {
+        return {
+          remoteScope: "onsite",
+          allowedCountries: null,
+          resolvedBy: "step1_regex",
+          confidence: 1.0,
+        };
+      }
+    }
+  }
+
+  // Inconclusive — route to Step 2.
+  return null;
+}
+
+/**
+ * Extract ISO 3166-1 alpha-2 country codes from text. Used to populate
+ * allowedCountries for country_fenced results from Step 1.
+ *
+ * This is a best-effort heuristic — the LLM (Step 2) produces more accurate
+ * country lists. For Step 1, we only extract when the regex hard-signals
+ * already confirmed country_fenced.
+ */
+function extractCountryCodes(text: string): string[] | null {
+  const codes = new Set<string>();
+  const countryMap: Record<string, string> = {
+    us: "US",
+    usa: "US",
+    "u.s.": "US",
+    "united states": "US",
+    america: "US",
+    uk: "GB",
+    "united kingdom": "GB",
+    england: "GB",
+    britain: "GB",
+    eu: "EU",
+    europe: "EU",
+    "european union": "EU",
+    germany: "DE",
+    france: "FR",
+    spain: "ES",
+    italy: "IT",
+    netherlands: "NL",
+    poland: "PL",
+    portugal: "PT",
+    canada: "CA",
+    australia: "AU",
+    india: "IN",
+    brazil: "BR",
+    mexico: "MX",
+    argentina: "AR",
+    colombia: "CO",
+  };
+
+  const lower = text.toLowerCase();
+  for (const [name, code] of Object.entries(countryMap)) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`(^|[^a-z])${escaped}(?=$|[^a-z])`).test(lower)) {
+      codes.add(code);
+    }
+  }
+
+  return codes.size > 0 ? [...codes] : null;
+}
+
+// =============================================================================
+// STEP 1d — HQ STRIPPING
+// =============================================================================
+
+/**
+ * Strip company HQ / location fields from the text used for scope inference.
+ *
+ * Per governing doc: "Strip HQ/company location fields entirely from scope
+ * inference — never trust registry company.location. Greenhouse (~85% miss
+ * rate) and null-workplaceType skip straight to Step 2."
+ *
+ * Many ATS systems set the location to a company HQ city even for global
+ * remote roles. Including the HQ in scope inference causes false
+ * country_fenced classifications.
+ *
+ * @param text The cleaned JD text.
+ * @param companyLocation The company's HQ location from the registry (if any).
+ * @returns Text with HQ location references removed.
+ */
+export function stripCompanyHq(
+  text: string,
+  companyLocation: string | null,
+): string {
+  if (!companyLocation || !text) {
+    return text;
+  }
+
+  // Remove the HQ location string from the text. Case-insensitive, global
+  // replacement. This is conservative — it only removes exact matches of the
+  // HQ string, not partial city name fragments.
+  const escaped = companyLocation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(escaped, "gi"), " ");
+}
+
+// =============================================================================
+// STEP 2 — LLM EXTRACTION (SYNC PATH)
+// =============================================================================
+
+/**
+ * Zod schema for Step 2 LLM output. Per governing doc:
+ * `{ remoteScope, allowedCountries, workAuthRequired, confidence }`
+ *
+ * workAuthRequired is extracted for LLM reasoning quality (forcing the model
+ * to reason about geographic restrictions explicitly improves remoteScope
+ * accuracy) but is NOT persisted — no consumer exists in the current strategy.
+ */
+const llmScopeSchema = z.object({
+  remoteScope: z.enum([
+    "global",
+    "country_fenced",
+    "region_fenced",
+    "onsite",
+    "undetermined",
+  ]),
+  allowedCountries: z
+    .array(z.string())
+    .nullable()
+    .describe("ISO 3166-1 alpha-2 country codes if country_fenced, else null"),
+  workAuthRequired: z
+    .boolean()
+    .describe(
+      "Whether the JD requires specific work authorization (US-only, etc.)",
+    ),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe("Confidence in the classification, 0.0 to 1.0"),
+});
+
+const LLM_SCOPE_SYSTEM_PROMPT = `You are a remote-work scope classifier for job postings. Read the job description text and classify the remote scope.
+
+Classify as one of:
+- "global": The job is remote with no geographic restrictions (e.g., "Remote - Global", "work from anywhere", "distributed team").
+- "country_fenced": The job is remote but restricted to specific countries (e.g., "Remote - US Only", "must reside in Germany"). Provide the country codes in allowedCountries.
+- "region_fenced": The job is remote but restricted to a broad region (e.g., "Remote - Latam", "Remote - APAC", "Remote - EMEA").
+- "onsite": The job requires physical presence at a specific location (on-site or hybrid).
+- "undetermined": The job description does not provide enough information to classify the remote scope.
+
+CRITICAL RULES:
+1. NEVER default to "onsite" or "country_fenced" when the scope is unclear. Use "undetermined" instead. Defaulting to restrictive interpretations is the anti-pattern that caused the original zero-match bug.
+2. Ignore company headquarters / location metadata — only use the job description text itself. Many ATS systems set the location to a HQ city even for global remote roles.
+3. "Remote" with no geographic qualifier should be classified as "global" (most inclusive interpretation).
+4. Work authorization requirements (e.g., "authorized to work in US") indicate country_fenced, not global.
+5. Extract allowedCountries as ISO 3166-1 alpha-2 codes (e.g., "US", "GB", "DE") when country_fenced. Null for all other scopes.`;
+
+/**
+ * Step 2 — LLM extraction via gpt-4o-mini (sync path).
+ *
+ * Uses the existing @ai-sdk/openai + generateObject pattern (same as
+ * gate-3.ts and the tag extractor). This is the SLA-critical path for
+ * first-time normalization inside the 4hr provisional window.
+ *
+ * The batch path (batch-llm-client.ts) serves SLA-indifferent paths and is
+ * wired in Phase 3.
+ */
+export async function extractScopeLLM(cleanedText: string): Promise<{
+  remoteScope: RemoteScope;
+  allowedCountries: string[] | null;
+  confidence: number;
+}> {
+  const { object } = await generateObject({
+    model: openai("gpt-4o-mini"),
+    schema: llmScopeSchema,
+    system: LLM_SCOPE_SYSTEM_PROMPT,
+    prompt: cleanedText,
+  });
+
+  return {
+    remoteScope: object.remoteScope,
+    allowedCountries: object.allowedCountries,
+    confidence: object.confidence,
+  };
+}
+
+// =============================================================================
+// EXTRACTION LADDER ORCHESTRATOR
+// =============================================================================
+
+/**
+ * Run the full Step 1 → Step 2 remote-scope extraction ladder.
+ *
+ * Flow (per governing doc Criterion 2):
+ *   1. Step 1a: ATS-native workplaceType trust (Lever/Ashby on-site/hybrid → onsite).
+ *   2. Step 1b: cheerio main-content extraction.
+ *   3. Step 1d: Strip company HQ from the extracted text.
+ *   4. Step 1c: Regex hard-signals with confidence scoring.
+ *   5. If Step 1 resolved with high confidence → return.
+ *   6. Step 2: LLM extraction (sync path via gpt-4o-mini).
+ *   7. If Step 2 succeeds → return LLM result.
+ *   8. Hard-fail: undetermined (never default to restrictive).
+ *
+ * @param rawContent The raw HTML or plain text from the ATS / probe pipeline.
+ * @param workplaceType The ATS-native workplace type (remote/hybrid/on-site/null).
+ * @param atsSource The ATS platform name (for the trust path).
+ * @param companyLocation The company's HQ location (for HQ stripping).
+ * @param llmExtractor Injectable LLM extractor (defaults to extractScopeLLM).
+ *                     Tests pass a mock to avoid hitting the OpenAI API.
+ */
+export async function extractRemoteScope(
+  rawContent: string | null,
+  workplaceType: "remote" | "hybrid" | "on-site" | null,
+  atsSource: string,
+  companyLocation: string | null,
+  llmExtractor: LlmScopeExtractor = extractScopeLLM,
+): Promise<RemoteScopeResult> {
+  // Step 1a: ATS-native trust path.
+  const atsNativeResult = step1AtsNativeTrust(workplaceType, atsSource);
+  if (atsNativeResult !== null) {
+    return atsNativeResult;
+  }
+
+  // Step 1b: cheerio main-content extraction.
+  const cleanedText = extractMainContent(rawContent);
+
+  // Step 1d: Strip company HQ from scope inference.
+  const hqStrippedText = stripCompanyHq(cleanedText, companyLocation);
+
+  // Step 1c: Regex hard-signals.
+  const regexResult = step1RegexHardSignals(hqStrippedText, workplaceType);
+  if (
+    regexResult !== null &&
+    regexResult.confidence >= STEP1_CONFIDENCE_THRESHOLD
+  ) {
+    return regexResult;
+  }
+
+  // If the cleaned text is empty or too short, hard-fail immediately
+  // (no point calling the LLM on empty input).
+  if (hqStrippedText.length < 50) {
+    return {
+      remoteScope: "undetermined",
+      allowedCountries: null,
+      resolvedBy: "hard_fail",
+      confidence: 0,
+    };
+  }
+
+  // Step 2: LLM extraction (sync path).
+  try {
+    const llmResult = await llmExtractor(hqStrippedText);
+    return {
+      remoteScope: llmResult.remoteScope,
+      allowedCountries: llmResult.allowedCountries,
+      resolvedBy: "step2_llm",
+      confidence: llmResult.confidence,
+    };
+  } catch {
+    // Hard-fail: undetermined + retryable. Never default to restrictive.
+    return {
+      remoteScope: "undetermined",
+      allowedCountries: null,
+      resolvedBy: "hard_fail",
+      confidence: 0,
+    };
+  }
+}
+
+/**
+ * Determine if a remote-scope result should trigger normalization_failed
+ * (retryable) vs. just being stored as undetermined.
+ *
+ * Per governing doc: "Empty after cleaning / binary garbage → write
+ * undetermined + normalization_failed (retryable)."
+ *
+ * A hard-fail from empty/garbage content → normalization_failed (the
+ * normalizer should retry with an alternate parser or headless render).
+ * A hard-fail from LLM error → undetermined only (the LLM was available
+ * but couldn't classify — retry via nightly resurrection sweep).
+ */
+export function isHardFailRetryable(result: RemoteScopeResult): boolean {
+  return result.resolvedBy === "hard_fail" && result.confidence === 0;
+}
