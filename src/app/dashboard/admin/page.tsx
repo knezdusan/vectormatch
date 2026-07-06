@@ -5,6 +5,7 @@ import { AdminOverview } from "@/components/admin/AdminOverview";
 import { AlertsPanel } from "@/components/admin/AlertsPanel";
 import { BulkReprocessButton } from "@/components/admin/BulkReprocessButton";
 import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
+import { IngestionAnalytics } from "@/components/admin/IngestionAnalytics";
 import { InngestStatusControl } from "@/components/admin/InngestStatusControl";
 import { MatchingFunnel } from "@/components/admin/MatchingFunnel";
 import { PipelineHealthMonitor } from "@/components/admin/PipelineHealthMonitor";
@@ -82,6 +83,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
         defaultTab={tab}
         tabs={[
           { value: "infrastructure", label: "Infrastructure" },
+          { value: "ingestion", label: "Ingestion" },
           { value: "matching", label: "Matching" },
           { value: "pipeline", label: "Pipeline" },
           { value: "activity", label: "Activity" },
@@ -89,6 +91,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
       >
         <TabsContent value="infrastructure" className="space-y-4">
           <InfrastructureHealth />
+        </TabsContent>
+        <TabsContent value="ingestion" className="space-y-4">
+          <IngestionAnalytics range={range} />
         </TabsContent>
         <TabsContent value="matching" className="space-y-4">
           <Card>

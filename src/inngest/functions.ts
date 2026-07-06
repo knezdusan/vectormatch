@@ -4235,7 +4235,7 @@ export const inngestHealthMonitor = inngest.createFunction(
     });
 
     // Step 4: Create/resolve alerts and send email
-    await step.run("manage-alerts-and-email", async () => {
+    const alertResult = await step.run("manage-alerts-and-email", async () => {
       const { createAlert, hasActiveAlert, resolveAlertsByType } = await import(
         "@/lib/jobs/alerting"
       );
@@ -4260,6 +4260,35 @@ export const inngestHealthMonitor = inngest.createFunction(
           alertReason === "server_paused"
             ? "critical"
             : "warning";
+
+        // ── Stale alert resolution ───────────────────────────────────────────
+        // Resolve alerts of OTHER types that are no longer the current reason.
+        // Without this, a server_down alert stays active forever after the
+        // server recovers but the pipeline is still stalled (the monitor only
+        // reaches the "all healthy" resolution path when alertReason === null).
+        if (alertReason === "pipeline_stall") {
+          // Server is up (pipeline stall detected via DB query, not HTTP check).
+          // Resolve any stale server_down alert from a prior outage.
+          const resolved = await resolveAlertsByType("inngest_server_down");
+          if (resolved > 0) {
+            logger.info(
+              "Resolved stale inngest_server_down alert — server recovered but pipeline still stalled",
+            );
+          }
+        } else if (alertReason === "function_failure_spike") {
+          // Server is up and pipeline is not stalled (stall check ran first).
+          // Resolve stale server_down and pipeline_stall alerts.
+          const resolved =
+            (await resolveAlertsByType("inngest_server_down")) +
+            (await resolveAlertsByType("inngest_pipeline_stall"));
+          if (resolved > 0) {
+            logger.info(
+              `Resolved ${resolved} stale Inngest alert(s) — current issue is function failure spike`,
+            );
+          }
+        }
+        // If alertReason is "server_unreachable" or "server_paused", the server
+        // is down — we cannot determine pipeline state, so don't resolve anything.
 
         // Create alert if not already active (deduplicated)
         if (!(await hasActiveAlert(alertType))) {
@@ -4313,6 +4342,112 @@ export const inngestHealthMonitor = inngest.createFunction(
 
       return { alertReason, alertCreated };
     });
+
+    // Step 5: Auto-restart Inngest on prolonged pipeline stall
+    //
+    // The Inngest self-hosted server (v1.34.0) has a known bug (GitHub issue
+    // #3549) where the executor/queue processor becomes wedged after a burst
+    // of concurrent executions — event-triggered runs stay stuck in QUEUED
+    // while cron-triggered functions continue to work. The only recovery is
+    // restarting the Inngest service.
+    //
+    // This safeguard automatically restarts the Inngest service when a pipeline
+    // stall persists for longer than the cooldown period (indicating the queue
+    // processor is wedged, not just temporarily slow). The cooldown prevents
+    // restart loops: we check the existing inngest_pipeline_stall alert's
+    // createdAt — if it's older than the cooldown, we restart and recreate the
+    // alert (resetting the cooldown timer).
+    //
+    // Disabled by default in dev (INNGEST_DEV=1). Enable in production with
+    // INNGEST_AUTO_RESTART_ON_STALL=true (default: true when not in dev mode).
+    if (alertResult.alertReason === "pipeline_stall") {
+      await step.run("auto-restart-on-stall", async () => {
+        const autoRestartEnabled =
+          process.env.INNGEST_AUTO_RESTART_ON_STALL !== "false" &&
+          process.env.INNGEST_DEV !== "1";
+
+        if (!autoRestartEnabled) {
+          return { restarted: false, reason: "auto_restart_disabled" };
+        }
+
+        // Cooldown: only restart if the stall has persisted for >30 minutes.
+        // We check the existing inngest_pipeline_stall alert's createdAt.
+        const STALL_RESTART_COOLDOWN_MINUTES = 30;
+
+        const { db } = await import("@/db/db");
+        const { alerts } = await import("@/db/schemas/jobs/alerts");
+        const { and, eq, desc } = await import("drizzle-orm");
+
+        const existingAlerts = await db
+          .select({ id: alerts.id, createdAt: alerts.createdAt })
+          .from(alerts)
+          .where(
+            and(
+              eq(alerts.type, "inngest_pipeline_stall"),
+              eq(alerts.status, "active"),
+            ),
+          )
+          .orderBy(desc(alerts.createdAt))
+          .limit(1);
+
+        if (existingAlerts.length === 0) {
+          return { restarted: false, reason: "no_existing_stall_alert" };
+        }
+
+        const stallAlertAge =
+          Date.now() - new Date(existingAlerts[0].createdAt).getTime();
+        const cooldownMs = STALL_RESTART_COOLDOWN_MINUTES * 60 * 1000;
+
+        if (stallAlertAge < cooldownMs) {
+          logger.info(
+            `Pipeline stall ongoing for ${Math.round(stallAlertAge / 1000 / 60)}min — waiting for ${STALL_RESTART_COOLDOWN_MINUTES}min cooldown before auto-restart`,
+          );
+          return {
+            restarted: false,
+            reason: "cooldown_active",
+            stallAgeMinutes: Math.round(stallAlertAge / 1000 / 60),
+            cooldownMinutes: STALL_RESTART_COOLDOWN_MINUTES,
+          };
+        }
+
+        // Stall has persisted beyond cooldown — restart the Inngest service.
+        logger.warn(
+          `Pipeline stall persisted for ${Math.round(stallAlertAge / 1000 / 60)}min (>${STALL_RESTART_COOLDOWN_MINUTES}min cooldown) — auto-restarting Inngest service to clear wedged queue processor (Inngest bug #3549)`,
+        );
+
+        const { restartInngest } = await import("@/lib/coolify/client");
+        const result = await restartInngest();
+
+        if (result.success) {
+          // Resolve and recreate the stall alert to reset the cooldown timer.
+          // This prevents repeated restarts if the first restart doesn't fix it.
+          const { resolveAlertsByType, createAlert } = await import(
+            "@/lib/jobs/alerting"
+          );
+          await resolveAlertsByType("inngest_pipeline_stall");
+          await createAlert({
+            type: "inngest_pipeline_stall",
+            severity: "warning",
+            message: `INNGEST_PIPELINE_STALL: No jobs normalized in ${healthReport.pipelineStall.windowHours}h — auto-restart triggered to clear wedged queue`,
+            details: JSON.stringify({
+              reason: "pipeline_stall",
+              autoRestart: true,
+              restartResult: result,
+              stallAgeMinutes: Math.round(stallAlertAge / 1000 / 60),
+              coolifyStatus: coolifyStatus.coolifyStatus,
+              pipelineStall: healthReport.pipelineStall,
+            }),
+          });
+        }
+
+        return {
+          restarted: result.success,
+          reason: result.success ? "restart_triggered" : "restart_failed",
+          message: result.message,
+          stallAgeMinutes: Math.round(stallAlertAge / 1000 / 60),
+        };
+      });
+    }
 
     logger.info("Inngest health monitor completed", {
       coolifyStatus: coolifyStatus.label,

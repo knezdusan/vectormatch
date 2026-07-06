@@ -45,6 +45,9 @@ vi.mock("@/components/admin/AdminOverview", () => ({
 vi.mock("@/components/admin/InfrastructureHealth", () => ({
   InfrastructureHealth: () => null,
 }));
+vi.mock("@/components/admin/IngestionAnalytics", () => ({
+  IngestionAnalytics: () => null,
+}));
 vi.mock("@/components/admin/MatchingFunnel", () => ({
   MatchingFunnel: () => null,
 }));
