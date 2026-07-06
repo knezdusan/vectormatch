@@ -128,7 +128,12 @@ export function DistributionCharts({
           ) : null
         }
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          minWidth={0}
+          minHeight={0}
+        >
           <PieChart>
             <Tooltip
               contentStyle={tooltipStyle}
@@ -182,7 +187,12 @@ export function DistributionCharts({
           ) : null
         }
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          minWidth={0}
+          minHeight={0}
+        >
           <BarChart
             data={qualityBuckets}
             margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
@@ -253,7 +263,12 @@ export function DistributionCharts({
           ) : null
         }
       >
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+          minWidth={0}
+          minHeight={0}
+        >
           <BarChart
             data={fusionScores}
             margin={{ top: 8, right: 8, left: 8, bottom: 8 }}

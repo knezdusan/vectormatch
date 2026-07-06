@@ -38,7 +38,12 @@ export function FunnelChart({ data }: FunnelChartProps) {
 
   return (
     <div className="aspect-video w-full text-xs">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minWidth={0}
+        minHeight={0}
+      >
         <BarChart
           data={data}
           margin={{ top: 16, right: 8, left: 8, bottom: 8 }}

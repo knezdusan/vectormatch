@@ -16,7 +16,8 @@ export type IngestionLogType =
   | "poll"
   | "batch_poll"
   | "tier_recalc"
-  | "stale_cleanup";
+  | "stale_cleanup"
+  | "backfill";
 
 export type IngestionLogStatus = "success" | "partial" | "failed";
 

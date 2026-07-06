@@ -175,6 +175,7 @@ export const ingestionLogTypeEnum = pgEnum("ingestion_log_type", [
   "batch_poll", // Batch poll tier ran (G5 — polls N companies per run)
   "tier_recalc", // Tier recalculation ran
   "stale_cleanup", // Stale job cleanup ran
+  "backfill", // Backfill operation ran (e.g., remote scope backfill)
 ]);
 
 // Outcome of an ingestion log run. `partial` means some items failed but the

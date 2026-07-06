@@ -13,7 +13,7 @@ interface DashboardMainProps {
 export function DashboardMain({ children }: DashboardMainProps) {
   return (
     <SidebarInset className="dashboard-surface min-h-svh">
-      <div className="w-full max-w-4xl px-5 sm:px-8 lg:px-10">{children}</div>
+      <div className="w-full max-w-5xl px-5 sm:px-8 lg:px-10">{children}</div>
     </SidebarInset>
   );
 }
