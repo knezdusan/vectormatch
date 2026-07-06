@@ -1437,16 +1437,7 @@ export const jobIngestedHandler = inngest.createFunction(
       );
     });
 
-    // ── Step 3: Extract metadata (workplaceType, locationName, remoteScope, etc.)
-    // Extract structured metadata from rawJson for Gate 0.5 filtering and
-    // remote-scope classification. This runs for all jobs regardless of
-    // normalization status since metadata is useful even for rejected jobs.
-    const metadata = await step.run("extract-metadata", async () => {
-      const { extractJobMetadata } = await import("@/lib/jobs/job-normalizer");
-      return extractJobMetadata(decision.job.atsSource, decision.job.rawJson);
-    });
-
-    // ── Step 4: Embed (§4.4 — only if normalized) ──────────────────────────
+    // ── Step 3: Embed (§4.4 — only if normalized) ──────────────────────────
     // Generate the job embedding from the cleaned fullText. Only runs for
     // 'normalized' jobs — rejected/failed jobs don't need an embedding.
     let embedding: number[] | null = null;
@@ -1457,7 +1448,7 @@ export const jobIngestedHandler = inngest.createFunction(
       });
     }
 
-    // ── Step 5: Write normalization results to DB ─────────────────────────
+    // ── Step 4: Write normalization results to DB ─────────────────────────
     // DB connection acquired and released within this step.
     // normalizedAt is set ONLY on terminal outcomes (normalized or rejected),
     // NEVER on normalization_failed (§4.3, §4.6).
@@ -1479,23 +1470,6 @@ export const jobIngestedHandler = inngest.createFunction(
             normalizedAt: new Date(),
             // AI-generated candidate-facing summary (added July 2026).
             shortDescription: normalization.summary,
-            // Metadata extraction (remoteScope, workplaceType, etc.) for Gate 0.5
-            workplaceType: metadata.workplaceType,
-            employmentType: metadata.employmentType,
-            locationName: metadata.locationName,
-            department: metadata.department,
-            team: metadata.team,
-            applyUrl: metadata.applyUrl,
-            publishedAt: metadata.publishedAt as Date | null,
-            companyName: metadata.companyName,
-            titleRegionTag: metadata.titleRegionTag,
-            locationCountries: metadata.locationCountries,
-            experienceMinYears: metadata.experienceMinYears,
-            experienceMaxYears: metadata.experienceMaxYears,
-            compensationMin: metadata.compensationMin?.toString() ?? null,
-            compensationMax: metadata.compensationMax?.toString() ?? null,
-            compensationCurrency: metadata.compensationCurrency,
-            remoteScope: metadata.remoteScope,
             // status stays 'active' — normalizedAt indicates normalization done
           })
           .where(eq(job.id, jobId));
@@ -1521,23 +1495,6 @@ export const jobIngestedHandler = inngest.createFunction(
             normalizedText: normalization.fullText,
             rawJson: null,
             normalizedAt: new Date(),
-            // Metadata extraction (remoteScope, workplaceType, etc.) for debugging
-            workplaceType: metadata.workplaceType,
-            employmentType: metadata.employmentType,
-            locationName: metadata.locationName,
-            department: metadata.department,
-            team: metadata.team,
-            applyUrl: metadata.applyUrl,
-            publishedAt: metadata.publishedAt as Date | null,
-            companyName: metadata.companyName,
-            titleRegionTag: metadata.titleRegionTag,
-            locationCountries: metadata.locationCountries,
-            experienceMinYears: metadata.experienceMinYears,
-            experienceMaxYears: metadata.experienceMaxYears,
-            compensationMin: metadata.compensationMin?.toString() ?? null,
-            compensationMax: metadata.compensationMax?.toString() ?? null,
-            compensationCurrency: metadata.compensationCurrency,
-            remoteScope: metadata.remoteScope,
           })
           .where(eq(job.id, jobId));
       } else {
@@ -1573,7 +1530,7 @@ export const jobIngestedHandler = inngest.createFunction(
       };
     }
 
-    // ── Step 5.5: Gate 0.5 hard-blocker pre-filter ─────────────────────────
+    // ── Step 4.5: Gate 0.5 hard-blocker pre-filter ─────────────────────────
     // Runs after normalization succeeds but before Gate 1+2 routing. Checks
     // for hard blockers (geo-fencing, compensation tier, experience band)
     // that make the job fundamentally ineligible regardless of tech match.
@@ -4507,177 +4464,6 @@ export const inngestHealthMonitor = inngest.createFunction(
       pipelineStall: healthReport.pipelineStall,
       overallHealthy: healthReport.overallHealthy,
       alertReason,
-    };
-  },
-);
-
-// ── Remote Scope Backfill (Fix for 309 jobs with remoteScope='unknown') ─────
-
-/**
- * Remote Scope Backfill — re-extracts metadata for jobs with remoteScope='unknown'
- *
- * This is a one-time backfill to fix jobs that were normalized before the
- * jobIngestedHandler was updated to populate remoteScope and other metadata fields.
- * It re-runs extractJobMetadata() on jobs with:
- *   - remoteScope = 'unknown' (the default)
- *   - normalizedAt IS NOT NULL (already normalized)
- *   - rawJson IS NOT NULL OR normalizedText IS NOT NULL (has content to extract from)
- *
- * Triggered by: Manual event or cron (run once, then disable)
- *
- * Limit: 100 jobs per run to avoid timeouts. Prioritizes the oldest jobs first.
- */
-export const remoteScopeBackfill = inngest.createFunction(
-  {
-    id: "remote-scope-backfill",
-    name: "Remote Scope Backfill (One-time)",
-    triggers: [{ event: "backfill/remote-scope" }],
-  },
-  async ({ step }) => {
-    const { sql } = await import("drizzle-orm");
-    const { db } = await import("@/db/db");
-    const { job } = await import("@/db/schemas/jobs/job");
-    const { eq } = await import("drizzle-orm");
-
-    const startedAt = new Date();
-
-    // Step 1: Find jobs with remoteScope='unknown' that have content to extract from
-    const jobsToBackfill = await step.run("find-jobs", async () => {
-      const result = await db
-        .select({
-          id: job.id,
-          atsSource: job.atsSource,
-          rawJson: job.rawJson,
-          normalizedText: job.normalizedText,
-        })
-        .from(job)
-        .where(
-          sql`(${job.remoteScope} = 'unknown' OR ${job.remoteScope} IS NULL)
-             AND ${job.normalizedAt} IS NOT NULL
-             AND (${job.rawJson} IS NOT NULL OR ${job.normalizedText} IS NOT NULL)
-             AND ${job.status} = 'active'`,
-        )
-        .orderBy(job.detectedAt)
-        .limit(100);
-
-      return result;
-    });
-
-    if (jobsToBackfill.length === 0) {
-      await step.run("write-log", async () => {
-        const { writeIngestionLog } = await import(
-          "@/lib/jobs/poller/ingestion-log"
-        );
-        return writeIngestionLog({
-          type: "backfill",
-          status: "success",
-          source: "remote_scope_backfill",
-          itemsProcessed: 0,
-          itemsInserted: 0,
-          itemsUpdated: 0,
-          itemsRejected: 0,
-          itemsSkipped: 0,
-          startedAt,
-          finishedAt: new Date(),
-        });
-      });
-
-      return { backfilled: 0, message: "No jobs to backfill" };
-    }
-
-    // Step 2: Re-extract metadata for each job
-    const backfillResults = await step.run("backfill-metadata", async () => {
-      const { extractJobMetadata } = await import("@/lib/jobs/job-normalizer");
-
-      const results = [];
-      for (const jobRow of jobsToBackfill) {
-        try {
-          // Use rawJson if available (pre-G7 jobs), otherwise use normalizedText
-          // For extractJobMetadata, we need rawJson, so if it's null, we can't backfill
-          if (!jobRow.rawJson) {
-            results.push({
-              jobId: jobRow.id,
-              status: "skipped",
-              reason: "no_rawJson",
-            });
-            continue;
-          }
-
-          const metadata = extractJobMetadata(jobRow.atsSource, jobRow.rawJson);
-
-          await db
-            .update(job)
-            .set({
-              workplaceType: metadata.workplaceType,
-              employmentType: metadata.employmentType,
-              locationName: metadata.locationName,
-              department: metadata.department,
-              team: metadata.team,
-              applyUrl: metadata.applyUrl,
-              publishedAt: metadata.publishedAt,
-              companyName: metadata.companyName,
-              titleRegionTag: metadata.titleRegionTag,
-              locationCountries: metadata.locationCountries,
-              experienceMinYears: metadata.experienceMinYears,
-              experienceMaxYears: metadata.experienceMaxYears,
-              compensationMin: metadata.compensationMin?.toString() ?? null,
-              compensationMax: metadata.compensationMax?.toString() ?? null,
-              compensationCurrency: metadata.compensationCurrency,
-              remoteScope: metadata.remoteScope,
-            })
-            .where(eq(job.id, jobRow.id));
-
-          results.push({
-            jobId: jobRow.id,
-            status: "success",
-            remoteScope: metadata.remoteScope,
-          });
-        } catch (error) {
-          results.push({
-            jobId: jobRow.id,
-            status: "error",
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-
-      return results;
-    });
-
-    // Step 3: Write ingestion log
-    await step.run("write-log", async () => {
-      const { writeIngestionLog } = await import(
-        "@/lib/jobs/poller/ingestion-log"
-      );
-      const successCount = backfillResults.filter(
-        (r) => r.status === "success",
-      ).length;
-      const errorCount = backfillResults.filter(
-        (r) => r.status === "error",
-      ).length;
-      const skippedCount = backfillResults.filter(
-        (r) => r.status === "skipped",
-      ).length;
-
-      return writeIngestionLog({
-        type: "backfill",
-        status: errorCount > 0 ? "partial" : "success",
-        source: "remote_scope_backfill",
-        itemsProcessed: jobsToBackfill.length,
-        itemsInserted: 0,
-        itemsUpdated: successCount,
-        itemsRejected: 0,
-        itemsSkipped: skippedCount,
-        startedAt,
-        finishedAt: new Date(),
-      });
-    });
-
-    return {
-      backfilled: backfillResults.filter((r) => r.status === "success").length,
-      errors: backfillResults.filter((r) => r.status === "error").length,
-      skipped: backfillResults.filter((r) => r.status === "skipped").length,
-      total: jobsToBackfill.length,
     };
   },
 );

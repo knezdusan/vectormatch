@@ -6,7 +6,18 @@
 //
 // Server-only: touches the database. Called from Server Components.
 
-import { and, count, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  lte,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
@@ -61,7 +72,7 @@ export interface PublicJobRow {
   lastSeenAt: Date | null;
   applyUrl: string | null;
   atsSource: string;
-  // Company quality signals - temporarily disabled
+  // Company quality signals - temporarily disabled until company join is fixed
   companyTier: string | null;
   companyHealth: string | null;
   fusionScore: number | null;
@@ -111,6 +122,16 @@ export const EMPLOYMENT_TYPE_OPTIONS: readonly {
 ] as const;
 
 // =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
+function addCondition(conditions: SQL[], condition: SQL | undefined) {
+  if (condition !== undefined) {
+    conditions.push(condition);
+  }
+}
+
+// =============================================================================
 // QUERIES
 // =============================================================================
 
@@ -124,80 +145,89 @@ export async function getPublicJobs(
   sortBy: JobSortOption = "newest",
 ): Promise<PublicJobRow[]> {
   try {
-    const conditions = [eq(job.status, "active")];
+    const conditions: SQL[] = [eq(job.status, "active")];
 
     // Search filter (title + description + tags)
     if (filters.search?.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
-      conditions.push(
+      addCondition(
+        conditions,
         or(
           ilike(job.title, searchTerm),
           ilike(job.normalizedText, searchTerm),
           ilike(job.shortDescription, searchTerm),
           sql`${job.extractedTags}::text[] && ARRAY[${filters.search}]`,
-        ) || undefined,
+        ),
       );
     }
 
     // Remote scope filter
     if (filters.remoteScope && filters.remoteScope !== "all") {
-      conditions.push(eq(job.remoteScope, filters.remoteScope));
+      addCondition(conditions, eq(job.remoteScope, filters.remoteScope));
     }
 
     // Workplace type filter
     if (filters.workplaceType && filters.workplaceType !== "all") {
-      conditions.push(eq(job.workplaceType, filters.workplaceType));
+      addCondition(conditions, eq(job.workplaceType, filters.workplaceType));
     }
 
     // Employment type filter
     if (filters.employmentType && filters.employmentType !== "all") {
-      conditions.push(eq(job.employmentType, filters.employmentType));
+      addCondition(conditions, eq(job.employmentType, filters.employmentType));
     }
 
     // Salary range filter
     if (filters.minSalary !== undefined && filters.minSalary > 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
-          gte(job.compensationMin, filters.minSalary),
+          gte(job.compensationMin, sql`${filters.minSalary}`),
           sql`${job.compensationMin} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
     if (filters.maxSalary !== undefined && filters.maxSalary > 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
-          lte(job.compensationMax, filters.maxSalary),
+          lte(job.compensationMax, sql`${filters.maxSalary}`),
           sql`${job.compensationMax} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
 
     // Experience range filter
     if (filters.minExperience !== undefined && filters.minExperience >= 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
           gte(job.experienceMinYears, filters.minExperience),
           sql`${job.experienceMinYears} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
     if (filters.maxExperience !== undefined && filters.maxExperience >= 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
           lte(job.experienceMaxYears, filters.maxExperience),
           sql`${job.experienceMaxYears} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
 
     // Department filter
     if (filters.department) {
-      conditions.push(ilike(job.department, `%${filters.department}%`));
+      addCondition(
+        conditions,
+        ilike(job.department, `%${filters.department}%`),
+      );
     }
 
     // Skills filter (must have at least one matching skill)
     if (filters.skills && filters.skills.length > 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         sql`${job.extractedTags}::text[] && ARRAY[${sql.raw(filters.skills.join(","))}]`,
       );
     }
@@ -206,14 +236,19 @@ export async function getPublicJobs(
     if (filters.postedWithin !== undefined && filters.postedWithin > 0) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - filters.postedWithin);
-      conditions.push(
-        or(gte(job.publishedAt, cutoffDate), gte(job.detectedAt, cutoffDate)) ||
-          undefined,
+      addCondition(
+        conditions,
+        or(gte(job.publishedAt, cutoffDate), gte(job.detectedAt, cutoffDate)),
       );
     }
 
-    // Build the base query
-    let query = db
+    // Build the base query with sorting and pagination in one fluent chain
+    const orderByClause =
+      sortBy === "salary"
+        ? [desc(job.compensationMax), desc(job.publishedAt)]
+        : [desc(job.publishedAt), desc(job.detectedAt)];
+
+    const rows = await db
       .select({
         id: job.id,
         title: job.title,
@@ -237,43 +272,23 @@ export async function getPublicJobs(
         lastSeenAt: job.lastSeenAt,
         applyUrl: job.applyUrl,
         atsSource: job.atsSource,
-        // Company quality signals - set to null for now
-        companyTier: sql<string>`NULL`.as("companyTier"),
-        companyHealth: sql<string>`NULL`.as("companyHealth"),
-        fusionScore: sql<number>`NULL`.as("fusionScore"),
-        employeeCount: sql<number>`NULL`.as("employeeCount"),
-        isAgency: sql<boolean>`NULL`.as("isAgency"),
-        isPublic: sql<boolean>`NULL`.as("isPublic"),
       })
       .from(job)
-      .where(and(...conditions));
+      .where(and(...conditions))
+      .orderBy(...orderByClause)
+      .limit(pageSize)
+      .offset(offset);
 
-    // Apply sorting
-    switch (sortBy) {
-      case "newest":
-        query = query.orderBy(desc(job.publishedAt), desc(job.detectedAt));
-        break;
-      case "relevance":
-        // For relevance, we'd use embedding similarity if a query vector was provided
-        // For now, fall back to newest
-        query = query.orderBy(desc(job.publishedAt), desc(job.detectedAt));
-        break;
-      case "quality":
-        query = query.orderBy(
-          desc(company.fusionScore),
-          desc(company.tier),
-          desc(job.publishedAt),
-        );
-        break;
-      case "salary":
-        query = query.orderBy(desc(job.compensationMax), desc(job.publishedAt));
-        break;
-    }
-
-    // Apply pagination
-    query = query.limit(pageSize).offset(offset);
-
-    return query;
+    return rows.map((row) => ({
+      ...row,
+      // Company quality signals - temporarily disabled until company join is fixed
+      companyTier: null,
+      companyHealth: null,
+      fusionScore: null,
+      employeeCount: null,
+      isAgency: null,
+      isPublic: null,
+    })) as PublicJobRow[];
   } catch (error) {
     console.error("Error in getPublicJobs:", error);
     return [];
@@ -287,80 +302,89 @@ export async function getPublicJobsCount(
   filters: JobFilters = {},
 ): Promise<number> {
   try {
-    const conditions = [eq(job.status, "active")];
+    const conditions: SQL[] = [eq(job.status, "active")];
 
     // Search filter
     if (filters.search?.trim()) {
       const searchTerm = `%${filters.search.trim()}%`;
-      conditions.push(
+      addCondition(
+        conditions,
         or(
           ilike(job.title, searchTerm),
           ilike(job.normalizedText, searchTerm),
           ilike(job.shortDescription, searchTerm),
           sql`${job.extractedTags}::text[] && ARRAY[${filters.search}]`,
-        ) || undefined,
+        ),
       );
     }
 
     // Remote scope filter
     if (filters.remoteScope && filters.remoteScope !== "all") {
-      conditions.push(eq(job.remoteScope, filters.remoteScope));
+      addCondition(conditions, eq(job.remoteScope, filters.remoteScope));
     }
 
     // Workplace type filter
     if (filters.workplaceType && filters.workplaceType !== "all") {
-      conditions.push(eq(job.workplaceType, filters.workplaceType));
+      addCondition(conditions, eq(job.workplaceType, filters.workplaceType));
     }
 
     // Employment type filter
     if (filters.employmentType && filters.employmentType !== "all") {
-      conditions.push(eq(job.employmentType, filters.employmentType));
+      addCondition(conditions, eq(job.employmentType, filters.employmentType));
     }
 
     // Salary range filter
     if (filters.minSalary !== undefined && filters.minSalary > 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
-          gte(job.compensationMin, filters.minSalary),
+          gte(job.compensationMin, sql`${filters.minSalary}`),
           sql`${job.compensationMin} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
     if (filters.maxSalary !== undefined && filters.maxSalary > 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
-          lte(job.compensationMax, filters.maxSalary),
+          lte(job.compensationMax, sql`${filters.maxSalary}`),
           sql`${job.compensationMax} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
 
     // Experience range filter
     if (filters.minExperience !== undefined && filters.minExperience >= 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
           gte(job.experienceMinYears, filters.minExperience),
           sql`${job.experienceMinYears} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
     if (filters.maxExperience !== undefined && filters.maxExperience >= 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         or(
           lte(job.experienceMaxYears, filters.maxExperience),
           sql`${job.experienceMaxYears} IS NULL`,
-        ) || undefined,
+        ),
       );
     }
 
     // Department filter
     if (filters.department) {
-      conditions.push(ilike(job.department, `%${filters.department}%`));
+      addCondition(
+        conditions,
+        ilike(job.department, `%${filters.department}%`),
+      );
     }
 
     // Skills filter
     if (filters.skills && filters.skills.length > 0) {
-      conditions.push(
+      addCondition(
+        conditions,
         sql`${job.extractedTags}::text[] && ARRAY[${sql.raw(filters.skills.join(","))}]`,
       );
     }
@@ -369,9 +393,9 @@ export async function getPublicJobsCount(
     if (filters.postedWithin !== undefined && filters.postedWithin > 0) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - filters.postedWithin);
-      conditions.push(
-        or(gte(job.publishedAt, cutoffDate), gte(job.detectedAt, cutoffDate)) ||
-          undefined,
+      addCondition(
+        conditions,
+        or(gte(job.publishedAt, cutoffDate), gte(job.detectedAt, cutoffDate)),
       );
     }
 

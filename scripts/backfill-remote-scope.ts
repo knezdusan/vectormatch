@@ -13,7 +13,7 @@ config();
 import { Pool } from "@neondatabase/serverless";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { job } from "../src/db/schemas/jobs/job.ts";
+import { job } from "../src/db/schemas/jobs/job";
 
 // ── Inlined inferRemoteScope (from job-normalizer.ts) ───────────────────────
 // Step 1 deterministic regex path — no LLM cost.
@@ -69,9 +69,11 @@ function inferRemoteScope(
   if (
     /\bremote\s*[-–]\s*(?:latam|latin\s+america)\b/i.test(combined) ||
     /\bremote\s*[-–]\s*(?:apac|asia[- ]?pacific)\b/i.test(combined) ||
-    /\bremote\s*[-–]\s*(?:emea|europe[- ]?middle[- ]?east[- ]?africa)\b/i.test(combined) ||
+    /\bremote\s*[-–]\s*(?:emea|europe[- ]?middle[- ]?east[- ]?africa)\b/i.test(
+      combined,
+    ) ||
     /\bremote\s*[-–]\s*(?:balkans|eastern\s+europe)\b/i.test(combined)
-  ) 
+  )
     return "region_fenced";
 
   if (workplaceType === "remote" && /^\s*remote\s*$/i.test(locationText)) {
@@ -121,7 +123,9 @@ async function main() {
   }
 
   console.log("\nInferred scopes:");
-  for (const [scope, count] of Object.entries(results).sort((a, b) => b[1] - a[1])) {
+  for (const [scope, count] of Object.entries(results).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`  ${scope}: ${count}`);
   }
 
@@ -135,8 +139,12 @@ async function main() {
     updated++;
   }
 
-  console.log(`\nUpdated ${updated} jobs (skipped ${updates.length - updated} that remain "unknown")`);
-  console.log("Done. Remaining 'unknown' jobs will be picked up by nightlyResurrectionSweep.");
+  console.log(
+    `\nUpdated ${updated} jobs (skipped ${updates.length - updated} that remain "unknown")`,
+  );
+  console.log(
+    "Done. Remaining 'unknown' jobs will be picked up by nightlyResurrectionSweep.",
+  );
 
   await pool.end();
 }

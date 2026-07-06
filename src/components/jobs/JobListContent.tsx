@@ -4,6 +4,7 @@
 // Server Component that fetches job data and renders the JobList client component.
 // This is separated to allow Suspense boundary for the data fetching.
 
+import { redirect } from "next/navigation";
 import { JobList } from "@/components/jobs/JobList";
 import type { JobFilters, JobSortOption } from "@/lib/jobs/public-queries";
 import {

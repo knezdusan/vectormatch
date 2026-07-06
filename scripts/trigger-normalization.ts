@@ -6,13 +6,14 @@
 // to avoid waiting for the next 4h cron tick.
 
 import { config } from "dotenv";
+
 config();
 
-import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool } from "@neondatabase/serverless";
 import { sql } from "drizzle-orm";
-import { job } from "../src/db/schemas/jobs/job.ts";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { Inngest } from "inngest";
+import { job } from "../src/db/schemas/jobs/job";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool);
@@ -52,7 +53,9 @@ async function main() {
     try {
       const result = await inngest.send(events);
       sent += batch.length;
-      console.log(`Sent batch ${Math.floor(i / 50) + 1}: ${batch.length} events (total: ${sent})`);
+      console.log(
+        `Sent batch ${Math.floor(i / 50) + 1}: ${batch.length} events (total: ${sent})`,
+      );
     } catch (err) {
       console.error(`Failed to send batch at offset ${i}:`, err);
       break;
