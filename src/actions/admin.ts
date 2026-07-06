@@ -135,11 +135,12 @@ export async function triggerBulkReprocessAction(
 
 /**
  * Manually trigger a normalization retry sweep. Sends `job/ingested` events
- * for up to 2000 unnormalized jobs (same as the cron-based
+ * for up to 500 unnormalized jobs (same as the cron-based
  * normalizationRetrySweep, but triggered on demand from the admin dashboard).
  *
  * Useful after an Inngest restart or pipeline stall to immediately re-queue
- * stuck jobs without waiting for the next 4h cron tick.
+ * stuck jobs without waiting for the next 2h cron tick.
+ * Limit reduced from 2000 to 500 to avoid Inngest queue wedge (bug #3549).
  */
 export async function triggerNormalizationRetryAction(): Promise<
   AdminActionState & { eventsSent?: number }
@@ -150,7 +151,8 @@ export async function triggerNormalizationRetryAction(): Promise<
     const { job } = await import("@/db/schemas/jobs/job");
     const { sql } = await import("drizzle-orm");
 
-    // Select up to 2000 unnormalized jobs with rawJson (needed for normalization)
+    // Select up to 500 unnormalized jobs with rawJson (needed for normalization)
+    // Limit reduced from 2000 to 500 to avoid Inngest queue wedge (bug #3549)
     const jobs = await db
       .select({ id: job.id })
       .from(job)
@@ -160,7 +162,7 @@ export async function triggerNormalizationRetryAction(): Promise<
            AND ${job.rawJson} IS NOT NULL`,
       )
       .orderBy(job.detectedAt)
-      .limit(2000);
+      .limit(500);
 
     if (jobs.length === 0) {
       revalidatePath("/dashboard/admin");

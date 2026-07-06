@@ -1141,7 +1141,7 @@ export const companyRevivalSweep = inngest.createFunction(
  *
  * Limit: 200 jobs per run (increased from 50 to handle backlog of stuck jobs).
  * At ~2s per job (LLM fallback + embedding), 200 jobs = ~400s, within the
- * Inngest step timeout. The `jobIngestedHandler` concurrency cap (10) limits
+ * Inngest step timeout. The `jobIngestedHandler` concurrency cap (25) limits
  * parallel OpenAI calls.
  *
  * TDD reference: §4.6 (Idempotency Decision Tree) — leverages the retryable
@@ -1151,11 +1151,12 @@ export const normalizationRetrySweep = inngest.createFunction(
   {
     id: "poller-normalization-retry",
     name: "Normalization Retry Sweep",
-    // Every 4 hours — the daily schedule (0 6 * * *) was too slow to clear
-    // normalization backlogs. With a 2000-job limit per run and 4h cadence,
-    // throughput is 12000/day (6 runs × 2000), enough to keep up with peak
-    // ingestion bursts (e.g. 3634 jobs from a single Greenhouse poll).
-    triggers: [{ cron: "0 */4 * * *" }],
+    // Every 2 hours — reduced from 4h to keep batches smaller and more
+    // frequent. The previous 2000-event fan-out burst triggered Inngest
+    // queue wedge (bug #3549). With 500 jobs per run and 2h cadence,
+    // throughput is 6000/day (12 runs × 500), enough for peak ingestion.
+    // The jobIngestedHandler concurrency=25 processes 500 events in ~60s.
+    triggers: [{ cron: "0 */2 * * *" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1178,10 +1179,10 @@ export const normalizationRetrySweep = inngest.createFunction(
       // normalized (G7 prunes rawJson after normalization) and should have
       // normalizedAt set, so this filter is a safety net.
       //
-      // Limit raised from 500 → 2000 to clear backlogs faster. The
-      // jobIngestedHandler has concurrency 10, so 2000 events are processed
-      // in ~10 minutes (2000/10 × ~3s per LLM call). The 4h cron cadence
-      // gives 6 runs/day = 12000 jobs/day max throughput.
+      // Limit reduced from 2000 → 500 to avoid Inngest queue wedge (bug #3549).
+      // The 2000-event fan-out burst overwhelmed the queue executor in dev mode.
+      // With concurrency=25, 500 events process in ~60s (500/25 × ~3s per job).
+      // The 2h cron cadence gives 12 runs/day = 6000 jobs/day max throughput.
       const result = await db
         .select({
           id: job.id,
@@ -1193,7 +1194,7 @@ export const normalizationRetrySweep = inngest.createFunction(
           sql`(${job.status} = 'normalization_failed' OR (${job.status} = 'active' AND ${job.normalizedAt} IS NULL)) AND ${job.rawJson} IS NOT NULL`,
         )
         .orderBy(job.detectedAt)
-        .limit(2000);
+        .limit(500);
 
       return result;
     });
@@ -1366,11 +1367,15 @@ export const jobIngestedHandler = inngest.createFunction(
     id: "job-ingested-handler",
     name: "Job Ingested — Trigger 3-Gate Funnel",
     triggers: [{ event: "job/ingested" }],
-    // §4.5 — concurrency 10 balances throughput against Neon pooler
-    // headroom (max: 20). Originally 15, lowered to 5 under the Inngest
+    // §4.5 — concurrency 25 balances throughput against Neon pooler
+    // headroom (max: 30). Originally 15, lowered to 5 under the Inngest
     // free plan concurrency cap; raised to 10 after Sprint 5 self-hosting
     // migration removed the Cloud concurrency limit.
-    concurrency: { limit: 10 },
+    // Raised to 25 (July 2026) after queue wedge investigation revealed
+    // concurrency=10 was the throughput bottleneck for backlog clearing.
+    // Neon serverless pooler handles 30 concurrent connections; 25 leaves
+    // headroom for the poller and dashboard queries.
+    concurrency: { limit: 25 },
   },
   async ({ event, step }) => {
     const { jobId } = event.data;
@@ -1713,7 +1718,7 @@ export const jobIngestedHandler = inngest.createFunction(
     // ── Step 6: Fan out match/gate-3-evaluate events (§3.1) ───────────────
     // One event per candidate → one gate3Evaluator function instance per
     // candidate (maximum parallelism, maximum failure isolation).
-    // Inngest's per-function concurrency cap (10) naturally limits
+    // Inngest's per-function concurrency cap (25) naturally limits
     // simultaneous LLM calls.
     if (candidates.length > 0) {
       await step.sendEvent(
@@ -1796,7 +1801,8 @@ export const jobSummaryBackfill = inngest.createFunction(
  *
  * Triggered by: `job/summarize` event (emitted by jobSummaryBackfill).
  * Concurrency limit 10 matches the existing normalization handler to avoid
- * OpenAI rate limit exhaustion.
+ * OpenAI rate limit exhaustion. Kept at 10 since summaries are non-critical
+ * (display nicety) and don't block the matching pipeline.
  */
 export const jobSummarizeHandler = inngest.createFunction(
   {
@@ -1896,15 +1902,16 @@ export const gate3Evaluator = inngest.createFunction(
     id: "match-gate-3-evaluator",
     name: "Gate 3 — LLM Candidate Evaluation",
     triggers: [{ event: "match/gate-3-evaluate" }],
-    // §6.1 — concurrency 10 balances OpenAI 500 RPM (~8 concurrent
-    // evaluations) against Neon pooler headroom (max: 20). Originally 15,
+    // §6.1 — concurrency 25 balances OpenAI 500 RPM (~20 concurrent
+    // evaluations) against Neon pooler headroom (max: 30). Originally 15,
     // lowered to 5 under the Inngest free plan concurrency cap; raised to
     // 10 after Sprint 5 self-hosting migration removed the Cloud concurrency
-    // limit. At 10 concurrent evaluations, each holding a DB connection for
-    // ~100ms (read) + ~100ms (write) around a ~3-5s LLM call, the pooler
-    // sees ~20 short-lived acquisitions per second — within PgBouncer's
-    // budget.
-    concurrency: { limit: 10 },
+    // limit. Raised to 25 (July 2026) to match jobIngestedHandler throughput
+    // and clear match queue backlog faster. At 25 concurrent evaluations,
+    // each holding a DB connection for ~100ms (read) + ~100ms (write) around
+    // a ~3-5s LLM call, the pooler sees ~50 short-lived acquisitions per
+    // second — within PgBouncer's budget for transaction-mode pooling.
+    concurrency: { limit: 25 },
   },
   async ({ event, step }) => {
     const { matchQueueId, jobId, personaId, applicantId } = event.data;
