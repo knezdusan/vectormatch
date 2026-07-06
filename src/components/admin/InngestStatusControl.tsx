@@ -7,8 +7,10 @@ import {
   Pause,
   Play,
   RotateCw,
+  Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { triggerNormalizationRetryAction } from "@/actions/admin";
 import type { InngestControlState } from "@/actions/inngest-control";
 import {
   getInngestStatusAction,
@@ -140,6 +142,20 @@ export function InngestStatusControl() {
     });
   }
 
+  function handleNormalizationRetry() {
+    setActionMessage(null);
+    startTransition(async () => {
+      const res = await triggerNormalizationRetryAction();
+      setActionMessage(
+        res.success
+          ? res.eventsSent && res.eventsSent > 0
+            ? `Normalization retry triggered — ${res.eventsSent} jobs queued. Check Inngest dashboard for progress.`
+            : "No unnormalized jobs found — nothing to retry."
+          : `Error: ${res.error}`,
+      );
+    });
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -241,6 +257,19 @@ export function InngestStatusControl() {
               <RotateCw className="size-3.5" />
             )}
             Restart
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isPending || !isRunning}
+            onClick={handleNormalizationRetry}
+          >
+            {isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Zap className="size-3.5" />
+            )}
+            Retry Normalization
           </Button>
           <Button
             size="sm"

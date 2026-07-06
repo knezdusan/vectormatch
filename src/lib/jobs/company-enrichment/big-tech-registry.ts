@@ -975,6 +975,7 @@ const BIG_TECH_ENTRIES: readonly BigTechEntry[] = [
 /**
  * Pre-built lookup map: canonicalName → BigTechEntry.
  * O(1) lookup at scoring time. Built once at module load.
+ * Exported for tests only.
  */
 export const BIG_TECH_BY_NAME: ReadonlyMap<string, BigTechEntry> = new Map(
   BIG_TECH_ENTRIES.map((entry) => [entry.canonicalName, entry]),
@@ -997,16 +998,3 @@ export function lookupBigTech(canonicalName: string): BigTechEntry | null {
 }
 
 // ── Exports for testing / dashboards ────────────────────────────────────────
-
-/**
- * The full registry as a readonly array. Exposed for:
- *   - Tests that need to iterate over all entries
- *   - Admin dashboards that want to display registry coverage
- * Do NOT mutate this array — it is readonly by design.
- */
-export const BIG_TECH_REGISTRY: readonly BigTechEntry[] = BIG_TECH_ENTRIES;
-
-/**
- * Number of entries in the registry. Exposed for dashboards / sanity checks.
- */
-export const BIG_TECH_REGISTRY_SIZE = BIG_TECH_ENTRIES.length;

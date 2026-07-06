@@ -41,7 +41,7 @@ export type ServiceStatus =
   | "starting"
   | string; // Coolify may return other statuses
 
-export interface CoolifyServiceInfo {
+interface CoolifyServiceInfo {
   uuid: string;
   name: string;
   status: ServiceStatus;
@@ -253,11 +253,4 @@ export async function restartInngest(): Promise<InngestControlResult> {
       message: error instanceof Error ? error.message : String(error),
     };
   }
-}
-
-/**
- * Check if the Coolify API is configured.
- */
-export function isCoolifyConfigured(): boolean {
-  return isConfigured();
 }

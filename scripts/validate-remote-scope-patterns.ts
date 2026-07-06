@@ -11,6 +11,7 @@ import { Pool } from "@neondatabase/serverless";
 
 // Mock server-only so we can import the extractor in a script context
 import { Module } from "module";
+
 const originalResolve = (Module as any)._resolveFilename;
 (Module as any)._resolveFilename = function (request: string, ...args: any[]) {
   if (request === "server-only") return require.resolve("path");
@@ -82,7 +83,7 @@ async function main() {
     // 4. Test the ACTUAL step1RegexHardSignals against each sample
     let highConfMatches = 0;
     let mediumConfMatches = 0;
-    let utcMatches = 0;
+    const utcMatches = 0;
     let classifiedOnsite = 0;
     let noMatch = 0;
     const matchExamples: string[] = [];
@@ -90,7 +91,11 @@ async function main() {
 
     for (const row of samples.rows) {
       const text = row.text_sample ?? "";
-      const workplaceType = row.workplace_type as "remote" | "hybrid" | "on-site" | null;
+      const workplaceType = row.workplace_type as
+        | "remote"
+        | "hybrid"
+        | "on-site"
+        | null;
 
       const result = step1RegexHardSignals(text, workplaceType);
 
@@ -119,23 +124,28 @@ async function main() {
       }
     }
 
-    const totalResolvable = highConfMatches + mediumConfMatches + classifiedOnsite;
+    const totalResolvable =
+      highConfMatches + mediumConfMatches + classifiedOnsite;
     const totalSampled = samples.rows.length;
     const resolutionRate = ((totalResolvable / totalSampled) * 100).toFixed(1);
 
-    console.log("\n=== Pattern dictionary validation results (actual step1RegexHardSignals) ===");
+    console.log(
+      "\n=== Pattern dictionary validation results (actual step1RegexHardSignals) ===",
+    );
     console.log(`  Sample size: ${totalSampled} unknown-scope jobs`);
     console.log(`  High-confidence matches: ${highConfMatches}`);
     console.log(`  Medium-confidence matches: ${mediumConfMatches}`);
-    console.log(`  Classified as onsite (hybrid/onsite text): ${classifiedOnsite}`);
-    console.log(`  No match (would route to LLM): ${noMatch}`);
     console.log(
-      `\n  Total deterministic resolution rate: ${resolutionRate}%`,
+      `  Classified as onsite (hybrid/onsite text): ${classifiedOnsite}`,
     );
+    console.log(`  No match (would route to LLM): ${noMatch}`);
+    console.log(`\n  Total deterministic resolution rate: ${resolutionRate}%`);
     console.log(`  (Target: 75-80% per Task A2 spec)`);
 
     console.log("\n=== Breakdown by resolvedBy:scope ===");
-    for (const [key, count] of Object.entries(scopeBreakdown).sort((a, b) => b[1] - a[1])) {
+    for (const [key, count] of Object.entries(scopeBreakdown).sort(
+      (a, b) => b[1] - a[1],
+    )) {
       console.log(`  ${key}: ${count}`);
     }
 
@@ -189,10 +199,18 @@ async function main() {
     const oldRate = ((oldTotal / totalSampled) * 100).toFixed(1);
     console.log(`\n=== MVP (old) pattern comparison ===`);
     console.log(`  Old MVP remote-scope matches: ${oldMvpMatches}`);
-    console.log(`  Old MVP hybrid/onsite detected (but NOT classified): ${oldMvpOnsite}`);
-    console.log(`  Old MVP total (if hybrid→onsite added): ${oldTotal}/${totalSampled} (${oldRate}%)`);
-    console.log(`  Expanded dictionary total: ${totalResolvable}/${totalSampled} (${resolutionRate}%)`);
-    console.log(`  Improvement: +${(Number(resolutionRate) - Number(oldRate)).toFixed(1)} percentage points`);
+    console.log(
+      `  Old MVP hybrid/onsite detected (but NOT classified): ${oldMvpOnsite}`,
+    );
+    console.log(
+      `  Old MVP total (if hybrid→onsite added): ${oldTotal}/${totalSampled} (${oldRate}%)`,
+    );
+    console.log(
+      `  Expanded dictionary total: ${totalResolvable}/${totalSampled} (${resolutionRate}%)`,
+    );
+    console.log(
+      `  Improvement: +${(Number(resolutionRate) - Number(oldRate)).toFixed(1)} percentage points`,
+    );
 
     // 6. Show workplace_type distribution in the sample
     const wtDist: Record<string, number> = {};
@@ -201,7 +219,9 @@ async function main() {
       wtDist[wt] = (wtDist[wt] ?? 0) + 1;
     }
     console.log(`\n=== workplace_type distribution in sample ===`);
-    for (const [wt, count] of Object.entries(wtDist).sort((a, b) => b[1] - a[1])) {
+    for (const [wt, count] of Object.entries(wtDist).sort(
+      (a, b) => b[1] - a[1],
+    )) {
       console.log(`  ${wt}: ${count}`);
     }
   } finally {

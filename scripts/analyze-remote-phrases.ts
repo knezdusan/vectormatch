@@ -29,7 +29,9 @@ async function main() {
       LIMIT 15
     `);
 
-    console.log("=== 'No match' jobs (mention 'remote' but no pattern hit) ===\n");
+    console.log(
+      "=== 'No match' jobs (mention 'remote' but no pattern hit) ===\n",
+    );
     for (const row of noMatch.rows) {
       console.log(`--- ${row.title} | location: ${row.location_name} ---`);
       console.log(row.text_sample?.substring(0, 300));
@@ -48,7 +50,9 @@ async function main() {
       LIMIT 10
     `);
 
-    console.log("\n=== 'Hybrid/onsite' jobs (should these be classified as onsite?) ===\n");
+    console.log(
+      "\n=== 'Hybrid/onsite' jobs (should these be classified as onsite?) ===\n",
+    );
     for (const row of hybrid.rows) {
       console.log(`--- ${row.title} | location: ${row.location_name} ---`);
       console.log(row.text_sample?.substring(0, 300));
@@ -80,7 +84,9 @@ async function main() {
         AND length(normalized_text) > 50
     `);
 
-    console.log("=== Remote-related phrase frequency in unknown-scope jobs ===");
+    console.log(
+      "=== Remote-related phrase frequency in unknown-scope jobs ===",
+    );
     const freq = phraseFreq.rows[0];
     for (const [phrase, count] of Object.entries(freq)) {
       if (Number(count) > 0) {

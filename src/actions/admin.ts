@@ -131,6 +131,64 @@ export async function triggerBulkReprocessAction(
   }
 }
 
+// ── Normalization Retry Trigger ──────────────────────────────────────────────
+
+/**
+ * Manually trigger a normalization retry sweep. Sends `job/ingested` events
+ * for up to 2000 unnormalized jobs (same as the cron-based
+ * normalizationRetrySweep, but triggered on demand from the admin dashboard).
+ *
+ * Useful after an Inngest restart or pipeline stall to immediately re-queue
+ * stuck jobs without waiting for the next 4h cron tick.
+ */
+export async function triggerNormalizationRetryAction(): Promise<
+  AdminActionState & { eventsSent?: number }
+> {
+  await requireRole("admin");
+  try {
+    const { db } = await import("@/db/db");
+    const { job } = await import("@/db/schemas/jobs/job");
+    const { sql } = await import("drizzle-orm");
+
+    // Select up to 2000 unnormalized jobs with rawJson (needed for normalization)
+    const jobs = await db
+      .select({ id: job.id })
+      .from(job)
+      .where(
+        sql`${job.normalizedAt} IS NULL
+           AND ${job.status} = 'active'
+           AND ${job.rawJson} IS NOT NULL`,
+      )
+      .orderBy(job.detectedAt)
+      .limit(2000);
+
+    if (jobs.length === 0) {
+      revalidatePath("/dashboard/admin");
+      return { success: true, eventsSent: 0 };
+    }
+
+    // Send job/ingested events in batches of 50 (Inngest send limit)
+    let sent = 0;
+    for (let i = 0; i < jobs.length; i += 50) {
+      const batch = jobs.slice(i, i + 50);
+      const events = batch.map((j) => ({
+        name: "job/ingested" as const,
+        data: { jobId: j.id },
+      }));
+      await inngest.send(events);
+      sent += batch.length;
+    }
+
+    revalidatePath("/dashboard/admin");
+    return { success: true, eventsSent: sent };
+  } catch (e) {
+    return {
+      success: false,
+      error: e instanceof Error ? e.message : "Failed",
+    };
+  }
+}
+
 // ── Sprint 8: Emergency Storage Purge ────────────────────────────────────────
 
 /**

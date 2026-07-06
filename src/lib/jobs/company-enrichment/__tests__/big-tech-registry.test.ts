@@ -10,8 +10,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   BIG_TECH_BY_NAME,
-  BIG_TECH_REGISTRY,
-  BIG_TECH_REGISTRY_SIZE,
   lookupBigTech,
 } from "@/lib/jobs/company-enrichment/big-tech-registry";
 import { canonicalizeCompanyName } from "@/lib/jobs/seeders/slugger";
@@ -20,34 +18,30 @@ import { canonicalizeCompanyName } from "@/lib/jobs/seeders/slugger";
 
 describe("Big-Tech Registry — structure", () => {
   it("has at least 100 entries (MVP scope)", () => {
-    expect(BIG_TECH_REGISTRY_SIZE).toBeGreaterThanOrEqual(100);
-  });
-
-  it("BIG_TECH_BY_NAME map size matches registry array length", () => {
-    expect(BIG_TECH_BY_NAME.size).toBe(BIG_TECH_REGISTRY_SIZE);
+    expect(BIG_TECH_BY_NAME.size).toBeGreaterThanOrEqual(100);
   });
 
   it("every entry has a non-empty canonicalName", () => {
-    for (const entry of BIG_TECH_REGISTRY) {
+    for (const entry of BIG_TECH_BY_NAME.values()) {
       expect(entry.canonicalName).toBeTruthy();
       expect(entry.canonicalName.length).toBeGreaterThan(0);
     }
   });
 
   it("every entry has a positive employeeCount", () => {
-    for (const entry of BIG_TECH_REGISTRY) {
+    for (const entry of BIG_TECH_BY_NAME.values()) {
       expect(entry.employeeCount).toBeGreaterThan(0);
     }
   });
 
   it("every entry has isPublic as a boolean", () => {
-    for (const entry of BIG_TECH_REGISTRY) {
+    for (const entry of BIG_TECH_BY_NAME.values()) {
       expect(typeof entry.isPublic).toBe("boolean");
     }
   });
 
   it("public entries have a ticker", () => {
-    for (const entry of BIG_TECH_REGISTRY) {
+    for (const entry of BIG_TECH_BY_NAME.values()) {
       if (entry.isPublic) {
         expect(entry.ticker).toBeTruthy();
       }
@@ -55,7 +49,9 @@ describe("Big-Tech Registry — structure", () => {
   });
 
   it("has no duplicate canonicalName keys", () => {
-    const names = BIG_TECH_REGISTRY.map((e) => e.canonicalName);
+    const names = Array.from(BIG_TECH_BY_NAME.values()).map(
+      (e) => e.canonicalName,
+    );
     const unique = new Set(names);
     expect(unique.size).toBe(names.length);
   });
@@ -142,20 +138,23 @@ describe("Big-Tech Registry — canonicalName consistency with slugger", () => {
 
 describe("Big-Tech Registry — employee count buckets", () => {
   it("has entries in the >5000 bucket (−25 score)", () => {
-    const big = BIG_TECH_REGISTRY.filter((e) => e.employeeCount > 5000);
+    const big = Array.from(BIG_TECH_BY_NAME.values()).filter(
+      (e) => e.employeeCount > 5000,
+    );
     expect(big.length).toBeGreaterThan(20);
   });
 
   it("has entries in the 1000-5000 bucket (−15 score)", () => {
-    const mid = BIG_TECH_REGISTRY.filter(
+    const mid = Array.from(BIG_TECH_BY_NAME.values()).filter(
       (e) => e.employeeCount >= 1000 && e.employeeCount <= 5000,
     );
     expect(mid.length).toBeGreaterThan(5);
   });
 
   it("has both public and private entries", () => {
-    const publicCount = BIG_TECH_REGISTRY.filter((e) => e.isPublic).length;
-    const privateCount = BIG_TECH_REGISTRY.filter((e) => !e.isPublic).length;
+    const entries = Array.from(BIG_TECH_BY_NAME.values());
+    const publicCount = entries.filter((e) => e.isPublic).length;
+    const privateCount = entries.filter((e) => !e.isPublic).length;
     expect(publicCount).toBeGreaterThan(0);
     expect(privateCount).toBeGreaterThan(0);
   });

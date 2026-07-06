@@ -5,8 +5,9 @@ This framework relies on 3 distinct AI Brainstormers (acting as domain experts w
 Here is the context for my new brainstorming session:
 
 <session_context>
-- **Project/System Name:** [e.g., VectorMatch]
-- **The Core Problem:** [Explain the bottleneck, bug, or strategic issue here in 1-2 paragraphs]
+- **Project/System Name:** VectorMatch
+- **The Core Problem:** The web development job market faces a profound crisis as rapid AI advancement increasingly reduces the demand for human developers. Traditional job search platforms like LinkedIn and Freelancer.com, and others which were the primary hubs for job discovery are now oversaturated, with hundreds of developers competing for each open position. This saturation makes it nearly impossible for qualified candidates to stand out or find opportunities that genuinely match their skill-sets. VectorMatch.dev addresses this challenge by providing an AI-powered alternative that intelligently matches developers with relevant job opportunities based on their actual experience and technical capabilities. While the technical implementaion is almost completed and can give you an extended context on the project scope, the public facing website and marketing strategy still need significant work. The main focus of this brainstorming session is to give a brath to the MDX blog that is already implemented but needs more content and better structure.
+- **Target Audience:** Web developers, freelancers, not generic career advice seekers,  and hiring managers in the tech industry.
 - **The Ultimate Goal (Definition of Done):**
 [State exactly what 3-4 actionable technical blueprints or strategic decisions must be produced to consider this session a complete success]
 - **Target Audience/Users:** [Briefly describe the end-users or target demographic if applicable]
