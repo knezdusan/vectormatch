@@ -161,28 +161,24 @@ describe("scoreSourceOrigin", () => {
 });
 
 describe("scoreMaturity", () => {
-  it("returns +10 for a company <3 years old", () => {
+  // Maturity signal is DISABLED — discoveredAt is not a valid company-age proxy.
+  // See scoreMaturity() docstring for rationale. All inputs return 0.
+  it("returns 0 for a recently-discovered company (signal disabled)", () => {
     const recent = new Date("2024-06-01");
     const now = new Date("2025-06-01");
-    expect(scoreMaturity(recent, now)).toBe(10);
+    expect(scoreMaturity(recent, now)).toBe(0);
   });
 
-  it("returns -10 for a company >10 years old", () => {
+  it("returns 0 for an old discovery date (signal disabled)", () => {
     const old = new Date("2010-01-01");
     const now = new Date("2025-01-01");
-    expect(scoreMaturity(old, now)).toBe(-10);
+    expect(scoreMaturity(old, now)).toBe(0);
   });
 
-  it("returns 0 for a company between 3 and 10 years old", () => {
+  it("returns 0 for a mid-range discovery date (signal disabled)", () => {
     const mid = new Date("2018-01-01");
-    const now = new Date("2025-01-01"); // ~7 years
-    expect(scoreMaturity(mid, now)).toBe(0);
-  });
-
-  it("returns +10 for exactly 2 years old", () => {
-    const two = new Date("2023-01-01");
     const now = new Date("2025-01-01");
-    expect(scoreMaturity(two, now)).toBe(10);
+    expect(scoreMaturity(mid, now)).toBe(0);
   });
 });
 
@@ -237,12 +233,12 @@ describe("computeCompanySizeScore", () => {
       makeInput({
         employeeCount: 15, // <20 → +25
         discoverySource: "yc_directory", // +15
-        discoveredAt: new Date("2025-01-01"), // <3yr → +10
+        discoveredAt: new Date("2025-01-01"), // maturity disabled → 0
       }),
       new Date("2025-07-01"),
     );
-    // rawScore = 25 + 0 + 0 + 15 + 10 = 50
-    expect(result.rawScore).toBe(50);
+    // rawScore = 25 + 0 + 0 + 15 + 0 = 40
+    expect(result.rawScore).toBe(40);
     expect(result.companySizeScore).toBe(SCORE_CLAMP_MAX); // clamped to 0.30
     expect(result.recommendedTier).toBe("active_hot");
     expect(result.shouldBeDead).toBe(false);
@@ -255,12 +251,12 @@ describe("computeCompanySizeScore", () => {
         employeeCount: 1525000, // >5000 → -25
         isPublic: true, // -20
         discoverySource: "httparchive", // 0
-        discoveredAt: new Date("2010-01-01"), // >10yr → -10
+        discoveredAt: new Date("2010-01-01"), // maturity disabled → 0
       }),
       new Date("2025-07-01"),
     );
-    // rawScore = -25 + 0 + (-20) + 0 + (-10) = -55
-    expect(result.rawScore).toBe(-55);
+    // rawScore = -25 + 0 + (-20) + 0 + 0 = -45
+    expect(result.rawScore).toBe(-45);
     expect(result.companySizeScore).toBe(SCORE_CLAMP_MIN); // clamped to -0.30
     expect(result.recommendedTier).toBe("dormant");
     expect(result.shouldBeDead).toBe(false);
@@ -274,8 +270,8 @@ describe("computeCompanySizeScore", () => {
         discoverySource: "yc_directory", // +15
       }),
     );
-    // rawScore = 25 + (-40) + 0 + 15 + 10 = 10
-    expect(result.rawScore).toBe(10);
+    // rawScore = 25 + (-40) + 0 + 15 + 0 = 0 (maturity disabled)
+    expect(result.rawScore).toBe(0);
     expect(result.shouldBeDead).toBe(true);
     expect(result.recommendedTier).toBe("dead");
   });
@@ -394,13 +390,13 @@ describe("computeCompanySizeScore", () => {
         employeeCount: null, // not in registry → null → 0
         isPublic: false,
         discoverySource: "yc_directory", // +15
-        discoveredAt: new Date("2025-01-01"), // +10
+        discoveredAt: new Date("2025-01-01"), // maturity disabled → 0
       }),
       new Date("2025-07-01"),
     );
     expect(result.signals.employeeCount).toBe(0);
-    // rawScore = 0 + 0 + 0 + 15 + 10 = 25
-    expect(result.rawScore).toBe(25);
+    // rawScore = 0 + 0 + 0 + 15 + 0 = 15 (maturity disabled)
+    expect(result.rawScore).toBe(15);
   });
 });
 
@@ -437,7 +433,7 @@ describe("buildScoringInputFromCompany", () => {
     });
     expect(input.isAgency).toBe(true); // detected from blacklist
   });
-
+  // 250-1000 bucket... wait 2500 → 1000-5000 → -15
   it("keeps isAgency true when already set on row", () => {
     const input = buildScoringInputFromCompany({
       id: "company-1",

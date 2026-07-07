@@ -968,6 +968,26 @@ const BIG_TECH_ENTRIES: readonly BigTechEntry[] = [
     isPublic: true,
     ticker: "NOC",
   },
+
+  // ── Defense / AI-infrastructure companies (added July 6 2026 corpus-alignment) ──
+  // These are the audit-flagged active_hot companies with 0 frontend jobs that
+  // were missing from the registry. Without entries here, the scorer cannot
+  // apply the employee-count penalty and they stay at active_hot forever.
+  // canonicalName is set to the ATS slug so both canonicalName and atsSlug
+  // fallback lookups in resolveEmployeeCount/resolveIsPublic will match.
+  // Employee counts are approximate (mid-2026 public/Wikipedia figures).
+  { canonicalName: "andurilindustries", employeeCount: 1000, isPublic: false },
+  { canonicalName: "apptronik", employeeCount: 200, isPublic: false },
+  { canonicalName: "coreweave", employeeCount: 600, isPublic: false },
+  { canonicalName: "nebius", employeeCount: 1000, isPublic: false },
+  {
+    canonicalName: "samsara",
+    employeeCount: 2500,
+    isPublic: true,
+    ticker: "IOT",
+  },
+  { canonicalName: "tenstorrent", employeeCount: 300, isPublic: false },
+  { canonicalName: "trueanomalyinc", employeeCount: 150, isPublic: false },
 ];
 
 // ── Lookup map ──────────────────────────────────────────────────────────────

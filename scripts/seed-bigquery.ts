@@ -22,6 +22,10 @@
 //
 // See TDD §4.1.1 for the full specification.
 
+import { config } from "dotenv";
+
+config({ path: ".env" });
+
 import {
   createDefaultBigQueryFn,
   generateCrawlDates,

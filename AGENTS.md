@@ -377,3 +377,47 @@ This project has **Google BigQuery MCP** integration for public dataset analysis
 **Configuration**: See `.devin/config.json` and `docs/reports/bigquery-mcp-setup.md` for setup details. Uses BigQuery Sandbox tier (no billing required for public datasets).
 
 **When to invoke**: Use for Module B development, market analysis, and when you need to query public datasets. Always use `mcp_list_tools` first to discover available tools before calling `mcp_call_tool`.
+
+## Corpus Alignment Backfill Scripts
+
+These one-time scripts activate the v2 corpus expansion enforcement layer. All support `--dry-run` (default, no writes) and `--apply` (persist) flags.
+
+### Company Scorer Backfill (P0-1)
+```bash
+# Dry-run: preview tier transitions + scores
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/backfill-company-scores.ts --dry-run
+
+# Apply: persist scores + tiers
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/backfill-company-scores.ts --apply --concurrency 25
+```
+
+### Employee Count Backfill (P1-1)
+```bash
+# Dry-run: preview emp estimates (63 registry + 932 YC + 436 VC)
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/backfill-employee-count.ts --dry-run
+
+# Apply: fill NULL employee_count values (never overwrites existing)
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/backfill-employee-count.ts --apply
+```
+
+### Remote-Scope Backfill (P0-3)
+```bash
+# Dry-run: Step 1 only, no LLM cost
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/backfill-remote-scope.ts --dry-run
+
+# Apply: Step 1 + Step 2 LLM (~$0.71 for 2,381 LLM calls)
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/backfill-remote-scope.ts --apply --concurrency 10
+```
+
+### Direct Normalize Backlog (P0-4)
+```bash
+# Dry-run: count backlog + show sample jobs
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/direct-normalize-backlog.ts --dry-run --limit 1500
+
+# Apply: normalize + embed + write (~$0.37 for 1,237 jobs)
+NODE_OPTIONS='--conditions react-server' npx tsx scripts/direct-normalize-backlog.ts --apply --limit 1500
+```
+
+### Required Env Vars for New Sources
+- `GITHUB_TOKEN` — GitHub Events Probe (129 orgs × daily, needs 5000 req/hr authenticated tier)
+- `BRAVE_SEARCH_API_KEY` — Brave Search seeder + frontend job scanner (free tier: 2000 queries/month)

@@ -74,6 +74,7 @@ import {
   staleJobVerifier,
   storageMonitor,
   tierRecalc,
+  v2FrontendJobScanner,
   v2FundingSignalRss,
   v2GithubEventsProbe,
   vacuumAnalyze,
@@ -144,6 +145,7 @@ export const { GET, POST, PUT } = serve({
     // v2 Corpus Expansion: Funding-Signal Seeders (Criterion 1 Discovery Layer)
     v2FundingSignalRss,
     v2GithubEventsProbe,
+    v2FrontendJobScanner,
     // v2 Corpus Expansion: Provisional Job Lifecycle (Criterion 1)
     normalizeProvisionalJob,
     retryInFlightSweeper,

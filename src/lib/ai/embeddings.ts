@@ -53,9 +53,10 @@ export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
   // text-embedding-3-small has an 8192 token input limit.
-  // ~4 chars per token → ~32000 chars max. Use 24000 as a safe ceiling
-  // to avoid edge cases with tokenization differences.
-  const MAX_CHARS = 24000;
+  // ~4 chars per token for English text, but job descriptions often contain
+  // code blocks, URLs, and special characters with ~2 chars/token.
+  // Use 16000 as a safe ceiling (~4000 tokens worst case).
+  const MAX_CHARS = 8000;
   const truncated = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
   const [embedding] = await generateEmbeddings([truncated]);
   if (!embedding) {

@@ -296,6 +296,64 @@ export async function getPublicJobs(
 }
 
 /**
+ * Get a single public job by ID.
+ * Only returns active jobs with a non-empty shortDescription (same filter as
+ * getPublicJobs). Returns null if not found or not active.
+ */
+export async function getPublicJobById(
+  jobId: string,
+): Promise<PublicJobRow | null> {
+  try {
+    const rows = await db
+      .select({
+        id: job.id,
+        title: job.title,
+        companyName: job.companyName,
+        shortDescription: job.shortDescription,
+        normalizedText: job.normalizedText,
+        workplaceType: job.workplaceType,
+        remoteScope: job.remoteScope,
+        employmentType: job.employmentType,
+        locationName: job.locationName,
+        compensationMin: job.compensationMin,
+        compensationMax: job.compensationMax,
+        compensationCurrency: job.compensationCurrency,
+        experienceMinYears: job.experienceMinYears,
+        experienceMaxYears: job.experienceMaxYears,
+        department: job.department,
+        team: job.team,
+        extractedTags: job.extractedTags,
+        publishedAt: job.publishedAt,
+        detectedAt: job.detectedAt,
+        lastSeenAt: job.lastSeenAt,
+        applyUrl: job.applyUrl,
+        atsSource: job.atsSource,
+      })
+      .from(job)
+      .where(and(eq(job.id, jobId), eq(job.status, "active")))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+
+    const row = rows[0];
+    if (!row.shortDescription) return null;
+
+    return {
+      ...row,
+      companyTier: null,
+      companyHealth: null,
+      fusionScore: null,
+      employeeCount: null,
+      isAgency: null,
+      isPublic: null,
+    } as PublicJobRow;
+  } catch (error) {
+    console.error("Error in getPublicJobById:", error);
+    return null;
+  }
+}
+
+/**
  * Get total count of jobs matching filters
  */
 export async function getPublicJobsCount(

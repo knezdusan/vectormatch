@@ -41,6 +41,7 @@ export const discoverySourceSchema = z.enum([
   // v2 corpus expansion (company-corpus-expansion-new.md Criterion 1):
   "github_probe", // GitHub Events API poller for YC/VC-funded orgs
   "funding_signal", // RSS/Atom funding feed sourcing (TechCrunch, etc.)
+  "frontend_job_scanner", // P2-2: Brave Search for frontend-keyword job postings
 ]);
 
 // Input to the company insert function — used by all seeders. This is the

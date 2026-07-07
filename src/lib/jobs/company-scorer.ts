@@ -65,11 +65,11 @@ type DiscoverySource =
   | "cross_pollination"
   | "sitemap_probe"
   | "github_probe"
-  | "funding_signal";
+  | "funding_signal"
+  | "frontend_job_scanner";
 
-/** Input for the scoring matrix — the company fields needed to compute the score. */
+/** Input for the scoring matrix (used by computeCompanySizeScore and for persisting the score). */
 export interface CompanyScoringInput {
-  /** The company's UUID (for persisting the score). */
   companyId: string;
   /** Canonical name (from company.canonicalName) — used for big-tech registry lookup. */
   canonicalName: string | null;
@@ -172,12 +172,13 @@ export function scoreSourceOrigin(source: DiscoverySource): number {
     case "vc_portfolio":
     case "github_probe":
     case "funding_signal":
+    case "frontend_job_scanner":
       return 15;
-    // Product Hunt → +10 (not currently in the enum as a dedicated value,
+    // Product Hunt → +10
+    // (Note: product_hunt is not currently in the enum as a dedicated value,
     // but workable_meta_search and google_cse are discovery mechanisms that
-    // surface product-hunt-like companies. The governing doc lists Product
-    // Hunt as +10 — we map it to the closest available discovery source.
-    // If a dedicated product_hunt discovery source is added later, map it here.)
+    // hunt for companies via search. If a dedicated product_hunt discovery
+    // source is added later, map it here.)
     case "workable_meta_search":
       return 10;
     // HN Algolia → +5
@@ -195,20 +196,31 @@ export function scoreSourceOrigin(source: DiscoverySource): number {
 }
 
 /**
- * Score the company maturity signal based on discoveredAt as a rough age proxy.
+ * Score the company maturity signal.
  *
- * @param discoveredAt  When the company was discovered
- * @param now           Current timestamp (injectable for testing)
- * @returns             +10 (young startup), -10 (old company), 0 (middle)
+ * DISABLED (returns 0): The original implementation used `discoveredAt` (when
+ * the company was added to OUR registry) as a proxy for company age. This is
+ * fundamentally wrong — a company discovered last week could be 20 years old.
+ * Since the entire corpus was discovered recently (the project is new), ~100%
+ * of companies received +10, which cancelled out demotion signals and prevented
+ * big-tech/defense companies from reaching the dormant threshold.
+ *
+ * The signal structure is retained for re-enablement when a proper
+ * `founded_date` column is added (e.g., from Crunchbase/Clearbit enrichment,
+ * which the v2 strategy lists as a future upgrade path).
+ *
+ * @param discoveredAt  When the company was discovered (UNUSED — see note above)
+ * @param now           Current timestamp (injectable for testing, UNUSED)
+ * @returns             Always 0 (signal disabled)
  */
 export function scoreMaturity(
   discoveredAt: Date,
   now: Date = new Date(),
 ): number {
-  const ageMs = now.getTime() - discoveredAt.getTime();
-  const ageYears = ageMs / (1000 * 60 * 60 * 24 * 365.25);
-  if (ageYears < 3) return 10; // Seed/Series A, <3 years old
-  if (ageYears > 10) return -10; // >10 years old
+  // Signal disabled — discoveredAt is not a valid company-age proxy.
+  // See function docstring for rationale and re-enablement path.
+  void discoveredAt;
+  void now;
   return 0;
 }
 
@@ -378,10 +390,14 @@ export async function applyCompanyTier(
     return;
   }
 
-  // For non-agency companies, only update if the recommended tier is
-  // active_hot or dormant (we don't downgrade to 'active' automatically —
-  // the quality flywheel handles that via approved match history).
-  if (recommendedTier === "active_hot" || recommendedTier === "dormant") {
+  // For non-agency companies, apply the recommended tier (active_hot, active,
+  // or dormant). All three are valid tier assignments from the scoring matrix.
+  // The quality flywheel can still override via approved match history.
+  if (
+    recommendedTier === "active_hot" ||
+    recommendedTier === "active" ||
+    recommendedTier === "dormant"
+  ) {
     await db
       .update(company)
       .set({ tier: recommendedTier })
@@ -410,12 +426,15 @@ export async function scoreAndPersistCompany(
   const result = computeCompanySizeScore(input, now);
 
   await persistCompanySizeScore(input.companyId, result.companySizeScore);
-  await applyCompanyTier(
-    input.companyId,
-    result.recommendedTier,
-    result.shouldBeDead,
-  );
-
+  // Apply tier for any non-dead recommendation (active_hot, active, dormant).
+  // The quality flywheel can still override via approved match history.
+  if (result.recommendedTier !== "dead" || result.shouldBeDead) {
+    await applyCompanyTier(
+      input.companyId,
+      result.recommendedTier,
+      result.shouldBeDead,
+    );
+  }
   return result;
 }
 
@@ -423,7 +442,11 @@ export async function scoreAndPersistCompany(
  * Build a CompanyScoringInput from a company row (for use in the normalization
  * pipeline where the company row is already loaded).
  *
- * Also checks the aggregator blacklist to set isAgency if not already set.
+ * Also checks the aggregator blacklist if the company row doesn't already
+ * have isAgency set.
+ *
+ * @param row  The company row with the fields needed for scoring
+ * @returns    A CompanyScoringInput ready for computeCompanySizeScore
  */
 export function buildScoringInputFromCompany(row: {
   id: string;
