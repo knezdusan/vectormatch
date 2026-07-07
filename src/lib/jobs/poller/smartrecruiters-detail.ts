@@ -57,6 +57,8 @@ export interface EnrichmentResult {
   fetchesSucceeded: number;
   /** Number of detail fetches that failed (non-fatal — Tier 1 data is kept). */
   fetchesFailed: number;
+  /** Jobs dropped because the detail endpoint reported them as closed/inactive. */
+  droppedInactive: number;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -83,6 +85,7 @@ export async function enrichSmartRecruitersJobs(
   let fetchesAttempted = 0;
   let fetchesSucceeded = 0;
   let fetchesFailed = 0;
+  const droppedInactive = 0;
 
   for (const job of jobs) {
     // Check if the Tier 1 pseudo-description is long enough
@@ -128,6 +131,30 @@ export async function enrichSmartRecruitersJobs(
         continue;
       }
 
+      // If the detail endpoint reports the job as closed/inactive, drop it
+      // so it is not upserted. This catches postings that left the list data
+      // cached but are no longer open.
+      const detailStatus =
+        typeof parsed.data.status === "string"
+          ? parsed.data.status.toLowerCase().trim()
+          : null;
+      const closedStatuses = new Set([
+        "closed",
+        "archived",
+        "inactive",
+        "filled",
+        "unpublished",
+        "draft",
+        "expired",
+        "on_hold",
+        "on-hold",
+        "paused",
+      ]);
+      if (detailStatus && closedStatuses.has(detailStatus)) {
+        droppedInactive++;
+        continue;
+      }
+
       // Merge the detail data into the job's rawJson
       const mergedRawJson = mergeDetailIntoRawJson(job.rawJson, parsed.data);
       enriched.push({
@@ -149,6 +176,7 @@ export async function enrichSmartRecruitersJobs(
     fetchesAttempted,
     fetchesSucceeded,
     fetchesFailed,
+    droppedInactive,
   };
 }
 

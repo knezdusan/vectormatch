@@ -53,22 +53,27 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 // ── Test fixtures ────────────────────────────────────────────────────────────
 
+const nowIso = new Date().toISOString();
+
 const greenhouseResponse = {
   jobs: [
     {
       id: 12345,
       title: "Senior Frontend Engineer",
       absolute_url: "https://boards.greenhouse.io/acme/jobs/12345",
+      first_published: nowIso,
     },
     {
       id: 12346,
       title: "Account Executive", // Should be rejected by Gate 0
       absolute_url: "https://boards.greenhouse.io/acme/jobs/12346",
+      first_published: nowIso,
     },
     {
       id: 12347,
       title: "Backend Developer",
       absolute_url: "https://boards.greenhouse.io/acme/jobs/12347",
+      first_published: nowIso,
     },
   ],
 };
@@ -179,11 +184,13 @@ describe("pollCompany — successful poll", () => {
           id: "sr-1",
           name: "Senior Frontend Engineer",
           status: "CLOSED",
+          releasedDate: nowIso,
         },
         {
           id: "sr-2",
           name: "Backend Developer",
           status: "POSTED",
+          releasedDate: nowIso,
         },
       ],
     };
@@ -223,8 +230,18 @@ describe("pollCompany — all jobs rejected by Gate 0", () => {
   it("handles a company with only non-engineering jobs", async () => {
     const response = {
       jobs: [
-        { id: 1, title: "HR Manager", absolute_url: "https://example.com/1" },
-        { id: 2, title: "Sales Rep", absolute_url: "https://example.com/2" },
+        {
+          id: 1,
+          title: "HR Manager",
+          absolute_url: "https://example.com/1",
+          first_published: nowIso,
+        },
+        {
+          id: 2,
+          title: "Sales Rep",
+          absolute_url: "https://example.com/2",
+          first_published: nowIso,
+        },
       ],
     };
 

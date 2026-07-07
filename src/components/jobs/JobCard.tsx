@@ -84,6 +84,31 @@ export function JobCard({ job, isAuthenticated }: JobCardProps) {
     return `${Math.floor(diffInDays / 30)} months ago`;
   };
 
+  const getFreshness = (date: Date | null) => {
+    if (!date) return null;
+
+    const diffInDays = Math.floor(
+      (Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    if (diffInDays < 7) {
+      return {
+        label: `Posted ${formatTimeAgo(date)}`,
+        variant: "fresh" as const,
+      };
+    }
+    if (diffInDays <= 30) {
+      return {
+        label: `Posted ${formatTimeAgo(date)}`,
+        variant: "recent" as const,
+      };
+    }
+    return {
+      label: `Posted ${formatTimeAgo(date)}`,
+      variant: "stale" as const,
+    };
+  };
+
   const handleMoreInformation = () => {
     if (isAuthenticated) return;
     redirectToJobSignup(job.id);
@@ -151,7 +176,7 @@ export function JobCard({ job, isAuthenticated }: JobCardProps) {
 
   const salary = formatSalary();
   const experience = formatExperience();
-  const timeAgo = formatTimeAgo(job.publishedAt || job.detectedAt);
+  const freshness = getFreshness(job.publishedAt || job.detectedAt);
 
   return (
     <Card className="hover:shadow-md transition-shadow">
@@ -232,11 +257,22 @@ export function JobCard({ job, isAuthenticated }: JobCardProps) {
               <TooltipInfo content="Years of professional experience required for this role." />
             </div>
           )}
-          {timeAgo && (
+          {freshness && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
-              <span>Posted {timeAgo}</span>
-              <TooltipInfo content="When this job was first published (or detected if no publish date was provided)." />
+              <Badge
+                variant="outline"
+                className={
+                  freshness.variant === "fresh"
+                    ? "border-emerald-500 text-emerald-700 bg-emerald-50 dark:bg-emerald-950 dark:text-emerald-300"
+                    : freshness.variant === "recent"
+                      ? "border-yellow-500 text-yellow-700 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-300"
+                      : "border-red-500 text-red-700 bg-red-50 dark:bg-red-950 dark:text-red-300"
+                }
+              >
+                {freshness.label}
+              </Badge>
+              <TooltipInfo content="When this job was first published (or detected if no publish date was provided). Green = under 7 days, yellow = 7-30 days, red = over 30 days." />
             </div>
           )}
         </div>

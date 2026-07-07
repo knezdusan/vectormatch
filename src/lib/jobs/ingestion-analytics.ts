@@ -415,9 +415,22 @@ export async function getJobStalenessDistribution(): Promise<JobStalenessDistrib
     .from(job)
     .where(sql`${job.status} = 'active' AND ${job.publishedAt} IS NOT NULL`);
 
+  // Ensure every source that has ever been ingested appears in the table,
+  // even if it currently has zero active jobs.
+  const allSources = await db
+    .selectDistinct({ source: job.atsSource })
+    .from(job)
+    .where(isNotNull(job.atsSource));
+
   const total = rows.length;
   const overallMap = new Map<StalenessBucket, number>();
   const sourceMap = new Map<string, Map<StalenessBucket, number>>();
+
+  for (const { source } of allSources) {
+    if (source) {
+      sourceMap.set(source, new Map<StalenessBucket, number>());
+    }
+  }
 
   for (const row of rows) {
     const bucket = parseBucket(row.ageDays);

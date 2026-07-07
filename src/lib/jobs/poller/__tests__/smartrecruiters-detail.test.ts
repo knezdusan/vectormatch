@@ -233,6 +233,25 @@ describe("enrichSmartRecruitersJobs", () => {
     expect(result.unchanged).toHaveLength(1);
   });
 
+  it("drops jobs that the detail endpoint reports as closed", async () => {
+    const jobs = [makeShortJob("1")];
+    const detailUrl =
+      "https://api.smartrecruiters.com/v1/companies/acme/postings/1";
+    const closedDetail = {
+      ...makeDetailResponse("1"),
+      status: "CLOSED",
+    };
+    const fetchFn = makeMockFetchFn(new Map([[detailUrl, closedDetail]]));
+
+    const result = await enrichSmartRecruitersJobs(jobs, "acme", fetchFn);
+
+    expect(result.fetchesAttempted).toBe(1);
+    expect(result.fetchesSucceeded).toBe(0);
+    expect(result.droppedInactive).toBe(1);
+    expect(result.enriched).toHaveLength(0);
+    expect(result.unchanged).toHaveLength(0);
+  });
+
   it("caps detail fetches at MAX_DETAIL_FETCHES", async () => {
     // Create 15 short jobs — only MAX_DETAIL_FETCHES (10) should be fetched
     const jobs = Array.from({ length: 15 }, (_, i) => makeShortJob(`${i + 1}`));

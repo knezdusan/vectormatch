@@ -48,6 +48,8 @@ export interface GreenhouseEnrichmentResult {
   fetchesSucceeded: number;
   /** Number of detail fetches that failed (non-fatal — Tier 1 data is kept). */
   fetchesFailed: number;
+  /** Jobs dropped because the detail endpoint reported them as closed/inactive. */
+  droppedInactive: number;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -153,6 +155,7 @@ export async function enrichGreenhouseJobs(
     fetchesAttempted,
     fetchesSucceeded,
     fetchesFailed,
+    droppedInactive: 0,
   };
 }
 

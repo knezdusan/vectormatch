@@ -804,6 +804,7 @@ export const aggressiveCleanup = inngest.createFunction(
   },
   async ({ step }) => {
     const {
+      deleteAncientJobs,
       deleteExhaustedSluggerRetries,
       deleteGoneJobs,
       deleteNormalizationFailedJobs,
@@ -822,6 +823,9 @@ export const aggressiveCleanup = inngest.createFunction(
     });
     const gone = await step.run("delete-gone-jobs", async () => {
       return deleteGoneJobs();
+    });
+    const ancient = await step.run("delete-ancient-jobs", async () => {
+      return deleteAncientJobs();
     });
     const failed = await step.run(
       "delete-normalization-failed-jobs",
@@ -845,6 +849,7 @@ export const aggressiveCleanup = inngest.createFunction(
     const totalDeleted =
       rejected.deletedCount +
       gone.deletedCount +
+      ancient.deletedCount +
       failed.deletedCount +
       matches.deletedCount +
       logs.deletedCount +
@@ -863,6 +868,7 @@ export const aggressiveCleanup = inngest.createFunction(
         errorDetails: {
           rejectedJobs: rejected.deletedCount,
           goneJobs: gone.deletedCount,
+          ancientJobs: ancient.deletedCount,
           normalizationFailedJobs: failed.deletedCount,
           terminalMatches: matches.deletedCount,
           ingestionLogs: logs.deletedCount,
@@ -876,6 +882,7 @@ export const aggressiveCleanup = inngest.createFunction(
     return {
       rejectedJobs: rejected.deletedCount,
       goneJobs: gone.deletedCount,
+      ancientJobs: ancient.deletedCount,
       normalizationFailedJobs: failed.deletedCount,
       terminalMatches: matches.deletedCount,
       ingestionLogs: logs.deletedCount,
@@ -1277,22 +1284,15 @@ export const nightlyResurrectionSweep = inngest.createFunction(
 
     const startedAt = new Date();
 
-    // Step 1: Fetch jobs with undetermined/unknown remoteScope that have
-    // content available for re-extraction. We need the full metadata for
-    // extractRemoteScope: normalizedText/rawJson (content), workplaceType,
-    // atsSource, and locationName.
-    const resurrectionCandidates = await step.run(
+    // Step 1: Fetch ONLY job IDs with undetermined/unknown remoteScope.
+    // We return only IDs (not full normalizedText/rawJson) to stay well
+    // within Inngest's step output size limit (~256KB). The full metadata
+    // is fetched inside each batch step where it's needed.
+    const resurrectionCandidateIds = await step.run(
       "get-undetermined-jobs",
       async () => {
         const result = await db
-          .select({
-            id: job.id,
-            atsSource: job.atsSource,
-            workplaceType: job.workplaceType,
-            locationName: job.locationName,
-            normalizedText: job.normalizedText,
-            rawJson: job.rawJson,
-          })
+          .select({ id: job.id })
           .from(job)
           .where(
             sql`(${job.remoteScope} = 'undetermined' OR ${job.remoteScope} = 'unknown') AND (${job.rawJson} IS NOT NULL OR ${job.normalizedText} IS NOT NULL) AND ${job.status} = 'active'`,
@@ -1300,11 +1300,11 @@ export const nightlyResurrectionSweep = inngest.createFunction(
           .orderBy(job.detectedAt)
           .limit(500);
 
-        return result;
+        return result.map((r) => r.id);
       },
     );
 
-    if (resurrectionCandidates.length === 0) {
+    if (resurrectionCandidateIds.length === 0) {
       await step.run("write-log", async () => {
         return writeIngestionLog({
           type: "tier_recalc",
@@ -1326,21 +1326,37 @@ export const nightlyResurrectionSweep = inngest.createFunction(
     // Process in batches of 25 with a concurrency limiter to respect
     // OpenAI rate limits (gpt-4o-mini: 500 RPM).
     const BATCH_SIZE = 25;
-    const batches: (typeof resurrectionCandidates)[] = [];
-    for (let i = 0; i < resurrectionCandidates.length; i += BATCH_SIZE) {
-      batches.push(resurrectionCandidates.slice(i, i + BATCH_SIZE));
+    const batches: string[][] = [];
+    for (let i = 0; i < resurrectionCandidateIds.length; i += BATCH_SIZE) {
+      batches.push(resurrectionCandidateIds.slice(i, i + BATCH_SIZE));
     }
 
     let updated = 0;
     let stillUndetermined = 0;
 
     for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
-      const batch = batches[batchIdx];
+      const batchIds = batches[batchIdx];
       const result = await step.run(`extract-batch-${batchIdx}`, async () => {
+        const { inArray } = await import("drizzle-orm");
         const { extractRemoteScope } = await import(
           "@/lib/jobs/remote-scope-extractor"
         );
         const { extractJobContent } = await import("@/lib/jobs/job-normalizer");
+
+        // Fetch full metadata for this batch's jobs inside the step.
+        // This keeps the step output small (only counts) while having
+        // the content needed for extractRemoteScope.
+        const batchRows = await db
+          .select({
+            id: job.id,
+            atsSource: job.atsSource,
+            workplaceType: job.workplaceType,
+            locationName: job.locationName,
+            normalizedText: job.normalizedText,
+            rawJson: job.rawJson,
+          })
+          .from(job)
+          .where(inArray(job.id, batchIds));
 
         let batchUpdated = 0;
         let batchStillUndetermined = 0;
@@ -1348,7 +1364,7 @@ export const nightlyResurrectionSweep = inngest.createFunction(
         // Process sequentially within the batch to avoid overloading the
         // OpenAI API. The LLM call is ~1-3s per job, so a batch of 25
         // takes ~30-75s — well within Inngest's step time limit.
-        for (const candidate of batch) {
+        for (const candidate of batchRows) {
           // Get the content for extraction: prefer normalizedText (G7 fast
           // path), fall back to rawJson parsing.
           const extracted = extractJobContent(
@@ -1402,7 +1418,7 @@ export const nightlyResurrectionSweep = inngest.createFunction(
         type: "tier_recalc",
         status: "success",
         source: "nightly_resurrection_sweep",
-        itemsProcessed: resurrectionCandidates.length,
+        itemsProcessed: resurrectionCandidateIds.length,
         itemsInserted: 0,
         itemsUpdated: updated,
         itemsRejected: 0,
@@ -1413,7 +1429,7 @@ export const nightlyResurrectionSweep = inngest.createFunction(
     });
 
     return {
-      resurrected: resurrectionCandidates.length,
+      resurrected: resurrectionCandidateIds.length,
       updated,
       stillUndetermined,
     };

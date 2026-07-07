@@ -11,6 +11,7 @@
 import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { company } from "@/db/schemas/jobs/company";
+import { job } from "@/db/schemas/jobs/job";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,4 +117,38 @@ export function healthFromValidationError(): CompanyHealth {
  */
 export function healthFromNetworkError(): CompanyHealth {
   return "error";
+}
+
+// ── Backfill ───────────────────────────────────────────────────────────────────
+
+/**
+ * Recompute and persist activeJobCount for every company. Use after bulk
+ * purges or backfills where jobs were deleted outside the normal poll cycle.
+ */
+export async function backfillCompanyActiveJobCounts(): Promise<{
+  updated: number;
+}> {
+  const rows = await db
+    .select({
+      companyId: job.companyId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(job)
+    .where(sql`${job.status} = 'active'`)
+    .groupBy(job.companyId);
+
+  const counts = new Map(rows.map((r) => [r.companyId, r.count]));
+
+  const companies = await db.select({ id: company.id }).from(company);
+
+  let updated = 0;
+  for (const { id } of companies) {
+    await db
+      .update(company)
+      .set({ activeJobCount: counts.get(id) ?? 0 })
+      .where(sql`${company.id} = ${id}`);
+    updated++;
+  }
+
+  return { updated };
 }

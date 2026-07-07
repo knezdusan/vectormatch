@@ -1672,11 +1672,19 @@ Return only the canonical tag slugs that are clearly mentioned or required in th
  * Module A's CV extraction).
  */
 export async function extractTagsLLM(fullText: string): Promise<string[]> {
+  // Truncate to stay within gpt-4o-mini's 8192 token input limit.
+  // The system prompt (with CANONICAL_TAGS list) is ~2000 tokens, leaving
+  // ~6000 tokens for the job description ≈ 24000 chars.
+  const truncatedText =
+    fullText.length > 24000
+      ? `${fullText.slice(0, 24000)}\n[... truncated for length ...]`
+      : fullText;
+
   const { object } = await generateObject({
     model: openai("gpt-4o-mini"),
     schema: llmTagExtractionSchema,
     system: LLM_TAG_SYSTEM_PROMPT,
-    prompt: fullText,
+    prompt: truncatedText,
     abortSignal: AbortSignal.timeout(30000),
   });
 
@@ -1728,11 +1736,19 @@ export async function summarizeJobLLM(
   fullText: string,
   title: string,
 ): Promise<string | null> {
+  // Truncate to stay within gpt-4o-mini's 8192 token input limit.
+  // The system prompt is ~500 tokens, leaving ~7600 tokens for the
+  // title + job description ≈ 30000 chars.
+  const truncatedText =
+    fullText.length > 30000
+      ? `${fullText.slice(0, 30000)}\n[... truncated for length ...]`
+      : fullText;
+
   const { object } = await generateObject({
     model: openai("gpt-4o-mini"),
     schema: llmSummarySchema,
     system: LLM_SUMMARY_SYSTEM_PROMPT,
-    prompt: `Job title: ${title}\n\n${fullText}`,
+    prompt: `Job title: ${title}\n\n${truncatedText}`,
     abortSignal: AbortSignal.timeout(30000),
   });
 

@@ -72,7 +72,10 @@ function getMaxJobAgeDays(): number {
 }
 
 function isJobFreshForInjection(publishedAt: Date | null): boolean {
-  if (!publishedAt) return true; // Keep jobs with no publish date; rely on lastSeenAt staleness
+  // Jobs without a publish date cannot be freshness-gated at ingestion time.
+  // All supported ATS sources currently provide a publish date, so treat a
+  // missing date as unverified/stale and reject it from the corpus.
+  if (!publishedAt) return false;
   const maxAgeMs = getMaxJobInjectionAgeDays() * 24 * 60 * 60 * 1000;
   return Date.now() - new Date(publishedAt).getTime() <= maxAgeMs;
 }
@@ -208,6 +211,7 @@ export async function pollCompany(
   // Greenhouse: list endpoint includes ?content=true but some boards return
   //   empty content. Detail endpoint may return fuller content.
   let enrichedJobs = filteredJobs;
+  let enrichmentInactiveDropped = 0;
   if (atsSource === "smartrecruiters" && filteredJobs.length > 0) {
     try {
       const { enrichSmartRecruitersJobs } = await import(
@@ -220,6 +224,7 @@ export async function pollCompany(
       );
       // Replace enrichedJobs with enriched + unchanged (order preserved by concat)
       enrichedJobs = [...enrichment.unchanged, ...enrichment.enriched];
+      enrichmentInactiveDropped = enrichment.droppedInactive;
     } catch {
       // Non-fatal: if enrichment fails, proceed with Tier 1 data only
     }
@@ -234,6 +239,7 @@ export async function pollCompany(
         fetchFn,
       );
       enrichedJobs = [...enrichment.unchanged, ...enrichment.enriched];
+      enrichmentInactiveDropped = enrichment.droppedInactive;
     } catch {
       // Non-fatal: if enrichment fails, proceed with Tier 1 data only
     }
@@ -244,7 +250,8 @@ export async function pollCompany(
   // and Workable public APIs only return live postings by contract, so they
   // skip this check.
   const activeJobs = enrichedJobs.filter((j) => j.metadata.isActive);
-  const inactiveCount = enrichedJobs.length - activeJobs.length;
+  const inactiveCount =
+    enrichedJobs.length - activeJobs.length + enrichmentInactiveDropped;
 
   // Step 2c: Injection freshness gate — hard cap on how old a job may be when
   // it first enters the database. A 30-day cap prevents stale legacy postings

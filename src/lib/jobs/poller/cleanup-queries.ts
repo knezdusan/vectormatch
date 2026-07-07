@@ -70,7 +70,24 @@ export async function deleteGoneJobs(): Promise<CleanupStepResult> {
   return { deletedCount: toDeletedCount(result) };
 }
 
-// ── Step 1c — Normalization-failed jobs (retried for 7 days, give up) ────────
+// ── Step 1c — Ancient jobs (published_at older than retention window) ───────
+
+/**
+ * Delete `job` rows whose published_at is older than the configured retention
+ * window. After the 60-day active/stale boundary, any job older than 90 days
+ * is considered historical noise and is permanently removed. Cascades to
+ * match_queue rows.
+ */
+export async function deleteAncientJobs(
+  retentionDays = 90,
+): Promise<CleanupStepResult> {
+  const result = await db.execute(
+    sql`DELETE FROM job WHERE published_at < NOW() - INTERVAL '${sql.raw(String(retentionDays))} days'`,
+  );
+  return { deletedCount: toDeletedCount(result) };
+}
+
+// ── Step 1d — Normalization-failed jobs (retried for 7 days, give up) ────────
 
 /**
  * Delete `job` rows in `normalization_failed` status older than 7 days (since

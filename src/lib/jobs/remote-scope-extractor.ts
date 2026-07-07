@@ -527,11 +527,22 @@ export async function extractScopeLLM(cleanedText: string): Promise<{
   allowedCountries: string[] | null;
   confidence: number;
 }> {
+  // Truncate to stay within gpt-4o-mini's 8192 token input limit.
+  // 1 token ≈ 4 chars for English → 20000 chars ≈ 5000 tokens, leaving
+  // ample room for the system prompt (~500 tokens) and structured output.
+  // Without truncation, long job descriptions cause API rejections that
+  // hang the Inngest step (no timeout = indefinite hang → step failure).
+  const truncatedText =
+    cleanedText.length > 20000
+      ? `${cleanedText.slice(0, 20000)}\n[... truncated for length ...]`
+      : cleanedText;
+
   const { object } = await generateObject({
     model: openai("gpt-4o-mini"),
     schema: llmScopeSchema,
     system: LLM_SCOPE_SYSTEM_PROMPT,
-    prompt: cleanedText,
+    prompt: truncatedText,
+    abortSignal: AbortSignal.timeout(30000),
   });
 
   return {
