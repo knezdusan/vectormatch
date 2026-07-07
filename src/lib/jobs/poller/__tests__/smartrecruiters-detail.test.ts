@@ -237,10 +237,9 @@ describe("enrichSmartRecruitersJobs", () => {
     const jobs = [makeShortJob("1")];
     const detailUrl =
       "https://api.smartrecruiters.com/v1/companies/acme/postings/1";
-    const closedDetail = {
-      ...makeDetailResponse("1"),
+    const closedDetail = Object.assign(makeDetailResponse("1") as object, {
       status: "CLOSED",
-    };
+    });
     const fetchFn = makeMockFetchFn(new Map([[detailUrl, closedDetail]]));
 
     const result = await enrichSmartRecruitersJobs(jobs, "acme", fetchFn);

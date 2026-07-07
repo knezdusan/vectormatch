@@ -106,6 +106,14 @@ export interface JobStalenessDistribution {
   refreshedAt: Date;
 }
 
+export interface OldJobRateAlert {
+  source: string;
+  runs: number;
+  oldJobs: number;
+  totalJobs: number;
+  rate: number;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getCutoff(daysBack: number): Date {
@@ -476,4 +484,48 @@ export async function getJobStalenessDistribution(): Promise<JobStalenessDistrib
     total,
     refreshedAt: new Date(),
   };
+}
+
+/**
+ * Sources whose recent polls are skipping a high share of jobs because they
+ * are older than the injection age cap. A spike usually means a slug is
+ * returning archived/all-time postings.
+ */
+export async function getHighOldJobRateAlerts(
+  daysBack = 7,
+  threshold = 0.3,
+): Promise<OldJobRateAlert[]> {
+  const cutoff = getCutoff(daysBack);
+
+  const rows = await db
+    .select({
+      source: ingestionLog.source,
+      runs: count(),
+      oldJobs: sql<number>`COALESCE(SUM(COALESCE((${ingestionLog.errorDetails} ->> 'tooOldForInjectionCount')::int, 0)), 0)`,
+      totalJobs: sql<number>`COALESCE(SUM(${ingestionLog.itemsProcessed}), 0)`,
+    })
+    .from(ingestionLog)
+    .where(
+      and(
+        gte(ingestionLog.createdAt, cutoff),
+        eq(ingestionLog.type, "poll"),
+        isNotNull(ingestionLog.source),
+      ),
+    )
+    .groupBy(ingestionLog.source);
+
+  return rows
+    .map((row) => {
+      const total = row.totalJobs ?? 0;
+      const old = row.oldJobs ?? 0;
+      return {
+        source: row.source ?? "unknown",
+        runs: Number(row.runs ?? 0),
+        oldJobs: old,
+        totalJobs: total,
+        rate: total > 0 ? old / total : 0,
+      };
+    })
+    .filter((alert) => alert.rate >= threshold && alert.totalJobs > 0)
+    .sort((a, b) => b.rate - a.rate);
 }

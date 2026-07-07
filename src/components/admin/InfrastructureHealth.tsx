@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { EmergencyPurgeButton } from "@/components/admin/EmergencyPurgeButton";
+import { NeonStorageTooltip } from "@/components/admin/NeonStorageTooltip";
 import { SourceToggleButton } from "@/components/admin/SourceToggleButton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -26,7 +27,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -35,12 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   type BreakerRetryMetrics,
   type CorpusRatioMetrics,
@@ -57,7 +51,6 @@ import {
   DEGRADED_FAILURE_THRESHOLD,
   HARD_CIRCUIT_BREAKER_THRESHOLD,
 } from "@/lib/jobs/source-health";
-import { cn } from "@/lib/utils";
 
 function statusBadge(status: string) {
   if (status === "banned") {
@@ -166,41 +159,12 @@ export async function InfrastructureHealth() {
                 of {neonLimit} MB
               </span>
             </div>
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="block w-full text-left space-y-1"
-                  >
-                    <Progress
-                      value={Math.min(neonPct * 100, 100)}
-                      className={cn(
-                        "h-2",
-                        neonPct >= 0.88
-                          ? "**:data-[slot=progress-indicator]:bg-red-500"
-                          : neonPct >= 0.8
-                            ? "**:data-[slot=progress-indicator]:bg-yellow-500"
-                            : "**:data-[slot=progress-indicator]:bg-emerald-500",
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {(neonPct * 100).toFixed(1)}% used (synthetic)
-                    </p>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  <div className="space-y-1">
-                    <p>Synthetic storage — what Neon enforces.</p>
-                    <p className="text-muted-foreground">
-                      pg_database_size: {storageMb.toFixed(0)} MB /{" "}
-                      {storageLimit} MB ({(storagePct * 100).toFixed(1)}%)
-                    </p>
-                    <p>Warning at 80%, ingestion halted at 88%.</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <NeonStorageTooltip
+              neonPct={neonPct}
+              storageMb={storageMb}
+              storageLimit={storageLimit}
+              storagePct={storagePct}
+            />
             {neonPct >= 0.8 && (
               <EmergencyPurgeButton storagePercentage={neonPct} />
             )}

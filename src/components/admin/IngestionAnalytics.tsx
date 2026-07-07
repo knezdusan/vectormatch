@@ -13,6 +13,7 @@ import { AlertTriangle, Info, Layers } from "lucide-react";
 import { CsvExportButton } from "@/components/admin/CsvExportButton";
 import { IngestionTrendsChart } from "@/components/admin/IngestionTrendsChart";
 import { JobStalenessDistribution } from "@/components/admin/JobStalenessDistribution";
+import { OldJobRateAlertPanel } from "@/components/admin/OldJobRateAlertPanel";
 import {
   type TimeRange,
   TimeRangeSelector,
@@ -40,6 +41,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  getHighOldJobRateAlerts,
   getIngestionSummary,
   getIngestionTrends,
   getRecentIngestionRuns,
@@ -47,6 +49,7 @@ import {
   getTopIngestionErrors,
   type IngestionSummary,
   type IngestionTrendPoint,
+  type OldJobRateAlert,
   type RecentRunRow,
   type SourcePerformanceRow,
   type TopErrorRow,
@@ -201,16 +204,19 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
   let trends: IngestionTrendPoint[] = [];
   let recentRuns: RecentRunRow[] = [];
   let topErrors: TopErrorRow[] = [];
+  let oldJobAlerts: OldJobRateAlert[] = [];
   let error: string | null = null;
 
   try {
-    [summary, sources, trends, recentRuns, topErrors] = await Promise.all([
-      getIngestionSummary(daysBack),
-      getSourcePerformance(daysBack),
-      getIngestionTrends(daysBack),
-      getRecentIngestionRuns(daysBack),
-      getTopIngestionErrors(daysBack),
-    ]);
+    [summary, sources, trends, recentRuns, topErrors, oldJobAlerts] =
+      await Promise.all([
+        getIngestionSummary(daysBack),
+        getSourcePerformance(daysBack),
+        getIngestionTrends(daysBack),
+        getRecentIngestionRuns(daysBack),
+        getTopIngestionErrors(daysBack),
+        getHighOldJobRateAlerts(),
+      ]);
   } catch (e) {
     error =
       e instanceof Error ? e.message : "Failed to load ingestion analytics";
@@ -308,6 +314,9 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
 
       {/* Active job staleness distribution */}
       <JobStalenessDistribution />
+
+      {/* Old-job-rate alerts */}
+      <OldJobRateAlertPanel alerts={oldJobAlerts} />
 
       {/* Trends chart */}
       <Card>

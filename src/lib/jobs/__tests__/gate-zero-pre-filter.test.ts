@@ -239,17 +239,52 @@ describe("Gate 0.5 — Pattern 2: Location country lists", () => {
 // =============================================================================
 
 describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
-  it("PASSES null workplaceType job in foreign country (CloudSEK case — revised)", () => {
-    // Previously this was hard-rejected as "default_on_site". Now null
-    // workplaceType jobs are passed through to Gate 3 (LLM) which can
-    // read the full JD text to determine remote/on-site status.
-    // This is the zero-match root cause fix.
+  it("REJECTS null workplaceType job in foreign city (CloudSEK case — revised)", () => {
+    // A null workplaceType job with a specific city location (e.g.,
+    // "Bengaluru, Karnataka, India") that doesn't match the applicant's
+    // country is now hard-rejected at Gate 0.5. The location is a specific
+    // city with no remote indicators — it's clearly an on-site job.
+    // Previously this passed through to Gate 3, but Gate 3 was approving
+    // these jobs, causing false positives.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
           title: "SDE 2 - Fullstack",
           locationName: "Bengaluru, Karnataka, India",
-          workplaceType: null, // Undetermined — passes to Gate 3
+          workplaceType: null, // Null — but location is a specific city
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe(
+      "null_workplace_specific_foreign_location",
+    );
+  });
+
+  it("PASSES null workplaceType job with remote location string", () => {
+    // A null workplaceType job with "Remote" in the location string should
+    // still pass through to Gate 3 — the location indicates it's a remote job.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("PASSES null workplaceType job with broad region location", () => {
+    // A null workplaceType job with a broad region (e.g., "European Union")
+    // should pass through to Gate 3 — it's not a specific city.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "European Union",
+          workplaceType: null,
         },
       }),
     );
@@ -296,13 +331,48 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("passes hybrid job (Check 3 does not apply)", () => {
+  it("REJECTS hybrid job in foreign country (applicant cannot commute)", () => {
+    // A hybrid job in a foreign country is a HARD blocker — the applicant
+    // cannot commute to London, UK from Serbia. Only hybrid jobs in the
+    // applicant's own country are soft concerns.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
           title: "Software Engineer",
           locationName: "Hybrid - London, UK",
           workplaceType: "hybrid",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("hybrid_foreign_location");
+  });
+
+  it("PASSES hybrid job in applicant's country (soft concern for Gate 3)", () => {
+    // A hybrid job in the applicant's own country is a soft concern —
+    // many hybrid roles offer remote options. Gate 3 evaluates.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Hybrid - Belgrade, Serbia",
+          workplaceType: "hybrid",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("PASSES hybrid job with remoteScope='global'", () => {
+    // A hybrid job classified as global remote passes — the remoteScope
+    // indicates it's open to worldwide applicants.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "London, UK",
+          workplaceType: "hybrid",
+          remoteScope: "global",
         },
       }),
     );
@@ -322,10 +392,13 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("passes null workplaceType with foreign location (zero-match fix)", () => {
-    // This is the critical test: a Greenhouse job with a non-remote location
-    // field (e.g., "Berlin, Germany") and no detected workplaceType should
-    // PASS Gate 0.5 and go to Gate 3. Previously this was hard-rejected.
+  it("REJECTS null workplaceType with specific foreign city (revised — was zero-match fix)", () => {
+    // A null workplaceType job with a specific city location (e.g.,
+    // "Berlin, Germany") that doesn't match the applicant's country is now
+    // hard-rejected. The location is a specific city with no remote
+    // indicators — it's clearly an on-site job. Previously this passed
+    // through to Gate 3, but Gate 3 was approving these, causing false
+    // positives (e.g., "Full Stack Java Developer" in Pune, India).
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -335,10 +408,15 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
         },
       }),
     );
-    expect(result.passes).toBe(true);
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe(
+      "null_workplace_specific_foreign_location",
+    );
   });
 
-  it("passes null workplaceType with US location (zero-match fix)", () => {
+  it("REJECTS null workplaceType with US city location (revised — was zero-match fix)", () => {
+    // Same as above — "New York, NY" is a specific city, not a remote
+    // designation. A Serbia-based applicant cannot work on-site in NY.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -348,23 +426,46 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
         },
       }),
     );
-    expect(result.passes).toBe(true);
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe(
+      "null_workplace_specific_foreign_location",
+    );
   });
 
   // ── v2 Corpus Expansion: new remoteScope values ──────────────────────────
 
-  it("PASSES job with remoteScope='undetermined' (v2 — never hard-reject)", () => {
-    // Per governing doc: "undetermined → pass through to Gate 3, never
-    // hard-reject on parsing failure." This is the anti-pattern that caused
-    // the original zero-match bug.
+  it("REJECTS job with remoteScope='undetermined' and specific foreign city", () => {
+    // A job with undetermined remoteScope and a specific city location that
+    // doesn't match the applicant's country is now hard-rejected. The location
+    // is a specific city with no remote indicators. Previously these passed
+    // through to Gate 3, but Gate 3 was approving them (e.g., "Associate Full
+    // Stack Developer" in Kuala Lumpur, "Full Stack Java Developer" in Pune).
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
           title: "Software Engineer",
-          locationName: "Some City, Some Country",
-          workplaceType: null,
+          locationName: "Kuala Lumpur",
+          workplaceType: "hybrid",
           remoteScope: "undetermined",
-          locationCountries: ["US", "CA"], // Even with a country list
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("hybrid_foreign_location");
+  });
+
+  it("PASSES job with remoteScope='undetermined' and remote location string", () => {
+    // A job with undetermined remoteScope but "Remote" in the location string
+    // should still pass through to Gate 3 — the location indicates it might
+    // be a remote job.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "undetermined",
+          locationCountries: ["US", "CA"],
         },
       }),
     );
@@ -408,15 +509,35 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
     expect(result.patternDetected).toBe("explicit_on_site");
   });
 
-  it("PASSES job with remoteScope='unknown' (legacy — pass-through to Gate 3)", () => {
-    // Per governing doc: "unknown (existing) is retained for legacy jobs;
-    // Gate 0.5 treats both [unknown and undetermined] as pass-through to Gate 3."
+  it("REJECTS job with remoteScope='unknown' and specific foreign city (legacy — revised)", () => {
+    // Legacy unknown jobs with a specific city location that doesn't match
+    // the applicant's country are now hard-rejected. "Berlin, Germany" is a
+    // specific city with no remote indicators — it's on-site.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
           title: "Software Engineer",
           locationName: "Berlin, Germany",
           workplaceType: null,
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe(
+      "null_workplace_specific_foreign_location",
+    );
+  });
+
+  it("PASSES job with remoteScope='unknown' and remote location string (legacy)", () => {
+    // Legacy unknown jobs with "Remote" in the location string still pass
+    // through to Gate 3.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Worldwide",
+          workplaceType: "remote",
           remoteScope: "unknown",
         },
       }),

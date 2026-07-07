@@ -7,6 +7,7 @@
 
 import { AlertTriangle, CalendarClock, Info } from "lucide-react";
 
+import { StalenessDistributionChart } from "@/components/admin/StalenessDistributionChart";
 import {
   Card,
   CardContent,
@@ -199,14 +200,23 @@ export async function JobStalenessDistribution() {
         {error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : data ? (
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">Overall distribution</h4>
-              <OverallTable rows={data.overall} />
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium">By source</h4>
-              <SourceTable rows={data.bySource} />
+          <div className="space-y-6">
+            <StalenessDistributionChart
+              data={
+                Object.fromEntries(
+                  data.overall.map((row) => [row.bucket, row.count]),
+                ) as Record<StalenessBucket, number>
+              }
+            />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Overall distribution</h4>
+                <OverallTable rows={data.overall} />
+              </div>
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">By source</h4>
+                <SourceTable rows={data.bySource} />
+              </div>
             </div>
           </div>
         ) : null}

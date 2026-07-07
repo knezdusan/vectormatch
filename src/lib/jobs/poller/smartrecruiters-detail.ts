@@ -85,7 +85,7 @@ export async function enrichSmartRecruitersJobs(
   let fetchesAttempted = 0;
   let fetchesSucceeded = 0;
   let fetchesFailed = 0;
-  const droppedInactive = 0;
+  let droppedInactive = 0;
 
   for (const job of jobs) {
     // Check if the Tier 1 pseudo-description is long enough

@@ -130,22 +130,32 @@ export async function backfillCompanyActiveJobCounts(): Promise<{
 }> {
   const rows = await db
     .select({
-      companyId: job.companyId,
+      atsSource: job.atsSource,
+      atsSlug: job.atsSlug,
       count: sql<number>`count(*)::int`,
     })
     .from(job)
     .where(sql`${job.status} = 'active'`)
-    .groupBy(job.companyId);
+    .groupBy(job.atsSource, job.atsSlug);
 
-  const counts = new Map(rows.map((r) => [r.companyId, r.count]));
+  const counts = new Map(
+    rows.map((r) => [`${r.atsSource}:${r.atsSlug}`, r.count]),
+  );
 
-  const companies = await db.select({ id: company.id }).from(company);
+  const companies = await db
+    .select({
+      id: company.id,
+      atsSource: company.atsSource,
+      atsSlug: company.atsSlug,
+    })
+    .from(company);
 
   let updated = 0;
-  for (const { id } of companies) {
+  for (const { id, atsSource, atsSlug } of companies) {
+    const key = atsSource && atsSlug ? `${atsSource}:${atsSlug}` : `__none__`;
     await db
       .update(company)
-      .set({ activeJobCount: counts.get(id) ?? 0 })
+      .set({ activeJobCount: counts.get(key) ?? 0 })
       .where(sql`${company.id} = ${id}`);
     updated++;
   }

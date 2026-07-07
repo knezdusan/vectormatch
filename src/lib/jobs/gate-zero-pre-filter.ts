@@ -307,25 +307,93 @@ function checkLocationCountryList(input: PreFilterInput): {
 }
 
 // =============================================================================
-// CHECK 3: EXPLICIT ON-SITE IN FOREIGN COUNTRY (Pattern 3 — revised)
+// CHECK 3: ON-SITE / HYBRID IN FOREIGN COUNTRY (Pattern 3 — revised)
 // =============================================================================
 
 /**
- * Check if the job is EXPLICITLY on-site in a location that excludes the
- * applicant. Only fires when workplaceType === "on-site" (detected from
- * explicit keywords in the location or job description).
+ * Location strings that indicate a remote or broad-region job rather than a
+ * specific physical location. Used by Check 3 to determine whether a null-
+ * workplaceType job with a foreign location should be treated as on-site.
  *
- * Jobs with workplaceType === null (undetermined) are NOT hard-rejected here —
- * they are passed through to Gate 3 (LLM), which is better equipped to
- * determine whether the job is genuinely on-site or remote by reading the
- * full job description text. This prevents the zero-match problem where
- * ~85% of Greenhouse jobs (which have no structured workplaceType field)
- * were being tombstoned before the LLM could evaluate them.
+ * If the location name contains any of these indicators, the job is likely
+ * remote or region-scoped (not a specific city) and should be passed through
+ * to Gate 3 for evaluation. If none are present, the location is a specific
+ * city/country and the job is likely on-site.
+ */
+const REMOTE_LOCATION_INDICATORS = [
+  "remote",
+  "global",
+  "worldwide",
+  "anywhere",
+  "distributed",
+  "work from",
+  "any location",
+  "any country",
+];
+
+/**
+ * Broad region names that should NOT be treated as specific physical locations.
+ * A job located in "European Union" or "EMEA" is not a specific city — it's
+ * a region-scoped job that Gate 3 should evaluate.
+ */
+const BROAD_REGION_NAMES = [
+  "european union",
+  "eu",
+  "emea",
+  "apac",
+  "latam",
+  "north america",
+  "south america",
+  "europe",
+  "asia",
+  "africa",
+  "middle east",
+  "balkans",
+  "eastern europe",
+  "western europe",
+  "central europe",
+  "nordics",
+  "benelux",
+  "dach",
+];
+
+/**
+ * Check if a location string looks like a specific physical city/country
+ * (rather than a remote designation or broad region).
+ */
+function isSpecificLocation(locationName: string): boolean {
+  const lower = locationName.toLowerCase();
+  // If it contains any remote indicator, it's not a specific physical location
+  if (REMOTE_LOCATION_INDICATORS.some((ind) => lower.includes(ind))) {
+    return false;
+  }
+  // If it matches a broad region name, it's not a specific physical location
+  if (BROAD_REGION_NAMES.some((region) => lower.includes(region))) {
+    return false;
+  }
+  // Otherwise, it's a specific city/country (e.g., "Pune, MH, in", "Kuala Lumpur",
+  // "Hong Kong", "Berlin, Germany")
+  return true;
+}
+
+/**
+ * Check if the job requires physical presence in a location that excludes the
+ * applicant. Fires in three cases:
  *
- * The original CloudSEK case (null workplaceType + "Bengaluru, India") will
- * now be evaluated by Gate 3 instead of being hard-rejected. Gate 3's prompt
- * criterion 3 explicitly handles null workplaceType: "If Workplace Type is
- * null, infer from the location and description but do not assume remote."
+ * 1. EXPLICIT on-site: workplaceType === "on-site" in a foreign country.
+ * 2. v2 on-site: remoteScope === "onsite" (LLM classified as on-site from JD).
+ * 3. Hybrid in foreign country: workplaceType === "hybrid" and the location
+ *    doesn't match the applicant's country and remoteScope !== "global".
+ *    A hybrid job requires physical presence in that location — an applicant
+ *    in a different country cannot commute there. This is a HARD blocker.
+ * 4. Null workplaceType with specific foreign location: workplaceType === null
+ *    and remoteScope is "undetermined"/"unknown" and the location is a specific
+ *    city (not "remote", "global", "European Union", etc.) that doesn't match
+ *    the applicant's country. This catches Greenhouse jobs that don't set
+ *    workplaceType but are clearly on-site (e.g., "Pune, MH, in").
+ *
+ * Jobs with workplaceType === null and remote/region location strings (e.g.,
+ * "Remote - Global", "European Union") are passed through to Gate 3.
  */
 function checkOnSiteDefault(input: PreFilterInput): {
   blocker: string | null;
@@ -339,22 +407,49 @@ function checkOnSiteDefault(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
-  // Only fire on EXPLICIT on-site. Remote, hybrid, and null (undetermined)
-  // all pass through — null is handled by Gate 3 (LLM).
-  // v2: Also fire when remoteScope = "onsite" (the v2 extraction ladder
-  // classified this job as on-site from JD text even if workplaceType was
-  // null — e.g., Greenhouse jobs with "must work on-site" in the description).
-  if (job.workplaceType !== "on-site" && job.remoteScope !== "onsite") {
+  const locationMatches = locationMentionsCountry(locationName, country);
+
+  // Case 1 & 2: Explicit on-site or v2-classified on-site in foreign country
+  if (job.workplaceType === "on-site" || job.remoteScope === "onsite") {
+    if (!locationMatches) {
+      return {
+        blocker: `Job is on-site at ${locationName}, applicant is in ${country}`,
+        pattern: "explicit_on_site",
+      };
+    }
     return { blocker: null, pattern: null };
   }
 
-  // workplaceType is explicitly "on-site" — check if location matches applicant
-  const locationMatches = locationMentionsCountry(locationName, country);
+  // Case 3: Hybrid in foreign country (not global remote)
+  // A hybrid job requires physical presence in that location part of the time.
+  // If the applicant is in a different country, they cannot do hybrid — this
+  // is a hard blocker, not a soft concern. Only global-remote hybrid jobs
+  // (rare but possible) pass through.
+  if (job.workplaceType === "hybrid" && job.remoteScope !== "global") {
+    if (!locationMatches) {
+      return {
+        blocker: `Job is hybrid at ${locationName}, applicant is in ${country} — cannot commute to hybrid location`,
+        pattern: "hybrid_foreign_location",
+      };
+    }
+    return { blocker: null, pattern: null };
+  }
 
-  if (!locationMatches) {
+  // Case 4: Null workplaceType with specific foreign location and undetermined
+  // remote scope. If the location is a specific city (not "remote", "global",
+  // "European Union", etc.) and doesn't match the applicant's country, treat
+  // it as on-site. This catches Greenhouse jobs that don't set workplaceType
+  // but are clearly on-site (e.g., "Pune, MH, in", "Hong Kong").
+  // Jobs with remote/region location strings pass through to Gate 3.
+  if (
+    job.workplaceType === null &&
+    (job.remoteScope === "undetermined" || job.remoteScope === "unknown") &&
+    isSpecificLocation(locationName) &&
+    !locationMatches
+  ) {
     return {
-      blocker: `Job is on-site at ${locationName}, applicant is in ${country}`,
-      pattern: "explicit_on_site",
+      blocker: `Job location is ${locationName} (specific city, no remote indicator) with undetermined workplace type — likely on-site, applicant is in ${country}`,
+      pattern: "null_workplace_specific_foreign_location",
     };
   }
 
