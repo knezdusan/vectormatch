@@ -235,10 +235,16 @@ export async function getPublicJobs(
     }
 
     // Skills filter (must have at least one matching skill)
+    // SECURITY: Each skill is bound as a parameterized value via sql.join(),
+    // never interpolated as raw SQL. This prevents SQL injection from
+    // user-supplied ?skills= query params (regression fix for SQLi vuln).
     if (filters.skills && filters.skills.length > 0) {
       addCondition(
         conditions,
-        sql`${job.extractedTags}::text[] && ARRAY[${sql.raw(filters.skills.join(","))}]`,
+        sql`${job.extractedTags}::text[] && ARRAY[${sql.join(
+          filters.skills.map((s) => sql`${s}`),
+          sql`, `,
+        )}]`,
       );
     }
 
@@ -481,10 +487,14 @@ export async function getPublicJobsCount(
     }
 
     // Skills filter
+    // SECURITY: Parameterized via sql.join() — see getPublicJobs for rationale.
     if (filters.skills && filters.skills.length > 0) {
       addCondition(
         conditions,
-        sql`${job.extractedTags}::text[] && ARRAY[${sql.raw(filters.skills.join(","))}]`,
+        sql`${job.extractedTags}::text[] && ARRAY[${sql.join(
+          filters.skills.map((s) => sql`${s}`),
+          sql`, `,
+        )}]`,
       );
     }
 

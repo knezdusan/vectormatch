@@ -14,7 +14,7 @@
 *   **AI/ML:** Vercel AI SDK 6.0.208 (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings, OpenAI SDK 6.45.0)
 *   **Frontend UI:** Tailwind CSS v4, React 19.2.4, React Hook Form, Zod 4.4.3, `@dnd-kit` (for drag-and-drop), Shadcn/ui 4.8.0
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
-*   **Testing:** Vitest 4.1.8 (110 test files, 2,260 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
+*   **Testing:** Vitest 4.1.8 (111 test files, 2,346 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
 *   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`).
 *   **Migrations:** 46 SQL migrations (0000–0045) managed via Drizzle Kit 0.31.10. 
@@ -652,7 +652,7 @@ The Inngest v4 SDK provides the durable execution layer for all background jobs,
 | File | Purpose |
 |------|---------|
 | `src/inngest/client.ts` | Typed Inngest client (`id: "vectormatch"`) with `VectorMatchEvents` catalog. Re-exports as `inngest`. |
-| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`, `gate3Evaluator`, `pendingQueueSweep` (cron every 30 min — picks up stuck pending rows), `personaUpdatedHandler` (event-driven — re-evaluates rejected matches when persona tags change AND triggers bulk reprocess), `cleanupOrphanedCvUploads`, `companyRevivalSweep`, `normalizationRetrySweep` (limit 500/run), `tierActiveFanOut`, `tierDormantFanOut`, `pollCompanyFn`, `batchPollTier`, `aggregatorJobHandler`, `staleJobVerifier`, `pipelineHealthMonitor`, `matchBulkReprocess` (event-triggered bulk reprocessing), `matchRetrySweep` (daily re-matching sweep), plus 27 Module B source seeder functions (10 batch + 13 daily + Brave Search + crt.sh + slugger retry). 48 functions total. |
+| `src/inngest/functions.ts` | All Inngest function definitions: `hnAlgoliaSeeder`, `customUrlResolver`, `bigQuerySeeder`, `phalanxPoller`, `tierRecalc`, `staleCleanup`, `jobIngestedHandler`, `gate3Evaluator`, `pendingQueueSweep` (cron every 30 min — picks up stuck pending rows), `personaUpdatedHandler` (event-driven — re-evaluates rejected matches when persona tags change AND triggers bulk reprocess), `cleanupOrphanedCvUploads`, `companyRevivalSweep`, `normalizationRetrySweep` (limit 500/run), `tierActiveFanOut`, `tierDormantFanOut`, `pollCompanyFn`, `batchPollTier`, `aggregatorJobHandler`, `staleJobVerifier`, `pipelineHealthMonitor`, `matchBulkReprocess` (event-triggered bulk reprocessing), `matchRetrySweep` (daily re-matching sweep), `directJobBoardIngestion` (cron daily 05:00 — direct ingestion from 6 remote-first job boards), `pollBacklogSweeper` (polls never-polled companies from the 10,114 registry), plus 27 Module B source seeder functions (10 batch + 13 daily + Brave Search + crt.sh + slugger retry). 59 functions total. |
 | `src/inngest/index.ts` | Barrel exports for clean imports (`@/inngest`). |
 | `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) with `maxDuration: 300`. |
 | `docs/reports/inngest-agent-resources.md` | Coding agent reference: LLM docs, MCP, CLI debugging, AI patterns (`step.ai.wrap`, `step.ai.infer`). |
@@ -1533,8 +1533,10 @@ Jobs older than 90 days are permanently deleted because they have no matching va
 | `pipelineHealthMonitor` | cron `*/30 * * * *` (every 30 min) | **[Sprint 7]** Collects 8 pipeline metrics, evaluates thresholds, creates/resolves `pipeline_health` alerts. **[Sprint 8]** Expanded with 4 new metrics: approvedMatches24h, gate3ApprovalRate7d, unmatchedEmbeddedJobs, avgGate3Confidence. See §4.7.10. |
 | `matchBulkReprocess` | `match/bulk-reprocess` event (manual) | **[Sprint 8]** Retroactively matches existing active+embedded jobs against personas. Queries jobs NOT in match_queue (LIMIT 1000), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch. Concurrency limit 1. Triggered via admin dashboard "Run Bulk Reprocess" button. |
 | `matchRetrySweep` | cron `0 7 * * *` (daily 07:00 UTC) | **[Sprint 8]** Catches jobs missed by normal pipeline — queries active+embedded jobs older than 1h with no match_queue entry, processes in batches of 25 with parallel Gate 1+2. |
+| `directJobBoardIngestion` | cron `0 5 * * *` (daily 05:00 UTC) | **[Sprint 13]** Direct ingestion from 6 remote-first job boards (Himalayas, NoFluffJobs, RemoteOK, Arbeitnow, Remotive, WeWorkRemotely). Bypasses ATS poller — upserts directly with structured fields + embeddings. Concurrency 1. |
+| `pollBacklogSweeper` | event-triggered (manual) | **[Sprint 13]** Polls 100 never-polled companies from the 10,114-company registry per run. Addresses the 6,516 companies (65%) that have never been polled due to batch poller throughput limitations. |
 
-**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 1,623 project tests pass (86 files). Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
+**Test coverage:** 32 unit tests (20 ATS adapter tests + 12 poller orchestrator tests) with mocked fetch + mocked DB. All 2,346 project tests pass (111 files). Live-tested against real ATS APIs and real Neon dev branch (June 2026) — see blueprint §4.1.2 testing strategy for results.
 
 ### 4.5 The B→C Handoff Contract `[Status: Implemented — G7 rawJson Pruning, June 29 2026]`
 
@@ -2045,6 +2047,67 @@ Post-alignment cleanup session focused on preventing stale/legacy job postings f
 
 **Verification:** `npm run build`, `npx tsc --noEmit`, `npx biome check`, and targeted Vitest poller/detail tests pass. No new migrations required.
 
+#### 4.7.15 Sprint 12 — Gate Hardening & LLM Safeguards `[Status: Implemented — July 2026]`
+
+Targeted fixes to Gate 0.5 and Gate 3 addressing false positives discovered in production where hybrid and null-workplaceType jobs in foreign countries were passing through to Gate 3, consuming LLM budget before being rejected. Also adds production reliability safeguards for Gate 3 LLM calls.
+
+**Gate 0.5 hybrid hard-block:** `src/lib/jobs/gate-zero-pre-filter.ts` now hard-blocks hybrid jobs when `remoteScope != 'global'` and the location doesn't match the applicant's country. Previously, hybrid was treated as a soft concern, letting foreign-country hybrid jobs through to Gate 3. The fix adds a check in `checkDefaultOnSite()` that treats hybrid the same as null/on-site when the location is foreign and the job is not globally remote.
+
+**Gate 0.5 null workplaceType hard-block:** Jobs with null `workplaceType` and a specific city location (e.g., "Pune, MH, in") are now blocked when the location has no remote indicators and doesn't match the applicant's country. Previously these passed through as "maybe remote." In reality, a job with a specific city and no remote designation is on-site at that city.
+
+**Gate 3 prompt strengthening:** All 3 prompt variants (`balanced`, `strict`, `thorough`) in `src/lib/jobs/gate-3.ts` updated with three clarifications:
+1. Full-time/W-2 roles treat work authorization as a HARD blocker; contractor/B2B roles treat it as advisory only (not a blocker) — contractors file taxes in their own jurisdiction.
+2. Hybrid in a foreign country is a HARD blocker (not soft) unless in the applicant's country/region — reverses the Sprint 8 "hybrid as soft concern" guidance for this specific case.
+3. Null `workplaceType` with a specific city location is inferred as on-site (not "maybe remote").
+
+**Gate 3 LLM timeout:** All Gate 3 LLM calls now use `AbortSignal.timeout(30000)` (30 seconds) to prevent indefinite hangs on unresponsive OpenAI API responses. Previously, a hanging API call would block the Inngest function indefinitely, consuming concurrency slots.
+
+**Gate 3 input truncation:** Job description input to the LLM is truncated to 8,000 characters before being passed to `generateObject`. This prevents token-limit failures on oversized job postings — previously, 24 jobs failed normalization with ">8192 token limit" errors.
+
+**Resurrection sweep fix:** `nightlyResurrectionSweep` Inngest function fixed — step output was exceeding Inngest's 256KB limit when processing large batches; now chunks results to stay within limits.
+
+**Files touched:** `src/lib/jobs/gate-zero-pre-filter.ts`, `src/lib/jobs/gate-3.ts`, `src/lib/jobs/__tests__/gate-zero-pre-filter.test.ts`, `src/lib/jobs/job-normalizer.ts`, `src/lib/jobs/remote-scope-extractor.ts`, `src/inngest/functions.ts`.
+
+**Verification:** 5 new tests in `gate-zero-pre-filter.test.ts` covering hybrid foreign country and null workplaceType patterns. `npx tsc --noEmit` clean, `npx biome check --write` clean. No new migrations.
+
+#### 4.7.16 Sprint 13 — Direct Job Board Ingestion & Backlog Sweep `[Status: Implemented — July 2026]`
+
+A parallel ingestion path that bypasses the ATS poller entirely, fetching jobs directly from remote-first job boards with structured APIs. This addresses two critical bottlenecks: (1) the corpus skew (337 backend jobs vs 98 frontend jobs for target personas — React/Next.js/TypeScript, Vue/JavaScript, PHP/Laravel), and (2) the polling bottleneck (6,516 of 10,114 companies never polled due to the batch poller's 45-day full-cycle throughput).
+
+**Direct Ingestion Pipeline (`src/lib/jobs/direct-ingestion/`):**
+
+| File | Purpose |
+|------|---------|
+| `types.ts` | `DirectIngestionJob` interface, `DirectFetchResult` union, `DirectBoardSource` type (6 values: `himalayas_direct`, `remoteok_direct`, `nofluffjobs`, `arbeitnow`, `remotive`, `weworkremotely`) |
+| `filter.ts` | `hasPersonaTechOverlap(tags, title, description)` — 50+ frontend/PHP/Laravel keywords with word-boundary matching for short keywords (e.g., "php", "vue", "css") |
+| `upsert.ts` | `upsertDirectJobs(source, slug, jobs, embedFn)` — sets structured fields + `normalizedAt` + embeddings directly, uses `ON CONFLICT (atsSource, atsSlug, externalJobId)` for dedup. Skips Gate 0, normalization, and Gate 0.5 entirely. |
+| `himalayas.ts` | Himalayas adapter — paginated GET (50/page, max 20 pages), 103K+ jobs available |
+| `nofluffjobs.ts` | NoFluffJobs adapter — single 80MB GET response, 11,446 jobs (9,320 remote). Uses `location.fullyRemote` (NOT top-level `fullyRemote` which is stale/always false). Monthly→annual salary ×12. Seniority→years mapping (Junior→0-2, Mid→3-5, Senior→5-8, Expert→8-15). Employment type: b2b→contract, permanent→full-time, zlecenie→contract, uod→contract. |
+| `remoteok.ts` | RemoteOK adapter — single GET, skips legal notice first element, strips HTML. Tags are plain strings (not objects). |
+| `arbeitnow.ts` | Arbeitnow adapter — `?page=N` pagination with empty-page detection (avoids `links.next` which propagates an implicit search filter). EU-focused. |
+| `remotive.ts` | Remotive adapter — remote-first, `inferRemoteScope()` checks for "world"/"anywhere"/"global" in `candidate_required_location`. Salary is free text → null. |
+| `weworkremotely.ts` | WeWorkRemotely RSS adapter — regex XML parsing (no XML-parser dependency), XML-entity-unescape then HTML-strip for `<description>`. Title split on first colon for company name. |
+
+**`directJobBoardIngestion` Inngest function:** Cron `0 5 * * *`, concurrency 1. Orchestrates all 6 boards in sequence with per-board fetch + upsert steps. Each board: (1) `step.run("fetch-{board}", ...)` — call adapter, return `{ success, jobs, error, totalAvailable }`, (2) if success + jobs.length > 0: rebuild Date objects (Inngest serialization), `step.run("upsert-{board}", ...)` — call `upsertDirectJobs(source, slug, jobs, embedFn)`, (3) push result to `boardResults[]`. After all boards: `step.run("write-log", ...)` — write ingestion log.
+
+**Backlog Sweeper:** New `pollBacklogSweeper` Inngest function addresses the 6,516 never-polled companies (65% of the 10,114 registry) by polling 100 never-polled companies per run. Uses `getNeverPolledBatch()` in `src/lib/jobs/poller/tier-queries.ts`. 5 new tests in `batch-poll.test.ts`.
+
+**Profile UI for compensation & experience:** `applicant.expectedCompMin` and `applicant.yearsOfExperience` fields (added in Sprint 9 schema, migration 0039) are now exposed in the UI:
+- `src/components/onboarding/ApplicantSection.tsx` — compensation slider ($0–$1M) and years of experience slider (0–40) added to onboarding flow.
+- `src/components/onboarding/ProfilePreferencesForm.tsx` — same sliders added to post-onboarding profile management.
+- `src/actions/onboarding.ts` and `src/actions/profile.ts` — wired into server actions with Zod validation (non-negative, integer years, max $1M comp).
+- `src/lib/onboarding/__tests__/schemas.test.ts` — 6 new tests for boundary conditions (negative comp, non-integer years, over-max comp).
+
+**Evaluation script:** `scripts/evaluate-job-boards.ts` tests all 6 board APIs and reports job counts + frontend/PHP breakdowns. Verified results (July 2026): Himalayas 103,807 total, RemoteOK 100 (8 frontend), NoFluffJobs 11,446 (1,221 remote frontend/PHP), Arbeitnow 100/page (3 remote frontend page 1), Remotive 28 (12 frontend), WeWorkRemotely 100 (36 frontend).
+
+**Downstream concern — currency mismatch:** NoFluffJobs salaries are mostly PLN (8,770 of 9,320 remote). The Gate 0.5 `checkCompensation()` function compares `job.compensationMax` directly against `applicant.expectedCompMin * 0.7` without currency conversion. A PLN 60,000/year job ($15K USD) would pass the check if the applicant's minimum is $60K (because 60,000 > 42,000) — false positive. Fix: add currency conversion step in `checkCompensation()` (approximate static rates: PLN→USD ×0.25, EUR→USD ×1.08). This is a known issue to address in a future sprint.
+
+**Files touched:** `src/lib/jobs/direct-ingestion/*` (8 new files), `src/lib/jobs/direct-ingestion/__tests__/direct-ingestion.test.ts` (60 tests), `src/inngest/functions.ts` (2 new functions + 6 board wiring), `src/app/api/inngest/route.ts` (2 new registrations), `src/lib/jobs/poller/tier-queries.ts` (`getNeverPolledBatch`), `src/lib/jobs/poller/__tests__/batch-poll.test.ts` (5 new tests), `src/components/onboarding/ApplicantSection.tsx`, `src/components/onboarding/OnboardingReview.tsx`, `src/components/onboarding/ProfilePreferencesForm.tsx`, `src/actions/onboarding.ts`, `src/actions/profile.ts`, `src/actions/__tests__/profile.test.ts` (6 new tests), `src/lib/onboarding/__tests__/schemas.test.ts` (6 new tests), `scripts/evaluate-job-boards.ts`.
+
+**Verification:** 60 direct-ingestion tests pass, 2,346 total tests pass (111 files), 0 TS errors, 0 Biome errors. No new migrations (uses existing `job` table columns — `ats_source` is plain `text`, not a Postgres enum, so any string value works for direct ingestion sources).
+
+**Full implementation handoff:** `docs/system/direct-ingestion-compensation-handoff.md`
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
@@ -2068,6 +2131,8 @@ Post-alignment cleanup session focused on preventing stale/legacy job postings f
 - **C9** — Remote-scope extraction (v2): `src/lib/jobs/remote-scope-extractor.ts` — 2-step ladder (deterministic regex + ATS-native + Cheerio → LLM gpt-4o-mini fallback). Classifies jobs as `global`, `country_fenced`, `region_fenced`, `onsite`, or `undetermined`. Used during normalization and via `scripts/backfill-remote-scope.ts`. Added July 7 2026.
 - **C10** — Company scoring matrix: `src/lib/jobs/company-scorer.ts` + `src/lib/jobs/company-enrichment/big-tech-registry.ts` — 5-signal scoring (employee count, agency, public listing, source origin, maturity[disabled]) clamped to [-0.30, +0.30]. Feeds dashboard display score (0.17 weight bucket). Added July 7 2026.
 - **C11** — Circuit breaker (5-tier): `src/lib/jobs/circuit-breaker.ts` — per-source early-warning, provisional backlog throttle, unknown sub-floor guard, corpus-ratio breaker, daily source ban. Severity stack: `hard_pause` > `rate_reduction` > `normal`. Added July 7 2026.
+- **C12** — Gate 0.5 + Gate 3 prompt hardening: `gate-zero-pre-filter.ts` hybrid foreign country hard-block + null workplaceType specific city hard-block. Gate 3 prompt full-time/W-2 vs contractor/B2B work-auth distinction, hybrid foreign country as hard blocker, null workplaceType = on-site inference. 30s LLM timeout + 8K char input truncation. Added July 2026.
+- **C13** — Direct job board ingestion: `src/lib/jobs/direct-ingestion/` module with 6 board adapters (Himalayas, NoFluffJobs, RemoteOK, Arbeitnow, Remotive, WeWorkRemotely) + `directJobBoardIngestion` Inngest function. Bypasses ATS poller, normalization, and Gate 0.5 — upserts directly with structured fields + embeddings. Added July 2026.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -2113,6 +2178,14 @@ Checks 4 and 5 are **soft-fail-open**: they only fire when both job and applican
 **Backward compatibility:** Existing jobs have NULL for all new columns — Checks 4 and 5 are skipped (soft-fail-open). The workplace type fix only affects NEW jobs. Existing approved matches are not automatically re-evaluated. The applicant's new fields are NULL until set via onboarding/profile management — until then, Checks 4 and 5 are no-ops.
 
 **Full design document:** `docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md`
+
+**Gate 0.5 hardening (July 2026 — Sprint 12):** Two additional geo-fencing patterns discovered in production were added as hard blockers:
+
+1. **Hybrid in foreign country (hard block):** Hybrid jobs where `remoteScope != 'global'` and the location doesn't match the applicant's country are now hard-blocked. Previously, hybrid was treated as a soft concern, letting foreign-country hybrid jobs pass through to Gate 3 where they consumed LLM budget before being rejected. The fix adds a check in `checkDefaultOnSite()` that treats hybrid the same as null/on-site when the location is foreign and the job is not globally remote.
+
+2. **Null workplaceType with specific city location (hard block):** Jobs with null `workplaceType` and a specific city location (e.g., "Pune, MH, in") are now blocked when the location has no remote indicators and doesn't match the applicant's country. Previously these passed through as "maybe remote" — in reality, a job with a specific city and no remote designation is on-site at that city.
+
+Both fixes are in `src/lib/jobs/gate-zero-pre-filter.ts` and are covered by 5 new tests in `src/lib/jobs/__tests__/gate-zero-pre-filter.test.ts`.
 
 ### 5.2 Step 2: Gate 1 & 2 (The SQL Router) `[Status: Implemented]`
 Run a single SQL query (`src/lib/jobs/gate-1-2.ts`, `runGateSQLRouter`) to narrow all personas down to ~8 candidates in under 20ms.
@@ -2228,6 +2301,18 @@ All three prompt variants updated with:
 - **International contractor guidance:** Explicitly instructs the LLM to consider W-8BEN compliance — "US only" remote jobs may accept international contractors if the applicant has `preferred_compliance = {w8ben, ic_global}`. The LLM should not auto-reject based solely on geographic restrictions without considering compliance context.
 - **Hybrid as soft concern:** Hybrid workplace is now a soft concern (not an auto-reject). The LLM should evaluate whether the hybrid requirement is a hard blocker or if remote options may be negotiable.
 - **Balanced approach:** Replaced the "be conservative: only approve if you are confident" bias with a more balanced instruction that doesn't bias toward rejection. The previous wording contributed to a 1.6% approval rate (target: 2-4%).
+
+**Sprint 12 prompt hardening (July 2026):**
+All three prompt variants further strengthened with three critical clarifications:
+- **Full-time/W-2 vs contractor/B2B distinction:** The prompt now explicitly distinguishes full-time/W-2 roles (where work authorization is a HARD blocker — the employer needs someone legally able to work in the country) from contractor/B2B roles (where work authorization is advisory only, not a blocker — contractors file taxes in their own jurisdiction). This prevents false rejections of international contractors for roles that are clearly contractor-friendly.
+- **Hybrid in foreign country is a HARD blocker:** Reversed the Sprint 8 "hybrid as soft concern" guidance for the specific case of hybrid jobs in a foreign country. When the job is hybrid and located in a country where the applicant doesn't have work authorization, this is a hard blocker — not a soft concern. The soft-concern guidance only applies when the hybrid job is in the applicant's own country/region.
+- **Null workplaceType with specific city = on-site:** When `workplaceType` is null and the job has a specific city location, the prompt now instructs the LLM to infer this as on-site (not "maybe remote"). A job with a specific city and no remote designation is on-site at that city.
+
+**Sprint 12 LLM safeguards (July 2026):**
+Two production reliability fixes for Gate 3 LLM calls:
+- **30-second timeout:** All Gate 3 LLM calls now use `AbortSignal.timeout(30000)` to prevent indefinite hangs on unresponsive OpenAI API responses. Previously, a hanging API call would block the Inngest function indefinitely, consuming concurrency slots and preventing other jobs from being evaluated.
+- **8,000-character input truncation:** Job description input to the LLM is truncated to 8,000 characters before being passed to `generateObject`. This prevents token-limit failures on oversized job postings — previously, 24 jobs failed normalization with ">8192 token limit" errors because the full job description exceeded the model's context window. The truncation preserves the first 8,000 characters (typically the job title, requirements, and responsibilities) while discarding verbose company boilerplate at the end.
+
 *   Inngest concurrency is capped to max 5 (Inngest free plan limit, June 2026).
 The original limit of 50 existed to prevent Vercel's 340-second idle-connection
 limit from severing fanned-out function instances. Under Module E, there is no
