@@ -51,7 +51,7 @@ async function main() {
       data: { jobId: j.id },
     }));
     try {
-      const result = await inngest.send(events);
+      const _result = await inngest.send(events);
       sent += batch.length;
       console.log(
         `Sent batch ${Math.floor(i / 50) + 1}: ${batch.length} events (total: ${sent})`,

@@ -29,7 +29,7 @@
 //
 // See docs/governing/company-corpus-expansion-new.md Criterion 3.
 
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { alerts } from "@/db/schemas/jobs/alerts";
@@ -416,7 +416,7 @@ export function resolveDominantSeverity(
  * @returns                 Corpus metrics snapshot
  */
 export async function fetchCorpusMetrics(
-  checkpointCutoff: Date = new Date(Date.now() - 3 * 60 * 60 * 1000),
+  _checkpointCutoff: Date = new Date(Date.now() - 3 * 60 * 60 * 1000),
 ): Promise<CorpusMetrics> {
   // Count jobs by remoteScope. The unknown bucket includes both 'unknown'
   // (pre-normalization default) and 'undetermined' (v2 terminal value).

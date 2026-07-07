@@ -426,10 +426,10 @@ describe("extractCountryCodesFromText", () => {
   it("COUNTRY_CODE_MAP has all major countries", () => {
     expect(COUNTRY_CODE_MAP["united states"]).toBe("US");
     expect(COUNTRY_CODE_MAP["united kingdom"]).toBe("GB");
-    expect(COUNTRY_CODE_MAP["germany"]).toBe("DE");
-    expect(COUNTRY_CODE_MAP["canada"]).toBe("CA");
-    expect(COUNTRY_CODE_MAP["singapore"]).toBe("SG");
-    expect(COUNTRY_CODE_MAP["serbia"]).toBe("RS");
+    expect(COUNTRY_CODE_MAP.germany).toBe("DE");
+    expect(COUNTRY_CODE_MAP.canada).toBe("CA");
+    expect(COUNTRY_CODE_MAP.singapore).toBe("SG");
+    expect(COUNTRY_CODE_MAP.serbia).toBe("RS");
   });
 });
 

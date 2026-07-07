@@ -141,13 +141,17 @@ describe("SignUpForm — social sign-in", () => {
   it("calls signIn('google') when Google button is clicked", () => {
     render(<SignUpForm />);
     fireEvent.click(screen.getByRole("button", { name: /google/i }));
-    expect(mockSignIn).toHaveBeenCalledWith("google");
+    expect(mockSignIn).toHaveBeenCalledWith("google", {
+      callbackURL: "/dashboard/jobs",
+    });
   });
 
   it("calls signIn('github') when GitHub button is clicked", () => {
     render(<SignUpForm />);
     fireEvent.click(screen.getByRole("button", { name: /github/i }));
-    expect(mockSignIn).toHaveBeenCalledWith("github");
+    expect(mockSignIn).toHaveBeenCalledWith("github", {
+      callbackURL: "/dashboard/jobs",
+    });
   });
 
   it("disables other fields and buttons when a social sign-in is pending", () => {

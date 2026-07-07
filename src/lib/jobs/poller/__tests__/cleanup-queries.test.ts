@@ -352,7 +352,7 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
     describe("runEmergencyPurge", () => {
       // Helper: mock countActiveJobs (SELECT count(*) FROM job WHERE status = 'active')
       // The orchestrator calls this at the start to calculate the corpus guard budget.
-      function mockActiveCount(
+      function _mockActiveCount(
         executeMock: ReturnType<typeof vi.fn>,
         count: number,
       ) {

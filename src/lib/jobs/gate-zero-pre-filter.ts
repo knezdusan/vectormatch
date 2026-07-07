@@ -35,6 +35,8 @@
 // See docs/reports/GATE_0_5_GEO_FENCING_HANDOFF.md for the original design.
 // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.1 for root cause.
 
+import { toPlausibleAnnualUSD } from "@/lib/jobs/currency";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -463,7 +465,17 @@ function checkOnSiteDefault(input: PreFilterInput): {
 /**
  * Check if the job's compensation is below the applicant's minimum threshold.
  * Only fires when both job compensation and applicant expected minimum are
- * available. Normalizes monthly figures to annual.
+ * available.
+ *
+ * Currency normalization: The applicant's expectedCompMin is always annual USD.
+ * The job's compensation may be in any currency (PLN, EUR, USD, etc. from
+ * direct-ingestion boards and ATS APIs). We convert the job's compensation to
+ * USD before comparing. If the currency is unknown or the converted value is
+ * implausibly low (below $5,000/yr — garbage data), the check soft-fail-opens.
+ *
+ * Monthly→annual conversion is NOT done here — that's the ingestion adapter's
+ * responsibility (e.g. NoFluffJobs multiplies by 12 at ingestion time). The
+ * pre-filter assumes all compensation values are already annual.
  */
 function checkCompensation(input: PreFilterInput): {
   blocker: string | null;
@@ -471,21 +483,29 @@ function checkCompensation(input: PreFilterInput): {
 } {
   const { job, applicant } = input;
 
-  if (job.compensationMax === null || applicant.expectedCompMin === null) {
+  if (applicant.expectedCompMin === null) {
     return { blocker: null, pattern: null };
   }
 
-  let normalizedMax = job.compensationMax;
-
-  // If the value is small and currency is USD, it's likely monthly
-  if (job.compensationCurrency === "USD" && job.compensationMax < 1000) {
-    normalizedMax = job.compensationMax * 12;
+  // Use compensationMax (best case for the applicant) when available,
+  // falling back to compensationMin (at least we know the floor).
+  const rawComp = job.compensationMax ?? job.compensationMin;
+  if (rawComp === null) {
+    return { blocker: null, pattern: null };
   }
 
-  // Reject if max is below 70% of applicant's minimum
-  if (normalizedMax < applicant.expectedCompMin * 0.7) {
+  // Convert to USD and apply sanity floor. If the conversion fails (unknown
+  // currency) or the result is implausibly low (garbage data), soft-fail-open.
+  const usdComp = toPlausibleAnnualUSD(rawComp, job.compensationCurrency);
+  if (usdComp === null) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Reject if the USD-normalized compensation is below 70% of applicant's minimum
+  if (usdComp < applicant.expectedCompMin * 0.7) {
+    const currencyLabel = job.compensationCurrency ?? "USD";
     return {
-      blocker: `Compensation max $${normalizedMax.toLocaleString()} is below 70% of applicant's minimum $${applicant.expectedCompMin.toLocaleString()}`,
+      blocker: `Compensation ${currencyLabel} ${rawComp.toLocaleString()} (≈$${usdComp.toLocaleString()} USD) is below 70% of applicant's minimum $${applicant.expectedCompMin.toLocaleString()} USD`,
       pattern: "compensation_mismatch",
     };
   }

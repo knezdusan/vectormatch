@@ -51,7 +51,6 @@ import { config } from "dotenv";
 
 config({ path: ".env" });
 
-import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { company } from "@/db/schemas/jobs/company";
 import {
@@ -119,7 +118,7 @@ const DEFENSE_INFRA_SLUGS = new Set([
 async function main() {
   // Load every company with the fields buildScoringInputFromCompany needs,
   // plus the current tier so we can report transitions.
-  const query = db
+  const _query = db
     .select({
       id: company.id,
       canonicalName: company.canonicalName,

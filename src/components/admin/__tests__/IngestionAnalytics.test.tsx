@@ -47,6 +47,11 @@ vi.mock("@/lib/jobs/ingestion-analytics", () => ({
   getIngestionTrends: vi.fn().mockResolvedValue([]),
   getRecentIngestionRuns: vi.fn().mockResolvedValue([]),
   getTopIngestionErrors: vi.fn().mockResolvedValue([]),
+  getHighOldJobRateAlerts: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/components/admin/JobStalenessDistribution", () => ({
+  JobStalenessDistribution: () => <div data-testid="staleness-distribution" />,
 }));
 
 import { render, screen } from "@testing-library/react";

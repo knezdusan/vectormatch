@@ -617,8 +617,10 @@ describe("Gate 0.5 — Check 4: Compensation tier", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("normalizes monthly compensation to annual", () => {
-    // $3000/month = $36000/year, which is below 70% of $60000 = $42000
+  it("soft-fail-opens for garbage USD salary below sanity floor ($5,000)", () => {
+    // $3,000/year is implausible — treat as unreliable data, don't reject.
+    // (Monthly→annual conversion is the ingestion adapter's job, not the
+    // pre-filter's. If a board sends monthly values, the adapter converts.)
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -626,6 +628,175 @@ describe("Gate 0.5 — Check 4: Compensation tier", () => {
           locationName: "Remote - Global",
           workplaceType: "remote",
           compensationMax: 3000,
+          compensationCurrency: "USD",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("converts PLN compensation to USD before comparing", () => {
+    // 100,000 PLN ≈ $25,000 USD. Applicant wants $60,000 USD.
+    // 25,000 < 60,000 * 0.7 = 42,000 → rejected.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMax: 100000,
+          compensationCurrency: "PLN",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("compensation_mismatch");
+  });
+
+  it("passes PLN job that meets USD threshold after conversion", () => {
+    // 300,000 PLN ≈ $75,000 USD. Applicant wants $60,000 USD.
+    // 75,000 > 60,000 * 0.7 = 42,000 → passes.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMax: 300000,
+          compensationCurrency: "PLN",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("soft-fail-opens for garbage PLN salary (below sanity floor after conversion)", () => {
+    // 1,608 PLN ≈ $402 USD — garbage NoFluffJobs data. Soft-fail-open.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMax: 1608,
+          compensationCurrency: "PLN",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("converts EUR compensation to USD before comparing", () => {
+    // 40,000 EUR ≈ $43,200 USD. Applicant wants $60,000 USD.
+    // 43,200 > 60,000 * 0.7 = 42,000 → passes (just above threshold).
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMax: 40000,
+          compensationCurrency: "EUR",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("soft-fail-opens for unknown currency", () => {
+    // "XYZ" is not in the rate table — can't convert, soft-fail-open.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMax: 50000,
+          compensationCurrency: "XYZ",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("uses compensationMin as fallback when compensationMax is null", () => {
+    // compensationMax is null, but compensationMin = 80000 USD.
+    // 80,000 > 60,000 * 0.7 = 42,000 → passes.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMin: 80000,
+          compensationMax: null,
+          compensationCurrency: "USD",
+        },
+        applicant: {
+          country: "RS",
+          assignmentTypes: ["remote"],
+          preferredCompliance: [],
+          expectedCompMin: 60000,
+          yearsOfExperience: null,
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects using compensationMin fallback when below threshold", () => {
+    // compensationMax is null, compensationMin = 30000 USD.
+    // 30,000 < 60,000 * 0.7 = 42,000 → rejected.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          compensationMin: 30000,
+          compensationMax: null,
           compensationCurrency: "USD",
         },
         applicant: {
@@ -774,7 +945,7 @@ describe("Gate 0.5 — Multiple blockers", () => {
           workplaceType: "remote",
           titleRegionTag: "Latam",
           locationCountries: ["Mexico", "Argentina", "Colombia"],
-          compensationMax: 2500,
+          compensationMax: 30000,
           compensationCurrency: "USD",
         },
         applicant: {

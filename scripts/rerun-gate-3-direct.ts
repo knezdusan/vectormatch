@@ -10,7 +10,7 @@
 // Usage: npx tsx scripts/rerun-gate-3-direct.ts
 
 import "dotenv/config";
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db/db";
 import { applicant } from "@/db/schemas/jobs/applicant";
 import { job } from "@/db/schemas/jobs/job";
@@ -26,7 +26,7 @@ const MATCH_QUEUE_IDS = [
 async function main() {
   console.log("=".repeat(70));
   console.log("Direct Gate 3 re-evaluation (new workAuthRiskFlag logic)");
-  console.log("=".repeat(70) + "\n");
+  console.log(`${"=".repeat(70)}\n`);
 
   // Dynamic imports to avoid server-only check at module load time
   const { evaluateGate3, mapVerdict } = await import("@/lib/jobs/gate-3");
@@ -194,7 +194,7 @@ async function main() {
     }
   }
 
-  console.log("\n" + "=".repeat(70));
+  console.log(`\n${"=".repeat(70)}`);
   console.log("Done! Refresh the dashboard to see updated verdicts + badges.");
   console.log("=".repeat(70));
   process.exit(0);

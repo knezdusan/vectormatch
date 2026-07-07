@@ -7,10 +7,10 @@
  * Delete after use.
  */
 import "dotenv/config";
-import { Pool } from "@neondatabase/serverless";
 
 // Mock server-only so we can import the extractor in a script context
-import { Module } from "module";
+import { Module } from "node:module";
+import { Pool } from "@neondatabase/serverless";
 
 const originalResolve = (Module as any)._resolveFilename;
 (Module as any)._resolveFilename = function (request: string, ...args: any[]) {
@@ -83,7 +83,7 @@ async function main() {
     // 4. Test the ACTUAL step1RegexHardSignals against each sample
     let highConfMatches = 0;
     let mediumConfMatches = 0;
-    const utcMatches = 0;
+    const _utcMatches = 0;
     let classifiedOnsite = 0;
     let noMatch = 0;
     const matchExamples: string[] = [];

@@ -31,21 +31,22 @@
  */
 
 import { config } from "dotenv";
+
 config({ path: ".env" });
 
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/db";
-import { job } from "@/db/schemas/jobs/job";
 import { applicant } from "@/db/schemas/jobs/applicant";
+import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { runGateSQLRouter } from "@/lib/jobs/gate-1-2";
-import { runHardBlockerPreFilter } from "@/lib/jobs/gate-zero-pre-filter";
 import {
   evaluateGate3,
+  type Gate3Context,
   mapVerdict,
   pickPromptVariant,
-  type Gate3Context,
 } from "@/lib/jobs/gate-3";
+import { runHardBlockerPreFilter } from "@/lib/jobs/gate-zero-pre-filter";
 import { extractJobContent } from "@/lib/jobs/job-normalizer";
 
 // ── CLI args ────────────────────────────────────────────────────────────────
@@ -161,7 +162,11 @@ async function main() {
           job: {
             title: j.title,
             locationName: j.locationName,
-            workplaceType: j.workplaceType as "remote" | "hybrid" | "on-site" | null,
+            workplaceType: j.workplaceType as
+              | "remote"
+              | "hybrid"
+              | "on-site"
+              | null,
             normalizedText: j.normalizedText,
             titleRegionTag: j.titleRegionTag,
             locationCountries: j.locationCountries,
@@ -275,9 +280,7 @@ async function main() {
         }
 
         // Find the applicant for this persona
-        const app = applicants.find(
-          (a) => a.userId === personaRow.applicantId,
-        );
+        const app = applicants.find((a) => a.userId === personaRow.applicantId);
         if (!app) {
           errors.push(
             `Job ${j.id}: applicant ${personaRow.applicantId} not found`,
@@ -345,7 +348,9 @@ async function main() {
         } catch (err) {
           gate3Errors++;
           const errMsg = err instanceof Error ? err.message : String(err);
-          errors.push(`Job ${j.id} candidate ${candidate.matchQueueId}: ${errMsg}`);
+          errors.push(
+            `Job ${j.id} candidate ${candidate.matchQueueId}: ${errMsg}`,
+          );
           // Mark as error in match_queue
           await db
             .update(matchQueue)
@@ -359,7 +364,11 @@ async function main() {
       }
 
       completed++;
-      logProgress(j.id, `gate-3-done (${candidates.length} candidates)`, jobStart);
+      logProgress(
+        j.id,
+        `gate-3-done (${candidates.length} candidates)`,
+        jobStart,
+      );
     } catch (error) {
       completed++;
       gate3Errors++;
@@ -369,7 +378,7 @@ async function main() {
     }
   }
 
-  function logProgress(jobId: string, phase: string, jobStart: number) {
+  function logProgress(_jobId: string, phase: string, jobStart: number) {
     const elapsed = ((Date.now() - jobStart) / 1000).toFixed(1);
     if (completed % 10 === 0 || completed === unroutedJobs.length) {
       const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);

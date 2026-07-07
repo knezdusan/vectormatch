@@ -96,7 +96,7 @@ function checkWorkAuthRiskFlag(
 async function main() {
   console.log("=".repeat(80));
   console.log("AUDIT: Approved matches vs. new Gate 0.5 + work-auth protocols");
-  console.log("=".repeat(80) + "\n");
+  console.log(`${"=".repeat(80)}\n`);
 
   // Fetch all approved matches with full job + applicant data
   const rows = await db.execute(sql`
@@ -185,7 +185,7 @@ async function main() {
     const applicantCountry = row.applicant_country;
     const assignmentTypes = parseTextArray(row.assignment_types);
     const preferredCompliance = parseTextArray(row.preferred_compliance);
-    const workAuthorizations = parseTextArray(row.work_authorizations);
+    const _workAuthorizations = parseTextArray(row.work_authorizations);
     const expectedCompMin = toNumber(row.expected_comp_min);
     const yearsOfExperience = toNumber(row.years_of_experience);
 
@@ -259,7 +259,7 @@ async function main() {
   // ── Report: Blocked by Gate 0.5 ──────────────────────────────────────────
   console.log("─".repeat(80));
   console.log(`BLOCKED BY GATE 0.5: ${blocked.length} jobs`);
-  console.log("─".repeat(80) + "\n");
+  console.log(`${"─".repeat(80)}\n`);
 
   for (const r of blocked) {
     console.log(`  ❌ ${r.company} — "${r.title}"`);
@@ -279,7 +279,7 @@ async function main() {
   console.log(
     `WORK-AUTH RISK FLAG (not blocked, but needs verification): ${riskFlag.length} jobs`,
   );
-  console.log("─".repeat(80) + "\n");
+  console.log(`${"─".repeat(80)}\n`);
 
   for (const r of riskFlag) {
     console.log(`  ⚠  ${r.company} — "${r.title}"`);
@@ -296,7 +296,7 @@ async function main() {
   console.log(
     `GENUINE MATCHES (pass all new protocols): ${passed.length} jobs`,
   );
-  console.log("─".repeat(80) + "\n");
+  console.log(`${"─".repeat(80)}\n`);
 
   for (const r of passed) {
     console.log(`  ✅ ${r.company} — "${r.title}"`);

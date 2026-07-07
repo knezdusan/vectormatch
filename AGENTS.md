@@ -249,7 +249,7 @@ END:agent-rules-on-hold - Database & Matching + Onboarding remain on hold; ATS I
 
 ## ATS Ingestion Rules
 - Use native Greenhouse, Lever, and Ashby JSON APIs (all three are MVP priority). Centralized in `src/lib/jobs/ats-endpoints.ts`.
-- Respect rate limits: max 2 req/s per ATS platform using `bottleneck` (`maxConcurrent: 1, minTime: 500` per ATS source).
+- Respect rate limits: max 2 req/s per ATS platform using `bottleneck` (`maxConcurrent: 1, minTime: 500` per ATS source). Rate limiting is distributed via Redis (`REDIS_URL`) when configured — see `src/lib/jobs/poller/rate-limiter.ts`. Without Redis, the cap is only enforced per-process (not safe for multi-worker production).
 - Seed using HTTP Archive BigQuery (monthly script) + HN Algolia (weekly Inngest function). crt.sh deferred to Phase 2 (post-MVP).
 - Never scrape HTML career pages. Non-ATS URLs from HN are resolved via DNS CNAME check + slug probe against ATS APIs. If both fail, discard — no manual review.
 - Gate 0: Synchronous regex title filter rejects non-engineering jobs before database insertion (`src/lib/jobs/gate-zero.ts`). Optimize for recall — the 3-Gate funnel handles precision.
@@ -318,6 +318,14 @@ curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
 
 Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in production environment variables.
 
+### Redis (Distributed Rate Limiting)
+
+Redis is required for production multi-worker deployments. It backs the Bottleneck rate limiters in `src/lib/jobs/poller/rate-limiter.ts` so the "max 2 req/s per ATS platform" cap is enforced globally across all Inngest worker processes.
+
+- **Coolify**: Deploy a Redis container on the same Docker network. Use `redis://<redis-container-name>:6379` as `REDIS_URL`.
+- **Local dev / CI**: Leave `REDIS_URL` unset. In-process rate limiting is used (correct for single-process, not safe for multi-worker).
+- **Failure mode**: If Redis is unreachable, ATS fetches fail with a "network" error and the circuit breaker pauses the source. This is intentional (fail-closed) — stalling ingestion is safer than risking an ATS IP ban from uncoordinated requests.
+
 ### Environment Variables
 
 | Variable | Local | Production |
@@ -326,6 +334,7 @@ Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in production environment var
 | `INNGEST_EVENT_KEY` | dummy | Inngest Cloud dashboard |
 | `INNGEST_SIGNING_KEY` | dummy | Inngest Cloud dashboard |
 | `INNGEST_SERVE_ORIGIN` | omit | `https://vectormatch.dev` |
+| `REDIS_URL` | omit | `redis://<coolify-redis>:6379` |
 
 ## Fallow (Codebase Intelligence)
 
