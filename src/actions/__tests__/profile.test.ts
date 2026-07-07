@@ -112,4 +112,136 @@ describe("updateApplicantPreferencesAction", () => {
       seniorityLevels: ["senior"],
     });
   });
+
+  // ── WI4: expectedCompMin + yearsOfExperience ──────────────────────────────
+
+  it("persists expectedCompMin and yearsOfExperience when provided", async () => {
+    const payload = {
+      country: "RS",
+      canWorkUsHours: true,
+      assignmentTypes: ["remote"],
+      modalities: ["contract"],
+      preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
+      expectedCompMin: 60000,
+      yearsOfExperience: 7,
+    };
+
+    const result = await updateApplicantPreferencesAction(
+      null,
+      makePreferencesFormData(payload),
+    );
+
+    expect(result).toEqual({ error: null, success: true });
+    expect(mockUpdateCalls).toHaveLength(1);
+    // expectedCompMin is a numeric column — stored as string
+    expect(mockUpdateCalls[0]?.set).toMatchObject({
+      expectedCompMin: "60000",
+      yearsOfExperience: 7,
+    });
+  });
+
+  it("persists null when expectedCompMin and yearsOfExperience are not set", async () => {
+    const payload = {
+      country: "RS",
+      canWorkUsHours: false,
+      assignmentTypes: ["remote"],
+      modalities: ["full-time"],
+      preferredCompliance: ["b2b"],
+      seniorityLevels: ["mid"],
+      expectedCompMin: null,
+      yearsOfExperience: null,
+    };
+
+    const result = await updateApplicantPreferencesAction(
+      null,
+      makePreferencesFormData(payload),
+    );
+
+    expect(result).toEqual({ error: null, success: true });
+    expect(mockUpdateCalls[0]?.set).toMatchObject({
+      expectedCompMin: null,
+      yearsOfExperience: null,
+    });
+  });
+
+  it("rejects negative expectedCompMin", async () => {
+    const payload = {
+      country: "RS",
+      canWorkUsHours: true,
+      assignmentTypes: ["remote"],
+      modalities: ["contract"],
+      preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
+      expectedCompMin: -5000,
+      yearsOfExperience: 5,
+    };
+
+    const result = await updateApplicantPreferencesAction(
+      null,
+      makePreferencesFormData(payload),
+    );
+
+    expect(result?.success).toBe(false);
+  });
+
+  it("rejects negative yearsOfExperience", async () => {
+    const payload = {
+      country: "RS",
+      canWorkUsHours: true,
+      assignmentTypes: ["remote"],
+      modalities: ["contract"],
+      preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
+      expectedCompMin: 50000,
+      yearsOfExperience: -1,
+    };
+
+    const result = await updateApplicantPreferencesAction(
+      null,
+      makePreferencesFormData(payload),
+    );
+
+    expect(result?.success).toBe(false);
+  });
+
+  it("rejects non-integer yearsOfExperience", async () => {
+    const payload = {
+      country: "RS",
+      canWorkUsHours: true,
+      assignmentTypes: ["remote"],
+      modalities: ["contract"],
+      preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
+      expectedCompMin: 50000,
+      yearsOfExperience: 5.5,
+    };
+
+    const result = await updateApplicantPreferencesAction(
+      null,
+      makePreferencesFormData(payload),
+    );
+
+    expect(result?.success).toBe(false);
+  });
+
+  it("rejects expectedCompMin over 1,000,000", async () => {
+    const payload = {
+      country: "RS",
+      canWorkUsHours: true,
+      assignmentTypes: ["remote"],
+      modalities: ["contract"],
+      preferredCompliance: ["b2b"],
+      seniorityLevels: ["senior"],
+      expectedCompMin: 2000000,
+      yearsOfExperience: 5,
+    };
+
+    const result = await updateApplicantPreferencesAction(
+      null,
+      makePreferencesFormData(payload),
+    );
+
+    expect(result?.success).toBe(false);
+  });
 });

@@ -308,6 +308,22 @@ export const onboardingPayloadSchema = z
       .array(seniorityLevelsEnum)
       .min(1, "At least 1 seniority level is required"),
 
+    // WI4: User-collected preference fields (optional, never from LLM)
+    expectedCompMin: z
+      .number()
+      .int("Expected compensation must be an integer")
+      .min(0, "Expected compensation cannot be negative")
+      .max(1000000, "Expected compensation seems unreasonably high")
+      .nullable()
+      .default(null),
+    yearsOfExperience: z
+      .number()
+      .int("Years of experience must be an integer")
+      .min(0, "Years of experience cannot be negative")
+      .max(60, "Years of experience seems unreasonably high")
+      .nullable()
+      .default(null),
+
     // LLM-extracted, user-confirmed
     cvUploadId: z.string().uuid("cvUploadId must be a valid UUID"),
     workHistory: z

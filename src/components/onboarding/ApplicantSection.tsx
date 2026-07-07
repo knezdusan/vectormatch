@@ -32,6 +32,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { CANONICAL_TAG_MAP } from "@/lib/jobs/tech-tags";
 import type {
   AssignmentType,
@@ -97,6 +98,11 @@ type ApplicantSectionProps = {
   onPreferredComplianceChange: (next: PreferredCompliance[]) => void;
   seniorityLevels: SeniorityLevel[];
   onSeniorityLevelsChange: (next: SeniorityLevel[]) => void;
+  // WI4: Compensation + experience sliders
+  expectedCompMin: number | null;
+  onExpectedCompMinChange: (next: number | null) => void;
+  yearsOfExperience: number | null;
+  onYearsOfExperienceChange: (next: number | null) => void;
   errors?: FieldErrors<OnboardingPayloadInput>;
 };
 
@@ -120,6 +126,10 @@ export function ApplicantSection({
   onPreferredComplianceChange,
   seniorityLevels,
   onSeniorityLevelsChange,
+  expectedCompMin,
+  onExpectedCompMinChange,
+  yearsOfExperience,
+  onYearsOfExperienceChange,
   errors,
 }: ApplicantSectionProps) {
   const updateEntry = (
@@ -341,6 +351,68 @@ export function ApplicantSection({
               toggleArrayValue(seniorityLevels, value, onSeniorityLevelsChange)
             }
           />
+
+          {/* WI4: Compensation expectation slider */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="onboard-comp-min">
+                Minimum expected compensation (annual, USD)
+              </Label>
+              <Checkbox
+                id="onboard-comp-enabled"
+                checked={expectedCompMin !== null}
+                onCheckedChange={(checked) =>
+                  onExpectedCompMinChange(checked === true ? 0 : null)
+                }
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {expectedCompMin !== null
+                ? `$${expectedCompMin.toLocaleString()}/year — jobs below this will be deprioritized`
+                : "Not set — no compensation filtering applied"}
+            </p>
+            <Slider
+              id="onboard-comp-min"
+              min={0}
+              max={200000}
+              step={5000}
+              value={[expectedCompMin ?? 0]}
+              onValueChange={(values) =>
+                onExpectedCompMinChange(values[0] ?? 0)
+              }
+              disabled={expectedCompMin === null}
+            />
+          </div>
+
+          {/* WI4: Years of experience slider */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="onboard-years-exp">Years of experience</Label>
+              <Checkbox
+                id="onboard-exp-enabled"
+                checked={yearsOfExperience !== null}
+                onCheckedChange={(checked) =>
+                  onYearsOfExperienceChange(checked === true ? 0 : null)
+                }
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {yearsOfExperience !== null
+                ? `${yearsOfExperience} years`
+                : "Not set — no experience filtering applied"}
+            </p>
+            <Slider
+              id="onboard-years-exp"
+              min={0}
+              max={30}
+              step={1}
+              value={[yearsOfExperience ?? 0]}
+              onValueChange={(values) =>
+                onYearsOfExperienceChange(values[0] ?? 0)
+              }
+              disabled={yearsOfExperience === null}
+            />
+          </div>
         </CardContent>
       </Card>
     </section>

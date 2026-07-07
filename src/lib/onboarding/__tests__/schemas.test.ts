@@ -8,6 +8,7 @@
  *   - validateCvRawText pre-LLM guard
  */
 
+import { updatePreferencesSchema } from "@/lib/onboarding/profile-schemas";
 import {
   onboardingPayloadSchema,
   resumeExtractionSchema,
@@ -360,6 +361,130 @@ describe("onboardingPayloadSchema", () => {
     };
     const result = onboardingPayloadSchema.safeParse(payload);
     expect(result.success).toBe(true);
+  });
+
+  // ── WI4: expectedCompMin + yearsOfExperience ──────────────────────────────
+
+  it("defaults expectedCompMin and yearsOfExperience to null when omitted", () => {
+    const result = onboardingPayloadSchema.safeParse(validPayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.expectedCompMin).toBeNull();
+      expect(result.data.yearsOfExperience).toBeNull();
+    }
+  });
+
+  it("accepts valid expectedCompMin and yearsOfExperience", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      expectedCompMin: 60000,
+      yearsOfExperience: 7,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.expectedCompMin).toBe(60000);
+      expect(result.data.yearsOfExperience).toBe(7);
+    }
+  });
+
+  it("accepts null for both new fields", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      expectedCompMin: null,
+      yearsOfExperience: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects negative expectedCompMin", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      expectedCompMin: -1000,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects negative yearsOfExperience", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      yearsOfExperience: -1,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer yearsOfExperience", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      yearsOfExperience: 5.5,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects expectedCompMin over 1,000,000", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      expectedCompMin: 2000000,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects yearsOfExperience over 60", () => {
+    const result = onboardingPayloadSchema.safeParse({
+      ...validPayload,
+      yearsOfExperience: 65,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ─── updatePreferencesSchema (WI4) ───────────────────────────────────────────
+
+describe("updatePreferencesSchema", () => {
+  const validPrefs = {
+    country: "RS",
+    canWorkUsHours: true,
+    assignmentTypes: ["remote"],
+    modalities: ["full-time"],
+    preferredCompliance: ["b2b"],
+    seniorityLevels: ["senior"],
+  };
+
+  it("accepts valid preferences without the new fields (defaults to null)", () => {
+    const result = updatePreferencesSchema.safeParse(validPrefs);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.expectedCompMin).toBeNull();
+      expect(result.data.yearsOfExperience).toBeNull();
+    }
+  });
+
+  it("accepts valid expectedCompMin and yearsOfExperience", () => {
+    const result = updatePreferencesSchema.safeParse({
+      ...validPrefs,
+      expectedCompMin: 80000,
+      yearsOfExperience: 10,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.expectedCompMin).toBe(80000);
+      expect(result.data.yearsOfExperience).toBe(10);
+    }
+  });
+
+  it("rejects negative expectedCompMin", () => {
+    const result = updatePreferencesSchema.safeParse({
+      ...validPrefs,
+      expectedCompMin: -500,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-integer yearsOfExperience", () => {
+    const result = updatePreferencesSchema.safeParse({
+      ...validPrefs,
+      yearsOfExperience: 3.7,
+    });
+    expect(result.success).toBe(false);
   });
 });
 

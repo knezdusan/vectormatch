@@ -922,6 +922,7 @@ The existing `job` table (§2.1) needs these additions for Module B:
 2. **`lastSeenAt` (timestamp, notNull, default now)** — When the job was last seen in a poll. Updated on every re-poll. Drives stale detection.
 3. **`status` (text, notNull, default 'active')** — `active` | `stale` | `gone` | `rejected` | `normalization_failed`. Jobs not seen in 7 days → `stale`. Not seen in 30 days → `gone`. Module C's Gate 1+2 query must filter `WHERE status = 'active'`. `rejected` and `normalization_failed` are Module C statuses (set by `jobIngestedHandler`).
 4. **`normalizedText` (text, nullable, added June 29 2026 — G7)** — The cleaned full-text extracted from `rawJson` during normalization. After normalization, `rawJson` is NULLed and `normalizedText` retains the ~3KB cleaned text (vs. ~15KB rawJson). This is an 80% storage reduction per job. One-time backfill script: `scripts/backfill-normalized-text.ts` (4,491 jobs processed, ~31MB reclaimed).
+5. **`publishedAt` (timestamp, nullable, added July 2026)** — When the job was first published, extracted from ATS metadata where available (Greenhouse `first_published`, Lever `createdAt`, Ashby `publishedAt`, SmartRecruiters/Recruitee `releasedDate`, Workable `created_at`). Drives two independent freshness gates: (a) the 30-day injection-age cap prevents old listings from entering the corpus, and (b) the 60-day active-job age boundary determines when an already-ingested job should be marked `stale` by the daily cleanup. A `NULL` `publishedAt` is treated as unverified and rejected at injection time because all supported ATS sources provide a publish date.
 
 **New indexes:**
 - `uniqueIndex("job_unique_ats_job").on(atsSource, atsSlug, externalJobId)` — The deduplication anchor. A job is uniquely identified by `(ats_source, ats_slug, external_job_id)`.
@@ -1453,27 +1454,50 @@ Proxies are prematurely optimized for MVP. The rate limiter (`bottleneck` at 2 r
 
 **Trigger to add proxies:** When we see the first persistent 403 from an ATS that isn't a 404 (endpoint gone). At that point, add a proxy fallback layer *behind* the bottleneck rate limiter: `bottleneck (2 req/s) → direct request → on 403: retry through proxy`.
 
-#### 4.4.4 The Stale Job Problem — Detection and Cleanup
+#### 4.4.4 The Stale Job Problem — Detection, Retention, and Cleanup
 
-Jobs that have been filled or deleted by the company must be detected and excluded from matching. Two-phase stale detection:
+Jobs that have been filled or deleted by the company must be detected and excluded from matching. The retention model now uses three time horizons: a **30-day injection-age cap** (keeps old listings out), a **60-day active-job age boundary** (marks aged active jobs as stale), and a **90-day hard-delete boundary** (permanently removes ancient rows).
+
+**Phase 0 — Injection freshness gate (per job, inside `phalanx-poller.ts`):**
+Before a job is upserted, `isJobFreshForInjection(publishedAt)` checks whether `publishedAt` is within `MAX_JOB_INJECTION_AGE_DAYS` (default 30 days). Jobs older than this threshold are rejected at ingestion and reported as `jobsTooOld` in the poll result. A `NULL` `publishedAt` is also rejected because all supported ATS sources provide a publish date; treating a missing date as fresh would let unverifiable legacy postings bypass the gate.
+
+**Active/closed status gate (per job, inside `phalanx-poller.ts`):**
+`NormalizedJob.metadata.isActive` is set per source. Sources that expose explicit status (SmartRecruiters, Recruitee) reject jobs whose status is `closed`, `archived`, `filled`, `inactive`, etc. Sources whose public APIs only return live postings by contract (Greenhouse, Lever, Ashby, Workable) are assumed active. This filtering happens before the injection freshness gate.
 
 **Phase 1 — Mark as stale (after each poll):**
 After polling a company, jobs in the database for that `(atsSource, atsSlug)` that were *not* in the current fetch have their `lastSeenAt` left unchanged. Jobs that *were* in the fetch get `lastSeenAt = now()` and `status = "active"` (resurrected if previously stale).
 
-**Phase 2 — Mark as gone (daily Inngest function `poller/mark-stale-jobs`, `cron: "0 3 * * *"`):**
+**Phase 2 — Mark as gone / stale-by-age (daily Inngest function `poller/mark-stale-jobs`, `cron: "0 3 * * *"`):**
+Two mechanisms run in the same cleanup window:
+
+1. **Visibility-based cleanup** (unchanged): jobs not seen in 7 days → `stale`; jobs already `stale` and not seen in 30 days → `gone`.
+2. **Age-based cleanup** (added July 2026): active jobs whose `publishedAt` is older than `MAX_JOB_AGE_DAYS` (currently 60 days, relative to the cleanup run date) are marked `stale`. This catches postings that remain live on the ATS but are too old to be useful for candidates.
+
 ```sql
--- Jobs not seen in 7 days → "stale" (might come back, don't delete)
+-- Visibility-based stale/gone transitions
 UPDATE job SET status = 'stale'
 WHERE status = 'active' AND last_seen_at < NOW() - INTERVAL '7 days';
 
--- Jobs not seen in 30 days → "gone" (safe to exclude from matching)
 UPDATE job SET status = 'gone'
 WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
+
+-- Age-based staleness
+UPDATE job SET status = 'stale'
+WHERE status = 'active'
+  AND published_at IS NOT NULL
+  AND published_at < NOW() - INTERVAL '60 days';
 ```
+
+**Phase 3 — Hard delete ancient jobs (daily Inngest `aggressiveCleanup` + one-time script):**
+Jobs older than 90 days are permanently deleted because they have no matching value and consume storage/embedding budget. The `aggressiveCleanup` Inngest function calls `deleteAncientJobs(retentionDays = 90)`, which deletes `job` rows where `published_at < NOW() - INTERVAL '90 days'`. `match_queue` rows cascade automatically. A standalone one-time script, `scripts/hard-delete-ancient-jobs.ts`, is available for manual backfills; it defaults to dry-run mode and requires `DRY_RUN=false` to execute.
+
+**Operational note:** The first production run of the age-based purge (July 2026) marked 1,741 active jobs as `stale` and the subsequent hard-delete script removed 2,676 jobs older than 90 days.
 
 **Module C integration:** The 3-Gate query (§5.2) must filter `WHERE j.status = 'active'`. This ensures stale and gone jobs are never matched.
 
-**Why not delete gone jobs?** (1) The `matchQueue` table has a FK to `job` (`onDelete: cascade`) — deleting would lose match history. (2) If a company re-posts the same job (same `externalJobId`), the upsert resurrects it from `gone` to `active`.
+**Why hard-delete instead of keeping gone jobs forever?** Neon free-tier storage is capped at 512 MB. At scale, tens of thousands of `gone` jobs consume meaningful space and increase query/index maintenance. The 90-day hard delete removes rows that are extremely unlikely to be re-posted with the same `externalJobId`. Match history is intentionally sacrificed for storage sustainability; this is acceptable because the primary value is current matches, not historical archives.
+
+**Why not delete gone jobs during normal cleanup?** The normal `staleCleanup` function marks jobs `gone` but does not delete them, so a re-posted job (same `externalJobId`) can be resurrected by the upsert. The separate 90-day hard-delete path is an explicit, auditable retention decision rather than an accidental data loss.
 
 #### 4.4.5 Implementation Notes `[Status: Implemented]`
 
@@ -1483,14 +1507,17 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 |------|------|
 | `ats-adapters.ts` | Fetch + Zod validate + normalize per ATS platform. Returns unified `NormalizedJob[]`. Uses original JSON for `rawJson` to preserve all fields. Injectable `FetchFn`. **[Sprint 7]** Uses `fetchWithTimeout` for the jobs-list fetch (10s timeout). |
 | `job-repository.ts` | Job table upserts (`onConflictDoUpdate`), new job detection (for B→C handoff), stale cleanup (Phase 2: 7d→stale, 30d→gone), active job count. |
-| `company-state.ts` | Company polling state updates (lastPolledAt, health, consecutiveFailures). Auto-disables polling after 3 consecutive failures. HTTP status → health mapping (429→rate_limited, 403→blocked, 404→dead, 500+→error). |
+| `company-state.ts` | Company polling state updates (lastPolledAt, health, consecutiveFailures). Auto-disables polling after 3 consecutive failures. HTTP status → health mapping (429→rate_limited, 403→blocked, 404→dead, 500+→error). **[July 2026]** Added `backfillCompanyActiveJobCounts()` to recompute every company's `activeJobCount` after bulk purges. |
 | `tier-queries.ts` | Tier-based company queries for batch polling (active_hot every 3h, active every 12h, dormant weekly). Daily tier recalculation SQL (uses `::company_tier` enum cast for PostgreSQL compatibility). Single-company lookup by ID. |
-| `phalanx-poller.ts` | Core orchestrator: fetch → Gate 0 filter → upsert → emit `job/ingested` → update company state. Never throws — all errors caught and returned in `PollResult`. |
+| `phalanx-poller.ts` | Core orchestrator: fetch → Gate 0 filter → active-status filter → injection freshness gate → detail enrichment (SmartRecruiters/Greenhouse) → upsert → emit `job/ingested` → update company state. Never throws — all errors caught and returned in `PollResult`. |
 | `batch-poll.ts` | G5/G6 batch polling: polls up to 100 companies per function run. Per-company error isolation. Used by `batchPollActiveHot`, `batchPollActive`, `batchPollDormant` Inngest functions. |
 | `rate-limiter.ts` | Per-ATS Bottleneck limiters (2 req/s, 1 concurrent per platform). |
 | `schemas.ts` | Zod schemas for Inngest event payloads (`pollCompanyEventSchema`, `pollerRunEventSchema`, `jobIngestedEventSchema`). |
 | `fetch-with-timeout.ts` | **[Sprint 7]** Wraps injectable `FetchFn` with `AbortController`-based 10s timeout. Prevents indefinite hangs on unresponsive ATS endpoints. Used by `ats-adapters.ts` and `smartrecruiters-detail.ts`. |
 | `ingestion-log.ts` | **[Sprint 7]** `writeIngestionLog()` helper — fire-and-forget insert into `ingestionLog` table. Used by `batchPollTier` and `normalizationRetrySweep`. |
+| `cleanup-queries.ts` | **[July 2026]** SQL helpers for stale/age cleanup and hard-delete ancient jobs. Called by `staleCleanup` and `aggressiveCleanup`. |
+| `smartrecruiters-detail.ts` | **[Sprint 4]** Selective Tier 2 detail fetch for SmartRecruiters. **[July 2026]** Also checks the detail response `status` field and drops jobs reported as closed/archived/filled/etc. before upsert. |
+| `greenhouse-detail.ts` | **[Sprint 4]** Selective Tier 2 detail fetch for Greenhouse. Result shape includes `droppedInactive` for consistency with SmartRecruiters. |
 
 **Inngest function map (in `src/inngest/functions.ts`):**
 
@@ -1500,7 +1527,8 @@ WHERE status = 'stale' AND last_seen_at < NOW() - INTERVAL '30 days';
 | `batchPollTier` | cron `0 */3 * * *`, `0 */12 * * *`, `0 3 * * 1` | **[Sprint 7 refactor]** G5/G6 batch poll for all three tiers. Polls 100 companies per run in `POLL_CHUNK_SIZE` (10) chunks — each chunk is a separate `step.run()` so progress is checkpointed. After polling, queries DB for unnormalized jobs and emits `job/ingested` events (robust fallback for timeout/retry). Writes `batch_poll` ingestion log entries. Concurrency cap 5. |
 | `phalanxPoller` | `poller/run` event (manual) | Single-company poll by companyId (admin/testing). |
 | `tierRecalc` | cron `0 4 * * *` (daily 04:00 UTC) | Recalculates all company tiers based on activity. |
-| `staleCleanup` | cron `0 3 * * *` (daily 03:00 UTC) | Marks stale (7d) and gone (30d) jobs. |
+| `staleCleanup` | cron `0 3 * * *` (daily 03:00 UTC) | Marks stale (7d visibility), gone (30d visibility), and age-stale (`publishedAt` older than `MAX_JOB_AGE_DAYS`, currently 60d) jobs. |
+| `aggressiveCleanup` | cron `0 2 * * *` (daily 02:00 UTC) | **[July 2026]** Hard-deletes jobs older than 90 days and purges normalization-failed / rejected jobs when storage is critical. Runs before `staleCleanup`. |
 | `normalizationRetrySweep` | cron `0 6 * * *` (daily 06:00 UTC) | **[Sprint 7]** Re-emits `job/ingested` for stuck jobs: `normalization_failed` OR `active + normalizedAt IS NULL`. **[Sprint 8]** Limit raised to 500/run to clear backlog faster. |
 | `pipelineHealthMonitor` | cron `*/30 * * * *` (every 30 min) | **[Sprint 7]** Collects 8 pipeline metrics, evaluates thresholds, creates/resolves `pipeline_health` alerts. **[Sprint 8]** Expanded with 4 new metrics: approvedMatches24h, gate3ApprovalRate7d, unmatchedEmbeddedJobs, avgGate3Confidence. See §4.7.10. |
 | `matchBulkReprocess` | `match/bulk-reprocess` event (manual) | **[Sprint 8]** Retroactively matches existing active+embedded jobs against personas. Queries jobs NOT in match_queue (LIMIT 1000), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch. Concurrency limit 1. Triggered via admin dashboard "Run Bulk Reprocess" button. |
@@ -1521,12 +1549,15 @@ Module B (Poller)                          Module C (Router)
 1. Fetch JSON from ATS API
 2. Validate with Zod schema (safeParse)
 3. Gate 0: regex title filter
-4. Upsert into job table:
+4. Active-status filter (SmartRecruiters/Recruitee explicit status)
+5. Injection freshness gate (publishedAt within 30 days; NULL rejected)
+6. Detail enrichment (SmartRecruiters/Greenhouse Tier 2) — drops closed jobs
+7. Upsert into job table:
    - extractedTags = []  (empty)
    - jobEmbedding = null
    - status = "active"
    - rawJson = full ATS response (~15KB)
-5. If NEW job (not upsert):
+8. If NEW job (not upsert):
    emit "job/ingested" { jobId }  ──────►  1. Receive "job/ingested" event
                                              2. Fetch job from DB
                                              3. Extract canonical tags
@@ -1977,6 +2008,42 @@ Severity stack: `hard_pause` > `rate_reduction` > `normal`. Three-bucket denomin
 - `0045_tidy_hiroim.sql` — `frontend_job_scanner` added to `discovery_source` enum.
 
 **Verification:** 2,260 tests pass (110 files), 0 TS errors, 0 Biome errors. 28 new tests (company-scorer, big-tech-registry, brave-search-frontend, frontend-job-scanner, github-events-probe-orglist). Fallow false positives addressed via `.fallowrc.json` ignoreExports.
+
+#### 4.7.14 Sprint 11 — Ingestion Freshness & Retention Governance `[Status: Implemented — July 2026]`
+
+Post-alignment cleanup session focused on preventing stale/legacy job postings from entering the corpus, surfacing freshness to candidates and admins, and establishing explicit data-retention boundaries.
+
+**Injection Freshness Gate:** New 30-day hard cap in `src/lib/jobs/poller/phalanx-poller.ts` (`MAX_JOB_INJECTION_AGE_DAYS`, default 30). Jobs whose `publishedAt` is older than 30 days are rejected before upsert and reported as `jobsTooOld`. Jobs with `NULL` `publishedAt` are also rejected because all supported ATS sources provide a publish date. This prevents legacy/all-time postings from polluting the corpus. Tests updated in `phalanx-poller.test.ts` to include `first_published`/`releasedDate` in fixtures.
+
+**Active/Closed Status Filtering:** `JobMetadata` now includes `isActive`. Sources that expose explicit status (SmartRecruiters, Recruitee) reject closed/archived/filled/inactive postings. Sources whose public APIs only return live postings by contract (Greenhouse, Lever, Ashby, Workable) are assumed active. Filtering is applied in `phalanx-poller.ts` before the injection freshness gate.
+
+**Detail Enrichment Active-Status Check:** `src/lib/jobs/poller/smartrecruiters-detail.ts` now checks the detail response `status` field and drops jobs reported as closed/archived/filled/etc. before they reach the upsert. `src/lib/jobs/poller/greenhouse-detail.ts` result shape updated to include `droppedInactive: 0` for consistency. The dropped count feeds into the poller's `inactiveCount` metric.
+
+**Age-Based Stale Marking + Hard Delete:**
+- `MAX_JOB_AGE_DAYS` is set to 60 days. Active jobs whose `publishedAt` is older than 60 days are marked `stale` by the daily cleanup.
+- New `scripts/purge-stale-jobs-by-age.ts` one-time backfill marked 1,741 active jobs as `stale` (relative to 2026-05-08).
+- New 90-day hard-delete boundary: `scripts/hard-delete-ancient-jobs.ts` deletes jobs older than 90 days (defaults to dry-run; requires `DRY_RUN=false` to execute). First run removed 2,676 jobs.
+- `src/lib/jobs/poller/cleanup-queries.ts` → `deleteAncientJobs(retentionDays = 90)` is wired into the existing `aggressiveCleanup` Inngest function (daily 02:00 UTC). `match_queue` rows cascade automatically.
+
+**Company Active Job Count Backfill:** `src/lib/jobs/poller/company-state.ts` → `backfillCompanyActiveJobCounts()` recomputes every company's `activeJobCount` from current active `job` rows (joined by `atsSource` + `atsSlug`). New script `scripts/backfill-active-job-counts.ts` runs it. Use after bulk purges to keep company counts accurate.
+
+**Admin Dashboard — Staleness Analytics:**
+- `src/lib/jobs/ingestion-analytics.ts` → `getJobStalenessDistribution()` buckets active jobs by age (`<1d`, `2-7d`, `8-30d`, `30-60d`, `>60d`) overall and per source.
+- `src/components/admin/JobStalenessDistribution.tsx` displays the distribution in two tables (overall + per source). `8-30d` is highlighted yellow, `30-60d` and `>60d` red.
+- `src/components/admin/StalenessDistributionChart.tsx` adds a Recharts bar chart to the same card using the same color scheme.
+
+**Admin Dashboard — Old-Job Rate Alert:**
+- `src/lib/jobs/ingestion-analytics.ts` → `getHighOldJobRateAlerts()` queries recent `ingestion_log` entries and flags any source where >30% of fetched jobs were rejected as too old for injection.
+- `src/components/admin/OldJobRateAlertPanel.tsx` renders a yellow alert card on the Ingestion tab when triggered.
+- Refactored from an async Server Component to a `"use client"` component that receives alerts via props; `src/components/admin/IngestionAnalytics.tsx` fetches them server-side and passes them down.
+
+**Public Listings — Freshness Badges:** `src/components/jobs/JobCard.tsx` now renders a color-coded "Posted X ago" badge: green (<7d), yellow (7–30d), red (>30d). Tooltip explains the scale and that the date is `publishedAt` (or `detectedAt` fallback).
+
+**Hydration Fix — Radix Tooltip in Server Components:** `src/components/admin/InfrastructureHealth.tsx` was a Server Component that rendered `Tooltip`/`TooltipTrigger` inline, causing a React hydration mismatch because Radix injects client-only attributes. Fixed by extracting the tooltip-wrapped progress bar into a dedicated `"use client"` component (`src/components/admin/NeonStorageTooltip.tsx`) and using it from the Server Component. Pattern applies to any Server Component using Radix client primitives.
+
+**Files touched:** `src/lib/jobs/poller/phalanx-poller.ts`, `src/lib/jobs/poller/company-state.ts`, `src/lib/jobs/poller/cleanup-queries.ts`, `src/lib/jobs/poller/smartrecruiters-detail.ts`, `src/lib/jobs/poller/greenhouse-detail.ts`, `src/lib/jobs/ingestion-analytics.ts`, `src/lib/jobs/job-normalizer.ts` (metadata `isActive`), `src/components/jobs/JobCard.tsx`, `src/components/admin/IngestionAnalytics.tsx`, `src/components/admin/JobStalenessDistribution.tsx`, `src/components/admin/StalenessDistributionChart.tsx`, `src/components/admin/OldJobRateAlertPanel.tsx`, `src/components/admin/InfrastructureHealth.tsx`, `src/components/admin/NeonStorageTooltip.tsx`, `src/inngest/functions.ts`, plus new scripts under `scripts/`.
+
+**Verification:** `npm run build`, `npx tsc --noEmit`, `npx biome check`, and targeted Vitest poller/detail tests pass. No new migrations required.
 
 ---
 

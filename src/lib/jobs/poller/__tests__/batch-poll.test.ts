@@ -21,7 +21,10 @@ vi.mock("@/db/db", () => ({
 }));
 
 // Import getBatchForTier after mocking db
-import { getBatchForTier } from "@/lib/jobs/poller/tier-queries";
+import {
+  getBatchForTier,
+  getNeverPolledBatch,
+} from "@/lib/jobs/poller/tier-queries";
 
 // =============================================================================
 // cronToTier — maps cron trigger strings to company tiers
@@ -172,5 +175,110 @@ describe("getBatchForTier", () => {
       await getBatchForTier(tier);
       expect(selectMock).toHaveBeenCalledTimes(1);
     }
+  });
+});
+
+// =============================================================================
+// getNeverPolledBatch — queries never-polled companies for the backlog sweeper
+// (WI2 — Poll Backlog Sweeper)
+// =============================================================================
+
+describe("getNeverPolledBatch", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns never-polled companies ordered by discoveredAt ASC with limit", async () => {
+    const { db } = await import("@/db/db");
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+
+    const mockCompanies = [
+      {
+        id: "c1",
+        atsSource: "workable",
+        atsSlug: "n26",
+        companyName: "N26",
+      },
+      {
+        id: "c2",
+        atsSource: "smartrecruiters",
+        atsSlug: "endava",
+        companyName: "Endava",
+      },
+    ];
+
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve(mockCompanies)),
+          })),
+        })),
+      })),
+    });
+
+    const result = await getNeverPolledBatch(500);
+
+    expect(result).toEqual(mockCompanies);
+    expect(result).toHaveLength(2);
+    expect(selectMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns empty array when all companies have been polled", async () => {
+    const { db } = await import("@/db/db");
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve([])),
+          })),
+        })),
+      })),
+    });
+
+    const result = await getNeverPolledBatch(500);
+    expect(result).toEqual([]);
+  });
+
+  it("defaults to batch size 500 when no limit specified", async () => {
+    const { db } = await import("@/db/db");
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+
+    const limitFn = vi.fn(() => Promise.resolve([]));
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn(() => ({
+            limit: limitFn,
+          })),
+        })),
+      })),
+    });
+
+    await getNeverPolledBatch();
+
+    expect(limitFn).toHaveBeenCalledWith(500);
+  });
+
+  it("accepts a custom limit", async () => {
+    const { db } = await import("@/db/db");
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+
+    const limitFn = vi.fn(() => Promise.resolve([]));
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          orderBy: vi.fn(() => ({
+            limit: limitFn,
+          })),
+        })),
+      })),
+    });
+
+    await getNeverPolledBatch(250);
+
+    expect(limitFn).toHaveBeenCalledWith(250);
   });
 });

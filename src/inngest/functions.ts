@@ -574,6 +574,237 @@ export const batchPollTier = inngest.createFunction(
 );
 
 /**
+ * Backlog Sweeper Batch Size — companies per pollBacklogSweeper run.
+ *
+ * Matches BATCH_SIZE (500). At 500/hour the 6,516 never-polled backlog clears
+ * in ~13 hours. Each company poll is rate-limited per ATS via Bottleneck
+ * (2 req/s), so 500 companies × ~0.5s ≈ 250s — under the 300s route
+ * maxDuration. POLL_CHUNK_SIZE=10 ensures checkpointed progress.
+ */
+const BACKLOG_BATCH_SIZE = 500;
+
+/**
+ * Poll Backlog Sweeper — dedicated hourly cron that targets companies which
+ * have NEVER been polled (WI2 — Polling Bottleneck fix).
+ *
+ * Problem: `batchPollTier` polls 500 companies per run, but the active tier
+ * (9,127 companies) only completes ~288-566 per 12h run due to chunk timeouts
+ * and slow ATS endpoints. At that rate, the 6,516 never-polled backlog takes
+ * ~11 days to clear. This sweeper runs hourly and queries exclusively
+ * `last_polled_at IS NULL` companies, clearing the backlog in ~13 hours.
+ *
+ * The `getNeverPolledBatch` query excludes the `dead` tier and orders by
+ * `discoveredAt ASC` (oldest discoveries first). Once the backlog is cleared,
+ * this function becomes a no-op (returns 0 companies) and costs nothing.
+ *
+ * Concurrency: limit 1. The per-ATS Bottleneck rate limiter (2 req/s) is
+ * shared with `batchPollTier`, so concurrent execution is safe but we cap at
+ * 1 to avoid doubling total HTTP load when both functions fire simultaneously.
+ *
+ * Reuses the same chunked polling + event-driven normalization pattern as
+ * `batchPollTier` (Sprint 7 healthcheck fix): each POLL_CHUNK_SIZE chunk is
+ * a separate step.run() so progress is checkpointed monotonically.
+ */
+export const pollBacklogSweeper = inngest.createFunction(
+  {
+    id: "poller-backlog-sweeper",
+    name: "Poll Backlog Sweeper",
+    triggers: [{ cron: "0 * * * *" }], // every hour
+    concurrency: { limit: 1 },
+  },
+  async ({ step }) => {
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    // Storage guard — same as batchPollTier. Skip if DB is near Neon limit or
+    // the normalizer is behind, to avoid adding more unnormalized jobs.
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForIngestion } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForIngestion();
+    });
+    if (!storage.allow) {
+      console.warn(
+        `[storage guard] pollBacklogSweeper skipped: ${storage.reason}`,
+      );
+      await step.run("write-log-storage-blocked", async () => {
+        return writeIngestionLog({
+          type: "batch_poll",
+          status: "partial",
+          source: "backlog_sweeper",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          errorMessage: storage.reason,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return {
+        polled: 0,
+        newJobs: 0,
+        eventsEmitted: 0,
+        storageBlocked: true,
+      };
+    }
+
+    // Step 1: Get never-polled companies (excludes dead tier).
+    const companies = await step.run("get-never-polled-batch", async () => {
+      const { getNeverPolledBatch } = await import(
+        "@/lib/jobs/poller/tier-queries"
+      );
+      return getNeverPolledBatch(BACKLOG_BATCH_SIZE);
+    });
+
+    if (companies.length === 0) {
+      await step.run("write-log-empty", async () => {
+        return writeIngestionLog({
+          type: "batch_poll",
+          status: "success",
+          source: "backlog_sweeper",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return { polled: 0, newJobs: 0, eventsEmitted: 0, backlogCleared: true };
+    }
+
+    // Step 2: Poll companies in chunks (same pattern as batchPollTier).
+    const pollResults: Array<{
+      companyId: string;
+      atsSource: string;
+      atsSlug: string;
+      newJobIds: string[];
+      error?: string;
+    }> = [];
+
+    for (let i = 0; i < companies.length; i += POLL_CHUNK_SIZE) {
+      const chunk = companies.slice(i, i + POLL_CHUNK_SIZE);
+      const stepName = `backlog-poll-chunk-${Math.floor(i / POLL_CHUNK_SIZE) + 1}`;
+
+      const chunkResults = await step.run(stepName, async () => {
+        const { pollCompany } = await import(
+          "@/lib/jobs/poller/phalanx-poller"
+        );
+        const results: typeof pollResults = [];
+        for (const c of chunk) {
+          try {
+            const result = await pollCompany(
+              c.id,
+              c.atsSource,
+              c.atsSlug,
+              fetch,
+            );
+            results.push({
+              companyId: c.id,
+              atsSource: c.atsSource,
+              atsSlug: c.atsSlug,
+              newJobIds: result.newJobIds,
+            });
+          } catch (e) {
+            results.push({
+              companyId: c.id,
+              atsSource: c.atsSource,
+              atsSlug: c.atsSlug,
+              newJobIds: [],
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
+        }
+        return results;
+      });
+
+      pollResults.push(...chunkResults);
+    }
+
+    const allNewJobIds = pollResults.flatMap((r) => r.newJobIds);
+    const errorCount = pollResults.filter((r) => r.error).length;
+
+    // Step 3: Find unnormalized jobs from the polled companies (DB fallback).
+    const unnormalizedJobs = await step.run("find-unnormalized", async () => {
+      const { sql, inArray } = await import("drizzle-orm");
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+
+      const polledSlugs = companies.map((c) => c.atsSlug);
+      const polledSources = [...new Set(companies.map((c) => c.atsSource))];
+
+      const result = await db
+        .select({
+          id: job.id,
+          atsSource: job.atsSource,
+          atsSlug: job.atsSlug,
+        })
+        .from(job)
+        .where(
+          sql`(${job.status} = 'normalization_failed'
+               OR (${job.status} = 'active' AND ${job.normalizedAt} IS NULL))
+              AND ${job.rawJson} IS NOT NULL
+              AND ${inArray(job.atsSource, polledSources)}
+              AND ${inArray(job.atsSlug, polledSlugs)}`,
+        )
+        .orderBy(job.detectedAt)
+        .limit(500);
+
+      return result;
+    });
+
+    // Step 4: Emit job/ingested events for unnormalized jobs.
+    if (unnormalizedJobs.length > 0) {
+      await step.sendEvent(
+        "emit-job-ingested",
+        unnormalizedJobs.map((j) => ({
+          id: `job-ingested-backlog-${j.id}-${Date.now()}`,
+          name: "job/ingested",
+          data: {
+            jobId: j.id,
+            atsSource: j.atsSource,
+            atsSlug: j.atsSlug,
+            isNew: false,
+          },
+        })),
+      );
+    }
+
+    // Step 5: Write ingestion log.
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "batch_poll",
+        status: errorCount > 0 ? "partial" : "success",
+        source: "backlog_sweeper",
+        itemsProcessed: companies.length,
+        itemsInserted: allNewJobIds.length,
+        itemsUpdated: 0,
+        itemsRejected: errorCount,
+        itemsSkipped:
+          companies.length -
+          pollResults.filter((r) => r.newJobIds.length > 0).length,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return {
+      polled: companies.length,
+      newJobs: allNewJobIds.length,
+      eventsEmitted: unnormalizedJobs.length,
+      errors: errorCount,
+    };
+  },
+);
+
+/**
  * Manual Poll Trigger — polls a single company by ID (for admin/testing).
  *
  * Triggered by: `poller/run` event with a companyId
@@ -1237,6 +1468,469 @@ export const normalizationRetrySweep = inngest.createFunction(
     });
 
     return { retried: stuckJobs.length };
+  },
+);
+
+// ── WI3: Direct Job Board Ingestion ─────────────────────────────────────────
+
+/**
+ * Direct Job Board Ingestion — daily cron that fetches jobs from remote-first
+ * job boards with structured APIs, bypassing the ATS poller entirely (WI3).
+ *
+ * Targets the tech-stack gap (frontend/PHP/Laravel) and the remote-scope
+ * problem (every job on these boards is remote by definition). Direct
+ * ingestion is 1 hop: API call → job record, with no LLM normalization.
+ *
+ * Phase 1 boards (WI3):
+ *   - Himalayas:  GET https://himalayas.app/jobs/api (104K+ global remote jobs)
+ *   - RemoteOK:   GET https://remoteok.com/api (2K+ global remote jobs)
+ *   - NoFluffJobs: GET https://nofluffjobs.com/api/posting (~11K jobs, single response)
+ *   - JustJoin:   GET (endpoint 404 as of July 2026 — skipped)
+ *
+ * Flow per board:
+ *   1. Fetch jobs from the board API (paginated for Himalayas)
+ *   2. Filter by persona tech-stack overlap (React/Next/TS/JS/Vue/PHP/Laravel)
+ *   3. Upsert into the job table with structured fields set directly:
+ *      - extractedTags from the board's tags (no LLM extraction)
+ *      - workplaceType="remote", remoteScope="global" (remote-first boards)
+ *      - compensationMin/Max from the board's salary fields
+ *      - normalizedText from the board's description (no LLM summarization)
+ *      - normalizedAt=now (marks as normalized — prevents jobIngestedHandler
+ *        from re-processing via LLM)
+ *   4. Generate embeddings via text-embedding-3-small for Gate 2 vector search
+ *   5. Write ingestion log for observability
+ *
+ * Gate routing (Gate 0.5 + Gate 1+2 + Gate 3) is NOT done here — the
+ * jobIngestedHandler skips jobs where normalizedAt IS NOT NULL. Instead, run
+ * `direct-gate-routing.ts` after ingestion to route the new jobs through the
+ * matching pipeline (WI3 Step 7).
+ *
+ * Concurrency: limit 1. Embedding API calls are sequential to respect OpenAI
+ * rate limits. The daily cron gives ample time (24h between runs).
+ *
+ * Triggered by: cron "0 5 * * *" (daily at 05:00 UTC — after resurrection sweep).
+ */
+export const directJobBoardIngestion = inngest.createFunction(
+  {
+    id: "direct-job-board-ingestion",
+    name: "Direct Job Board Ingestion",
+    triggers: [{ cron: "0 5 * * *" }],
+    concurrency: { limit: 1 },
+  },
+  async ({ step }) => {
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+    const startedAt = new Date();
+
+    // Storage guard — skip if DB is near Neon limit.
+    const storage = await step.run("check-storage", async () => {
+      const { isStorageSafeForIngestion } = await import(
+        "@/lib/jobs/storage-check"
+      );
+      return isStorageSafeForIngestion();
+    });
+    if (!storage.allow) {
+      console.warn(
+        `[storage guard] directJobBoardIngestion skipped: ${storage.reason}`,
+      );
+      await step.run("write-log-storage-blocked", async () => {
+        return writeIngestionLog({
+          type: "backfill",
+          status: "partial",
+          source: "direct_job_boards",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          errorMessage: storage.reason,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return { storageBlocked: true, totalIngested: 0 };
+    }
+
+    // Import adapters + filter + upsert
+    const { hasPersonaTechOverlap } = await import(
+      "@/lib/jobs/direct-ingestion/filter"
+    );
+    const { fetchHimalayasJobs } = await import(
+      "@/lib/jobs/direct-ingestion/himalayas"
+    );
+    const { fetchRemoteOKJobs } = await import(
+      "@/lib/jobs/direct-ingestion/remoteok"
+    );
+    const { fetchNoFluffJobs } = await import(
+      "@/lib/jobs/direct-ingestion/nofluffjobs"
+    );
+    const { fetchArbeitnowJobs } = await import(
+      "@/lib/jobs/direct-ingestion/arbeitnow"
+    );
+    const { fetchRemotiveJobs } = await import(
+      "@/lib/jobs/direct-ingestion/remotive"
+    );
+    const { fetchWeWorkRemotelyJobs } = await import(
+      "@/lib/jobs/direct-ingestion/weworkremotely"
+    );
+    const { upsertDirectJobs } = await import(
+      "@/lib/jobs/direct-ingestion/upsert"
+    );
+    type DirectIngestionJob =
+      import("@/lib/jobs/direct-ingestion/types").DirectIngestionJob;
+
+    // Tech filter function — shared across all boards
+    const techFilter = (j: {
+      tags: string[];
+      title: string;
+      description: string;
+    }) => hasPersonaTechOverlap(j.tags, j.title, j.description);
+
+    // Embedding function — imported lazily to avoid loading OpenAI at module level
+    const embedFn = async (text: string): Promise<number[]> => {
+      const { embedJob } = await import("@/lib/jobs/job-embedder");
+      return embedJob(text);
+    };
+
+    const boardResults: Array<{
+      board: string;
+      success: boolean;
+      ingested: number;
+      error: string | null;
+    }> = [];
+
+    // ── Board 1: Himalayas ──────────────────────────────────────────────────
+    const himalayasResult = await step.run("fetch-himalayas", async () => {
+      const result = await fetchHimalayasJobs(500, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
+
+    if (himalayasResult.success && himalayasResult.jobs.length > 0) {
+      // step.run() may serialize Date → string. Rebuild with proper Date types.
+      const jobsForUpsert: DirectIngestionJob[] = himalayasResult.jobs.map(
+        (j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        }),
+      );
+      const upsertResult = await step.run("upsert-himalayas", async () => {
+        return upsertDirectJobs(
+          "himalayas_direct",
+          "himalayas_direct",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "Himalayas",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!himalayasResult.success) {
+      boardResults.push({
+        board: "Himalayas",
+        success: false,
+        ingested: 0,
+        error: himalayasResult.error,
+      });
+    }
+
+    // ── Board 2: RemoteOK ───────────────────────────────────────────────────
+    const remoteokResult = await step.run("fetch-remoteok", async () => {
+      const result = await fetchRemoteOKJobs(500, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
+
+    if (remoteokResult.success && remoteokResult.jobs.length > 0) {
+      const jobsForUpsert: DirectIngestionJob[] = remoteokResult.jobs.map(
+        (j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        }),
+      );
+      const upsertResult = await step.run("upsert-remoteok", async () => {
+        return upsertDirectJobs(
+          "remoteok_direct",
+          "remoteok_direct",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "RemoteOK",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!remoteokResult.success) {
+      boardResults.push({
+        board: "RemoteOK",
+        success: false,
+        ingested: 0,
+        error: remoteokResult.error,
+      });
+    }
+
+    // ── Board 3: NoFluffJobs ────────────────────────────────────────────────
+    const nofluffResult = await step.run("fetch-nofluffjobs", async () => {
+      const result = await fetchNoFluffJobs(1000, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
+
+    if (nofluffResult.success && nofluffResult.jobs.length > 0) {
+      const jobsForUpsert: DirectIngestionJob[] = nofluffResult.jobs.map(
+        (j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        }),
+      );
+      const upsertResult = await step.run("upsert-nofluffjobs", async () => {
+        return upsertDirectJobs(
+          "nofluffjobs",
+          "nofluffjobs",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "NoFluffJobs",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!nofluffResult.success) {
+      boardResults.push({
+        board: "NoFluffJobs",
+        success: false,
+        ingested: 0,
+        error: nofluffResult.error,
+      });
+    }
+
+    // JustJoin is skipped — API broken as of July 2026 (404 on all endpoints).
+
+    // ── Board 4: Arbeitnow ──────────────────────────────────────────────────
+    const arbeitnowResult = await step.run("fetch-arbeitnow", async () => {
+      const result = await fetchArbeitnowJobs(500, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
+
+    if (arbeitnowResult.success && arbeitnowResult.jobs.length > 0) {
+      const jobsForUpsert: DirectIngestionJob[] = arbeitnowResult.jobs.map(
+        (j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        }),
+      );
+      const upsertResult = await step.run("upsert-arbeitnow", async () => {
+        return upsertDirectJobs(
+          "arbeitnow",
+          "arbeitnow",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "Arbeitnow",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!arbeitnowResult.success) {
+      boardResults.push({
+        board: "Arbeitnow",
+        success: false,
+        ingested: 0,
+        error: arbeitnowResult.error,
+      });
+    }
+
+    // ── Board 5: Remotive ───────────────────────────────────────────────────
+    const remotiveResult = await step.run("fetch-remotive", async () => {
+      const result = await fetchRemotiveJobs(500, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
+
+    if (remotiveResult.success && remotiveResult.jobs.length > 0) {
+      const jobsForUpsert: DirectIngestionJob[] = remotiveResult.jobs.map(
+        (j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        }),
+      );
+      const upsertResult = await step.run("upsert-remotive", async () => {
+        return upsertDirectJobs("remotive", "remotive", jobsForUpsert, embedFn);
+      });
+      boardResults.push({
+        board: "Remotive",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!remotiveResult.success) {
+      boardResults.push({
+        board: "Remotive",
+        success: false,
+        ingested: 0,
+        error: remotiveResult.error,
+      });
+    }
+
+    // ── Board 6: WeWorkRemotely ─────────────────────────────────────────────
+    const wwrResult = await step.run("fetch-weworkremotely", async () => {
+      const result = await fetchWeWorkRemotelyJobs(200, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
+
+    if (wwrResult.success && wwrResult.jobs.length > 0) {
+      const jobsForUpsert: DirectIngestionJob[] = wwrResult.jobs.map((j) => ({
+        ...j,
+        publishedAt: j.publishedAt
+          ? new Date(j.publishedAt as unknown as string)
+          : null,
+      }));
+      const upsertResult = await step.run("upsert-weworkremotely", async () => {
+        return upsertDirectJobs(
+          "weworkremotely",
+          "weworkremotely",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "WeWorkRemotely",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!wwrResult.success) {
+      boardResults.push({
+        board: "WeWorkRemotely",
+        success: false,
+        ingested: 0,
+        error: wwrResult.error,
+      });
+    }
+
+    // ── Write ingestion log ─────────────────────────────────────────────────
+    const totalIngested = boardResults.reduce((sum, r) => sum + r.ingested, 0);
+    const anyErrors = boardResults.some((r) => !r.success);
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "backfill",
+        status: anyErrors ? "partial" : "success",
+        source: "direct_job_boards",
+        itemsProcessed: totalIngested,
+        itemsInserted: totalIngested,
+        itemsUpdated: 0,
+        itemsRejected: boardResults.filter((r) => !r.success).length,
+        itemsSkipped: 0,
+        errorMessage: anyErrors
+          ? boardResults
+              .filter((r) => !r.success)
+              .map((r) => `${r.board}: ${r.error}`)
+              .join("; ")
+          : undefined,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return {
+      boards: boardResults,
+      totalIngested,
+    };
   },
 );
 

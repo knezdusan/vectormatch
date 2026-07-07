@@ -39,6 +39,25 @@ export const updatePreferencesSchema = z.object({
   // When empty, Gate 3 soft-fail-opens on the work-auth check but may still set
   // workAuthRiskFlag for hybrid/single-country-remote roles.
   workAuthorizations: z.array(workAuthorizationsEnum).default([]),
+  // WI4: Compensation expectation (annual, USD). Nullable — user may skip.
+  // Stored as numeric in the DB (expected_comp_min). Drizzle returns string,
+  // so we accept number | null here and convert to string in the action.
+  expectedCompMin: z
+    .number()
+    .int("Expected compensation must be an integer")
+    .min(0, "Expected compensation cannot be negative")
+    .max(1000000, "Expected compensation seems unreasonably high")
+    .nullable()
+    .default(null),
+  // WI4: Years of experience. Nullable — user may skip.
+  // Stored as integer in the DB (years_of_experience).
+  yearsOfExperience: z
+    .number()
+    .int("Years of experience must be an integer")
+    .min(0, "Years of experience cannot be negative")
+    .max(60, "Years of experience seems unreasonably high")
+    .nullable()
+    .default(null),
 });
 
 // =============================================================================

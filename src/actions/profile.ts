@@ -134,6 +134,10 @@ export async function updateApplicantPreferencesAction(
         preferredCompliance: data.preferredCompliance,
         seniorityLevels: data.seniorityLevels,
         workAuthorizations: data.workAuthorizations,
+        // WI4: New preference fields — numeric column expects string | null
+        expectedCompMin:
+          data.expectedCompMin !== null ? String(data.expectedCompMin) : null,
+        yearsOfExperience: data.yearsOfExperience,
       })
       .where(eq(applicant.userId, session.user.id));
 

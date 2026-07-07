@@ -64,6 +64,9 @@ function extractionToFormDefaults(
     seniorityLevels: extraction.inferred_seniority
       ? [extraction.inferred_seniority]
       : ["senior"],
+    // WI4: Initialize new preference fields as null (user opts in via checkbox)
+    expectedCompMin: null,
+    yearsOfExperience: null,
     cvUploadId,
     workHistory: extraction.roles.map((role) => ({
       company: role.company,
@@ -130,6 +133,8 @@ export function OnboardingReview({
   const modalities = form.watch("modalities");
   const preferredCompliance = form.watch("preferredCompliance");
   const seniorityLevels = form.watch("seniorityLevels");
+  const expectedCompMin = form.watch("expectedCompMin");
+  const yearsOfExperience = form.watch("yearsOfExperience");
   const personas = form.watch("personas");
 
   // The full pool of canonical skills detected across all roles — used by
@@ -215,6 +220,14 @@ export function OnboardingReview({
             seniorityLevels={seniorityLevels}
             onSeniorityLevelsChange={(next) =>
               form.setValue("seniorityLevels", next, { shouldDirty: true })
+            }
+            expectedCompMin={expectedCompMin ?? null}
+            onExpectedCompMinChange={(next) =>
+              form.setValue("expectedCompMin", next, { shouldDirty: true })
+            }
+            yearsOfExperience={yearsOfExperience ?? null}
+            onYearsOfExperienceChange={(next) =>
+              form.setValue("yearsOfExperience", next, { shouldDirty: true })
             }
             errors={form.formState.errors}
           />

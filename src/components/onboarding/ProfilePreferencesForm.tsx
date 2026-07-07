@@ -10,6 +10,7 @@ import { useActionToast } from "@/components/onboarding/useActionToast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import type { Applicant } from "@/db/schemas/jobs/applicant";
 import type {
   AssignmentType,
@@ -149,6 +150,26 @@ export function ProfilePreferencesForm({
     WorkAuthorization[]
   >((applicant.workAuthorizations ?? []) as WorkAuthorization[]);
 
+  // WI4: Compensation + experience sliders
+  // expectedCompMin is stored as numeric (string) in DB — parse to number | null
+  const parsedCompMin = applicant.expectedCompMin
+    ? Number(applicant.expectedCompMin)
+    : null;
+  const [expectedCompMin, setExpectedCompMin] = useState<number>(
+    parsedCompMin !== null && !Number.isNaN(parsedCompMin) ? parsedCompMin : 0,
+  );
+  // 0 means "not set" — we use a boolean to track whether the user has set a value
+  const [compEnabled, setCompEnabled] = useState<boolean>(
+    parsedCompMin !== null && !Number.isNaN(parsedCompMin),
+  );
+
+  const [yearsOfExperience, setYearsOfExperience] = useState<number>(
+    applicant.yearsOfExperience ?? 0,
+  );
+  const [expEnabled, setExpEnabled] = useState<boolean>(
+    applicant.yearsOfExperience !== null,
+  );
+
   const reset = () => {
     setCountry(applicant.country ?? "");
     setCanWorkUsHours(applicant.canWorkUsHours ?? false);
@@ -161,6 +182,15 @@ export function ProfilePreferencesForm({
     setWorkAuthorizations(
       (applicant.workAuthorizations ?? []) as WorkAuthorization[],
     );
+    const resetCompMin = applicant.expectedCompMin
+      ? Number(applicant.expectedCompMin)
+      : null;
+    setExpectedCompMin(
+      resetCompMin !== null && !Number.isNaN(resetCompMin) ? resetCompMin : 0,
+    );
+    setCompEnabled(resetCompMin !== null && !Number.isNaN(resetCompMin));
+    setYearsOfExperience(applicant.yearsOfExperience ?? 0);
+    setExpEnabled(applicant.yearsOfExperience !== null);
   };
 
   useActionToast(
@@ -195,6 +225,9 @@ export function ProfilePreferencesForm({
         preferredCompliance,
         seniorityLevels,
         workAuthorizations,
+        // WI4: Only send values when the user has enabled the slider
+        expectedCompMin: compEnabled ? expectedCompMin : null,
+        yearsOfExperience: expEnabled ? yearsOfExperience : null,
       }),
     );
     startTransition(() => {
@@ -356,6 +389,60 @@ export function ProfilePreferencesForm({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* WI4: Compensation expectation slider */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="profile-comp-min">
+            Minimum expected compensation (annual, USD)
+          </Label>
+          <Checkbox
+            id="profile-comp-enabled"
+            checked={compEnabled}
+            onCheckedChange={(checked) => setCompEnabled(checked === true)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {compEnabled
+            ? `$${expectedCompMin.toLocaleString()}/year — jobs below this will be deprioritized`
+            : "Not set — no compensation filtering applied"}
+        </p>
+        <Slider
+          id="profile-comp-min"
+          min={0}
+          max={200000}
+          step={5000}
+          value={[expectedCompMin]}
+          onValueChange={(values) => setExpectedCompMin(values[0] ?? 0)}
+          disabled={!compEnabled}
+        />
+      </div>
+
+      {/* WI4: Years of experience slider */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="profile-years-exp">Years of experience</Label>
+          <Checkbox
+            id="profile-exp-enabled"
+            checked={expEnabled}
+            onCheckedChange={(checked) => setExpEnabled(checked === true)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {expEnabled
+            ? `${yearsOfExperience} years`
+            : "Not set — no experience filtering applied"}
+        </p>
+        <Slider
+          id="profile-years-exp"
+          min={0}
+          max={30}
+          step={1}
+          value={[yearsOfExperience]}
+          onValueChange={(values) => setYearsOfExperience(values[0] ?? 0)}
+          disabled={!expEnabled}
+        />
       </div>
 
       <ProfileFormFooter

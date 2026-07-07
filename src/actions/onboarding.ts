@@ -281,6 +281,10 @@ export async function finalizeOnboardingAction(
           modalities: data.modalities,
           preferredCompliance: data.preferredCompliance,
           seniorityLevels: data.seniorityLevels,
+          // WI4: New preference fields
+          expectedCompMin:
+            data.expectedCompMin !== null ? String(data.expectedCompMin) : null,
+          yearsOfExperience: data.yearsOfExperience,
           isOnboarded: true,
         })
         .onConflictDoUpdate({
@@ -292,6 +296,12 @@ export async function finalizeOnboardingAction(
             modalities: data.modalities,
             preferredCompliance: data.preferredCompliance,
             seniorityLevels: data.seniorityLevels,
+            // WI4: New preference fields
+            expectedCompMin:
+              data.expectedCompMin !== null
+                ? String(data.expectedCompMin)
+                : null,
+            yearsOfExperience: data.yearsOfExperience,
             isOnboarded: true,
           },
         });

@@ -76,6 +76,44 @@ export async function getBatchForTier(
   return rows;
 }
 
+/**
+ * Get a batch of companies that have NEVER been polled, regardless of tier.
+ * (WI2 — Poll Backlog Sweeper)
+ *
+ * Targets the population that `getBatchForTier` would eventually reach, but
+ * much faster: a dedicated hourly cron clears the never-polled backlog in
+ * ~13 hours (500/hour) instead of ~11 days (the active tier's 12h cadence
+ * with ~288-566 completions per run).
+ *
+ * Excludes the `dead` tier (health=dead or consecutiveFailures>=3) — those
+ * companies have been permanently retired and polling them wastes budget.
+ * Orders by `discoveredAt ASC` so the oldest discoveries are polled first
+ * (they've been waiting the longest).
+ *
+ * @param limit  Max companies to return (default 500 — the backlog sweeper
+ *               batch size, matching BATCH_SIZE in functions.ts)
+ */
+export async function getNeverPolledBatch(
+  limit = 500,
+): Promise<CompanyToPoll[]> {
+  const rows = await db
+    .select({
+      id: company.id,
+      atsSource: company.atsSource,
+      atsSlug: company.atsSlug,
+      companyName: company.companyName,
+    })
+    .from(company)
+    .where(
+      sql`${company.lastPolledAt} IS NULL
+          AND ${company.pollingEnabled} = true
+          AND ${company.tier} != 'dead'::company_tier`,
+    )
+    .orderBy(sql`${company.discoveredAt} ASC`)
+    .limit(limit);
+  return rows;
+}
+
 // ── Tier recalculation ───────────────────────────────────────────────────────
 
 /**
