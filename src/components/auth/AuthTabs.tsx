@@ -2,10 +2,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SignInForm } from "./SignInForm";
 import { SignUpForm } from "./SignUpForm";
 
-type AuthPageProps = { searchParams: Promise<{ tab?: string }> };
+type AuthPageProps = {
+  searchParams: Promise<{ tab?: string; jobId?: string }>;
+};
 
 export async function AuthTabs({ searchParams }: AuthPageProps) {
-  const { tab } = await searchParams;
+  const { tab, jobId } = await searchParams;
   const defaultTab = tab === "signup" ? "signup" : "signin";
 
   return (
@@ -16,11 +18,11 @@ export async function AuthTabs({ searchParams }: AuthPageProps) {
       </TabsList>
 
       <TabsContent value="signin" className="mt-6">
-        <SignInForm />
+        <SignInForm pendingJobId={jobId} />
       </TabsContent>
 
       <TabsContent value="signup" className="mt-6">
-        <SignUpForm />
+        <SignUpForm pendingJobId={jobId} />
       </TabsContent>
     </Tabs>
   );

@@ -2,7 +2,7 @@
 // src/components/jobs/JobCard.tsx
 //
 // Client component that renders a single job listing card with all
-// relevant information and actions.
+// relevant information, tooltips, and actions.
 
 "use client";
 
@@ -10,9 +10,11 @@ import {
   Building2,
   Clock,
   DollarSign,
-  ExternalLink,
   MapPin,
+  MoreHorizontal,
 } from "lucide-react";
+import Link from "next/link";
+import { redirectToJobSignup } from "@/actions/jobs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,12 +25,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type { PublicJobRow } from "@/lib/jobs/public-queries";
+import { TooltipInfo } from "./TooltipInfo";
 
 interface JobCardProps {
   job: PublicJobRow;
+  isAuthenticated: boolean;
 }
 
-export function JobCard({ job }: JobCardProps) {
+export function JobCard({ job, isAuthenticated }: JobCardProps) {
   const formatSalary = () => {
     if (!job.compensationMin && !job.compensationMax) return null;
 
@@ -78,6 +82,11 @@ export function JobCard({ job }: JobCardProps) {
     if (diffInDays < 7) return `${diffInDays} days ago`;
     if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
     return `${Math.floor(diffInDays / 30)} months ago`;
+  };
+
+  const handleMoreInformation = () => {
+    if (isAuthenticated) return;
+    redirectToJobSignup(job.id);
   };
 
   const getRemoteScopeBadge = () => {
@@ -156,7 +165,12 @@ export function JobCard({ job }: JobCardProps) {
             </CardDescription>
           </div>
           <div className="flex flex-col gap-2 items-end">
-            {getCompanyQualityBadge()}
+            {getCompanyQualityBadge() && (
+              <div className="flex items-center gap-1">
+                {getCompanyQualityBadge()}
+                <TooltipInfo content="Company quality tier based on our internal signals (tier, health, fusion score)." />
+              </div>
+            )}
             {job.atsSource && (
               <Badge variant="outline" className="text-xs">
                 {job.atsSource}
@@ -167,19 +181,31 @@ export function JobCard({ job }: JobCardProps) {
       </CardHeader>
       <CardContent>
         {/* Badges */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {getRemoteScopeBadge()}
-          {getWorkplaceBadge()}
-          {getEmploymentBadge()}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          {getRemoteScopeBadge() && (
+            <div className="flex items-center gap-1">
+              {getRemoteScopeBadge()}
+              <TooltipInfo content="Defines where you can work from: Global (anywhere), Country-Fenced (specific country), or Region-Fenced (specific region)." />
+            </div>
+          )}
+          {getWorkplaceBadge() && (
+            <div className="flex items-center gap-1">
+              {getWorkplaceBadge()}
+              <TooltipInfo content="How the team expects you to work: Remote, Hybrid, or On-site." />
+            </div>
+          )}
+          {getEmploymentBadge() && (
+            <div className="flex items-center gap-1">
+              {getEmploymentBadge()}
+              <TooltipInfo content="Type of employment contract: Full-time, Contract, or Part-time." />
+            </div>
+          )}
         </div>
 
         {/* Description */}
-        {(job.shortDescription || job.normalizedText) && (
+        {job.shortDescription && (
           <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {job.shortDescription ||
-              (job.normalizedText && job.normalizedText.length > 200
-                ? `${job.normalizedText.substring(0, 200)}...`
-                : job.normalizedText)}
+            {job.shortDescription}
           </p>
         )}
 
@@ -189,40 +215,51 @@ export function JobCard({ job }: JobCardProps) {
             <div className="flex items-center gap-1">
               <DollarSign className="h-4 w-4" />
               <span>{salary}</span>
+              <TooltipInfo content="Annual gross compensation range extracted from the job post. Only ~2% of listings currently include this data." />
             </div>
           )}
           {job.locationName && (
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4" />
               <span>{job.locationName}</span>
+              <TooltipInfo content="Primary location or timezone mentioned in the posting." />
             </div>
           )}
           {experience && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>{experience}</span>
+              <TooltipInfo content="Years of professional experience required for this role." />
             </div>
           )}
           {timeAgo && (
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4" />
               <span>Posted {timeAgo}</span>
+              <TooltipInfo content="When this job was first published (or detected if no publish date was provided)." />
             </div>
           )}
         </div>
 
         {/* Skills */}
         {job.extractedTags && job.extractedTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             {job.extractedTags.slice(0, 5).map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs">
                 {tag}
               </Badge>
             ))}
             {job.extractedTags.length > 5 && (
-              <Badge variant="secondary" className="text-xs">
-                +{job.extractedTags.length - 5} more
-              </Badge>
+              <div className="flex items-center gap-1">
+                <Badge variant="secondary" className="text-xs">
+                  +{job.extractedTags.length - 5} more
+                </Badge>
+                <TooltipInfo
+                  content={`Additional skills extracted from this job: ${job.extractedTags
+                    .slice(5)
+                    .join(", ")}.`}
+                />
+              </div>
             )}
           </div>
         )}
@@ -237,19 +274,28 @@ export function JobCard({ job }: JobCardProps) {
         )}
 
         {/* Action */}
-        {job.applyUrl && (
-          <Button asChild className="w-full sm:w-auto">
-            <a
-              href={job.applyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2"
+        <div className="flex items-center gap-2">
+          {isAuthenticated ? (
+            <Button asChild className="w-full sm:w-auto">
+              <Link
+                href={`/jobs/${job.id}`}
+                className="flex items-center gap-2"
+              >
+                More Information
+                <MoreHorizontal className="h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              onClick={handleMoreInformation}
+              className="w-full sm:w-auto flex items-center gap-2"
             >
-              View Job
-              <ExternalLink className="h-4 w-4" />
-            </a>
-          </Button>
-        )}
+              More Information
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          )}
+          <TooltipInfo content="View the full job description, requirements, and apply. If you are not signed in, you will be asked to create an account first and then be redirected back to this job." />
+        </div>
       </CardContent>
     </Card>
   );

@@ -1,25 +1,91 @@
 // Job Detail Component
 // src/components/jobs/JobDetail.tsx
 //
-// Server component that fetches a single job and enforces the auth wall.
+// Server component that fetches a single job, enforces the auth wall, and
+// renders the public job detail in the same layout as the dashboard match page.
 
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card";
 import { getAuthSession } from "@/lib/auth";
+import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
+import { extractJobContent, extractJobUrl } from "@/lib/jobs/job-normalizer";
 import { getPublicJobById } from "@/lib/jobs/public-queries";
+import { sanitizeJobDescription } from "@/lib/jobs/sanitize-html";
 
 interface JobDetailProps {
   params: Promise<{ id: string }>;
+}
+
+function formatSalary(
+  compensationMin: string | number | null,
+  compensationMax: string | number | null,
+  currency: string | null,
+): string | null {
+  if (!compensationMin && !compensationMax) return null;
+
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency || "USD",
+    maximumFractionDigits: 0,
+  });
+
+  if (compensationMin && compensationMax) {
+    return `${formatter.format(Number(compensationMin))} - ${formatter.format(Number(compensationMax))}`;
+  }
+  if (compensationMin) {
+    return `${formatter.format(Number(compensationMin))}+`;
+  }
+  if (compensationMax) {
+    return `Up to ${formatter.format(Number(compensationMax))}`;
+  }
+  return null;
+}
+
+function formatExperience(
+  experienceMinYears: number | null,
+  experienceMaxYears: number | null,
+): string | null {
+  if (!experienceMinYears && !experienceMaxYears) return null;
+
+  if (experienceMinYears && experienceMaxYears) {
+    return `${experienceMinYears}-${experienceMaxYears} years`;
+  }
+  if (experienceMinYears) {
+    return `${experienceMinYears}+ years`;
+  }
+  if (experienceMaxYears) {
+    return `Up to ${experienceMaxYears} years`;
+  }
+  return null;
+}
+
+function formatDate(date: Date | null): string {
+  if (!date) return "—";
+  return new Date(date).toLocaleString("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
+
+function getRemoteScopeBadge(remoteScope: string | null) {
+  if (remoteScope === "global") {
+    return (
+      <Badge className="bg-emerald-600 hover:bg-emerald-700">
+        Global Remote
+      </Badge>
+    );
+  }
+  if (remoteScope === "country_fenced") {
+    return <Badge variant="secondary">Country-Fenced</Badge>;
+  }
+  if (remoteScope === "region_fenced") {
+    return <Badge variant="secondary">Region-Fenced</Badge>;
+  }
+  return null;
 }
 
 export async function JobDetail({ params }: JobDetailProps) {
@@ -27,7 +93,7 @@ export async function JobDetail({ params }: JobDetailProps) {
   const session = await getAuthSession();
 
   // Auth wall: unauthenticated users are sent to sign up, with the job ID
-  // stored in a cookie so they land back here after creating an account.
+  // in the URL so they land back here after creating an account.
   if (!session) {
     redirect(`/auth?tab=signup&jobId=${id}`);
   }
@@ -38,172 +104,233 @@ export async function JobDetail({ params }: JobDetailProps) {
     notFound();
   }
 
-  const formatSalary = () => {
-    if (!job.compensationMin && !job.compensationMax) return null;
+  // Prefer the job-specific posting URL; fall back to the company board.
+  const jobUrl =
+    extractJobUrl(job.atsSource, job.rawJson) ??
+    ATS_ENDPOINTS[job.atsSource as keyof typeof ATS_ENDPOINTS]?.hostedBoard(
+      job.atsSlug,
+    );
 
-    const currency = job.compensationCurrency || "USD";
-    const formatter = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      maximumFractionDigits: 0,
-    });
+  const jobContent = extractJobContent(
+    job.atsSource,
+    job.rawJson,
+    job.title,
+    job.normalizedText,
+  );
+  const sanitizedDescription = jobContent?.fullText
+    ? await sanitizeJobDescription(jobContent.fullText)
+    : null;
 
-    if (job.compensationMin && job.compensationMax) {
-      return `${formatter.format(Number(job.compensationMin))} - ${formatter.format(Number(job.compensationMax))}`;
-    }
-    if (job.compensationMin) {
-      return `${formatter.format(Number(job.compensationMin))}+`;
-    }
-    if (job.compensationMax) {
-      return `Up to ${formatter.format(Number(job.compensationMax))}`;
-    }
-    return null;
-  };
-
-  const formatExperience = () => {
-    if (!job.experienceMinYears && !job.experienceMaxYears) return null;
-
-    if (job.experienceMinYears && job.experienceMaxYears) {
-      return `${job.experienceMinYears}-${job.experienceMaxYears} years`;
-    }
-    if (job.experienceMinYears) {
-      return `${job.experienceMinYears}+ years`;
-    }
-    if (job.experienceMaxYears) {
-      return `Up to ${job.experienceMaxYears} years`;
-    }
-    return null;
-  };
-
-  const salary = formatSalary();
-  const experience = formatExperience();
+  const salary = formatSalary(
+    job.compensationMin,
+    job.compensationMax,
+    job.compensationCurrency,
+  );
+  const experience = formatExperience(
+    job.experienceMinYears,
+    job.experienceMaxYears,
+  );
+  const remoteScopeBadge = getRemoteScopeBadge(job.remoteScope);
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-6">
-        <Button variant="ghost" asChild className="px-0">
-          <Link href="/jobs">← Back to jobs</Link>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex flex-col gap-6">
+          {/* Back navigation */}
+          <Link href="/jobs">
+            <Button variant="ghost" size="sm" className="gap-1.5">
+              <ArrowLeft className="size-4" />
+              Back to jobs
+            </Button>
+          </Link>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-3xl mb-2">{job.title}</CardTitle>
-              <CardDescription className="text-lg">
-                {job.companyName || "Unknown Company"}
-                {job.locationName && ` • ${job.locationName}`}
-              </CardDescription>
+          {/* Header */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl font-semibold text-foreground">
+                  {job.title}
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {job.companyName || "Unknown Company"}
+                  {job.locationName ? ` · ${job.locationName}` : ""}
+                  {job.atsSource ? ` · ${job.atsSource}` : ""}
+                </p>
+              </div>
+              {remoteScopeBadge && (
+                <Badge variant="outline" className="shrink-0">
+                  {remoteScopeBadge}
+                </Badge>
+              )}
             </div>
-            {job.atsSource && (
-              <Badge variant="outline" className="text-xs">
-                {job.atsSource}
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
 
-        <CardContent className="space-y-6">
-          {/* Badges */}
-          <div className="flex flex-wrap gap-2">
-            {job.remoteScope === "global" && (
-              <Badge className="bg-emerald-600 hover:bg-emerald-700">
-                Global Remote
-              </Badge>
-            )}
-            {job.remoteScope === "country_fenced" && (
-              <Badge variant="secondary">Country-Fenced</Badge>
-            )}
-            {job.remoteScope === "region_fenced" && (
-              <Badge variant="secondary">Region-Fenced</Badge>
-            )}
-            {job.workplaceType && (
-              <Badge variant="outline">{job.workplaceType}</Badge>
-            )}
-            {job.employmentType && (
-              <Badge variant="outline">{job.employmentType}</Badge>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Metadata */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            {salary && (
-              <div>
-                <span className="text-muted-foreground">Salary:</span>{" "}
-                <span className="font-medium">{salary}</span>
-              </div>
-            )}
-            {experience && (
-              <div>
-                <span className="text-muted-foreground">Experience:</span>{" "}
-                <span className="font-medium">{experience}</span>
-              </div>
-            )}
-            {job.department && (
-              <div>
-                <span className="text-muted-foreground">Department:</span>{" "}
-                <span className="font-medium">{job.department}</span>
-              </div>
-            )}
-            {job.team && (
-              <div>
-                <span className="text-muted-foreground">Team:</span>{" "}
-                <span className="font-medium">{job.team}</span>
-              </div>
-            )}
-            {job.publishedAt && (
-              <div>
-                <span className="text-muted-foreground">Published:</span>{" "}
-                <span className="font-medium">
-                  {new Date(job.publishedAt).toLocaleDateString()}
-                </span>
-              </div>
-            )}
+            <div className="flex items-center justify-between gap-4">
+              {jobUrl ? (
+                <a
+                  href={jobUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-fit"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink className="size-4" />
+                    View on {job.atsSource}
+                  </Button>
+                </a>
+              ) : (
+                <span />
+              )}
+              {job.applyUrl && (
+                <Button size="sm" className="gap-1.5" asChild>
+                  <a
+                    href={job.applyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Apply on company site
+                    <ExternalLink className="size-4" />
+                  </a>
+                </Button>
+              )}
+            </div>
           </div>
 
-          <Separator />
+          {/* Role metadata */}
+          <Card className="p-4">
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+              Role Details
+            </h2>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+              {salary && (
+                <div>
+                  <span className="text-xs text-muted-foreground">Salary</span>
+                  <p className="text-sm text-foreground font-medium">
+                    {salary}
+                  </p>
+                </div>
+              )}
+              {experience && (
+                <div>
+                  <span className="text-xs text-muted-foreground">
+                    Experience
+                  </span>
+                  <p className="text-sm text-foreground font-medium">
+                    {experience}
+                  </p>
+                </div>
+              )}
+              {job.workplaceType && (
+                <div>
+                  <span className="text-xs text-muted-foreground">
+                    Workplace
+                  </span>
+                  <p className="text-sm text-foreground font-medium">
+                    {job.workplaceType}
+                  </p>
+                </div>
+              )}
+              {job.employmentType && (
+                <div>
+                  <span className="text-xs text-muted-foreground">
+                    Employment
+                  </span>
+                  <p className="text-sm text-foreground font-medium">
+                    {job.employmentType}
+                  </p>
+                </div>
+              )}
+              {job.department && (
+                <div>
+                  <span className="text-xs text-muted-foreground">
+                    Department
+                  </span>
+                  <p className="text-sm text-foreground font-medium">
+                    {job.department}
+                  </p>
+                </div>
+              )}
+              {job.team && (
+                <div>
+                  <span className="text-xs text-muted-foreground">Team</span>
+                  <p className="text-sm text-foreground font-medium">
+                    {job.team}
+                  </p>
+                </div>
+              )}
+              <div>
+                <span className="text-xs text-muted-foreground">Published</span>
+                <p className="text-sm text-foreground font-medium">
+                  {formatDate(job.publishedAt)}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs text-muted-foreground">Detected</span>
+                <p className="text-sm text-foreground font-medium">
+                  {formatDate(job.detectedAt)}
+                </p>
+              </div>
+              {job.companyTier && (
+                <div>
+                  <span className="text-xs text-muted-foreground">
+                    Company tier
+                  </span>
+                  <p className="text-sm text-foreground font-medium">
+                    {job.companyTier}
+                  </p>
+                </div>
+              )}
+              {job.fusionScore !== null && (
+                <div>
+                  <span className="text-xs text-muted-foreground">
+                    Fusion score
+                  </span>
+                  <p className="text-sm text-foreground font-medium">
+                    {job.fusionScore}
+                  </p>
+                </div>
+              )}
+            </div>
+          </Card>
 
-          {/* Description */}
-          <div>
-            <h3 className="font-semibold mb-2">About this role</h3>
-            <p className="text-muted-foreground whitespace-pre-line">
-              {job.shortDescription}
-            </p>
-          </div>
+          {/* Job description */}
+          <Card className="p-4">
+            <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+              About this role
+            </h2>
+            {sanitizedDescription ? (
+              <div
+                className="prose prose-sm dark:prose-invert max-w-none"
+                // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized HTML from ATS job descriptions; scripts, event handlers, and non-semantic tags are stripped in sanitizeJobDescription.
+                dangerouslySetInnerHTML={{ __html: sanitizedDescription }}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground whitespace-pre-line">
+                {job.shortDescription}
+              </p>
+            )}
+          </Card>
 
           {/* Skills */}
           {job.extractedTags && job.extractedTags.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-2">Skills</h3>
+            <Card className="p-4">
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+                Skills
+              </h2>
               <div className="flex flex-wrap gap-2">
-                {job.extractedTags.map((tag: string) => (
+                {job.extractedTags.map((tag) => (
                   <Badge key={tag} variant="secondary" className="text-xs">
                     {tag}
                   </Badge>
                 ))}
               </div>
-            </div>
+            </Card>
           )}
-
-          {/* Apply Action */}
-          {job.applyUrl && (
-            <div className="pt-4">
-              <Button asChild size="lg">
-                <a
-                  href={job.applyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Apply on company site
-                </a>
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

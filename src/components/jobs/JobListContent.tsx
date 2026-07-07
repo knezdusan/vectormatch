@@ -6,6 +6,7 @@
 
 import { redirect } from "next/navigation";
 import { JobList } from "@/components/jobs/JobList";
+import { getAuthSession } from "@/lib/auth";
 import type { JobFilters, JobSortOption } from "@/lib/jobs/public-queries";
 import {
   getPublicJobs,
@@ -16,6 +17,7 @@ import {
 const PAGE_SIZE = 20;
 const VALID_SORTS: readonly JobSortOption[] = [
   "newest",
+  "oldest",
   "relevance",
   "quality",
   "salary",
@@ -41,6 +43,8 @@ interface JobListContentProps {
 
 export async function JobListContent({ searchParams }: JobListContentProps) {
   const params = await searchParams;
+  const session = await getAuthSession();
+  const isAuthenticated = session !== null;
 
   // Parse query params with defaults
   const currentPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
@@ -67,16 +71,6 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
   const postedWithin = params.postedWithin
     ? Number.parseInt(params.postedWithin, 10)
     : undefined;
-
-  // Debug logging
-  console.log("Raw params:", params);
-  console.log("Parsed values:", {
-    minSalary,
-    maxSalary,
-    minExperience,
-    maxExperience,
-    postedWithin,
-  });
 
   const filters: JobFilters = {
     search: params.search || undefined,
@@ -128,15 +122,12 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
         : undefined,
   };
 
-  console.log("Final filters:", filters);
-
   // Additional validation: ensure min <= max for ranges
   if (
     filters.minSalary &&
     filters.maxSalary &&
     filters.minSalary > filters.maxSalary
   ) {
-    console.log("Invalid salary range, clearing filters");
     filters.minSalary = undefined;
     filters.maxSalary = undefined;
   }
@@ -145,7 +136,6 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
     filters.maxExperience &&
     filters.minExperience > filters.maxExperience
   ) {
-    console.log("Invalid experience range, clearing filters");
     filters.minExperience = undefined;
     filters.maxExperience = undefined;
   }
@@ -159,7 +149,6 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
     (postedWithin !== undefined && !filters.postedWithin);
 
   if (hasInvalidParams) {
-    console.log("Invalid parameters detected, redirecting to clean URL");
     // Build clean URL with only valid filters
     const cleanParams = new URLSearchParams();
     if (filters.search) cleanParams.set("search", filters.search);
@@ -222,6 +211,7 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
       sortBy={sortBy}
       filters={filters}
       stats={stats}
+      isAuthenticated={isAuthenticated}
     />
   );
 }

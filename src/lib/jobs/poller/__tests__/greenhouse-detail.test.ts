@@ -32,6 +32,7 @@ const EMPTY_METADATA: JobMetadata = {
   team: null,
   applyUrl: null,
   publishedAt: null,
+  isActive: true,
   companyName: null,
   titleRegionTag: null,
   locationCountries: null,

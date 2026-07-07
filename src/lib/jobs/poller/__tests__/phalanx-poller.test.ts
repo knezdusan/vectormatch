@@ -133,6 +133,78 @@ describe("pollCompany — successful poll", () => {
     expect(callArg[1].success).toBe(true);
     expect(callArg[1].health).toBe("healthy");
   });
+
+  it("skips jobs older than MAX_JOB_INJECTION_AGE_DAYS and reports them as jobsTooOld", async () => {
+    const oldDate = new Date();
+    oldDate.setDate(oldDate.getDate() - 100);
+
+    const response = {
+      jobs: [
+        {
+          id: 1,
+          title: "Senior Frontend Engineer",
+          absolute_url: "https://boards.greenhouse.io/acme/jobs/1",
+          first_published: oldDate.toISOString(),
+        },
+        {
+          id: 2,
+          title: "Backend Developer",
+          absolute_url: "https://boards.greenhouse.io/acme/jobs/2",
+          first_published: new Date().toISOString(),
+        },
+      ],
+    };
+
+    const result = await pollCompany(
+      "company-uuid-1",
+      "greenhouse",
+      "acme",
+      mockFetch(jsonResponse(response)),
+    );
+
+    expect(result.jobsFetched).toBe(2);
+    expect(result.jobsPassedGate0).toBe(2);
+    expect(result.jobsTooOld).toBe(1);
+
+    expect(upsertJobs).toHaveBeenCalledTimes(1);
+    const callArg = vi.mocked(upsertJobs).mock.calls[0];
+    expect(callArg[2]).toHaveLength(1);
+    expect(callArg[2][0].title).toBe("Backend Developer");
+  });
+
+  it("skips jobs explicitly marked inactive by the source and reports them as jobsInactive", async () => {
+    const response = {
+      content: [
+        {
+          id: "sr-1",
+          name: "Senior Frontend Engineer",
+          status: "CLOSED",
+        },
+        {
+          id: "sr-2",
+          name: "Backend Developer",
+          status: "POSTED",
+        },
+      ],
+    };
+
+    const result = await pollCompany(
+      "company-uuid-1",
+      "smartrecruiters",
+      "acme",
+      mockFetch(jsonResponse(response)),
+    );
+
+    expect(result.jobsFetched).toBe(2);
+    expect(result.jobsPassedGate0).toBe(2);
+    expect(result.jobsInactive).toBe(1);
+    expect(result.jobsTooOld).toBe(0);
+
+    expect(upsertJobs).toHaveBeenCalledTimes(1);
+    const callArg = vi.mocked(upsertJobs).mock.calls[0];
+    expect(callArg[2]).toHaveLength(1);
+    expect(callArg[2][0].title).toBe("Backend Developer");
+  });
 });
 
 // ── pollCompany — Gate 0 rejects all jobs ────────────────────────────────────

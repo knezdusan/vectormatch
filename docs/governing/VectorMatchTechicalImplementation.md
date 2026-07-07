@@ -6,15 +6,18 @@
 ---
 
 ## 1. TECHNOLOGY STACK
-*   **Framework:** Next.js 16 (App Router + Cache Components, standalone Docker output)
+*   **Framework:** Next.js 16.2.7 (App Router + Cache Components, standalone Docker output)
 *   **Database:** PostgreSQL (Neon) — connected via `@neondatabase/serverless` Pool (not HTTP driver) to support Drizzle transactions required by `recomputeTagsExperience()`
-*   **ORM:** Drizzle ORM
-*   **Authentication:** Better Auth (database-integrated)
-*   **Background Jobs / Orchestration:** Inngest (v4, Durable Execution)
-*   **AI/ML:** Vercel AI SDK (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings)
-*   **Frontend UI:** Tailwind CSS v4, React Hook Form, Zod, `@dnd-kit` (for drag-and-drop)
+*   **ORM:** Drizzle ORM 0.45.2
+*   **Authentication:** Better Auth 1.6.14 (database-integrated)
+*   **Background Jobs / Orchestration:** Inngest v4.8.0 (self-hosted, Durable Execution)
+*   **AI/ML:** Vercel AI SDK 6.0.208 (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings, OpenAI SDK 6.45.0)
+*   **Frontend UI:** Tailwind CSS v4, React 19.2.4, React Hook Form, Zod 4.4.3, `@dnd-kit` (for drag-and-drop), Shadcn/ui 4.8.0
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
-*   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). 
+*   **Testing:** Vitest 4.1.8 (110 test files, 2,260 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
+*   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
+*   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`).
+*   **Migrations:** 46 SQL migrations (0000–0045) managed via Drizzle Kit 0.31.10. 
 
 ---
 
@@ -742,21 +745,25 @@ export const companyHealthEnum = pgEnum("company_health", [
 export const discoverySourceEnum = pgEnum("discovery_source", [
   "httparchive",         // BigQuery volume seeder (B6)
   "hn_algolia",          // Hacker News delta seeder (D2)
-  "crt_sh",              // Certificate Transparency stealth seeder (Phase 2 — deferred)
+  "crt_sh",              // Certificate Transparency stealth seeder (B8 — implemented Sprint 4, June 30 2026)
   "hn_custom_url",       // HN comment with non-ATS URL → CNAME/probe resolved
   "manual",              // Admin-added via dashboard
   // ── Corpus expansion sources (added June 29 2026, migrations 0016-0028) ──
   "workable_meta_search",  // B1: Workable meta-search API
-  "google_cse",            // B2/D1: Google CSE (DISABLED — API discontinued, revisit with Brave Search)
-  "yc_directory",          // B3: YC Directory
+  "google_cse",            // B2/D1: Google CSE (DISABLED — replaced by Brave Search in Sprint 3)
+  "yc_directory",          // B3: YC Directory (Algolia API, isHiring filter)
   "vc_portfolio",          // B4: VC portfolio page mining
   "newsletter_archive",    // B5: Developer newsletter archives
   "wayback_cdx",           // B7: Wayback Machine CDX API
-  "rapid7_fdns",           // B8: Rapid7 FDNS v2 CNAME reversal (SKIPPED — commercial licensing)
+  "rapid7_fdns",           // B8: Rapid7 FDNS v2 CNAME reversal (SKIPPED — commercial licensing, replaced by crt.sh)
   "cross_pollination",     // B9: Company names from existing job descriptions
   "sitemap_probe",         // B10: Sitemap.xml probing for failed Slugger rescues
   "certstream",            // D6: CertStream CT log domain matching
   "meta_ads",              // D13: Meta Ads Library hiring ad companies
+  // ── Corpus-persona alignment sources (added July 7 2026, migration 0045) ──
+  "github_probe",          // v2: GitHub Events API poller for YC/VC-funded orgs (P1-2)
+  "funding_signal",        // v2: RSS/Atom funding feed sourcing (TechCrunch, etc.)
+  "frontend_job_scanner",  // P2-2: Brave Search for frontend-keyword job postings on ATS domains
   // Note: D3-D5, D7-D12 use "hn_algolia" as discovery_source due to enum limitation.
   // The Slugger resolves all non-direct-slug sources through the same code path.
 ]);
@@ -794,6 +801,13 @@ export const company = pgTable(
     // ── Operational Flags ───────────────────────────────────────────────────
     pollingEnabled: boolean("polling_enabled").notNull().default(true),
 
+    // ── Company Scoring (added July 7 2026, migrations 0041-0044) ──────────
+    // Used by company-scorer.ts to compute company_size_score and recommend tier.
+    employeeCount: integer("employee_count"),  // Estimated headcount (YC=30, VC=100, big-tech registry fallback)
+    companySizeScore: real("company_size_score").default(0),  // Clamped [-0.30, +0.30], feeds dashboard display score
+    isAgency: boolean("is_agency").default(false),  // Staffing agency/aggregator flag → tier=dead, score -40
+    isPublic: boolean("is_public").default(false),  // Publicly listed company → score -20
+
     // ── Timestamps ──────────────────────────────────────────────────────────
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
@@ -824,6 +838,9 @@ export const company = pgTable(
 - **`lastJobPostedAt` drives tier transitions** — The decay algorithm doesn't need a separate tracking table. The poller updates this field; tier recalculation runs as a daily scheduled query.
 - **`consecutiveFailures` with threshold of 3** — Automatic `→ dead` transition. Three consecutive poll failures mark the company as dead and stop polling.
 - **No FK to `job` table** — The relationship is logical (jobs matched by `atsSource + atsSlug`), not enforced. This prevents poller failures when a job arrives for a slug not yet in the registry.
+- **`employeeCount` column (added July 7 2026)** — Estimated headcount for company scoring. YC-sourced companies default to 30, VC-sourced to 100. Big-tech registry (`src/lib/jobs/company-enrichment/big-tech-registry.ts`) provides exact counts for 30+ known companies. Null = graceful degradation (score 0 from this signal).
+- **`companySizeScore` column (added July 7 2026)** — Clamped to [-0.30, +0.30], computed by `src/lib/jobs/company-scorer.ts` from 5 signals: employee count, agency flag, public listing, source origin, maturity (disabled — `discoveredAt` is not a valid company-age proxy). Feeds into the dashboard display score (0.17 weight bucket).
+- **`isAgency` / `isPublic` columns (added July 7 2026)** — Boolean flags for company scoring. Agency/aggregator → score -40 + tier=dead override. Publicly listed → score -20. Resolved via big-tech registry fallback when not explicitly set.
 
 ### 4.0a The `slugger_retry` Table — Slugger Retry Queue `[Status: Implemented — June 29 2026]`
 
@@ -945,7 +962,7 @@ Do not scrape career pages dynamically. Seed the database with known ATS slugs. 
 | HN Algolia Delta Seeder (existing) | Daily (first 7 days of month) | Inngest function `hnAlgoliaSeeder` with `cron: "0 0 * * *"` (skips days 8-31) | API fails → Inngest automatic retry (3 attempts) |
 | Batch Source Flush (B1-B10) | One-time (event-triggered) | `scripts/fire-flush.ts` sends `batch/*` events to Inngest | Individual source failure → logged, other sources continue |
 | Daily Sources (D2-D13) | Staggered cron schedule | 12 Inngest functions with staggered crons (see §4.1.4) | API fails → Inngest automatic retry |
-| crt.sh Stealth Seeder | Phase 2 (deferred) | — | — |
+| crt.sh Stealth Seeder (B8) | Monthly (Inngest scheduled) | Inngest function `batchSourceB8CrtSh` with monthly cron | API fails → Inngest automatic retry |
 
 #### 4.1.0 The Slugger — Company Name → ATS Slug Resolution `[Status: Implemented — June 29 2026]`
 
@@ -1076,21 +1093,15 @@ This is the primary "hidden jobs" discovery engine. HN "Who is Hiring" surfaces 
 
 **Implementation:** The HN seeder runs as an Inngest scheduled function (`seeder/hn-algolia`, weekly on Monday). The custom-URL resolver runs as a separate Inngest function (`seeder/resolve-custom-url`), triggered by events from the HN seeder. This separation keeps the HN seeder fast (text parsing only) and isolates network-dependent logic.
 
-#### 4.1.3 crt.sh (The Stealth Seeder) `[Status: Planned / TO DO — Phase 2, Post-MVP]`
+#### 4.1.3 crt.sh (The Stealth Seeder) `[Status: Implemented — Sprint 4, June 30 2026]`
 
-**Decision: Deferred to Phase 2.** HN Algolia is the superior "hidden jobs" discovery engine because:
-- Companies self-select by posting on HN — they're actively hiring.
-- Posts include job descriptions, enabling seeder-level filtering for developer roles.
-- Many posters are first-time companies not in HTTPArchive.
-- Signal-to-noise ratio is far higher than crt.sh's wildcard query (200–500 curated posts vs. millions of certificate records).
+**Implementation:** `src/lib/jobs/seeders/batch-sources/crt-sh.ts` queries Certificate Transparency logs via `crt.sh/?q=%25.boards.greenhouse.io&output=json` for historical ATS domain discoveries. Replaces the disabled Rapid7 FDNS source (B8). Monthly refresh cron.
 
-crt.sh's wildcard query (`%.careers.*`) returns every domain with "careers" in the name — most are not hiring developers. A truly "stealth" startup often doesn't have an ATS yet (they use "email us" pages), so crt.sh finds the subdomain but there's no JSON API to poll.
-
-**When implemented (Phase 2), the approach will be:**
-- Use the **direct PostgreSQL connection** (`postgres://guest@crt.sh:5432/certwatch`) instead of the HTTP API — far more reliable, bypasses web server rate limiting.
-- Query the `certificate_identity` table directly with date constraints (`ci.NOT_BEFORE > NOW() - INTERVAL '30 days'`) to only get new certificates.
-- **Expanded pattern matching:** `%.careers.*`, `%.jobs.*`, `%.join.*`, `%.work.*`, `%.hiring.*`, `%.talent.*`, `%.opportunities.*`, `%.roles.*`, `%.apply.*`, `%.team.*`.
-- **Two-stage verification:** (1) CNAME lookup, (2) slug probe against all three ATS APIs. If both fail, discard — no manual review.
+**Approach:**
+- Queries the crt.sh HTTP API with wildcard patterns for ATS domains (`%.boards.greenhouse.io`, `%.jobs.lever.co`, `%.jobs.ashbyhq.com`).
+- Extracts company slugs from certificate DNS names.
+- **Two-stage verification:** (1) CNAME lookup, (2) slug probe against ATS APIs. If both fail, discard — no manual review.
+- Monthly refresh cron ensures new certificates are discovered over time.
 
 #### 4.1.3a Batch Sources (B1-B10) — One-Time Flush `[Status: Implemented — June 29 2026]`
 
@@ -1107,7 +1118,7 @@ The Continuous Company Acquisition Pipeline (TDD `docs/reports/CORPUS_EXPANSION_
 | B5 | Newsletter Archives | Crawl JS Weekly, React Status, etc. — extract ATS URLs from issue links | 200-500 | 257 | ✅ Success |
 | B6 | BigQuery (existing) | HTTPArchive Wappalyzer detection — monthly cron | 300-500 | 316 | ✅ Already running |
 | B7 | Wayback CDX | `web.archive.org/cdx/search` — query ATS domains, extract slugs from archived URLs | 200-500 | 4,163 | ✅ Top source |
-| B8 | Rapid7 FDNS | Rapid7 FDNS v2 CNAME dataset — match CNAMEs to ATS targets | 500-2,000 | 0 | ❌ Skipped (commercial licensing) |
+| B8 | Rapid7 FDNS / crt.sh | Rapid7 FDNS v2 (skipped — commercial licensing) → replaced by crt.sh CT log query (`crt.sh/?q=%25.boards.greenhouse.io`) | 500-2,000 | 0 (Rapid7) / implemented Sprint 4 | ✅ Replaced by crt.sh (Sprint 4) |
 | B9 | Cross-Pollination | Extract company names from existing `job` table, run through Slugger | 50-150 | 11 | ✅ Success |
 | B10 | Sitemap Probe | Probe `sitemap.xml`, `jobs/sitemap.xml` for companies where Slugger failed | rescues 20-30% | 0 | ✅ Ran too soon after others |
 
@@ -1119,7 +1130,7 @@ The Continuous Company Acquisition Pipeline (TDD `docs/reports/CORPUS_EXPANSION_
 - **B1 Workable API schema drift fixed:** The Workable meta-search API changed its response format (June 2026): `company.name` → `company.title`, `company.shortName` removed, `company.url` added. Slug now extracted from `company.url` (`/company/{id}/jobs-at-{slug}`) via `extractSlugFromCompanyUrl()`. 23 tests (8 new for slug extraction).
 
 **File locations:**
-- Batch source seeders: `src/lib/jobs/seeders/batch-sources/` (9 files: workable-meta-search, google-cse, yc-directory, vc-portfolios, newsletter-archives, wayback-cdx, rapid7-cname, cross-pollination, sitemap-probe)
+- Batch source seeders: `src/lib/jobs/seeders/batch-sources/` (10 files: workable-meta-search, google-cse, yc-directory, vc-portfolios, newsletter-archives, wayback-cdx, crt-sh, cross-pollination, sitemap-probe, brave-search)
 - Inngest functions: `src/inngest/functions.ts` (lines 2200-2850 — `batchSourceB1Workable` through `batchSourceB10SitemapProbe`)
 - Flush script: `scripts/fire-flush.ts`
 
@@ -1152,9 +1163,41 @@ The Continuous Company Acquisition Pipeline (TDD `docs/reports/CORPUS_EXPANSION_
 - D7 Funding Signal: Dual purpose — (1) processes the Slugger retry queue (up to 50 companies per run with exponential backoff), (2) queries Crunchbase API for recently funded companies and runs them through the Slugger.
 
 **File locations:**
-- Daily source seeders: `src/lib/jobs/seeders/daily-sources/` (12 files)
+- Daily source seeders: `src/lib/jobs/seeders/daily-sources/` (15 files: 12 original D2-D13 + github-events-probe + frontend-job-scanner + funding-signal-rss)
 - Inngest functions: `src/inngest/functions.ts` (lines 1803-2200 — `dailySourceD2HnAlgolia` through `dailySourceD13MetaAds`)
 - Tests: `src/lib/jobs/seeders/daily-sources/__tests__/` (7 test files, 150+ tests)
+
+#### 4.1.3c v2 Frontend-Targeted Sources — Corpus-Persona Alignment `[Status: Implemented — July 7 2026]`
+
+Three new daily sources added during the corpus-persona alignment session to target frontend/web developer jobs specifically. These inverts the discovery model: instead of "find companies with ATS → poll all their jobs → hope some are frontend", they become "find frontend jobs → extract the company → add to polling."
+
+**v2 source inventory:**
+
+| ID | Source | Inngest Function | Method | Env Var |
+|----|--------|-----------------|--------|---------|
+| v2-GH | GitHub Events Probe | `v2GithubEventsProbe` | GitHub Events API polls 129 frontend-ecosystem orgs (React, Next.js, Vue, Angular, Svelte, Tailwind, Vite, etc.) for new repos with ATS-bearing career pages | `GITHUB_TOKEN` |
+| v2-FS | Frontend Job Scanner | `v2FrontendJobScanner` | Brave Search `site:boards.greenhouse.io/jobs "React" OR "Next.js" OR "TypeScript" OR "Frontend"` → extract company slug from URL pattern | `BRAVE_SEARCH_API_KEY` |
+| v2-FUND | Funding Signal RSS | `v2FundingSignalRss` | RSS/Atom feeds from TechCrunch, SaaStr, etc. — LLM extracts company names from funding articles | — |
+
+**P1-3 Brave Search Frontend Queries (batch source enhancement):**
+The existing `brave-search.ts` batch source was enhanced with 6 frontend-targeted search queries:
+1. `site:boards.greenhouse.io "React" OR "Next.js" developer`
+2. `site:jobs.lever.co "React" OR "Next.js" developer`
+3. `site:jobs.ashbyhq.com "React" OR "Next.js" developer`
+4. `site:boards.greenhouse.io "TypeScript" OR "Frontend" developer`
+5. `site:jobs.lever.co "TypeScript" OR "Frontend" developer`
+6. `site:jobs.ashbyhq.com "TypeScript" OR "Frontend" developer`
+
+**Key implementation details:**
+- `github-events-probe.ts`: Expanded `YC_VC_FUNDED_ORGS` from 53 to 129 frontend-ecosystem orgs. Uses GitHub Events API (`/orgs/{org}/events`) to detect new repos, then probes for ATS-bearing career pages.
+- `frontend-job-scanner.ts`: Uses Brave Search API with `site:` operator to find frontend job postings on ATS domains. Extracts company slug from URL patterns (`boards.greenhouse.io/{slug}/jobs/{id}`, `jobs.lever.co/{slug}/{id}`, `jobs.ashbyhq.com/{slug}/{id}`). Inserts with `discovery_source = 'frontend_job_scanner'`.
+- Both sources require their respective API keys in `.env` to function. Without keys, the Inngest functions log a warning and skip.
+
+**File locations:**
+- `src/lib/jobs/seeders/daily-sources/github-events-probe.ts`
+- `src/lib/jobs/seeders/daily-sources/frontend-job-scanner.ts`
+- `src/lib/jobs/seeders/batch-sources/brave-search.ts` (enhanced with frontend queries)
+- Tests: `src/lib/jobs/seeders/daily-sources/__tests__/frontend-job-scanner.test.ts`, `github-events-probe-orglist.test.ts`
 
 ### 4.2 ATS Endpoint Registry & Defensive Zod Schemas `[Status: Implemented]`
 
@@ -1876,6 +1919,65 @@ New env vars: `NEON_API_KEY`, `NEON_PROJECT_ID`. The Neon API endpoint is `GET h
 
 **Verification:** 1,761 tests pass (90 files), 0 TS errors, 2 new migrations (0039, 0040). Biome clean. New test files: `gate-zero-pre-filter.test.ts`, `neon-api.test.ts`, updated `storage-check.test.ts`, `alerting.test.ts`, `admin-queries.test.ts`, `cleanup-queries.test.ts` (including per-batch VACUUM regression test and corpus percentage guard test).
 
+#### 4.7.13 Sprint 10 — Corpus-Persona Alignment `[Status: Implemented — July 7 2026]`
+
+Thirteen tasks implemented to align the job corpus with the mission of serving frontend/web developers seeking remote startup roles. Company registry grew from 5,290 to 10,114 companies. Full session report at `docs/reports/CORPUS_ALIGNMENT_SESSION_HANDOFF.md`.
+
+**P1-1 (Employee Count Backfill):** New `scripts/backfill-employee-count.ts` populates `company.employee_count` for YC-sourced (default 30) and VC-sourced (default 100) companies. 1,431 companies updated. Applied before P0-1 to ensure correct company scoring. Supports `--dry-run` and `--apply` flags.
+
+**P0-1 (Company Scorer Backfill):** New `src/lib/jobs/company-scorer.ts` computes `company_size_score` from 5 signals:
+1. **Employee count** (`scoreEmployeeCount`): >5000 → -25, 1000-5000 → -15, 250-1000 → -5, 50-250 → 0, 20-50 → +15, <20 → +25. Null → 0.
+2. **Agency/aggregator** (`scoreAgency`): `isAgency = true` → -40 (+ tier=dead override).
+3. **Public listing** (`scorePublicListing`): `isPublic = true` → -20.
+4. **Source origin** (`scoreSourceOrigin`): YC/VC/github_probe/funding_signal/frontend_job_scanner → +15, workable_meta_search → +10, hn_algolia/hn_custom_url → +5, other → 0.
+5. **Maturity** (`scoreMaturity`): DISABLED (returns 0) — `discoveredAt` is not a valid company-age proxy. Retained for re-enablement when a `founded_date` column is added.
+
+Score clamped to [-0.30, +0.30]. Tier assignment: score > 15 → `active_hot`, score < -20 → `dormant`, agency flag → `dead` (override). Helper functions `resolveEmployeeCount()` and `resolveIsPublic()` fall back to `src/lib/jobs/company-enrichment/big-tech-registry.ts` (30+ big-tech companies with known employee counts + public listing status, including 6 defense companies added for demotion).
+
+**4 Scorer Bugs Fixed:**
+1. `scoreMaturity()` was active but `discoveredAt` is not a valid age proxy → disabled.
+2. `resolveEmployeeCount()` and `resolveIsPublic()` missing `atsSlug` fallback for big-tech registry lookup → added.
+3. `applyCompanyTier()` didn't allow demotion to `active` → updated.
+4. 6 defense companies (Lockheed Martin, Raytheon, BAE Systems, etc.) missing from big-tech registry → added for demotion.
+
+Backfill applied via `scripts/backfill-company-scores.ts --apply`: 932 → `active_hot`, 9,126 → `active`, 36 → `dormant`, 2 → `dead`. All 10 defense companies demoted as intended.
+
+**P0-3 (Remote-Scope Backfill):** New `scripts/backfill-remote-scope.ts` uses the v2 `src/lib/jobs/remote-scope-extractor.ts` (2-step extraction ladder):
+- **Step 1 (Deterministic, zero LLM cost):**
+  - 1a: ATS-native `workplaceType` trust path (Lever/Ashby only; Greenhouse skipped due to ~85% miss rate).
+  - 1b: Cheerio-based main-content extraction (strips nav/footer/header/aside, targets semantic containers).
+  - 1c: Regex hard-signals with confidence-scoring (`HIGH_CONFIDENCE_SIGNALS`, `MEDIUM_CONFIDENCE`, `NEGATIVE_SIGNALS`).
+  - 1d: Strip company HQ from scope inference.
+  - → High-confidence → accept. Inconclusive → route to Step 2.
+- **Step 2 (LLM extraction, gpt-4o-mini):** Structured Zod output `{ remoteScope, allowedCountries, workAuthRequired, confidence }`. `workAuthRequired` extracted but NOT persisted (no consumer). Hard-fail → `undetermined` + `normalization_failed` (retryable).
+
+3,217 jobs classified, ~$0.71 LLM cost. Supports `--dry-run` and `--apply` flags.
+
+**P1-2 (GitHub Events Probe Expansion):** `YC_VC_FUNDED_ORGS` in `src/lib/jobs/seeders/daily-sources/github-events-probe.ts` expanded from 53 to 129 frontend-ecosystem orgs (React, Next.js, Vue, Angular, Svelte, Tailwind, Vite, Remix, Astro, etc.). Requires `GITHUB_TOKEN` env var.
+
+**P1-3 (Brave Search Frontend Queries):** 6 frontend-targeted search queries added to `src/lib/jobs/seeders/batch-sources/brave-search.ts` (React, Next.js, Vue, Angular, Svelte, TypeScript job postings on Greenhouse/Lever/Ashby domains). Requires `BRAVE_SEARCH_API_KEY` env var.
+
+**P2-2 (Frontend Job Scanner):** New daily source `src/lib/jobs/seeders/daily-sources/frontend-job-scanner.ts` scans Greenhouse/Lever/Ashby job boards for frontend-keyword postings via Brave Search. Extracts company slug from URL patterns. Registered as `v2FrontendJobScanner` Inngest function. New `frontend_job_scanner` value added to `discoverySourceEnum` (migration 0045).
+
+**P2-1 (BigQuery Re-run):** `scripts/seed-bigquery.ts` re-run with 6 monthly partitions (Feb-Jul 2026). 3,778 domains found, 448 slugs resolved, 0 new companies inserted (corpus saturated from previous monthly runs). `dotenv.config()` added to script for local execution.
+
+**P0-4 (Backlog Normalization):** `scripts/direct-normalize-backlog.ts` supports `--dry-run`/`--apply` flags. Applied: 1,237 jobs processed in 195s (1,104 normalized, 109 rejected as garbage, 24 failed on >8192 token limit — pre-existing normalizer issue with oversized `rawJson`).
+
+**Circuit Breaker (5-Tier):** New `src/lib/jobs/circuit-breaker.ts` implements a 5-tier action chain:
+- **Tier 1:** Per-source early-warning (3 consecutive provisional fails → pause 15min, escalation → 1hr).
+- **Tier 2:** Provisional backlog throttle (>15% → rate reduce 50%, >25% → rate reduce 90%, >30% → pause until clear).
+- **Tier 3:** Unknown sub-floor guard (≥30% unknown at 3hr → force reclassify; per-source unknown yield ≥40% → force reclassify).
+- **Tier 4:** Corpus-ratio breaker (global/(global+country_fenced) < 50% → halt non-global ingestion; reset at <15%).
+- **Tier 5:** Daily source ban (3 escalations in 24hr → 24h ban).
+
+Severity stack: `hard_pause` > `rate_reduction` > `normal`. Three-bucket denominator model: known-scope ratio (global / (global + country_fenced)) ≥ 50%, unknown sub-floor (unknown / total) ≤ 30%.
+
+**Migrations:**
+- `0041-0044` — `employee_count`, `company_size_score`, `is_agency`, `is_public` columns on `company` table.
+- `0045_tidy_hiroim.sql` — `frontend_job_scanner` added to `discovery_source` enum.
+
+**Verification:** 2,260 tests pass (110 files), 0 TS errors, 0 Biome errors. 28 new tests (company-scorer, big-tech-registry, brave-search-frontend, frontend-job-scanner, github-events-probe-orglist). Fallow false positives addressed via `.fallowrc.json` ignoreExports.
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
@@ -1884,7 +1986,7 @@ New env vars: `NEON_API_KEY`, `NEON_PROJECT_ID`. The Neon API endpoint is `GET h
 
 **Implementation reference:** `docs/reports/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/reports/calibration-report.md`.
 
-**Feature breakdown (11 features, all implemented):**
+**Feature breakdown (14 features, all implemented):**
 - **C0** — Schema & contracts hardening: `matchQueue` columns (including `promptVariant`, `workAuthRiskFlag`, `staleAt`), `job.status` values, `normalizedAt`, Module C event types (`match/gate-3-evaluate`, `match/approved`, `persona/updated`), `matching-config.ts`, `db.ts` pooler guard, `seniority_level` enum + `applicant.seniority_levels` column, `applicant.workAuthorizations` column.
 - **C1** — Job normalization: `job-normalizer.ts` + `job-embedder.ts`, wired into `jobIngestedHandler`.
 - **C5** — Seed script: `scripts/seed-routing-engine.ts` (synthetic data for calibration).
@@ -1896,6 +1998,9 @@ New env vars: `NEON_API_KEY`, `NEON_PROJECT_ID`. The Neon API endpoint is `GET h
 - **C6** — Calibration: `scripts/calibrate-routing-engine.ts` + `docs/reports/calibration-report.md` + yield analysis (June 28 2026).
 - **C7** — Persona consolidation & diversification: 3 TypeScript personas consolidated to 2 distinct + 1 new PHP/Laravel persona. `CANONICAL_TAGS` expanded to 146 entries (added `wordpress`, `docker`). Added June 28 2026.
 - **C8** — Work authorization filtering + risk flagging: `applicant.workAuthorizations` permits, `matchQueue.workAuthRiskFlag` advisory flag, dynamic work authorization directive in Gate 3 prompt. Added July 4 2026.
+- **C9** — Remote-scope extraction (v2): `src/lib/jobs/remote-scope-extractor.ts` — 2-step ladder (deterministic regex + ATS-native + Cheerio → LLM gpt-4o-mini fallback). Classifies jobs as `global`, `country_fenced`, `region_fenced`, `onsite`, or `undetermined`. Used during normalization and via `scripts/backfill-remote-scope.ts`. Added July 7 2026.
+- **C10** — Company scoring matrix: `src/lib/jobs/company-scorer.ts` + `src/lib/jobs/company-enrichment/big-tech-registry.ts` — 5-signal scoring (employee count, agency, public listing, source origin, maturity[disabled]) clamped to [-0.30, +0.30]. Feeds dashboard display score (0.17 weight bucket). Added July 7 2026.
+- **C11** — Circuit breaker (5-tier): `src/lib/jobs/circuit-breaker.ts` — per-source early-warning, provisional backlog throttle, unknown sub-floor guard, corpus-ratio breaker, daily source ban. Severity stack: `hard_pause` > `rate_reduction` > `normal`. Added July 7 2026.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -2242,7 +2347,7 @@ This is generated by the system when a match occurs, intended for the startup's 
 
 ## 7. MODULE E: INFRASTRUCTURE & DEPLOYMENT ARCHITECTURE
 
-Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coolify). Deployed and running (healthy) as of July 4 2026.
+Status: Final decision — implemented via self-hosted PaaS (Hetzner Cloud + Coolify). Deployed and running (healthy) as of July 7 2026.
 
 ### 7.0 Self-Hosted Inngest (Sprint 5, June 30 2026)
 

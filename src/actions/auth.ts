@@ -18,11 +18,16 @@ export async function signUpAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const pendingJobId = formData.get("pendingJobId") as string | undefined;
+  const callbackURL = pendingJobId
+    ? `/jobs/${pendingJobId}`
+    : "/dashboard/profile-management";
+
   const data = {
     name: formData.get("name"),
     email: formData.get("email"),
     password: formData.get("password"),
-    callbackURL: "/dashboard/profile-management",
+    callbackURL,
   };
 
   const parsed = signUpSchema.safeParse(data);
@@ -34,7 +39,7 @@ export async function signUpAction(
     await auth.api.signUpEmail({
       body: {
         ...parsed.data,
-        callbackURL: "/dashboard/profile-management",
+        callbackURL,
       },
       headers: await headers(),
     });
@@ -57,6 +62,8 @@ export async function signInAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const pendingJobId = formData.get("pendingJobId") as string | undefined;
+
   const data = {
     email: formData.get("email"),
     password: formData.get("password"),
@@ -88,13 +95,9 @@ export async function signInAction(
     return { error: "An unexpected error occurred", success: false };
   }
 
-  // Redirect to /dashboard — the dashboard page is a separate request that
-  // will have the session cookie set by signInEmail. It checks isOnboarded
-  // and redirects to /dashboard/jobs or /dashboard/profile-management.
-  // We can't check isOnboarded here because the session cookie is set in
-  // the response headers, not the request headers — getSession() would
-  // return null in this same request.
-  redirect("/dashboard");
+  // Redirect to the pending job detail page if a job was being viewed, or
+  // fall back to the dashboard.
+  redirect(pendingJobId ? `/jobs/${pendingJobId}` : "/dashboard");
 }
 
 export async function resendVerificationEmailAction(

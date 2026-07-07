@@ -11,6 +11,7 @@ import { and, count, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
 
 import { db } from "@/db/db";
 import { ingestionLog } from "@/db/schemas/jobs/ingestionLog";
+import { job } from "@/db/schemas/jobs/job";
 import { sourceHealth } from "@/db/schemas/jobs/sourceHealth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -82,6 +83,27 @@ export interface TopErrorRow {
   errorMessage: string;
   count: number;
   lastAt: Date;
+}
+
+export type StalenessBucket = "<1d" | "2-7d" | "8-30d" | "30-60d" | ">60d";
+
+export interface StalenessDistributionRow {
+  bucket: StalenessBucket;
+  count: number;
+  percentage: number;
+}
+
+export interface StalenessBySourceRow {
+  source: string;
+  total: number;
+  buckets: Record<StalenessBucket, number>;
+}
+
+export interface JobStalenessDistribution {
+  overall: StalenessDistributionRow[];
+  bySource: StalenessBySourceRow[];
+  total: number;
+  refreshedAt: Date;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -359,4 +381,86 @@ export async function getTopIngestionErrors(
     count: Number(row.count ?? 0),
     lastAt: row.lastAt ?? new Date(),
   }));
+}
+
+// ── Active Job Staleness Distribution ───────────────────────────────────────────
+
+const BUCKET_ORDER: StalenessBucket[] = [
+  "<1d",
+  "2-7d",
+  "8-30d",
+  "30-60d",
+  ">60d",
+];
+
+function parseBucket(days: number): StalenessBucket {
+  if (days < 1) return "<1d";
+  if (days <= 7) return "2-7d";
+  if (days <= 30) return "8-30d";
+  if (days <= 60) return "30-60d";
+  return ">60d";
+}
+
+/**
+ * Distribution of currently active jobs by age (based on publishedAt).
+ * Returns an overall table and a per-source breakdown. Age buckets:
+ *   <1d, 2-7d, 8-30d, 30-60d, >60d.
+ */
+export async function getJobStalenessDistribution(): Promise<JobStalenessDistribution> {
+  const rows = await db
+    .select({
+      source: job.atsSource,
+      ageDays: sql<number>`EXTRACT(DAY FROM (NOW() - ${job.publishedAt}))::int`,
+    })
+    .from(job)
+    .where(sql`${job.status} = 'active' AND ${job.publishedAt} IS NOT NULL`);
+
+  const total = rows.length;
+  const overallMap = new Map<StalenessBucket, number>();
+  const sourceMap = new Map<string, Map<StalenessBucket, number>>();
+
+  for (const row of rows) {
+    const bucket = parseBucket(row.ageDays);
+    overallMap.set(bucket, (overallMap.get(bucket) ?? 0) + 1);
+
+    const source = row.source ?? "unknown";
+    let sourceBuckets = sourceMap.get(source);
+    if (!sourceBuckets) {
+      sourceBuckets = new Map<StalenessBucket, number>();
+      sourceMap.set(source, sourceBuckets);
+    }
+    sourceBuckets.set(bucket, (sourceBuckets.get(bucket) ?? 0) + 1);
+  }
+
+  const overall: StalenessDistributionRow[] = BUCKET_ORDER.map((bucket) => {
+    const count = overallMap.get(bucket) ?? 0;
+    return {
+      bucket,
+      count,
+      percentage: total > 0 ? count / total : 0,
+    };
+  });
+
+  const bySource: StalenessBySourceRow[] = Array.from(sourceMap.entries())
+    .map(([source, buckets]) => {
+      const sourceTotal = Array.from(buckets.values()).reduce(
+        (sum, c) => sum + c,
+        0,
+      );
+      return {
+        source,
+        total: sourceTotal,
+        buckets: Object.fromEntries(
+          BUCKET_ORDER.map((bucket) => [bucket, buckets.get(bucket) ?? 0]),
+        ) as Record<StalenessBucket, number>,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  return {
+    overall,
+    bySource,
+    total,
+    refreshedAt: new Date(),
+  };
 }

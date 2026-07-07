@@ -1236,9 +1236,8 @@ export const normalizationRetrySweep = inngest.createFunction(
 // ── v2 Corpus Expansion: Nightly Resurrection Sweep (Criterion 2) ───────────
 
 /**
- * Nightly Resurrection Sweep — re-runs Step 2 LLM extraction on jobs with
- * `remoteScope = 'undetermined'` or `remoteScope = 'unknown'` when Gate 3
- * capacity allows.
+ * Nightly Resurrection Sweep — re-runs the v2 remote-scope extraction ladder
+ * on jobs with `remoteScope = 'undetermined'` or `remoteScope = 'unknown'`.
  *
  * Per governing doc (company-corpus-expansion-new.md Criterion 2):
  * "Re-run Step 2 on undetermined / normalization_failed jobs when Gate 3
@@ -1246,12 +1245,17 @@ export const normalizationRetrySweep = inngest.createFunction(
  *
  * Triggered by: cron "0 3 * * *" (daily at 03:00 UTC — low-traffic window).
  *
- * This sweep targets jobs that exhausted the Step 1 + Step 2 extraction
- * ladder during initial normalization. The LLM may have failed due to a
- * transient OpenAI outage, rate limit, or ambiguous JD text that a fresh
- * pass with improved prompts can resolve. Jobs that remain undetermined
- * after this sweep stay as undetermined (Gate 0.5 passes them through to
- * Gate 3, which evaluates the JD text directly as fallback).
+ * ── Bug fix (July 7 2026) ──────────────────────────────────────────────────
+ * The previous implementation emitted `job/ingested` events for undetermined
+ * jobs, expecting the `jobIngestedHandler` to re-normalize them. However,
+ * `decideNormalizationAction` skips any job where `normalizedAt IS NOT NULL`
+ * — and all undetermined jobs are already normalized. The events were emitted
+ * but immediately skipped, making the sweep a complete no-op.
+ *
+ * The fix: directly call `extractRemoteScope` on each job and update
+ * `job.remoteScope` + `job.locationCountries` in the DB, bypassing the
+ * normalization pipeline entirely. This is a targeted remote-scope refresh,
+ * not a full re-normalization.
  *
  * Limit: 500 jobs per run (bounded to stay within Inngest step time limits
  * and OpenAI rate limits). Prioritizes the oldest undetermined jobs first
@@ -1264,7 +1268,7 @@ export const nightlyResurrectionSweep = inngest.createFunction(
     triggers: [{ cron: "0 3 * * *" }],
   },
   async ({ step }) => {
-    const { sql } = await import("drizzle-orm");
+    const { sql, eq } = await import("drizzle-orm");
     const { db } = await import("@/db/db");
     const { job } = await import("@/db/schemas/jobs/job");
     const { writeIngestionLog } = await import(
@@ -1273,23 +1277,21 @@ export const nightlyResurrectionSweep = inngest.createFunction(
 
     const startedAt = new Date();
 
+    // Step 1: Fetch jobs with undetermined/unknown remoteScope that have
+    // content available for re-extraction. We need the full metadata for
+    // extractRemoteScope: normalizedText/rawJson (content), workplaceType,
+    // atsSource, and locationName.
     const resurrectionCandidates = await step.run(
       "get-undetermined-jobs",
       async () => {
-        // Select up to 500 jobs with undetermined or unknown remoteScope that
-        // have rawJson (needed for content extraction) or normalizedText
-        // (G7 fast path — the cleaned text is already available). Prioritize
-        // the oldest jobs (detectedAt ascending).
-        //
-        // Both rawJson and normalizedText are checked because:
-        //   - Pre-G7 jobs: rawJson is present, normalizedText may be null.
-        //   - Post-G7 jobs: rawJson is NULLed, normalizedText is present.
-        // The remote-scope extractor works with either input.
         const result = await db
           .select({
             id: job.id,
             atsSource: job.atsSource,
-            atsSlug: job.atsSlug,
+            workplaceType: job.workplaceType,
+            locationName: job.locationName,
+            normalizedText: job.normalizedText,
+            rawJson: job.rawJson,
           })
           .from(job)
           .where(
@@ -1302,21 +1304,97 @@ export const nightlyResurrectionSweep = inngest.createFunction(
       },
     );
 
-    if (resurrectionCandidates.length > 0) {
-      await step.sendEvent(
-        "resurrect-normalization",
-        resurrectionCandidates.map((j) => ({
-          id: `job-resurrect-${j.id}-${Date.now()}`,
-          name: "job/ingested",
-          data: {
-            jobId: j.id,
-            atsSource: j.atsSource,
-            atsSlug: j.atsSlug,
-            isNew: false,
-            isResurrection: true,
-          },
-        })),
-      );
+    if (resurrectionCandidates.length === 0) {
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "tier_recalc",
+          status: "success",
+          source: "nightly_resurrection_sweep",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return { resurrected: 0, updated: 0, stillUndetermined: 0 };
+    }
+
+    // Step 2: Run extractRemoteScope on each job in batches.
+    // Process in batches of 25 with a concurrency limiter to respect
+    // OpenAI rate limits (gpt-4o-mini: 500 RPM).
+    const BATCH_SIZE = 25;
+    const batches: (typeof resurrectionCandidates)[] = [];
+    for (let i = 0; i < resurrectionCandidates.length; i += BATCH_SIZE) {
+      batches.push(resurrectionCandidates.slice(i, i + BATCH_SIZE));
+    }
+
+    let updated = 0;
+    let stillUndetermined = 0;
+
+    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+      const batch = batches[batchIdx];
+      const result = await step.run(`extract-batch-${batchIdx}`, async () => {
+        const { extractRemoteScope } = await import(
+          "@/lib/jobs/remote-scope-extractor"
+        );
+        const { extractJobContent } = await import("@/lib/jobs/job-normalizer");
+
+        let batchUpdated = 0;
+        let batchStillUndetermined = 0;
+
+        // Process sequentially within the batch to avoid overloading the
+        // OpenAI API. The LLM call is ~1-3s per job, so a batch of 25
+        // takes ~30-75s — well within Inngest's step time limit.
+        for (const candidate of batch) {
+          // Get the content for extraction: prefer normalizedText (G7 fast
+          // path), fall back to rawJson parsing.
+          const extracted = extractJobContent(
+            candidate.atsSource,
+            candidate.rawJson,
+            "",
+            candidate.normalizedText,
+          );
+          const content = extracted.fullText || extracted.description || null;
+
+          try {
+            const scopeResult = await extractRemoteScope(
+              content,
+              candidate.workplaceType as "remote" | "hybrid" | "on-site" | null,
+              candidate.atsSource,
+              candidate.locationName,
+            );
+
+            // Update the job's remoteScope and locationCountries
+            await db
+              .update(job)
+              .set({
+                remoteScope: scopeResult.remoteScope,
+                locationCountries: scopeResult.allowedCountries,
+              })
+              .where(eq(job.id, candidate.id));
+
+            if (scopeResult.remoteScope === "undetermined") {
+              batchStillUndetermined++;
+            } else {
+              batchUpdated++;
+            }
+          } catch (error) {
+            console.error(
+              `[resurrection-sweep] Failed to extract remote scope for job ${candidate.id}:`,
+              error instanceof Error ? error.message : error,
+            );
+            batchStillUndetermined++;
+          }
+        }
+
+        return { batchUpdated, batchStillUndetermined };
+      });
+
+      updated += result.batchUpdated;
+      stillUndetermined += result.batchStillUndetermined;
     }
 
     await step.run("write-log", async () => {
@@ -1326,15 +1404,19 @@ export const nightlyResurrectionSweep = inngest.createFunction(
         source: "nightly_resurrection_sweep",
         itemsProcessed: resurrectionCandidates.length,
         itemsInserted: 0,
-        itemsUpdated: 0,
+        itemsUpdated: updated,
         itemsRejected: 0,
-        itemsSkipped: 0,
+        itemsSkipped: stillUndetermined,
         startedAt,
         finishedAt: new Date(),
       });
     });
 
-    return { resurrected: resurrectionCandidates.length };
+    return {
+      resurrected: resurrectionCandidates.length,
+      updated,
+      stillUndetermined,
+    };
   },
 );
 
@@ -1533,6 +1615,78 @@ export const jobIngestedHandler = inngest.createFunction(
         queued: 0,
       };
     }
+
+    // ── Step 4.4: Remote-scope upgrade (v2 ladder for unknown jobs) ────────
+    // The poller sets an initial remoteScope at insert time using the
+    // regex-only inferRemoteScope (Step 1). Jobs that remain "unknown" after
+    // Step 1 are upgraded here via the full v2 extractRemoteScope ladder
+    // (Step 1 regex + Step 2 LLM fallback via gpt-4o-mini). This ensures new
+    // jobs get accurate geo-classification before Gate 0.5, improving
+    // pre-filter precision and preventing the unknown bucket from growing.
+    // Jobs that already have a definitive scope (global, country_fenced,
+    // region_fenced, onsite) are skipped — no need to re-run the ladder.
+    await step.run("upgrade-remote-scope", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { eq } = await import("drizzle-orm");
+      const { extractRemoteScope } = await import(
+        "@/lib/jobs/remote-scope-extractor"
+      );
+
+      // Fetch the job's current remoteScope and metadata needed for extraction
+      const rows = await db
+        .select({
+          remoteScope: job.remoteScope,
+          workplaceType: job.workplaceType,
+          atsSource: job.atsSource,
+          locationName: job.locationName,
+          normalizedText: job.normalizedText,
+        })
+        .from(job)
+        .where(eq(job.id, jobId))
+        .limit(1);
+
+      if (rows.length === 0) return { upgraded: false, reason: "not-found" };
+
+      const row = rows[0];
+
+      // Only upgrade jobs that are still "unknown" — definitive scopes
+      // (including "undetermined" from the resurrection sweep) are left as-is.
+      if (row.remoteScope !== "unknown") {
+        return { upgraded: false, reason: `scope=${row.remoteScope}` };
+      }
+
+      try {
+        const scopeResult = await extractRemoteScope(
+          row.normalizedText,
+          row.workplaceType as "remote" | "hybrid" | "on-site" | null,
+          row.atsSource,
+          row.locationName,
+        );
+
+        await db
+          .update(job)
+          .set({
+            remoteScope: scopeResult.remoteScope,
+            locationCountries: scopeResult.allowedCountries,
+          })
+          .where(eq(job.id, jobId));
+
+        return {
+          upgraded: true,
+          newScope: scopeResult.remoteScope,
+          resolvedBy: scopeResult.resolvedBy,
+        };
+      } catch (error) {
+        // Non-fatal: if the LLM call fails, the job keeps remoteScope="unknown"
+        // and passes through Gate 0.5 to Gate 3 (which evaluates JD text).
+        console.warn(
+          `[jobIngestedHandler] Remote-scope upgrade failed for job ${jobId}:`,
+          error instanceof Error ? error.message : error,
+        );
+        return { upgraded: false, reason: "extraction-failed" };
+      }
+    });
 
     // ── Step 4.5: Gate 0.5 hard-blocker pre-filter ─────────────────────────
     // Runs after normalization succeeds but before Gate 1+2 routing. Checks
@@ -3504,19 +3658,29 @@ export const v2GithubEventsProbe = inngest.createFunction(
  * slug and adds it to the polling corpus.
  *
  * Requires BRAVE_SEARCH_API_KEY env var.
- * Cron: 0 16 * * * (4:00 PM UTC daily)
+ * Cron: every 6 hours (4x/day for faster frontend company discovery).
+ * 3 queries/run × 4 runs/day × 30 days = 360 queries/month, well within
+ * the Brave Search free tier of 2,000 queries/month.
+ *
+ * ── Auto-poll enhancement (July 7 2026) ────────────────────────────────────
+ * Newly discovered frontend companies are immediately polled via `poller/run`
+ * events, rather than waiting for the next batch poll cycle (active_hot: 3h,
+ * active: 12h). This dramatically reduces the time from "frontend company
+ * discovered" to "frontend jobs in the matching funnel" — from hours to
+ * minutes. The phalanx poller respects rate limits (maxConcurrent: 1,
+ * minTime: 500ms per ATS source), so a burst of poll events is safe.
  */
 export const v2FrontendJobScanner = inngest.createFunction(
   {
     id: "v2-frontend-job-scanner",
     name: "v2 Frontend Job Scanner",
-    triggers: [{ cron: "0 16 * * *" }],
+    triggers: [{ cron: "0 */6 * * *" }],
   },
   async ({ step }) => {
     const { runFrontendJobScannerDaily } = await import(
       "@/lib/jobs/seeders/daily-sources/frontend-job-scanner"
     );
-    return runSourceFunction({
+    const result = await runSourceFunction({
       step,
       sourceName: "v2-frontend-job-scanner",
       logSource: "frontend_job_scanner",
@@ -3537,6 +3701,33 @@ export const v2FrontendJobScanner = inngest.createFunction(
         itemsSkipped: r.insertResult.skipped,
       }),
     });
+
+    // Auto-poll newly discovered companies to get their frontend jobs into
+    // the matching funnel immediately, rather than waiting for the next
+    // batch poll cycle (which could be 3-12 hours depending on tier).
+    // Guard: runSourceFunction may return a skip object (circuit-breaker or
+    // storage-near-limit) which doesn't have insertResult — check first.
+    if (
+      result &&
+      "insertResult" in result &&
+      Array.isArray(result.insertResult?.insertedCompanies) &&
+      result.insertResult.insertedCompanies.length > 0
+    ) {
+      const newCompanies = result.insertResult.insertedCompanies;
+      await step.sendEvent(
+        "poll-new-frontend-companies",
+        newCompanies.map((c) => ({
+          id: `poller-run-${c.id}-${Date.now()}`,
+          name: "poller/run",
+          data: { companyId: c.id },
+        })),
+      );
+      console.log(
+        `[v2FrontendJobScanner] Emitted ${newCompanies.length} poller/run events for newly discovered frontend companies`,
+      );
+    }
+
+    return result;
   },
 );
 

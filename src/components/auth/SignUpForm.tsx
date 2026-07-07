@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { signIn } from "@/lib/auth-client";
 import { PasswordInput } from "./PasswordInput";
 
-export function SignUpForm() {
+export function SignUpForm({ pendingJobId }: { pendingJobId?: string }) {
   const [state, formAction, isPending] = useActionState(signUpAction, null);
   const [isSocialPending, setIsSocialPending] = useState<
     "google" | "github" | null
@@ -18,7 +18,9 @@ export function SignUpForm() {
   const handleSocialSignIn = async (provider: "google" | "github") => {
     setIsSocialPending(provider);
     try {
-      await signIn(provider);
+      await signIn(provider, {
+        callbackURL: pendingJobId ? `/jobs/${pendingJobId}` : "/dashboard/jobs",
+      });
     } catch (error) {
       console.error(error);
       setIsSocialPending(null);
@@ -64,6 +66,9 @@ export function SignUpForm() {
 
   return (
     <form action={formAction} className="space-y-6">
+      {pendingJobId && (
+        <input type="hidden" name="pendingJobId" value={pendingJobId} />
+      )}
       <div className="space-y-2">
         <Label htmlFor="name" className="ml-2">
           Full Name

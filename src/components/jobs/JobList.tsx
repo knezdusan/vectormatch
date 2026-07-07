@@ -6,7 +6,9 @@
 
 "use client";
 
+import { Search } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
 import type {
   JobFilters,
   JobSortOption,
@@ -31,6 +34,7 @@ import {
   WORKPLACE_TYPE_OPTIONS,
 } from "@/lib/jobs/public-queries";
 import { JobCard } from "./JobCard";
+import { TooltipInfo } from "./TooltipInfo";
 
 interface JobListProps {
   jobs: PublicJobRow[];
@@ -45,7 +49,16 @@ interface JobListProps {
     countryFenced: number;
     newThisWeek: number;
   };
+  isAuthenticated: boolean;
 }
+
+// Slider ranges used in the UI (independent of the database outliers).
+const SALARY_MIN = 0;
+const SALARY_MAX = 300000;
+const SALARY_STEP = 5000;
+const EXPERIENCE_MIN = 0;
+const EXPERIENCE_MAX = 15;
+const EXPERIENCE_STEP = 1;
 
 export function JobList({
   jobs,
@@ -55,9 +68,23 @@ export function JobList({
   sortBy,
   filters,
   stats,
+  isAuthenticated,
 }: JobListProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Local search input state so the URL is only updated on explicit actions.
+  const [searchInput, setSearchInput] = useState(filters.search ?? "");
+
+  // Local slider state (fallback to full range when no filter is active).
+  const [salaryRange, setSalaryRange] = useState<number[]>([
+    filters.minSalary ?? SALARY_MIN,
+    filters.maxSalary ?? SALARY_MAX,
+  ]);
+  const [experienceRange, setExperienceRange] = useState<number[]>([
+    filters.minExperience ?? EXPERIENCE_MIN,
+    filters.maxExperience ?? EXPERIENCE_MAX,
+  ]);
 
   const updateUrl = (
     newParams: Record<string, string | number | undefined>,
@@ -84,16 +111,67 @@ export function JobList({
     updateUrl({ sort: value, page: 1 });
   };
 
-  const handleSearchChange = (value: string) => {
-    updateUrl({ search: value, page: 1 });
+  const handleSearchSubmit = () => {
+    updateUrl({ search: searchInput.trim(), page: 1 });
+  };
+
+  const handleSearchBlur = () => {
+    if (searchInput.trim() !== (filters.search ?? "")) {
+      handleSearchSubmit();
+    }
+  };
+
+  const handleSearchKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleSearchSubmit();
+    }
   };
 
   const handleFilterChange = (key: string, value: string) => {
     updateUrl({ [key]: value, page: 1 });
   };
 
+  const handleSalaryChange = (value: number[]) => {
+    setSalaryRange(value);
+  };
+
+  const handleSalaryCommit = (value: number[]) => {
+    const [min, max] = value;
+    const isDefault = min === SALARY_MIN && max === SALARY_MAX;
+    updateUrl({
+      minSalary: isDefault ? undefined : min,
+      maxSalary: isDefault ? undefined : max,
+      page: 1,
+    });
+  };
+
+  const handleExperienceChange = (value: number[]) => {
+    setExperienceRange(value);
+  };
+
+  const handleExperienceCommit = (value: number[]) => {
+    const [min, max] = value;
+    const isDefault = min === EXPERIENCE_MIN && max === EXPERIENCE_MAX;
+    updateUrl({
+      minExperience: isDefault ? undefined : min,
+      maxExperience: isDefault ? undefined : max,
+      page: 1,
+    });
+  };
+
   const handlePageChange = (page: number) => {
     updateUrl({ page });
+  };
+
+  const formatSalary = (value: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   return (
@@ -108,39 +186,52 @@ export function JobList({
             </p>
 
             {/* Search Bar */}
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-2xl mx-auto flex gap-2">
               <Input
                 type="text"
                 placeholder="Search jobs by title, skills, or keywords..."
-                value={filters.search ?? ""}
-                onChange={(e) => handleSearchChange(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onBlur={handleSearchBlur}
+                onKeyDown={handleSearchKeyDown}
                 className="h-12 text-lg"
+                aria-label="Search jobs"
               />
+              <Button
+                size="lg"
+                onClick={handleSearchSubmit}
+                className="px-6"
+                aria-label="Search"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Press Enter or click the search button to apply your search.
+            </p>
 
             {/* Quick Stats */}
             <div className="flex justify-center gap-8 mt-8 text-sm">
-              <div>
+              <div className="flex items-center gap-1">
                 <span className="font-semibold text-foreground">
                   {stats.totalJobs.toLocaleString()}
                 </span>
-                <span className="text-muted-foreground ml-1">Active Jobs</span>
+                <span className="text-muted-foreground">Active Jobs</span>
+                <TooltipInfo content="Total number of jobs currently available with a candidate-facing description." />
               </div>
-              <div>
+              <div className="flex items-center gap-1">
                 <span className="font-semibold text-foreground">
                   {stats.newThisWeek.toLocaleString()}
                 </span>
-                <span className="text-muted-foreground ml-1">
-                  New This Week
-                </span>
+                <span className="text-muted-foreground">New This Week</span>
+                <TooltipInfo content="Jobs published or detected in the last 7 days." />
               </div>
-              <div>
+              <div className="flex items-center gap-1">
                 <span className="font-semibold text-foreground">
                   {stats.globalRemote.toLocaleString()}
                 </span>
-                <span className="text-muted-foreground ml-1">
-                  Global Remote
-                </span>
+                <span className="text-muted-foreground">Global Remote</span>
+                <TooltipInfo content="Jobs open to candidates worldwide." />
               </div>
             </div>
           </div>
@@ -171,9 +262,10 @@ export function JobList({
 
               {/* Remote Scope */}
               <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Remote Scope
-                </Label>
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="text-sm font-medium">Remote Scope</Label>
+                  <TooltipInfo content="Filter by where the role allows you to work from." />
+                </div>
                 <Select
                   value={filters.remoteScope ?? "all"}
                   onValueChange={(value) =>
@@ -195,9 +287,10 @@ export function JobList({
 
               {/* Workplace Type */}
               <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Workplace Type
-                </Label>
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="text-sm font-medium">Workplace Type</Label>
+                  <TooltipInfo content="Filter by in-office, hybrid, or fully remote arrangements." />
+                </div>
                 <Select
                   value={filters.workplaceType ?? "all"}
                   onValueChange={(value) =>
@@ -219,9 +312,10 @@ export function JobList({
 
               {/* Employment Type */}
               <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Employment Type
-                </Label>
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="text-sm font-medium">Employment Type</Label>
+                  <TooltipInfo content="Filter by full-time, contract, or part-time roles." />
+                </div>
                 <Select
                   value={filters.employmentType ?? "all"}
                   onValueChange={(value) =>
@@ -243,59 +337,58 @@ export function JobList({
 
               {/* Salary Range */}
               <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Salary Range
-                </Label>
-                <div className="space-y-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minSalary ?? ""}
-                    onChange={(e) =>
-                      handleFilterChange("minSalary", e.target.value)
-                    }
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="text-sm font-medium">Salary Range</Label>
+                  <TooltipInfo content="Filter by annual gross salary (USD). Only ~2% of listings currently include salary data." />
+                </div>
+                <div className="px-1">
+                  <Slider
+                    value={salaryRange}
+                    onValueChange={handleSalaryChange}
+                    onValueCommit={handleSalaryCommit}
+                    min={SALARY_MIN}
+                    max={SALARY_MAX}
+                    step={SALARY_STEP}
+                    className="mb-2"
                   />
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxSalary ?? ""}
-                    onChange={(e) =>
-                      handleFilterChange("maxSalary", e.target.value)
-                    }
-                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{formatSalary(salaryRange[0])}</span>
+                    <span>{formatSalary(salaryRange[1])}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Experience Level */}
+              {/* Experience Range */}
               <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Experience (Years)
-                </Label>
-                <div className="space-y-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={filters.minExperience ?? ""}
-                    onChange={(e) =>
-                      handleFilterChange("minExperience", e.target.value)
-                    }
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="text-sm font-medium">
+                    Experience Range
+                  </Label>
+                  <TooltipInfo content="Filter by years of professional experience required." />
+                </div>
+                <div className="px-1">
+                  <Slider
+                    value={experienceRange}
+                    onValueChange={handleExperienceChange}
+                    onValueCommit={handleExperienceCommit}
+                    min={EXPERIENCE_MIN}
+                    max={EXPERIENCE_MAX}
+                    step={EXPERIENCE_STEP}
+                    className="mb-2"
                   />
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={filters.maxExperience ?? ""}
-                    onChange={(e) =>
-                      handleFilterChange("maxExperience", e.target.value)
-                    }
-                  />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{experienceRange[0]} yrs</span>
+                    <span>{experienceRange[1]} yrs</span>
+                  </div>
                 </div>
               </div>
 
               {/* Posted Within */}
               <div>
-                <Label className="text-sm font-medium mb-2 block">
-                  Posted Within
-                </Label>
+                <div className="flex items-center gap-1 mb-2">
+                  <Label className="text-sm font-medium">Posted Within</Label>
+                  <TooltipInfo content="Show only jobs published by the ATS within the selected time window (falls back to when we detected the job if no publish date is available)." />
+                </div>
                 <Select
                   value={filters.postedWithin?.toString() ?? "all"}
                   onValueChange={(value) =>
@@ -324,7 +417,10 @@ export function JobList({
                 Showing {totalCount.toLocaleString()} jobs
               </div>
               <div className="flex items-center gap-2">
-                <Label className="text-sm">Sort by:</Label>
+                <div className="flex items-center gap-1">
+                  <Label className="text-sm">Sort by:</Label>
+                  <TooltipInfo content="Choose how job results are ordered. Newest/Oldest use publish date; Relevance falls back to Newest; Company Quality uses company fusion score + tier; Highest Pay uses the max salary (only ~2% of jobs have salary data)." />
+                </div>
                 <Select value={sortBy} onValueChange={handleSortChange}>
                   <SelectTrigger className="w-48">
                     <SelectValue />
@@ -359,7 +455,11 @@ export function JobList({
             ) : (
               <div className="space-y-4">
                 {jobs.map((job) => (
-                  <JobCard key={job.id} job={job} />
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    isAuthenticated={isAuthenticated}
+                  />
                 ))}
               </div>
             )}

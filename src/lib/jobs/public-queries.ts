@@ -8,6 +8,7 @@
 
 import {
   and,
+  asc,
   count,
   desc,
   eq,
@@ -20,13 +21,19 @@ import {
 } from "drizzle-orm";
 
 import { db } from "@/db/db";
+import { company } from "@/db/schemas/jobs/company";
 import { job } from "@/db/schemas/jobs/job";
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-export type JobSortOption = "newest" | "relevance" | "quality" | "salary";
+export type JobSortOption =
+  | "newest"
+  | "oldest"
+  | "relevance"
+  | "quality"
+  | "salary";
 export type JobRemoteScope =
   | "global"
   | "country_fenced"
@@ -55,6 +62,7 @@ export interface PublicJobRow {
   companyName: string | null;
   shortDescription: string | null;
   normalizedText: string | null;
+  rawJson: string | null;
   workplaceType: string | null;
   remoteScope: string | null;
   employmentType: string | null;
@@ -72,7 +80,8 @@ export interface PublicJobRow {
   lastSeenAt: Date | null;
   applyUrl: string | null;
   atsSource: string;
-  // Company quality signals - temporarily disabled until company join is fixed
+  atsSlug: string;
+  // Company quality signals joined via (atsSource, atsSlug)
   companyTier: string | null;
   companyHealth: string | null;
   fusionScore: number | null;
@@ -86,6 +95,7 @@ export const JOB_SORT_OPTIONS: readonly {
   label: string;
 }[] = [
   { value: "newest", label: "Newest First" },
+  { value: "oldest", label: "Oldest First" },
   { value: "relevance", label: "Relevance" },
   { value: "quality", label: "Company Quality" },
   { value: "salary", label: "Highest Pay" },
@@ -232,21 +242,40 @@ export async function getPublicJobs(
       );
     }
 
-    // Posted within X days filter
+    // Posted within X days filter ("posted" = publishedAt; fall back to detectedAt
+    // if the ATS didn't expose a published date).
     if (filters.postedWithin !== undefined && filters.postedWithin > 0) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - filters.postedWithin);
       addCondition(
         conditions,
-        or(gte(job.publishedAt, cutoffDate), gte(job.detectedAt, cutoffDate)),
+        or(
+          gte(job.publishedAt, cutoffDate),
+          and(sql`${job.publishedAt} IS NULL`, gte(job.detectedAt, cutoffDate)),
+        ),
       );
     }
 
-    // Build the base query with sorting and pagination in one fluent chain
-    const orderByClause =
-      sortBy === "salary"
-        ? [desc(job.compensationMax), desc(job.publishedAt)]
-        : [desc(job.publishedAt), desc(job.detectedAt)];
+    // Sort order clause
+    let orderByClause: SQL[];
+    switch (sortBy) {
+      case "salary":
+        orderByClause = [desc(job.compensationMax), desc(job.publishedAt)];
+        break;
+      case "oldest":
+        orderByClause = [asc(job.publishedAt), asc(job.detectedAt)];
+        break;
+      case "quality":
+        orderByClause = [
+          desc(company.fusionScore),
+          desc(company.tier),
+          desc(job.publishedAt),
+        ];
+        break;
+      default:
+        orderByClause = [desc(job.publishedAt), desc(job.detectedAt)];
+        break;
+    }
 
     const rows = await db
       .select({
@@ -255,6 +284,7 @@ export async function getPublicJobs(
         companyName: job.companyName,
         shortDescription: job.shortDescription,
         normalizedText: job.normalizedText,
+        rawJson: job.rawJson,
         workplaceType: job.workplaceType,
         remoteScope: job.remoteScope,
         employmentType: job.employmentType,
@@ -272,23 +302,26 @@ export async function getPublicJobs(
         lastSeenAt: job.lastSeenAt,
         applyUrl: job.applyUrl,
         atsSource: job.atsSource,
+        atsSlug: job.atsSlug,
+        // Company quality signals joined via (atsSource, atsSlug)
+        companyTier: company.tier,
+        companyHealth: company.health,
+        fusionScore: company.fusionScore,
+        employeeCount: company.activeJobCount,
+        isAgency: sql<boolean>`FALSE`.as("isAgency"),
+        isPublic: sql<boolean>`TRUE`.as("isPublic"),
       })
       .from(job)
+      .leftJoin(
+        company,
+        sql`${job.atsSource}::text = ${company.atsSource}::text AND ${job.atsSlug} = ${company.atsSlug}`,
+      )
       .where(and(...conditions))
       .orderBy(...orderByClause)
       .limit(pageSize)
       .offset(offset);
 
-    return rows.map((row) => ({
-      ...row,
-      // Company quality signals - temporarily disabled until company join is fixed
-      companyTier: null,
-      companyHealth: null,
-      fusionScore: null,
-      employeeCount: null,
-      isAgency: null,
-      isPublic: null,
-    })) as PublicJobRow[];
+    return rows as PublicJobRow[];
   } catch (error) {
     console.error("Error in getPublicJobs:", error);
     return [];
@@ -311,6 +344,7 @@ export async function getPublicJobById(
         companyName: job.companyName,
         shortDescription: job.shortDescription,
         normalizedText: job.normalizedText,
+        rawJson: job.rawJson,
         workplaceType: job.workplaceType,
         remoteScope: job.remoteScope,
         employmentType: job.employmentType,
@@ -328,25 +362,32 @@ export async function getPublicJobById(
         lastSeenAt: job.lastSeenAt,
         applyUrl: job.applyUrl,
         atsSource: job.atsSource,
+        atsSlug: job.atsSlug,
+        companyTier: company.tier,
+        companyHealth: company.health,
+        fusionScore: company.fusionScore,
+        employeeCount: company.activeJobCount,
+        isAgency: sql<boolean>`FALSE`.as("isAgency"),
+        isPublic: sql<boolean>`TRUE`.as("isPublic"),
       })
       .from(job)
-      .where(and(eq(job.id, jobId), eq(job.status, "active")))
+      .leftJoin(
+        company,
+        sql`${job.atsSource}::text = ${company.atsSource}::text AND ${job.atsSlug} = ${company.atsSlug}`,
+      )
+      .where(
+        and(
+          eq(job.id, jobId),
+          eq(job.status, "active"),
+          sql`${job.shortDescription} IS NOT NULL`,
+          sql`${job.shortDescription} <> ''`,
+        ),
+      )
       .limit(1);
 
     if (rows.length === 0) return null;
 
-    const row = rows[0];
-    if (!row.shortDescription) return null;
-
-    return {
-      ...row,
-      companyTier: null,
-      companyHealth: null,
-      fusionScore: null,
-      employeeCount: null,
-      isAgency: null,
-      isPublic: null,
-    } as PublicJobRow;
+    return rows[0] as PublicJobRow;
   } catch (error) {
     console.error("Error in getPublicJobById:", error);
     return null;
@@ -447,13 +488,17 @@ export async function getPublicJobsCount(
       );
     }
 
-    // Posted within X days filter
+    // Posted within X days filter ("posted" = publishedAt; fall back to detectedAt
+    // if the ATS didn't expose a published date).
     if (filters.postedWithin !== undefined && filters.postedWithin > 0) {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - filters.postedWithin);
       addCondition(
         conditions,
-        or(gte(job.publishedAt, cutoffDate), gte(job.detectedAt, cutoffDate)),
+        or(
+          gte(job.publishedAt, cutoffDate),
+          and(sql`${job.publishedAt} IS NULL`, gte(job.detectedAt, cutoffDate)),
+        ),
       );
     }
 

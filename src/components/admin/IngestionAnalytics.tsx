@@ -12,6 +12,7 @@ import { AlertTriangle, Info, Layers } from "lucide-react";
 
 import { CsvExportButton } from "@/components/admin/CsvExportButton";
 import { IngestionTrendsChart } from "@/components/admin/IngestionTrendsChart";
+import { JobStalenessDistribution } from "@/components/admin/JobStalenessDistribution";
 import {
   type TimeRange,
   TimeRangeSelector,
@@ -304,6 +305,9 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
           tooltip="Average wall-clock duration of a run, measured from started_at to finished_at. Slow runs may indicate rate-limiting or large payloads."
         />
       </div>
+
+      {/* Active job staleness distribution */}
+      <JobStalenessDistribution />
 
       {/* Trends chart */}
       <Card>

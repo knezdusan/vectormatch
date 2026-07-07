@@ -34,6 +34,49 @@ import {
 import { writeIngestionLog } from "./ingestion-log";
 import { countActiveJobs, upsertJobs } from "./job-repository";
 
+// ── Configuration ─────────────────────────────────────────────────────────────
+
+/**
+ * Maximum age at which a job may be INGESTED. Jobs with a publishedAt older
+ * than this are rejected outright and never enter the database. This is the
+ * hard freshness gate at ingestion time.
+ *
+ * Default: 30 days. Override with MAX_JOB_INJECTION_AGE_DAYS env var.
+ */
+const DEFAULT_MAX_JOB_INJECTION_AGE_DAYS = 30;
+
+function getMaxJobInjectionAgeDays(): number {
+  const envValue = process.env.MAX_JOB_INJECTION_AGE_DAYS;
+  if (!envValue) return DEFAULT_MAX_JOB_INJECTION_AGE_DAYS;
+  const parsed = Number.parseInt(envValue, 10);
+  return Number.isNaN(parsed) || parsed <= 0
+    ? DEFAULT_MAX_JOB_INJECTION_AGE_DAYS
+    : parsed;
+}
+
+/**
+ * Maximum age a job may remain ACTIVE in the database. Jobs older than this
+ * are marked stale by the backfill script and daily stale cleanup.
+ *
+ * Default: 60 days. Override with MAX_JOB_AGE_DAYS env var.
+ */
+const DEFAULT_MAX_JOB_AGE_DAYS = 60;
+
+function getMaxJobAgeDays(): number {
+  const envValue = process.env.MAX_JOB_AGE_DAYS;
+  if (!envValue) return DEFAULT_MAX_JOB_AGE_DAYS;
+  const parsed = Number.parseInt(envValue, 10);
+  return Number.isNaN(parsed) || parsed <= 0
+    ? DEFAULT_MAX_JOB_AGE_DAYS
+    : parsed;
+}
+
+function isJobFreshForInjection(publishedAt: Date | null): boolean {
+  if (!publishedAt) return true; // Keep jobs with no publish date; rely on lastSeenAt staleness
+  const maxAgeMs = getMaxJobInjectionAgeDays() * 24 * 60 * 60 * 1000;
+  return Date.now() - new Date(publishedAt).getTime() <= maxAgeMs;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 /** Result of polling a single company — for ingestionLog metrics. */
@@ -47,6 +90,10 @@ export interface PollResult {
   jobsPassedGate0: number;
   /** Jobs that were rejected by Gate 0 (non-engineering titles). */
   jobsRejectedByGate0: number;
+  /** Jobs that passed Gate 0 but were explicitly marked inactive by the source. */
+  jobsInactive: number;
+  /** Jobs that passed Gate 0 but were skipped because they are too old for injection. */
+  jobsTooOld: number;
   /** Jobs upserted into the database (new + existing). */
   jobsUpserted: number;
   /** Genuinely new job IDs (for the B→C handoff event). */
@@ -86,6 +133,8 @@ export async function pollCompany(
     jobsFetched: 0,
     jobsPassedGate0: 0,
     jobsRejectedByGate0: 0,
+    jobsInactive: 0,
+    jobsTooOld: 0,
     jobsUpserted: 0,
     newJobIds: [],
     health: "healthy",
@@ -190,8 +239,25 @@ export async function pollCompany(
     }
   }
 
+  // Step 2b: Active-status gate — drop jobs explicitly marked closed by the
+  // source (currently Recruitee/SmartRecruiters). Greenhouse, Lever, Ashby,
+  // and Workable public APIs only return live postings by contract, so they
+  // skip this check.
+  const activeJobs = enrichedJobs.filter((j) => j.metadata.isActive);
+  const inactiveCount = enrichedJobs.length - activeJobs.length;
+
+  // Step 2c: Injection freshness gate — hard cap on how old a job may be when
+  // it first enters the database. A 30-day cap prevents stale legacy postings
+  // (e.g. 2014 listings) from ever polluting the corpus. Jobs already in the
+  // DB are not affected by this gate; they age out via MAX_JOB_AGE_DAYS.
+  const maxInjectionAgeDays = getMaxJobInjectionAgeDays();
+  const injectableJobs = activeJobs.filter((j) =>
+    isJobFreshForInjection(j.metadata.publishedAt),
+  );
+  const tooOldForInjectionCount = activeJobs.length - injectableJobs.length;
+
   // Step 3: Upsert filtered (and possibly enriched) jobs into the job table.
-  const upsertResult = await upsertJobs(atsSource, atsSlug, enrichedJobs);
+  const upsertResult = await upsertJobs(atsSource, atsSlug, injectableJobs);
 
   // Step 4: Count active jobs and update company state.
   const activeJobCount = await countActiveJobs(atsSource, atsSlug);
@@ -220,7 +286,13 @@ export async function pollCompany(
     itemsInserted: upsertResult.newJobIds.length,
     itemsUpdated: upsertResult.updatedCount,
     itemsRejected: rejectedCount,
-    itemsSkipped: 0,
+    itemsSkipped: tooOldForInjectionCount + inactiveCount,
+    errorDetails: {
+      maxInjectionAgeDays,
+      maxAgeDays: getMaxJobAgeDays(),
+      tooOldForInjectionCount,
+      inactiveCount,
+    },
     startedAt,
     finishedAt: new Date(),
   });
@@ -230,6 +302,8 @@ export async function pollCompany(
     jobsFetched: allJobs.length,
     jobsPassedGate0: filteredJobs.length,
     jobsRejectedByGate0: rejectedCount,
+    jobsInactive: inactiveCount,
+    jobsTooOld: tooOldForInjectionCount,
     jobsUpserted: upsertResult.totalUpserted,
     newJobIds: upsertResult.newJobIds,
     health,

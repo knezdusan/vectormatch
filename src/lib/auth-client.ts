@@ -6,10 +6,13 @@ export const authClient = createAuthClient({
   plugins: [adminClient()],
 });
 
-export const signIn = async (provider: "google" | "github" = "google") => {
+export const signIn = async (
+  provider: "google" | "github" = "google",
+  options?: { callbackURL?: string },
+) => {
   const data = await authClient.signIn.social({
     provider,
-    callbackURL: "/dashboard/profile-management",
+    callbackURL: options?.callbackURL ?? "/dashboard/profile-management",
   });
   return data;
 };

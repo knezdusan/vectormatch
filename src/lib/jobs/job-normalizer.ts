@@ -451,6 +451,8 @@ export type JobMetadata = {
   applyUrl: string | null;
   /** When the job was published (Greenhouse first_published, Lever createdAt ms, Ashby publishedAt). */
   publishedAt: Date | null;
+  /** Whether the source considers this job currently active/open. */
+  isActive: boolean;
   /** Company name (Greenhouse only — Lever/Ashby don't include it in the job object). */
   companyName: string | null;
   // ── Gate 0.5 hard-blocker fields (added July 2026) ──────────────────────
@@ -524,6 +526,7 @@ export function extractJobMetadata(
     team: null,
     applyUrl: null,
     publishedAt: null,
+    isActive: true,
     companyName: null,
     titleRegionTag: null,
     locationCountries: null,
@@ -710,6 +713,7 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     team: null, // Greenhouse doesn't have a separate team field
     applyUrl: null, // Not in the list endpoint
     publishedAt,
+    isActive: true,
     companyName,
     titleRegionTag,
     locationCountries: null, // Greenhouse doesn't provide structured country lists
@@ -790,6 +794,7 @@ function extractLeverMetadata(obj: Record<string, unknown>): JobMetadata {
     team,
     applyUrl,
     publishedAt,
+    isActive: true,
     companyName: null, // Lever v0 doesn't include company name in the job object
     titleRegionTag,
     locationCountries: null, // Lever doesn't provide structured country lists
@@ -870,6 +875,7 @@ function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
     team,
     applyUrl,
     publishedAt,
+    isActive: true,
     companyName: null, // Ashby Public API doesn't include company name
     titleRegionTag,
     locationCountries: null, // Ashby Public API location is a string, not a structured list
@@ -952,6 +958,7 @@ function extractSmartRecruitersMetadata(
     team: null,
     applyUrl: null,
     publishedAt,
+    isActive: parseIsActiveStatus("smartrecruiters", obj),
     companyName,
     titleRegionTag,
     locationCountries: null,
@@ -1032,6 +1039,7 @@ function extractWorkableMetadata(obj: Record<string, unknown>): JobMetadata {
     team: null,
     applyUrl,
     publishedAt,
+    isActive: true,
     companyName,
     titleRegionTag,
     locationCountries: null,
@@ -1108,6 +1116,7 @@ function extractRecruiteeMetadata(obj: Record<string, unknown>): JobMetadata {
     team: null,
     applyUrl,
     publishedAt,
+    isActive: parseIsActiveStatus("recruitee", obj),
     companyName,
     titleRegionTag,
     locationCountries: null,
@@ -1466,6 +1475,58 @@ function parseEpochMs(value: unknown): Date | null {
   if (typeof value !== "number") return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Determine whether an explicit source status indicates the job is currently
+ * active/open. Sources whose public APIs only return live jobs (Greenhouse,
+ * Lever, Ashby, Workable) do not need this check. Recruitee and SmartRecruiters
+ * may expose a status field, so closed/archived jobs are rejected here.
+ */
+function parseIsActiveStatus(
+  atsSource: string,
+  obj: Record<string, unknown>,
+): boolean {
+  if (
+    atsSource === "greenhouse" ||
+    atsSource === "lever" ||
+    atsSource === "ashby" ||
+    atsSource === "workable"
+  ) {
+    return true;
+  }
+
+  const status = obj.status;
+  if (status === undefined || status === null) return true;
+  if (typeof status !== "string") return true;
+
+  const normalized = status.toLowerCase().trim();
+  const activeStatuses = new Set([
+    "active",
+    "open",
+    "published",
+    "posted",
+    "live",
+    "online",
+  ]);
+  const closedStatuses = new Set([
+    "closed",
+    "archived",
+    "inactive",
+    "filled",
+    "unpublished",
+    "draft",
+    "expired",
+    "on_hold",
+    "on-hold",
+    "paused",
+  ]);
+
+  if (closedStatuses.has(normalized)) return false;
+  if (activeStatuses.has(normalized)) return true;
+
+  // Unknown status value: keep the job and let observability surface it.
+  return true;
 }
 
 // =============================================================================
