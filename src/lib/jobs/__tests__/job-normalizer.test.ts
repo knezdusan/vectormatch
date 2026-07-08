@@ -1035,6 +1035,27 @@ describe("normalizeJob", () => {
     expect(result.summary).toBe(customSummary);
   });
 
+  it("returns jobUrl extracted from rawJson for normalized jobs", async () => {
+    const rawJson = JSON.stringify({
+      title: "Senior React Engineer",
+      absolute_url: "https://boards.greenhouse.io/acme/jobs/12345",
+      content:
+        "<p>React, TypeScript, and Next.js developer needed. " +
+        "You will build user interfaces and work on a fast-paced team.</p>",
+    });
+    const mockLlm: LlmTagExtractor = async () => ["react", "typescript"];
+
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      mockLlm,
+    );
+
+    expect(result.status).toBe("normalized");
+    expect(result.jobUrl).toBe("https://boards.greenhouse.io/acme/jobs/12345");
+  });
+
   it("returns 'normalized' when Phase 1 regex finds ≥1 persona_defining tag (no LLM call)", async () => {
     const rawJson = JSON.stringify({
       title: "Senior React Engineer",
@@ -1163,6 +1184,28 @@ describe("normalizeJob", () => {
     expect(result.rejectionReason).toBe("no_tags");
   });
 
+  it("returns jobUrl for rejected jobs so the URL can be persisted before rawJson is nullified", async () => {
+    const rawJson = JSON.stringify({
+      title: "QA Analyst",
+      absolute_url: "https://boards.greenhouse.io/acme/jobs/99999",
+      content:
+        "<p>Manual testing with some CSS knowledge required. " +
+        "You will be responsible for test case creation and execution.</p>",
+    });
+    const mockLlm = makeMockLlm(["css"]);
+
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      mockLlm,
+      mockSummaryExtractor,
+    );
+
+    expect(result.status).toBe("rejected");
+    expect(result.jobUrl).toBe("https://boards.greenhouse.io/acme/jobs/99999");
+  });
+
   // ── Phase 2 LLM call fails → 'normalization_failed' ─────────────────────
 
   it("returns 'normalization_failed' when Phase 2 LLM call throws", async () => {
@@ -1190,6 +1233,28 @@ describe("normalizeJob", () => {
     expect(result.error).toBe("OpenAI rate limit exceeded");
     // Phase 1 tags should still be present (for debugging)
     expect(result.tags).toBeDefined();
+  });
+
+  it("returns jobUrl for normalization_failed jobs so retries preserve the listing URL", async () => {
+    const rawJson = JSON.stringify({
+      title: "Office Manager",
+      absolute_url: "https://boards.greenhouse.io/acme/jobs/88888",
+      content:
+        "<p>Manage office operations and scheduling for a growing team. " +
+        "Responsibilities include coordinating meetings and managing supplies.</p>",
+    });
+    const mockLlm = makeMockLlmThatThrows(new Error("timeout"));
+
+    const result = await normalizeJob(
+      "greenhouse",
+      rawJson,
+      "Fallback",
+      mockLlm,
+      mockSummaryExtractor,
+    );
+
+    expect(result.status).toBe("normalization_failed");
+    expect(result.jobUrl).toBe("https://boards.greenhouse.io/acme/jobs/88888");
   });
 
   it("returns 'normalization_failed' with error message for non-Error throws", async () => {

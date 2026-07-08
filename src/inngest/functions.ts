@@ -2266,6 +2266,8 @@ export const jobIngestedHandler = inngest.createFunction(
             normalizedAt: new Date(),
             // AI-generated candidate-facing summary (added July 2026).
             shortDescription: normalization.summary,
+            // Persist the original listing URL before rawJson is nullified.
+            jobUrl: normalization.jobUrl ?? null,
             // status stays 'active' — normalizedAt indicates normalization done
           })
           .where(eq(job.id, jobId));
@@ -2291,6 +2293,8 @@ export const jobIngestedHandler = inngest.createFunction(
             normalizedText: normalization.fullText,
             rawJson: null,
             normalizedAt: new Date(),
+            // Persist the original listing URL before rawJson is nullified.
+            jobUrl: normalization.jobUrl ?? null,
           })
           .where(eq(job.id, jobId));
       } else {
@@ -2311,6 +2315,9 @@ export const jobIngestedHandler = inngest.createFunction(
           .set({
             status: "normalization_failed",
             extractedTags: normalization.tags,
+            // Persist the original listing URL for the retry path; rawJson is
+            // intentionally left intact so retries can re-extract content.
+            jobUrl: normalization.jobUrl ?? null,
           })
           .where(eq(job.id, jobId));
       }

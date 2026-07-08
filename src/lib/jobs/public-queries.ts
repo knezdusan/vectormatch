@@ -79,6 +79,7 @@ export interface PublicJobRow {
   detectedAt: Date | null;
   lastSeenAt: Date | null;
   applyUrl: string | null;
+  jobUrl: string | null;
   atsSource: string;
   atsSlug: string;
   // Company quality signals joined via (atsSource, atsSlug)
@@ -307,6 +308,7 @@ export async function getPublicJobs(
         detectedAt: job.detectedAt,
         lastSeenAt: job.lastSeenAt,
         applyUrl: job.applyUrl,
+        jobUrl: job.jobUrl,
         atsSource: job.atsSource,
         atsSlug: job.atsSlug,
         // Company quality signals joined via (atsSource, atsSlug)
@@ -367,6 +369,7 @@ export async function getPublicJobById(
         detectedAt: job.detectedAt,
         lastSeenAt: job.lastSeenAt,
         applyUrl: job.applyUrl,
+        jobUrl: job.jobUrl,
         atsSource: job.atsSource,
         atsSlug: job.atsSlug,
         companyTier: company.tier,

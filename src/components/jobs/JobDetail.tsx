@@ -104,12 +104,17 @@ export async function JobDetail({ params }: JobDetailProps) {
     notFound();
   }
 
-  // Prefer the job-specific posting URL; fall back to the company board.
+  // Prefer the persisted job-specific posting URL (set during normalization
+  // before G7 nullifies rawJson). Fall back to the company board or the
+  // apply URL for legacy jobs normalized before the jobUrl column existed.
+  const hostedBoardUrl = ATS_ENDPOINTS[
+    job.atsSource as keyof typeof ATS_ENDPOINTS
+  ]?.hostedBoard(job.atsSlug);
   const jobUrl =
+    job.jobUrl ??
     extractJobUrl(job.atsSource, job.rawJson) ??
-    ATS_ENDPOINTS[job.atsSource as keyof typeof ATS_ENDPOINTS]?.hostedBoard(
-      job.atsSlug,
-    );
+    job.applyUrl ??
+    hostedBoardUrl;
 
   const jobContent = extractJobContent(
     job.atsSource,

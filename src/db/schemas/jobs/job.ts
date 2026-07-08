@@ -83,6 +83,10 @@ export const job = pgTable(
     department: text("department"),
     team: text("team"),
     applyUrl: text("apply_url"),
+    // Public job posting URL (the original listing page, not the apply form).
+    // Extracted from rawJson before G7 nullification so the match detail page
+    // can link candidates directly to the specific job posting.
+    jobUrl: text("job_url"),
     publishedAt: timestamp("published_at"),
     companyName: text("company_name"),
 

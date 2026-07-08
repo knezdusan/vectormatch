@@ -123,6 +123,7 @@ export async function upsertJobs(
         department: j.metadata.department,
         team: j.metadata.team,
         applyUrl: j.metadata.applyUrl,
+        jobUrl: j.url,
         publishedAt: j.metadata.publishedAt,
         companyName: j.metadata.companyName,
         // Gate 0.5 metadata (added July 2026)
@@ -171,6 +172,7 @@ export async function upsertJobs(
         department: sql`excluded.department`,
         team: sql`excluded.team`,
         applyUrl: sql`excluded.apply_url`,
+        jobUrl: sql`excluded.job_url`,
         publishedAt: sql`excluded.published_at`,
         companyName: sql`excluded.company_name`,
         // Gate 0.5 metadata refresh on re-poll
@@ -315,7 +317,7 @@ export async function insertAggregatorJob(
     applyUrl?: string;
     publishedAt?: Date;
   },
-  normalization: { fullText: string; tags: string[] },
+  normalization: { fullText: string; tags: string[]; jobUrl?: string | null },
   embedding: number[],
 ): Promise<string | null> {
   const embeddingStr = `[${embedding.join(",")}]`;
@@ -334,6 +336,7 @@ export async function insertAggregatorJob(
       status: "active",
       normalizedAt: new Date(),
       applyUrl: aggregatorJob.applyUrl ?? null,
+      jobUrl: normalization.jobUrl ?? null,
       publishedAt: aggregatorJob.publishedAt ?? null,
     })
     .onConflictDoNothing({

@@ -56,6 +56,9 @@ export type NormalizationResult = {
    *  normalized jobs; may be set on rejected jobs if the LLM produced one before
    *  the rejection decision. */
   summary?: string;
+  /** Public job posting URL extracted from rawJson (the original listing page,
+   *  not the application form). Persisted before G7 nullifies rawJson. */
+  jobUrl?: string | null;
   /** Only set on normalization_failed — the error message for logging. */
   error?: string;
   /** Why the job was rejected — set when status='rejected' to distinguish
@@ -1795,12 +1798,13 @@ export async function normalizeJob(
   llmExtractor: LlmTagExtractor = extractTagsLLM,
   summaryExtractor: LlmSummaryExtractor = summarizeJobLLM,
 ): Promise<NormalizationResult> {
-  // Step 1: ATS-source-aware content extraction.
+  // Step 1: ATS-source-aware content extraction + job URL extraction.
   const { fullText, title } = extractJobContent(
     atsSource,
     rawJson,
     fallbackTitle,
   );
+  const jobUrl = extractJobUrl(atsSource, rawJson);
 
   // Step 1b: Title-only rejection guard.
   // Jobs with very short fullText (< MIN_NORMALIZABLE_FULLTEXT_LENGTH chars)
@@ -1813,6 +1817,7 @@ export async function normalizeJob(
       status: "rejected",
       tags: [],
       fullText,
+      jobUrl,
       rejectionReason: "title_only" as const,
     };
   }
@@ -1840,7 +1845,7 @@ export async function normalizeJob(
   // Step 4: If enough persona_defining tags → normalized + summary.
   if (definingCount >= GATE_NORMALIZATION_MIN_PERSONA_TAGS) {
     const summary = await safeSummarize();
-    return { status: "normalized", tags, fullText, summary };
+    return { status: "normalized", tags, fullText, summary, jobUrl };
   }
 
   // Step 5: Phase 2 LLM fallback.
@@ -1855,7 +1860,7 @@ export async function normalizeJob(
     // Step 6: Recount after Phase 2.
     if (definingCount >= GATE_NORMALIZATION_MIN_PERSONA_TAGS) {
       const summary = await safeSummarize();
-      return { status: "normalized", tags, fullText, summary };
+      return { status: "normalized", tags, fullText, summary, jobUrl };
     }
 
     // Still not enough persona_defining tags → rejected (tombstone).
@@ -1863,6 +1868,7 @@ export async function normalizeJob(
       status: "rejected",
       tags,
       fullText,
+      jobUrl,
       rejectionReason: "no_tags" as const,
     };
   } catch (error) {
@@ -1872,6 +1878,7 @@ export async function normalizeJob(
       status: "normalization_failed",
       tags,
       fullText,
+      jobUrl,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -1984,6 +1991,7 @@ export function normalizeAggregatorJob(job: AggregatorJob): {
   status: "normalized" | "rejected";
   fullText: string;
   tags: string[];
+  jobUrl: string | null;
 } {
   // Strip HTML from description
   const cleanedDescription = stripHtml(job.description);
@@ -1992,9 +2000,10 @@ export function normalizeAggregatorJob(job: AggregatorJob): {
   const combinedText = `${job.title} at ${job.company}\n${locationLine}${cleanedDescription}`;
   // Run regex tag extraction (same as ATS jobs)
   const tags = scanTagsRegex(combinedText);
+  const jobUrl = job.applyUrl?.trim() || null;
   // Gate 0 check on title — reject non-engineering roles
   if (!passesGateZero(job.title)) {
-    return { status: "rejected", fullText: combinedText, tags };
+    return { status: "rejected", fullText: combinedText, tags, jobUrl };
   }
-  return { status: "normalized", fullText: combinedText, tags };
+  return { status: "normalized", fullText: combinedText, tags, jobUrl };
 }

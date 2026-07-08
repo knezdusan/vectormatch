@@ -323,6 +323,13 @@
       "when": 1783376600841,
       "tag": "0045_tidy_hiroim",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1783462800000,
+      "tag": "0046_bright_stardust",
+      "breakpoints": true
     }
   ]
 }
