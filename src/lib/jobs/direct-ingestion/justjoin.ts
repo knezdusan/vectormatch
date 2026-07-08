@@ -211,6 +211,9 @@ export async function fetchJustJoinJobs(
             extractValue(lo.experienceLevel),
         );
         const { min, max, currency } = extractCompensation(employmentTypes);
+        const { remoteScope, locationCountries } = inferScopeFromCountryCode(
+          detail.countryCode,
+        );
 
         const job: DirectIngestionJob = {
           externalJobId: lo.guid ?? slug,
@@ -225,9 +228,8 @@ export async function fetchJustJoinJobs(
             extractValue(detail.workplaceType) ?? lo.workplaceType,
           ),
           employmentType: normalizeEmploymentType(employmentTypes?.[0]?.type),
-          // JustJoin is a Polish/EU board; remote jobs default to global since
-          // the API exposes no per-offer "required location" fencing field.
-          remoteScope: "global",
+          remoteScope,
+          locationCountries,
           compensationMin: min,
           compensationMax: max,
           compensationCurrency: currency,
@@ -437,6 +439,30 @@ function formatLocation(
   if (city) return city;
   if (country) return country;
   return null;
+}
+
+/**
+ * Infer remoteScope and locationCountries from the detail's countryCode.
+ *
+ * JustJoin's detail endpoint exposes a single `countryCode` (ISO 3166-1
+ * alpha-2) per offer. A remote job with countryCode="PL" is
+ * remote-within-Poland (country_fenced), not global — the same logic as the
+ * NoFluffJobs adapter's places-based inference. When no countryCode is
+ * available, default to global (the board is remote-first).
+ *
+ * This replaces the previous hardcoded `remoteScope: "global"` which caused
+ * Gate 0.5 Check 2b to misfire on jobs whose locationName contained a country
+ * name (e.g. "Warszawa, PL") alongside remoteScope="global".
+ */
+function inferScopeFromCountryCode(countryCode: string | undefined): {
+  remoteScope: "global" | "country_fenced";
+  locationCountries: string[] | null;
+} {
+  if (!countryCode) {
+    return { remoteScope: "global", locationCountries: null };
+  }
+  const code = countryCode.toUpperCase();
+  return { remoteScope: "country_fenced", locationCountries: [code] };
 }
 
 /**

@@ -30,8 +30,7 @@ import type {
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   JOB_SORT_OPTIONS,
-  REMOTE_SCOPE_OPTIONS,
-  WORKPLACE_TYPE_OPTIONS,
+  WORKPLACE_FILTER_OPTIONS,
 } from "@/lib/jobs/public-queries";
 import { JobCard } from "./JobCard";
 import { TooltipInfo } from "./TooltipInfo";
@@ -132,6 +131,20 @@ export function JobList({
 
   const handleFilterChange = (key: string, value: string) => {
     updateUrl({ [key]: value, page: 1 });
+  };
+
+  const handleWorkplaceChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    // Remove legacy filters so the unified filter is the single source of truth.
+    params.delete("remoteScope");
+    params.delete("workplaceType");
+    if (value === "all") {
+      params.delete("workplace");
+    } else {
+      params.set("workplace", value);
+    }
+    params.delete("page");
+    router.push(`/jobs?${params.toString()}`, { scroll: false });
   };
 
   const handleSalaryChange = (value: number[]) => {
@@ -260,48 +273,21 @@ export function JobList({
 
               <Separator />
 
-              {/* Remote Scope */}
+              {/* Workplace - unified remote scope + workplace type */}
               <div>
                 <div className="flex items-center gap-1 mb-2">
-                  <Label className="text-sm font-medium">Remote Scope</Label>
-                  <TooltipInfo content="Filter by where the role allows you to work from." />
+                  <Label className="text-sm font-medium">Workplace</Label>
+                  <TooltipInfo content="Filter by work arrangement and geographic scope." />
                 </div>
                 <Select
-                  value={filters.remoteScope ?? "all"}
-                  onValueChange={(value) =>
-                    handleFilterChange("remoteScope", value)
-                  }
+                  value={filters.workplace ?? "all"}
+                  onValueChange={handleWorkplaceChange}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {REMOTE_SCOPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Workplace Type */}
-              <div>
-                <div className="flex items-center gap-1 mb-2">
-                  <Label className="text-sm font-medium">Workplace Type</Label>
-                  <TooltipInfo content="Filter by in-office, hybrid, or fully remote arrangements." />
-                </div>
-                <Select
-                  value={filters.workplaceType ?? "all"}
-                  onValueChange={(value) =>
-                    handleFilterChange("workplaceType", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WORKPLACE_TYPE_OPTIONS.map((option) => (
+                    {WORKPLACE_FILTER_OPTIONS.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>

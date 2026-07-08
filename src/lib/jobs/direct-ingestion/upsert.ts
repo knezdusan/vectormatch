@@ -125,7 +125,7 @@ export async function upsertDirectJobs(
         companyName: j.companyName,
         // Gate 0.5 metadata
         titleRegionTag: null, // Direct boards don't use title region tags
-        locationCountries: null,
+        locationCountries: j.locationCountries ?? null,
         experienceMinYears: j.experienceMinYears,
         experienceMaxYears: j.experienceMaxYears,
         compensationMin:
@@ -163,6 +163,7 @@ export async function upsertDirectJobs(
         compensationMax: sql`excluded.compensation_max`,
         compensationCurrency: sql`excluded.compensation_currency`,
         remoteScope: sql`excluded.remote_scope`,
+        locationCountries: sql`excluded.location_countries`,
         // Keep normalizedAt set — don't reset
         normalizedAt: sql`GREATEST(${job.normalizedAt}, excluded.normalized_at)`,
       },

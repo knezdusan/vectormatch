@@ -476,7 +476,9 @@ describe("fetchNoFluffJobs", () => {
     expect(job.companyName).toBe("N-iX");
     expect(job.externalJobId).toBe("senior-vue-js-engineer-n-ix-remote");
     expect(job.workplaceType).toBe("remote");
-    expect(job.remoteScope).toBe("global");
+    // Sample posting has places in Poland + Spain (2 countries) → region_fenced
+    expect(job.remoteScope).toBe("region_fenced");
+    expect(job.locationCountries).toEqual(["PL", "ES"]);
     // Tags: technology + requirement-type tiles, lowercased + deduped
     expect(job.extractedTags).toEqual(["vue.js", "nuxt.js", "c#"]);
     // Apply URL prefixed with the NoFluffJobs job path
@@ -699,6 +701,150 @@ describe("fetchNoFluffJobs", () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.error).toBe("Connection refused");
+  });
+
+  // ── remoteScope + locationCountries inference from places[] ──────────────
+
+  it("infers country_fenced when all places are in one country", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      postings: [
+        samplePosting({
+          id: "poland-only-1",
+          location: {
+            fullyRemote: true,
+            places: [
+              { country: { code: "PL", name: "Poland" }, city: "Warszawa" },
+              { country: { code: "PL", name: "Poland" }, city: "Kraków" },
+            ],
+          },
+        }),
+      ],
+    };
+    const fetchFn = mockNoFluffFetch(mockResponse);
+    const result = await fetchNoFluffJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["PL"]);
+  });
+
+  it("infers region_fenced when places span multiple countries", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      postings: [
+        samplePosting({
+          id: "cee-1",
+          location: {
+            fullyRemote: true,
+            places: [
+              { country: { code: "PL", name: "Poland" }, city: "Warszawa" },
+              {
+                country: { code: "CZ", name: "Czech Republic" },
+                city: "Praha",
+              },
+              { country: { code: "HU", name: "Hungary" }, city: "Budapest" },
+            ],
+          },
+        }),
+      ],
+    };
+    const fetchFn = mockNoFluffFetch(mockResponse);
+    const result = await fetchNoFluffJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("region_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["PL", "CZ", "HU"]);
+  });
+
+  it("infers global when a place country name is 'Anywhere'", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      postings: [
+        samplePosting({
+          id: "worldwide-1",
+          location: {
+            fullyRemote: true,
+            places: [{ country: { name: "Anywhere" }, city: "" }],
+          },
+        }),
+      ],
+    };
+    const fetchFn = mockNoFluffFetch(mockResponse);
+    const result = await fetchNoFluffJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(result.jobs[0].locationCountries).toBeNull();
+  });
+
+  it("normalizes alpha-3 country codes to alpha-2", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      postings: [
+        samplePosting({
+          id: "alpha3-1",
+          location: {
+            fullyRemote: true,
+            places: [
+              { country: { code: "POL", name: "Poland" }, city: "Warszawa" },
+            ],
+          },
+        }),
+      ],
+    };
+    const fetchFn = mockNoFluffFetch(mockResponse);
+    const result = await fetchNoFluffJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    // "POL" (alpha-3) normalized to "PL" (alpha-2) via country name lookup
+    expect(result.jobs[0].locationCountries).toEqual(["PL"]);
+  });
+
+  it("defaults to global when places have no country data", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      postings: [
+        samplePosting({
+          id: "no-country-1",
+          location: {
+            fullyRemote: true,
+            places: [{ city: "Remote" }],
+          },
+        }),
+      ],
+    };
+    const fetchFn = mockNoFluffFetch(mockResponse);
+    const result = await fetchNoFluffJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(result.jobs[0].locationCountries).toBeNull();
+  });
+
+  it("defaults to global when places array is empty", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      postings: [
+        samplePosting({
+          id: "empty-places-1",
+          location: { fullyRemote: true, places: [] },
+        }),
+      ],
+    };
+    const fetchFn = mockNoFluffFetch(mockResponse);
+    const result = await fetchNoFluffJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(result.jobs[0].locationCountries).toBeNull();
   });
 });
 
@@ -1473,7 +1619,9 @@ describe("fetchJustJoinJobs", () => {
     expect(job.externalJobId).toBe("guid-1");
     expect(job.extractedTags).toEqual(["react", "typescript", "next.js"]);
     expect(job.workplaceType).toBe("remote");
-    expect(job.remoteScope).toBe("global");
+    // countryCode="PL" → country_fenced, not global
+    expect(job.remoteScope).toBe("country_fenced");
+    expect(job.locationCountries).toEqual(["PL"]);
     expect(job.employmentType).toBe("contract"); // b2b → contract
     expect(job.applyUrl).toBe("https://careers.acme.com/apply/react");
     expect(job.jobUrl).toBe(
@@ -1731,5 +1879,64 @@ describe("fetchJustJoinJobs", () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.error).toBe("Connection refused");
+  });
+
+  // ── remoteScope + locationCountries inference from countryCode ───────────
+
+  it("infers country_fenced when detail has countryCode", async () => {
+    const listPage = {
+      data: [jjListOffer()],
+      meta: { totalItems: 1, next: null },
+    };
+    const details = {
+      "acme-react-developer-remote-warsaw": jjDetailOffer({
+        countryCode: "PL",
+      }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["PL"]);
+  });
+
+  it("infers global when detail has no countryCode", async () => {
+    const listPage = {
+      data: [jjListOffer()],
+      meta: { totalItems: 1, next: null },
+    };
+    const details = {
+      "acme-react-developer-remote-warsaw": jjDetailOffer({
+        countryCode: undefined,
+      }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(result.jobs[0].locationCountries).toBeNull();
+  });
+
+  it("uppercases lowercase countryCode for locationCountries", async () => {
+    const listPage = {
+      data: [jjListOffer()],
+      meta: { totalItems: 1, next: null },
+    };
+    const details = {
+      "acme-react-developer-remote-warsaw": jjDetailOffer({
+        countryCode: "de",
+      }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["DE"]);
   });
 });

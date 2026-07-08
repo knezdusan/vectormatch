@@ -176,7 +176,6 @@ export function mapWorkplaceFilter(workplace?: WorkplaceFilter): {
       return { workplaceType: "hybrid" };
     case "on_site":
       return { workplaceType: "on-site" };
-    case "all":
     default:
       return {};
   }

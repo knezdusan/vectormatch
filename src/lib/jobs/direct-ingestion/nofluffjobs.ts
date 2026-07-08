@@ -19,6 +19,7 @@
 // annual figures, matching the job table's compensation convention (annual).
 // Currency is preserved as-is (mostly PLN, some USD/EUR).
 
+import { extractLocationCountry } from "@/lib/jobs/location-utils";
 import type { DirectFetchResult, DirectIngestionJob } from "./types";
 
 /** NoFluffJobs API top-level response shape (partial — only fields we use). */
@@ -114,6 +115,9 @@ export async function fetchNoFluffJobs(
       }
 
       const { minYears, maxYears } = seniorityToYears(p.seniority);
+      const { remoteScope, locationCountries } = inferScopeFromPlaces(
+        p.location?.places,
+      );
 
       const job: DirectIngestionJob = {
         externalJobId: p.id ?? "",
@@ -126,8 +130,8 @@ export async function fetchNoFluffJobs(
         locationName: formatLocation(p),
         workplaceType: "remote",
         employmentType: normalizeEmploymentType(p.salary?.type),
-        // NoFluffJobs remote jobs are typically open across CEE/EU.
-        remoteScope: "global",
+        remoteScope,
+        locationCountries,
         compensationMin: toAnnualSalary(p.salary?.from),
         compensationMax: toAnnualSalary(p.salary?.to),
         compensationCurrency: p.salary?.currency?.toUpperCase() ?? null,
@@ -207,6 +211,78 @@ function formatLocation(p: NoFluffJobPosting): string | null {
     })
     .filter(Boolean);
   return formatted.length > 0 ? formatted.join(" / ") : null;
+}
+
+/**
+ * Infer remoteScope and locationCountries from the posting's structured
+ * places array.
+ *
+ * NoFluffJobs provides explicit country codes in each place entry. A
+ * fullyRemote job whose places are all in one country is
+ * remote-within-that-country (country_fenced), not global. Places spanning
+ * 2+ countries indicate a multi-country region (region_fenced). No country
+ * data or "Anywhere"/"World" → global.
+ *
+ * This replaces the previous hardcoded `remoteScope: "global"` which caused
+ * Gate 0.5 Check 2b to misfire — it would see a country name in locationName
+ * alongside remoteScope="global" and hard-block even multi-country CEE listings
+ * that should reach Gate 3.
+ *
+ * @returns { remoteScope, locationCountries } — locationCountries is null for
+ *          global/unknown scope, populated with ISO 3166-1 alpha-2 codes for
+ *          country_fenced and region_fenced.
+ */
+function inferScopeFromPlaces(
+  places:
+    | Array<{
+        country?: { code?: string; name?: string } | null;
+        city?: string;
+      }>
+    | undefined,
+): {
+  remoteScope: "global" | "country_fenced" | "region_fenced";
+  locationCountries: string[] | null;
+} {
+  if (!places || places.length === 0) {
+    return { remoteScope: "global", locationCountries: null };
+  }
+
+  const countryCodes = new Set<string>();
+  for (const place of places) {
+    const name = place.country?.name?.toLowerCase() ?? "";
+    // "Anywhere", "World", "Global" in the country name → truly worldwide
+    if (
+      name.includes("anywhere") ||
+      name.includes("world") ||
+      name.includes("global")
+    ) {
+      return { remoteScope: "global", locationCountries: null };
+    }
+    // Normalize to ISO 3166-1 alpha-2. NoFluffJobs may return alpha-3 codes
+    // (e.g. "POL", "ESP") or alpha-2 ("PL", "ES"). Gate 0.5's COUNTRY_NAMES
+    // mapping and locationCountries column use alpha-2, so we normalize via
+    // the country name when the code isn't already 2 chars.
+    const rawCode = place.country?.code?.toUpperCase();
+    if (rawCode && rawCode.length === 2) {
+      countryCodes.add(rawCode);
+    } else if (place.country?.name) {
+      const alpha2 = extractLocationCountry(place.country.name);
+      if (alpha2) {
+        countryCodes.add(alpha2);
+      }
+    }
+  }
+
+  if (countryCodes.size === 0) {
+    // No structured country codes → can't determine fencing, default to global
+    return { remoteScope: "global", locationCountries: null };
+  }
+
+  const codes = [...countryCodes];
+  if (codes.length === 1) {
+    return { remoteScope: "country_fenced", locationCountries: codes };
+  }
+  return { remoteScope: "region_fenced", locationCountries: codes };
 }
 
 /**

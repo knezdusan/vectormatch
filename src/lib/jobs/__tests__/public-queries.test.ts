@@ -251,3 +251,124 @@ describe("getPublicJobsCount — skills filter SQL injection regression", () => 
     expect(rawSql).not.toContain("');");
   });
 });
+
+// =============================================================================
+// TESTS — unified workplace filter
+// =============================================================================
+
+import {
+  mapWorkplaceFilter,
+  WORKPLACE_FILTER_OPTIONS,
+} from "@/lib/jobs/public-queries";
+
+describe("mapWorkplaceFilter", () => {
+  it("returns both fields for global remote", () => {
+    expect(mapWorkplaceFilter("global_remote")).toEqual({
+      remoteScope: "global",
+      workplaceType: "remote",
+    });
+  });
+
+  it("returns both fields for country-fenced remote", () => {
+    expect(mapWorkplaceFilter("country_fenced_remote")).toEqual({
+      remoteScope: "country_fenced",
+      workplaceType: "remote",
+    });
+  });
+
+  it("returns both fields for region-fenced remote", () => {
+    expect(mapWorkplaceFilter("region_fenced_remote")).toEqual({
+      remoteScope: "region_fenced",
+      workplaceType: "remote",
+    });
+  });
+
+  it("returns only workplaceType for hybrid", () => {
+    expect(mapWorkplaceFilter("hybrid")).toEqual({
+      workplaceType: "hybrid",
+    });
+  });
+
+  it("returns only workplaceType for on-site", () => {
+    expect(mapWorkplaceFilter("on_site")).toEqual({
+      workplaceType: "on-site",
+    });
+  });
+
+  it("returns empty mapping for all / undefined", () => {
+    expect(mapWorkplaceFilter("all")).toEqual({});
+    expect(mapWorkplaceFilter(undefined)).toEqual({});
+  });
+});
+
+describe("WORKPLACE_FILTER_OPTIONS", () => {
+  it("contains the expected options with labels", () => {
+    const values = WORKPLACE_FILTER_OPTIONS.map((o) => o.value);
+    expect(values).toEqual([
+      "all",
+      "global_remote",
+      "country_fenced_remote",
+      "region_fenced_remote",
+      "hybrid",
+      "on_site",
+    ]);
+  });
+});
+
+describe("getPublicJobs — unified workplace filter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedWhereArgs.length = 0;
+  });
+
+  it("applies both remoteScope and workplaceType for global_remote", async () => {
+    await getPublicJobs({ workplace: "global_remote" });
+
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+    expect(params).toContain("global");
+    expect(params).toContain("remote");
+  });
+
+  it("applies only workplaceType for hybrid", async () => {
+    await getPublicJobs({ workplace: "hybrid" });
+
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+    expect(params).toContain("hybrid");
+    expect(params).not.toContain("global");
+    expect(params).not.toContain("country_fenced");
+    expect(params).not.toContain("region_fenced");
+  });
+
+  it("takes unified filter over legacy filters when both are present", async () => {
+    await getPublicJobs({
+      workplace: "global_remote",
+      remoteScope: "region_fenced",
+      workplaceType: "hybrid",
+    });
+
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+    expect(params).toContain("global");
+    expect(params).toContain("remote");
+    expect(params).not.toContain("region_fenced");
+    expect(params).not.toContain("hybrid");
+  });
+});
+
+describe("getPublicJobsCount — unified workplace filter", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedWhereArgs.length = 0;
+  });
+
+  it("applies both remoteScope and workplaceType for country_fenced_remote", async () => {
+    await getPublicJobsCount({ workplace: "country_fenced_remote" });
+
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+    expect(params).toContain("country_fenced");
+    expect(params).toContain("remote");
+  });
+});

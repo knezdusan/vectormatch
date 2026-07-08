@@ -37,8 +37,18 @@ export interface DirectIngestionJob {
   /** Employment type (full-time, part-time, contract). */
   employmentType: string | null;
   /** Remote scope — direct boards are remote-first, so default "global"
-   *  unless the board specifies country fencing. */
+   *  unless the board specifies country fencing. Boards with structured
+   *  country data (NoFluffJobs places[], JustJoin countryCode) should set
+   *  "country_fenced" or "region_fenced" based on the actual country spread,
+   *  not blindly default to "global". */
   remoteScope: "global" | "country_fenced" | "region_fenced" | "unknown";
+  /** ISO 3166-1 alpha-2 country codes the job is fenced to, when the board
+   *  provides structured country data (e.g. NoFluffJobs places[].country.code,
+   *  JustJoin detail.countryCode). Null for global / unknown scope. Mapped
+   *  directly to job.locationCountries — enables Gate 0.5 Check 2's structured
+   *  country-list path instead of relying on the locationName string-parsing
+   *  fallback in Check 2b. */
+  locationCountries?: string[] | null;
   /** Compensation range from the board's structured fields (annual USD). */
   compensationMin: number | null;
   compensationMax: number | null;
