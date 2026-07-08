@@ -34,7 +34,10 @@ import { generateObject } from "ai";
 import * as cheerio from "cheerio";
 import { z } from "zod";
 
-import { isSpecificLocation } from "@/lib/jobs/location-utils";
+import {
+  extractLocationCountry,
+  isSpecificLocation,
+} from "@/lib/jobs/location-utils";
 import {
   extractCountryCodesFromText,
   extractCountryFromCapture,
@@ -605,31 +608,50 @@ export async function extractRemoteScope(
     return regexResult;
   }
 
-  // Step 1e: Location-based fallback (Fix 1b — mismatch investigation July 2026).
-  // If the regex didn't resolve with high confidence and the job is remote with
-  // a specific city/country location (e.g., "Pakistan", "Pune, MH, in", "San
-  // Francisco, CA"), classify as country_fenced. ATS systems set the location
-  // to the country the role is based in — a remote job with a specific location
-  // is almost certainly remote-within-that-country, not global remote. This
-  // catches jobs where the JD text doesn't explicitly state geographic
-  // restrictions but the location field reveals them. Without this check, such
-  // jobs fall through to the LLM (Step 2) which often classifies them as
-  // "global" because the JD text is silent on restrictions.
+  // Step 1e: Location-based fallback (Fix 1b + Fix 3 — mismatch investigation).
+  // If the regex didn't resolve with high confidence and the job is remote,
+  // check the location field for geographic fencing signals:
+  //
+  // 1. (Fix 3) A country name in the location string (e.g., "Poland / Remote /
+  //    Poland"). Handles the NoFluffJobs format where both a country name AND
+  //    "Remote" appear — the country name indicates fencing. This check runs
+  //    first because it detects country names even when "Remote" is present
+  //    (isSpecificLocation would return false for such strings).
+  //
+  // 2. (Fix 1b) A specific city/country location (e.g., "Pakistan", "Pune, MH,
+  //    in", "San Francisco, CA") — no remote indicators or broad regions.
+  //
+  // Both checks classify as country_fenced. ATS systems set the location to the
+  // country the role is based in — a remote job with a specific location is
+  // almost certainly remote-within-that-country, not global remote. Without
+  // these checks, such jobs fall through to the LLM (Step 2) which often
+  // classifies them as "global" because the JD text is silent on restrictions.
   //
   // Callers pass the job's locationName as the companyLocation parameter. This
   // check uses that value directly (not the HQ-stripped text) — the location
   // field is structured ATS metadata, not JD text that needs stripping.
-  if (
-    workplaceType === "remote" &&
-    companyLocation &&
-    isSpecificLocation(companyLocation)
-  ) {
-    return {
-      remoteScope: "country_fenced",
-      allowedCountries: null,
-      resolvedBy: "step1_regex",
-      confidence: MEDIUM_CONFIDENCE_VALUE,
-    };
+  if (workplaceType === "remote" && companyLocation) {
+    // Fix 3: Check for a country name in the location string first (handles
+    // "Poland / Remote / Poland" format where isSpecificLocation returns false).
+    const locationCountry = extractLocationCountry(companyLocation);
+    if (locationCountry !== null) {
+      return {
+        remoteScope: "country_fenced",
+        allowedCountries: [locationCountry],
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
+    }
+
+    // Fix 1b: Check for a specific city/country location (no remote indicators).
+    if (isSpecificLocation(companyLocation)) {
+      return {
+        remoteScope: "country_fenced",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
+    }
   }
 
   // If the cleaned text is empty or too short, hard-fail immediately

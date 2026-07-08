@@ -36,7 +36,11 @@
 // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.1 for root cause.
 
 import { toPlausibleAnnualUSD } from "@/lib/jobs/currency";
-import { isSpecificLocation } from "@/lib/jobs/location-utils";
+import {
+  extractLocationCountry,
+  isSpecificLocation,
+  locationMentionsCountry,
+} from "@/lib/jobs/location-utils";
 
 // =============================================================================
 // TYPES
@@ -86,61 +90,6 @@ export interface PreFilterResult {
   blockers: string[];
   rejectionReason: string | null;
   patternDetected: string | null;
-}
-
-// =============================================================================
-// COUNTRY NAME MAPPING
-// =============================================================================
-
-/**
- * Mapping of ISO 3166-1 alpha-2 country codes to common name variants used in
- * job location strings. Used to check if a location string mentions the
- * applicant's country. Extend as needed for new applicant countries.
- */
-const COUNTRY_NAMES: Record<string, string[]> = {
-  RS: ["serbia", "rs"],
-  US: ["united states", "usa", "u.s.", "us", "america"],
-  CA: ["canada", "ca"],
-  GB: ["uk", "united kingdom", "england", "scotland", "wales", "britain"],
-  AU: ["australia", "au"],
-  DE: ["germany", "de"],
-  FR: ["france", "fr"],
-  IN: ["india", "in"],
-  BR: ["brazil", "br"],
-  AR: ["argentina", "ar"],
-  MX: ["mexico", "mx"],
-  CO: ["colombia", "co"],
-  PT: ["portugal", "pt"],
-  IE: ["ireland", "ie"],
-  RO: ["romania", "ro"],
-  UA: ["ukraine", "ua"],
-  CH: ["switzerland", "ch"],
-  MT: ["malta", "mt"],
-  NG: ["nigeria", "ng"],
-  TW: ["taiwan", "tw"],
-  MY: ["malaysia", "my"],
-};
-
-/**
- * Check if a location string mentions the applicant's country (by code or name).
- *
- * Uses non-letter boundary matching rather than naive `String.includes()` to
- * avoid false positives from short country codes appearing as substrings of
- * other words — e.g. "us" inside "Australia", "in" inside "Indonesia", "rs"
- * inside "Lawyers". A name/code matches only when it is preceded by start-of-
- * string or a non-letter and followed by end-of-string or a non-letter.
- */
-function locationMentionsCountry(
-  locationName: string,
-  countryCode: string,
-): boolean {
-  const lower = locationName.toLowerCase();
-  const names = COUNTRY_NAMES[countryCode.toUpperCase()];
-  const candidates = names ?? [countryCode.toLowerCase()];
-  return candidates.some((name) => {
-    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`(^|[^a-z])${escaped}(?=$|[^a-z])`).test(lower);
-  });
 }
 
 // =============================================================================
@@ -310,24 +259,30 @@ function checkLocationCountryList(input: PreFilterInput): {
 }
 
 // =============================================================================
-// CHECK 2b: REMOTE + SPECIFIC FOREIGN LOCATION (Fix 2 — mismatch investigation)
+// CHECK 2b: REMOTE + LOCATION REVEALS COUNTRY FENCING (Fix 2 + Fix 3)
 // =============================================================================
 
 /**
- * Check if a remote job with unknown/undetermined remote_scope has a specific
- * city/country location that excludes the applicant.
+ * Check if a remote job's location_name reveals country fencing that the
+ * remote_scope extractor missed or misclassified.
  *
- * This catches the dominant mismatch pattern (87% of user-marked mismatches):
- * remote jobs where the ATS set location_name to a specific city/country (e.g.,
- * "Pakistan", "Pune, MH, in", "San Francisco, CA") but the remote-scope
- * extractor couldn't determine whether the job is global or country-fenced
- * (remote_scope = "unknown" or "undetermined"). The LLM (Step 2) often
- * classifies such jobs as "global" because the JD text is silent on geographic
- * restrictions, and Gate 3 then approves them for applicants in other
- * countries — producing false positives.
+ * Two cases:
+ *
+ * 1. (Fix 2) remote_scope = "unknown"/"undetermined" + specific city/country
+ *    location (e.g., "Pakistan", "Pune, MH, in"). The scope extractor couldn't
+ *    determine the scope, but the location field reveals it.
+ *
+ * 2. (Fix 3) remote_scope = "global" BUT the location string mentions a
+ *    specific country name (e.g., "Poland / Remote / Poland / Poland"). The
+ *    scope extractor misclassified as "global" because the JD text is silent on
+ *    restrictions, but the location field — structured ATS metadata — clearly
+ *    indicates the job is fenced to that country. This catches the
+ *    NoFluffJobs format where both a country name AND "Remote" appear in the
+ *    location string.
  *
  * The location_name field is structured ATS metadata — a remote job located in
- * "Pakistan" is almost certainly remote-within-Pakistan, not global remote.
+ * "Poland" or "Pakistan" is almost certainly remote-within-that-country, not
+ * global remote.
  *
  * US exception: if the location is in the US and the applicant has w8ben or
  * ic_global compliance, pass through to Gate 3 (which evaluates W-2 vs
@@ -344,12 +299,8 @@ function checkRemoteSpecificForeignLocation(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
-  // Only applies to remote jobs with undetermined/unknown scope
+  // Only applies to remote jobs
   if (job.workplaceType !== "remote") {
-    return { blocker: null, pattern: null };
-  }
-
-  if (job.remoteScope !== "unknown" && job.remoteScope !== "undetermined") {
     return { blocker: null, pattern: null };
   }
 
@@ -357,8 +308,22 @@ function checkRemoteSpecificForeignLocation(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
-  // Only applies to specific city/country locations (not "Remote - Global", etc.)
-  if (!isSpecificLocation(job.locationName)) {
+  // Determine if the location reveals country fencing.
+  //
+  // Case 1 (Fix 2): scope is unknown/undetermined + specific location (no
+  // "Remote" or broad region in the string). isSpecificLocation handles this.
+  //
+  // Case 2 (Fix 3): scope is "global" BUT the location mentions a specific
+  // country name. extractLocationCountry detects country names even when
+  // "Remote" is also present (e.g., "Poland / Remote / Poland").
+  const isCase1 =
+    (job.remoteScope === "unknown" || job.remoteScope === "undetermined") &&
+    isSpecificLocation(job.locationName);
+  const isCase2 =
+    job.remoteScope === "global" &&
+    extractLocationCountry(job.locationName) !== null;
+
+  if (!isCase1 && !isCase2) {
     return { blocker: null, pattern: null };
   }
 
@@ -379,7 +344,7 @@ function checkRemoteSpecificForeignLocation(input: PreFilterInput): {
   }
 
   return {
-    blocker: `Job is remote at ${job.locationName} (specific city/country) with undetermined remote scope — likely remote-within-that-country, applicant is in ${country}`,
+    blocker: `Job is remote at ${job.locationName} (location indicates country fencing) — likely remote-within-that-country, applicant is in ${country}`,
     pattern: "remote_specific_foreign_location",
   };
 }

@@ -1257,7 +1257,7 @@ describe("Gate 0.5 — Check 2b: Remote + specific foreign location", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("does not fire when remoteScope is global (Check 2 handles it)", () => {
+  it("Fix 3: fires when remoteScope is global BUT location mentions a country (Pakistan)", () => {
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -1268,7 +1268,92 @@ describe("Gate 0.5 — Check 2b: Remote + specific foreign location", () => {
         },
       }),
     );
-    // remoteScope = "global" → Check 2 passes, Check 2b doesn't fire
+    // Fix 3: remoteScope = "global" but location mentions "Pakistan" → Check 2b
+    // fires because the location reveals country fencing the scope extractor missed
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+
+  it("Fix 3: fires when remoteScope is global and location is 'Poland / Remote / Poland'", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Fullstack Developer (Java + React)",
+          locationName: "Poland / Remote / Poland / Poland / Poland",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+      }),
+    );
+    // NoFluffJobs format: "Poland / Remote / Poland" — location mentions Poland
+    // even though "Remote" is also present. Check 2b fires.
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+
+  it("does not fire when remoteScope is global and location is truly global ('Remote - Global')", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+      }),
+    );
+    // "Remote - Global" has no country name → Check 2b doesn't fire
+    expect(result.passes).toBe(true);
+  });
+
+  it("does not fire when remoteScope is global and location is bare 'Remote'", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 3: passes when remoteScope is global, location mentions country = applicant's country", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Poland / Remote / Poland",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+        applicant: {
+          country: "PL",
+        },
+      }),
+    );
+    // Location mentions Poland, applicant is in Poland → not foreign → passes
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 3: passes when remoteScope is global, location is US, applicant has w8ben", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "United States / Remote",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: ["w8ben"],
+        },
+      }),
+    );
+    // US location + w8ben compliance → US exception → passes
     expect(result.passes).toBe(true);
   });
 

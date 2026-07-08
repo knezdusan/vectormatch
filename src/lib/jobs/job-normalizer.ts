@@ -29,7 +29,10 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { passesGateZero } from "@/lib/jobs/gate-zero";
-import { isSpecificLocation } from "@/lib/jobs/location-utils";
+import {
+  extractLocationCountry,
+  isSpecificLocation,
+} from "@/lib/jobs/location-utils";
 import { GATE_NORMALIZATION_MIN_PERSONA_TAGS } from "@/lib/jobs/matching-config";
 import {
   CANONICAL_TAG_MAP,
@@ -1292,6 +1295,26 @@ export function inferRemoteScope(
   // geographic restriction is the most inclusive interpretation.
   if (workplaceType === "remote" && /^\s*remote\s*$/i.test(locationText)) {
     return "global";
+  }
+
+  // Fix 3 (mismatch investigation July 2026): A remote job whose location_name
+  // contains a specific country name (e.g., "Poland / Remote / Poland /
+  // Poland") is remote-within-that-country, not global remote. This handles the
+  // NoFluffJobs format where the location string contains both a country name
+  // AND "Remote" — the presence of a country name alongside "Remote" indicates
+  // geographic fencing. Without this check, such locations fall through to
+  // "unknown" because isSpecificLocation() returns false (the string contains
+  // "remote"), and the LLM extractor then classifies them as "global".
+  //
+  // This check runs BEFORE the Fix 1 isSpecificLocation check because it's more
+  // specific — it detects a country name even when "Remote" is also present.
+  // A genuinely global remote job whose JD says "work from anywhere" is already
+  // caught by GLOBAL_REMOTE_PATTERNS above.
+  if (workplaceType === "remote" && locationText) {
+    const locationCountry = extractLocationCountry(locationText);
+    if (locationCountry !== null) {
+      return "country_fenced";
+    }
   }
 
   // Fix 1 (mismatch investigation July 2026): A remote job whose location_name

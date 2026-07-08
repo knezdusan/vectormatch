@@ -2289,4 +2289,39 @@ describe("inferRemoteScope — Fix 1: remote + specific location", () => {
   it("classifies remote + empty location as unknown", () => {
     expect(inferRemoteScope("", null, "remote")).toBe("unknown");
   });
+
+  // Fix 3: Country name in location string alongside "Remote"
+  it("Fix 3: classifies remote + 'Poland / Remote / Poland' as country_fenced", () => {
+    expect(
+      inferRemoteScope(
+        "Poland / Remote / Poland / Poland / Poland",
+        null,
+        "remote",
+      ),
+    ).toBe("country_fenced");
+  });
+
+  it("Fix 3: classifies remote + 'United States / Remote' as country_fenced", () => {
+    expect(inferRemoteScope("United States / Remote", null, "remote")).toBe(
+      "country_fenced",
+    );
+  });
+
+  it("Fix 3: classifies remote + 'Germany / Remote / Germany' as country_fenced", () => {
+    expect(inferRemoteScope("Germany / Remote / Germany", null, "remote")).toBe(
+      "country_fenced",
+    );
+  });
+
+  it("Fix 3: still classifies remote + 'Remote - Global' as global (no country name)", () => {
+    expect(inferRemoteScope("Remote - Global", null, "remote")).toBe("global");
+  });
+
+  it("Fix 3: still classifies remote + bare 'Remote' as global (no country name)", () => {
+    expect(inferRemoteScope("Remote", null, "remote")).toBe("global");
+  });
+
+  it("Fix 3: classifies remote + 'European Union' as unknown (broad region, not a country)", () => {
+    expect(inferRemoteScope("European Union", null, "remote")).toBe("unknown");
+  });
 });

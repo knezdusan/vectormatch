@@ -42,9 +42,22 @@ export type JobRemoteScope =
 export type JobWorkplaceType = "remote" | "hybrid" | "on-site" | "all";
 export type JobEmploymentType = "full-time" | "contract" | "part-time" | "all";
 
+/** Unified workplace filter covering both work arrangement and geo scope. */
+export type WorkplaceFilter =
+  | "all"
+  | "global_remote"
+  | "country_fenced_remote"
+  | "region_fenced_remote"
+  | "hybrid"
+  | "on_site";
+
 export interface JobFilters {
   search?: string;
+  /** Unified workplace filter. Takes precedence over remoteScope/workplaceType. */
+  workplace?: WorkplaceFilter;
+  /** @deprecated Use `workplace` instead. Kept for URL backward compatibility. */
   remoteScope?: JobRemoteScope;
+  /** @deprecated Use `workplace` instead. Kept for URL backward compatibility. */
   workplaceType?: JobWorkplaceType;
   employmentType?: JobEmploymentType;
   minSalary?: number;
@@ -132,6 +145,43 @@ export const EMPLOYMENT_TYPE_OPTIONS: readonly {
   { value: "part-time", label: "Part-time" },
 ] as const;
 
+export const WORKPLACE_FILTER_OPTIONS: readonly {
+  value: WorkplaceFilter;
+  label: string;
+}[] = [
+  { value: "all", label: "All" },
+  { value: "global_remote", label: "Global Remote" },
+  { value: "country_fenced_remote", label: "Country-Fenced Remote" },
+  { value: "region_fenced_remote", label: "Region-Fenced Remote" },
+  { value: "hybrid", label: "Hybrid" },
+  { value: "on_site", label: "On-site" },
+] as const;
+
+/**
+ * Map the unified workplace filter to the underlying database fields.
+ * Returns undefined for a field when the filter should not constrain it.
+ */
+export function mapWorkplaceFilter(workplace?: WorkplaceFilter): {
+  remoteScope?: Exclude<JobRemoteScope, "all">;
+  workplaceType?: Exclude<JobWorkplaceType, "all">;
+} {
+  switch (workplace) {
+    case "global_remote":
+      return { remoteScope: "global", workplaceType: "remote" };
+    case "country_fenced_remote":
+      return { remoteScope: "country_fenced", workplaceType: "remote" };
+    case "region_fenced_remote":
+      return { remoteScope: "region_fenced", workplaceType: "remote" };
+    case "hybrid":
+      return { workplaceType: "hybrid" };
+    case "on_site":
+      return { workplaceType: "on-site" };
+    case "all":
+    default:
+      return {};
+  }
+}
+
 // =============================================================================
 // HELPER FUNCTIONS
 // =============================================================================
@@ -172,14 +222,30 @@ export async function getPublicJobs(
       );
     }
 
-    // Remote scope filter
-    if (filters.remoteScope && filters.remoteScope !== "all") {
-      addCondition(conditions, eq(job.remoteScope, filters.remoteScope));
-    }
+    // Unified workplace filter (remote scope + workplace type). Takes precedence
+    // over legacy individual filters for backward-compatible URL handling.
+    const effectiveWorkplace =
+      filters.workplace && filters.workplace !== "all"
+        ? mapWorkplaceFilter(filters.workplace)
+        : {};
 
-    // Workplace type filter
-    if (filters.workplaceType && filters.workplaceType !== "all") {
-      addCondition(conditions, eq(job.workplaceType, filters.workplaceType));
+    // Fallback to legacy filters only when the unified filter is not active.
+    const effectiveRemoteScope =
+      effectiveWorkplace.remoteScope ??
+      (filters.remoteScope && filters.remoteScope !== "all"
+        ? filters.remoteScope
+        : undefined);
+    const effectiveWorkplaceType =
+      effectiveWorkplace.workplaceType ??
+      (filters.workplaceType && filters.workplaceType !== "all"
+        ? filters.workplaceType
+        : undefined);
+
+    if (effectiveRemoteScope) {
+      addCondition(conditions, eq(job.remoteScope, effectiveRemoteScope));
+    }
+    if (effectiveWorkplaceType) {
+      addCondition(conditions, eq(job.workplaceType, effectiveWorkplaceType));
     }
 
     // Employment type filter
@@ -426,14 +492,30 @@ export async function getPublicJobsCount(
       );
     }
 
-    // Remote scope filter
-    if (filters.remoteScope && filters.remoteScope !== "all") {
-      addCondition(conditions, eq(job.remoteScope, filters.remoteScope));
-    }
+    // Unified workplace filter (remote scope + workplace type). Takes precedence
+    // over legacy individual filters for backward-compatible URL handling.
+    const effectiveWorkplace =
+      filters.workplace && filters.workplace !== "all"
+        ? mapWorkplaceFilter(filters.workplace)
+        : {};
 
-    // Workplace type filter
-    if (filters.workplaceType && filters.workplaceType !== "all") {
-      addCondition(conditions, eq(job.workplaceType, filters.workplaceType));
+    // Fallback to legacy filters only when the unified filter is not active.
+    const effectiveRemoteScope =
+      effectiveWorkplace.remoteScope ??
+      (filters.remoteScope && filters.remoteScope !== "all"
+        ? filters.remoteScope
+        : undefined);
+    const effectiveWorkplaceType =
+      effectiveWorkplace.workplaceType ??
+      (filters.workplaceType && filters.workplaceType !== "all"
+        ? filters.workplaceType
+        : undefined);
+
+    if (effectiveRemoteScope) {
+      addCondition(conditions, eq(job.remoteScope, effectiveRemoteScope));
+    }
+    if (effectiveWorkplaceType) {
+      addCondition(conditions, eq(job.workplaceType, effectiveWorkplaceType));
     }
 
     // Employment type filter

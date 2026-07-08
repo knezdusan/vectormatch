@@ -697,4 +697,60 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(result.resolvedBy).toBe("step2_llm");
     expect(mockLlm).toHaveBeenCalled();
   });
+
+  // Fix 3: Country name in location alongside "Remote" (NoFluffJobs format)
+  it("Fix 3: classifies remote + 'Poland / Remote / Poland' as country_fenced", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Fullstack Developer (Java + React) at ITFS Sp. z o.o. Technology: Java. Category: fullstack.",
+      "remote",
+      "nofluffjobs",
+      "Poland / Remote / Poland / Poland / Poland",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(result.allowedCountries).toEqual(["PL"]);
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("Fix 3: classifies remote + 'United States / Remote' as country_fenced", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team.",
+      "remote",
+      "lever",
+      "United States / Remote",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(result.allowedCountries).toEqual(["US"]);
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("Fix 3: does NOT fire for 'Remote - Global' (no country name in location)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems.",
+      "remote",
+      "lever",
+      "Remote - Global",
+      mockLlm,
+    );
+    // "Remote - Global" has no country name → Step 1e doesn't fire → LLM
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
+  });
 });

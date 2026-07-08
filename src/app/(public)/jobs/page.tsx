@@ -19,7 +19,11 @@ export default function JobsPage({
     page?: string;
     sort?: string;
     search?: string;
+    /** Unified workplace filter. */
+    workplace?: string;
+    /** @deprecated Use workplace instead. */
     remoteScope?: string;
+    /** @deprecated Use workplace instead. */
     workplaceType?: string;
     employmentType?: string;
     minSalary?: string;

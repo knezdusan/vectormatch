@@ -28,7 +28,11 @@ interface JobListContentProps {
     page?: string;
     sort?: string;
     search?: string;
+    /** Unified workplace filter. */
+    workplace?: string;
+    /** @deprecated Use workplace instead. */
     remoteScope?: string;
+    /** @deprecated Use workplace instead. */
     workplaceType?: string;
     employmentType?: string;
     minSalary?: string;
@@ -72,20 +76,36 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
     ? Number.parseInt(params.postedWithin, 10)
     : undefined;
 
+  const workplace: JobFilters["workplace"] =
+    params.workplace === "global_remote" ||
+    params.workplace === "country_fenced_remote" ||
+    params.workplace === "region_fenced_remote" ||
+    params.workplace === "hybrid" ||
+    params.workplace === "on_site" ||
+    params.workplace === "all"
+      ? params.workplace
+      : undefined;
+
   const filters: JobFilters = {
     search: params.search || undefined,
+    workplace,
+    // Parse legacy params only when the unified filter is absent. The query
+    // layer prefers `workplace` if both are present, but we avoid populating
+    // the legacy fields when the unified one is active to keep URLs clean.
     remoteScope:
-      params.remoteScope === "global" ||
-      params.remoteScope === "country_fenced" ||
-      params.remoteScope === "region_fenced" ||
-      params.remoteScope === "all"
+      !workplace &&
+      (params.remoteScope === "global" ||
+        params.remoteScope === "country_fenced" ||
+        params.remoteScope === "region_fenced" ||
+        params.remoteScope === "all")
         ? params.remoteScope
         : undefined,
     workplaceType:
-      params.workplaceType === "remote" ||
-      params.workplaceType === "hybrid" ||
-      params.workplaceType === "on-site" ||
-      params.workplaceType === "all"
+      !workplace &&
+      (params.workplaceType === "remote" ||
+        params.workplaceType === "hybrid" ||
+        params.workplaceType === "on-site" ||
+        params.workplaceType === "all")
         ? params.workplaceType
         : undefined,
     employmentType:
@@ -152,9 +172,19 @@ export async function JobListContent({ searchParams }: JobListContentProps) {
     // Build clean URL with only valid filters
     const cleanParams = new URLSearchParams();
     if (filters.search) cleanParams.set("search", filters.search);
-    if (filters.remoteScope && filters.remoteScope !== "all")
+    if (filters.workplace && filters.workplace !== "all")
+      cleanParams.set("workplace", filters.workplace);
+    if (
+      !filters.workplace &&
+      filters.remoteScope &&
+      filters.remoteScope !== "all"
+    )
       cleanParams.set("remoteScope", filters.remoteScope);
-    if (filters.workplaceType && filters.workplaceType !== "all")
+    if (
+      !filters.workplace &&
+      filters.workplaceType &&
+      filters.workplaceType !== "all"
+    )
       cleanParams.set("workplaceType", filters.workplaceType);
     if (filters.employmentType && filters.employmentType !== "all")
       cleanParams.set("employmentType", filters.employmentType);

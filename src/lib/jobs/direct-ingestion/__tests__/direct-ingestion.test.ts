@@ -1324,3 +1324,412 @@ describe("fetchWeWorkRemotelyJobs", () => {
     expect(result.error).toBe("Connection refused");
   });
 });
+
+// ── justjoin.ts tests ────────────────────────────────────────────────────────
+
+import { fetchJustJoinJobs } from "@/lib/jobs/direct-ingestion/justjoin";
+
+/** A minimal JustJoin list (by-cursor) offer. */
+function jjListOffer(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    guid: "guid-1",
+    slug: "acme-react-developer-remote-warsaw",
+    title: "React Developer",
+    requiredSkills: ["React", "TypeScript"],
+    workplaceType: "remote",
+    workingTime: "full_time",
+    experienceLevel: "mid",
+    employmentTypes: [
+      {
+        from: 10000,
+        to: 14000,
+        currency: "pln",
+        type: "b2b",
+        unit: "month",
+        fromUsd: 2651,
+        toUsd: 3712,
+      },
+    ],
+    multilocation: [{ city: "Warszawa" }],
+    city: "Warszawa",
+    remoteInterview: true,
+    companyName: "Acme",
+    publishedAt: "2026-07-04T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+/** A minimal JustJoin v1 detail offer. */
+function jjDetailOffer(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    slug: "acme-react-developer-remote-warsaw",
+    title: "React Developer",
+    companyName: "Acme",
+    body: "<p>Build <strong>React</strong> apps with TypeScript</p>",
+    applyUrl: "https://careers.acme.com/apply/react",
+    countryCode: "PL",
+    requiredSkills: ["React", "TypeScript"],
+    niceToHaveSkills: ["Next.js"],
+    workplaceType: { label: "Remote", value: "remote" },
+    experienceLevel: { label: "Mid", value: "mid" },
+    workingTime: { label: "Full-time", value: "full_time" },
+    employmentTypes: [
+      {
+        from: 10000,
+        to: 14000,
+        currency: "pln",
+        type: "b2b",
+        unit: "month",
+      },
+    ],
+    city: "Warszawa",
+    publishedAt: "2026-07-04T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+/**
+ * Build a mock fetch that routes by URL:
+ *   - by-cursor (list) → returns the provided list pages (keyed by `from`).
+ *   - /v1/offers/{slug} (detail) → returns the matching detail offer.
+ */
+function mockJustJoinFetch(
+  listPages: Array<{ data: unknown[]; meta?: Record<string, unknown> }>,
+  details: Record<string, Record<string, unknown>>,
+  listStatus = 200,
+): typeof fetch {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("by-cursor")) {
+      const fromMatch = /from=(\d+)/.exec(url);
+      const from = fromMatch ? Number(fromMatch[1]) : 0;
+      const pageIdx = Math.floor(from / 100);
+      const page = listPages[pageIdx];
+      if (!page || page.data.length === 0) {
+        return new Response(
+          JSON.stringify({ data: [], meta: { totalItems: 0, next: null } }),
+          {
+            status: listStatus,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      return new Response(JSON.stringify(page), {
+        status: listStatus,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (url.includes("/v1/offers/")) {
+      const slug = url.split("/v1/offers/")[1];
+      const detail = details[slug];
+      if (!detail) {
+        return new Response(
+          JSON.stringify({ statusCode: 404, message: "Not Found" }),
+          {
+            status: 404,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+      }
+      return new Response(JSON.stringify(detail), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response("Not Found", { status: 404 });
+  }) as unknown as typeof fetch;
+}
+
+describe("fetchJustJoinJobs", () => {
+  const allPassFilter = () => true;
+  const personaFilter = (j: {
+    tags: string[];
+    title: string;
+    description: string;
+  }) => hasPersonaTechOverlap(j.tags, j.title, j.description);
+
+  it("parses a valid JustJoin job and maps all fields", async () => {
+    const listPage = {
+      data: [jjListOffer()],
+      meta: { totalItems: 1, next: null },
+    };
+    const details = {
+      "acme-react-developer-remote-warsaw": jjDetailOffer(),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs).toHaveLength(1);
+    expect(result.totalAvailable).toBe(1);
+    const job = result.jobs[0];
+    expect(job.title).toBe("React Developer");
+    expect(job.companyName).toBe("Acme");
+    expect(job.externalJobId).toBe("guid-1");
+    expect(job.extractedTags).toEqual(["react", "typescript", "next.js"]);
+    expect(job.workplaceType).toBe("remote");
+    expect(job.remoteScope).toBe("global");
+    expect(job.employmentType).toBe("contract"); // b2b → contract
+    expect(job.applyUrl).toBe("https://careers.acme.com/apply/react");
+    expect(job.jobUrl).toBe(
+      "https://justjoin.it/job-offer/acme-react-developer-remote-warsaw",
+    );
+    expect(job.locationName).toBe("Warszawa, PL");
+    expect(job.publishedAt).toEqual(new Date("2026-07-04T12:00:00.000Z"));
+    // Monthly 10000 PLN → annual 120000 PLN
+    expect(job.compensationMin).toBe(120000);
+    expect(job.compensationMax).toBe(168000);
+    expect(job.compensationCurrency).toBe("PLN");
+    // mid → 3–5 years
+    expect(job.experienceMinYears).toBe(3);
+    expect(job.experienceMaxYears).toBe(5);
+  });
+
+  it("strips HTML from the description body", async () => {
+    const listPage = {
+      data: [jjListOffer()],
+      meta: { totalItems: 1, next: null },
+    };
+    const details = {
+      "acme-react-developer-remote-warsaw": jjDetailOffer({
+        body: "<p>Hello <strong>world</strong></p><ul><li>item</li></ul>",
+      }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].normalizedText).toBe("Hello world\nitem");
+  });
+
+  it("pre-filters on title/skills and skips non-matching jobs without a detail call", async () => {
+    const listPage = {
+      data: [
+        jjListOffer({
+          guid: "g1",
+          slug: "s1",
+          title: "React Developer",
+          requiredSkills: ["React"],
+        }),
+        jjListOffer({
+          guid: "g2",
+          slug: "s2",
+          title: "Sales Lead",
+          requiredSkills: ["sales"],
+        }),
+      ],
+      meta: { totalItems: 2, next: null },
+    };
+    const details = {
+      s1: jjDetailOffer({ slug: "s1", title: "React Developer" }),
+      s2: jjDetailOffer({ slug: "s2", title: "Sales Lead" }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, personaFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0].externalJobId).toBe("g1");
+    // The detail for s2 (Sales Lead) should never have been requested.
+    const calls = (fetchFn as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls;
+    const detailCalls = calls.filter((c) =>
+      String(c[0]).includes("/v1/offers/s2"),
+    );
+    expect(detailCalls).toHaveLength(0);
+  });
+
+  it("applies the full tech filter on the real description (description-dependent filter)", async () => {
+    // A description-dependent filter: the pre-filter phase (description === "")
+    // passes on title to trigger a detail fetch, but the full-filter phase
+    // requires a tech keyword in the description body. This demonstrates the
+    // two-step filter's value for AND-style filters — the default
+    // hasPersonaTechOverlap is OR-based, so its full filter is a strict
+    // superset of its pre-filter and would never reject here.
+    const descriptionRequiredFilter = (j: {
+      tags: string[];
+      title: string;
+      description: string;
+    }) => {
+      if (j.description === "") {
+        return j.title.toLowerCase().includes("react");
+      }
+      return j.description.toLowerCase().includes("typescript");
+    };
+
+    const listPage = {
+      data: [
+        jjListOffer({
+          guid: "g1",
+          slug: "s1",
+          title: "React Manager",
+          requiredSkills: [],
+        }),
+        jjListOffer({
+          guid: "g2",
+          slug: "s2",
+          title: "React Dev",
+          requiredSkills: [],
+        }),
+      ],
+      meta: { totalItems: 2, next: null },
+    };
+    const details = {
+      s1: jjDetailOffer({
+        slug: "s1",
+        title: "React Manager",
+        requiredSkills: [],
+        body: "<p>Manage a team of salespeople. No coding required.</p>",
+      }),
+      s2: jjDetailOffer({
+        slug: "s2",
+        title: "React Dev",
+        requiredSkills: [],
+        body: "<p>Build apps with TypeScript and React</p>",
+      }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(
+      100,
+      descriptionRequiredFilter,
+      fetchFn,
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // Both pass the pre-filter (title contains "react"); only s2's body
+    // mentions TypeScript, so s1 is rejected by the full filter.
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0].externalJobId).toBe("g2");
+  });
+
+  it("respects maxJobs limit", async () => {
+    const offers = Array.from({ length: 10 }, (_, i) =>
+      jjListOffer({ guid: `g${i}`, slug: `s${i}`, title: `React Dev ${i}` }),
+    );
+    const listPage = { data: offers, meta: { totalItems: 10, next: null } };
+    const details = Object.fromEntries(
+      Array.from({ length: 10 }, (_, i) => [
+        `s${i}`,
+        jjDetailOffer({ slug: `s${i}`, title: `React Dev ${i}` }),
+      ]),
+    );
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(3, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs).toHaveLength(3);
+  });
+
+  it("paginates via the cursor and stops when next is null", async () => {
+    const page1 = {
+      data: [jjListOffer({ guid: "g1", slug: "s1", title: "React Dev 1" })],
+      meta: { totalItems: 2, next: { cursor: 100, itemsCount: 100 } },
+    };
+    const page2 = {
+      data: [jjListOffer({ guid: "g2", slug: "s2", title: "React Dev 2" })],
+      meta: { totalItems: 2, next: null },
+    };
+    const details = {
+      s1: jjDetailOffer({ slug: "s1", title: "React Dev 1" }),
+      s2: jjDetailOffer({ slug: "s2", title: "React Dev 2" }),
+    };
+    const fetchFn = mockJustJoinFetch([page1, page2], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs).toHaveLength(2);
+    expect(result.totalAvailable).toBe(2);
+  });
+
+  it("skips jobs whose detail fetch fails and continues", async () => {
+    const listPage = {
+      data: [
+        jjListOffer({ guid: "g1", slug: "s1", title: "React Dev 1" }),
+        jjListOffer({ guid: "g2", slug: "s2", title: "React Dev 2" }),
+      ],
+      meta: { totalItems: 2, next: null },
+    };
+    // Only s2 has a detail; s1 returns 404.
+    const details = {
+      s2: jjDetailOffer({ slug: "s2", title: "React Dev 2" }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0].externalJobId).toBe("g2");
+  });
+
+  it("maps office workplaceType to on-site and senior experience level", async () => {
+    const listPage = {
+      data: [
+        jjListOffer({
+          guid: "g1",
+          slug: "s1",
+          workplaceType: "office",
+          experienceLevel: "senior",
+          requiredSkills: ["react"],
+        }),
+      ],
+      meta: { totalItems: 1, next: null },
+    };
+    const details = {
+      s1: jjDetailOffer({
+        slug: "s1",
+        workplaceType: { label: "Office", value: "office" },
+        experienceLevel: { label: "Senior", value: "senior" },
+        employmentTypes: [
+          {
+            from: 20000,
+            to: 30000,
+            currency: "pln",
+            type: "permanent",
+            unit: "month",
+          },
+        ],
+      }),
+    };
+    const fetchFn = mockJustJoinFetch([listPage], details);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const job = result.jobs[0];
+    expect(job.workplaceType).toBe("on-site");
+    expect(job.employmentType).toBe("full-time"); // permanent → full-time
+    expect(job.experienceMinYears).toBe(5);
+    expect(job.experienceMaxYears).toBe(8);
+  });
+
+  it("returns error on list HTTP failure", async () => {
+    const fetchFn = mockJustJoinFetch([{ data: [], meta: {} }], {}, 500);
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain("500");
+  });
+
+  it("returns error on network exception", async () => {
+    const fetchFn = vi.fn(async () => {
+      throw new Error("Connection refused");
+    }) as unknown as typeof fetch;
+    const result = await fetchJustJoinJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toBe("Connection refused");
+  });
+});

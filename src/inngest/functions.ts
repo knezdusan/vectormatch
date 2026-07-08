@@ -1574,6 +1574,9 @@ export const directJobBoardIngestion = inngest.createFunction(
     const { fetchWeWorkRemotelyJobs } = await import(
       "@/lib/jobs/direct-ingestion/weworkremotely"
     );
+    const { fetchJustJoinJobs } = await import(
+      "@/lib/jobs/direct-ingestion/justjoin"
+    );
     const { upsertDirectJobs } = await import(
       "@/lib/jobs/direct-ingestion/upsert"
     );
@@ -1754,9 +1757,56 @@ export const directJobBoardIngestion = inngest.createFunction(
       });
     }
 
-    // JustJoin is skipped — API broken as of July 2026 (404 on all endpoints).
+    // ── Board 4: JustJoin ───────────────────────────────────────────────────
+    // JustJoin uses a two-step fetch (list + per-offer detail), so it is slower
+    // than the single-call boards. The pre-filter bounds detail calls to only
+    // jobs matching the persona's tech stack by title/skills.
+    const justjoinResult = await step.run("fetch-justjoin", async () => {
+      const result = await fetchJustJoinJobs(500, techFilter);
+      if (!result.success) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+          totalAvailable: 0,
+        };
+      }
+      return {
+        success: true as const,
+        jobs: result.jobs,
+        error: null,
+        totalAvailable: result.totalAvailable,
+      };
+    });
 
-    // ── Board 4: Arbeitnow ──────────────────────────────────────────────────
+    if (justjoinResult.success && justjoinResult.jobs.length > 0) {
+      const jobsForUpsert: DirectIngestionJob[] = justjoinResult.jobs.map(
+        (j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        }),
+      );
+      const upsertResult = await step.run("upsert-justjoin", async () => {
+        return upsertDirectJobs("justjoin", "justjoin", jobsForUpsert, embedFn);
+      });
+      boardResults.push({
+        board: "JustJoin",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!justjoinResult.success) {
+      boardResults.push({
+        board: "JustJoin",
+        success: false,
+        ingested: 0,
+        error: justjoinResult.error,
+      });
+    }
+
+    // ── Board 5: Arbeitnow ──────────────────────────────────────────────────
     const arbeitnowResult = await step.run("fetch-arbeitnow", async () => {
       const result = await fetchArbeitnowJobs(500, techFilter);
       if (!result.success) {
@@ -1807,7 +1857,7 @@ export const directJobBoardIngestion = inngest.createFunction(
       });
     }
 
-    // ── Board 5: Remotive ───────────────────────────────────────────────────
+    // ── Board 6: Remotive ───────────────────────────────────────────────────
     const remotiveResult = await step.run("fetch-remotive", async () => {
       const result = await fetchRemotiveJobs(500, techFilter);
       if (!result.success) {
@@ -1853,7 +1903,7 @@ export const directJobBoardIngestion = inngest.createFunction(
       });
     }
 
-    // ── Board 6: WeWorkRemotely ─────────────────────────────────────────────
+    // ── Board 7: WeWorkRemotely ─────────────────────────────────────────────
     const wwrResult = await step.run("fetch-weworkremotely", async () => {
       const result = await fetchWeWorkRemotelyJobs(200, techFilter);
       if (!result.success) {
