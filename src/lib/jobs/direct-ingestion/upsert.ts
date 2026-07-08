@@ -120,6 +120,7 @@ export async function upsertDirectJobs(
         employmentType: j.employmentType,
         locationName: j.locationName,
         applyUrl: j.applyUrl,
+        jobUrl: j.jobUrl ?? j.applyUrl ?? null,
         publishedAt: j.publishedAt,
         companyName: j.companyName,
         // Gate 0.5 metadata
@@ -153,6 +154,7 @@ export async function upsertDirectJobs(
         employmentType: sql`excluded.employment_type`,
         locationName: sql`excluded.location_name`,
         applyUrl: sql`excluded.apply_url`,
+        jobUrl: sql`COALESCE(excluded.job_url, excluded.apply_url, ${job.jobUrl})`,
         publishedAt: sql`excluded.published_at`,
         companyName: sql`excluded.company_name`,
         experienceMinYears: sql`excluded.experience_min_years`,

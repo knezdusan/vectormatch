@@ -110,6 +110,9 @@ export async function fetchHimalayasJobs(
           applyUrl: hj.jobSlug
             ? `https://himalayas.app/jobs/${hj.jobSlug}`
             : null,
+          jobUrl: hj.jobSlug
+            ? `https://himalayas.app/jobs/${hj.jobSlug}`
+            : null,
           locationName: hj.location ?? null,
           workplaceType: "remote", // Himalayas is remote-first
           employmentType: normalizeEmploymentType(hj.employmentType),

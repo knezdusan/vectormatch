@@ -122,6 +122,7 @@ export async function fetchNoFluffJobs(
         normalizedText,
         extractedTags: tags,
         applyUrl: p.url ? `https://nofluffjobs.com/job/${p.url}` : null,
+        jobUrl: p.url ? `https://nofluffjobs.com/job/${p.url}` : null,
         locationName: formatLocation(p),
         workplaceType: "remote",
         employmentType: normalizeEmploymentType(p.salary?.type),

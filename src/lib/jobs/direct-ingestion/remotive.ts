@@ -95,6 +95,7 @@ export async function fetchRemotiveJobs(
         normalizedText: description,
         extractedTags: tags,
         applyUrl: rj.url ?? null,
+        jobUrl: rj.url ?? null,
         locationName: rj.candidate_required_location ?? null,
         workplaceType: "remote", // Remotive is remote-first
         employmentType: normalizeEmploymentType(rj.job_type),

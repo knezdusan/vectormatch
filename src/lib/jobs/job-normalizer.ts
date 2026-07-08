@@ -29,6 +29,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { passesGateZero } from "@/lib/jobs/gate-zero";
+import { isSpecificLocation } from "@/lib/jobs/location-utils";
 import { GATE_NORMALIZATION_MIN_PERSONA_TAGS } from "@/lib/jobs/matching-config";
 import {
   CANONICAL_TAG_MAP,
@@ -1291,6 +1292,28 @@ export function inferRemoteScope(
   // geographic restriction is the most inclusive interpretation.
   if (workplaceType === "remote" && /^\s*remote\s*$/i.test(locationText)) {
     return "global";
+  }
+
+  // Fix 1 (mismatch investigation July 2026): A remote job whose location_name
+  // is a specific city/country (e.g., "Pakistan", "Pune, MH, in", "San
+  // Francisco, CA") is almost certainly remote-within-that-country, not global
+  // remote. ATS systems set the location to the country the role is based in.
+  // Without this check, such jobs fall through to "unknown", the full
+  // extraction ladder's LLM (Step 2) often classifies them as "global" (because
+  // the JD text rarely explicitly restricts to the country), and Gate 3
+  // approves them for applicants in other countries — producing false positives.
+  // 87% of user-marked mismatches were this pattern.
+  //
+  // This check only fires when no explicit pattern matched above (i.e., the
+  // location doesn't contain "Remote - Global", "Remote - US Only", etc.). A
+  // genuinely global remote job whose JD says "work from anywhere" is already
+  // caught by GLOBAL_REMOTE_PATTERNS above.
+  if (
+    workplaceType === "remote" &&
+    locationText &&
+    isSpecificLocation(locationText)
+  ) {
+    return "country_fenced";
   }
 
   return "unknown";

@@ -93,6 +93,7 @@ export async function fetchWeWorkRemotelyJobs(
         normalizedText: description,
         extractedTags: tags,
         applyUrl: item.link || null,
+        jobUrl: item.link || null,
         locationName: item.region || null,
         workplaceType: "remote", // WWR is remote-first
         employmentType: normalizeEmploymentType(item.type),

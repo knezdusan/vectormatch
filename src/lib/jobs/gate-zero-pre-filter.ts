@@ -36,6 +36,7 @@
 // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.1 for root cause.
 
 import { toPlausibleAnnualUSD } from "@/lib/jobs/currency";
+import { isSpecificLocation } from "@/lib/jobs/location-utils";
 
 // =============================================================================
 // TYPES
@@ -309,74 +310,87 @@ function checkLocationCountryList(input: PreFilterInput): {
 }
 
 // =============================================================================
-// CHECK 3: ON-SITE / HYBRID IN FOREIGN COUNTRY (Pattern 3 — revised)
+// CHECK 2b: REMOTE + SPECIFIC FOREIGN LOCATION (Fix 2 — mismatch investigation)
 // =============================================================================
 
 /**
- * Location strings that indicate a remote or broad-region job rather than a
- * specific physical location. Used by Check 3 to determine whether a null-
- * workplaceType job with a foreign location should be treated as on-site.
+ * Check if a remote job with unknown/undetermined remote_scope has a specific
+ * city/country location that excludes the applicant.
  *
- * If the location name contains any of these indicators, the job is likely
- * remote or region-scoped (not a specific city) and should be passed through
- * to Gate 3 for evaluation. If none are present, the location is a specific
- * city/country and the job is likely on-site.
+ * This catches the dominant mismatch pattern (87% of user-marked mismatches):
+ * remote jobs where the ATS set location_name to a specific city/country (e.g.,
+ * "Pakistan", "Pune, MH, in", "San Francisco, CA") but the remote-scope
+ * extractor couldn't determine whether the job is global or country-fenced
+ * (remote_scope = "unknown" or "undetermined"). The LLM (Step 2) often
+ * classifies such jobs as "global" because the JD text is silent on geographic
+ * restrictions, and Gate 3 then approves them for applicants in other
+ * countries — producing false positives.
+ *
+ * The location_name field is structured ATS metadata — a remote job located in
+ * "Pakistan" is almost certainly remote-within-Pakistan, not global remote.
+ *
+ * US exception: if the location is in the US and the applicant has w8ben or
+ * ic_global compliance, pass through to Gate 3 (which evaluates W-2 vs
+ * contractor). w8ben/ic_global covers US/North America contractor arrangements.
  */
-const REMOTE_LOCATION_INDICATORS = [
-  "remote",
-  "global",
-  "worldwide",
-  "anywhere",
-  "distributed",
-  "work from",
-  "any location",
-  "any country",
-];
+function checkRemoteSpecificForeignLocation(input: PreFilterInput): {
+  blocker: string | null;
+  pattern: string | null;
+} {
+  const { job, applicant } = input;
 
-/**
- * Broad region names that should NOT be treated as specific physical locations.
- * A job located in "European Union" or "EMEA" is not a specific city — it's
- * a region-scoped job that Gate 3 should evaluate.
- */
-const BROAD_REGION_NAMES = [
-  "european union",
-  "eu",
-  "emea",
-  "apac",
-  "latam",
-  "north america",
-  "south america",
-  "europe",
-  "asia",
-  "africa",
-  "middle east",
-  "balkans",
-  "eastern europe",
-  "western europe",
-  "central europe",
-  "nordics",
-  "benelux",
-  "dach",
-];
+  const country = applicant.country;
+  if (!country) {
+    return { blocker: null, pattern: null };
+  }
 
-/**
- * Check if a location string looks like a specific physical city/country
- * (rather than a remote designation or broad region).
- */
-function isSpecificLocation(locationName: string): boolean {
-  const lower = locationName.toLowerCase();
-  // If it contains any remote indicator, it's not a specific physical location
-  if (REMOTE_LOCATION_INDICATORS.some((ind) => lower.includes(ind))) {
-    return false;
+  // Only applies to remote jobs with undetermined/unknown scope
+  if (job.workplaceType !== "remote") {
+    return { blocker: null, pattern: null };
   }
-  // If it matches a broad region name, it's not a specific physical location
-  if (BROAD_REGION_NAMES.some((region) => lower.includes(region))) {
-    return false;
+
+  if (job.remoteScope !== "unknown" && job.remoteScope !== "undetermined") {
+    return { blocker: null, pattern: null };
   }
-  // Otherwise, it's a specific city/country (e.g., "Pune, MH, in", "Kuala Lumpur",
-  // "Hong Kong", "Berlin, Germany")
-  return true;
+
+  if (!job.locationName) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Only applies to specific city/country locations (not "Remote - Global", etc.)
+  if (!isSpecificLocation(job.locationName)) {
+    return { blocker: null, pattern: null };
+  }
+
+  // If the location mentions the applicant's country, it's not foreign
+  if (locationMentionsCountry(job.locationName, country)) {
+    return { blocker: null, pattern: null };
+  }
+
+  // US exception: if the location is in the US and the applicant has w8ben or
+  // ic_global compliance, pass through to Gate 3 (which evaluates W-2 vs
+  // contractor). w8ben/ic_global covers US/North America contractor arrangements.
+  const isUsLocation = locationMentionsCountry(job.locationName, "US");
+  const hasUsCompliance =
+    applicant.preferredCompliance.includes("w8ben") ||
+    applicant.preferredCompliance.includes("ic_global");
+  if (isUsLocation && hasUsCompliance) {
+    return { blocker: null, pattern: null };
+  }
+
+  return {
+    blocker: `Job is remote at ${job.locationName} (specific city/country) with undetermined remote scope — likely remote-within-that-country, applicant is in ${country}`,
+    pattern: "remote_specific_foreign_location",
+  };
 }
+
+// =============================================================================
+// CHECK 3: ON-SITE / HYBRID IN FOREIGN COUNTRY (Pattern 3 — revised)
+// =============================================================================
+
+// REMOTE_LOCATION_INDICATORS, BROAD_REGION_NAMES, and isSpecificLocation() are
+// now imported from @/lib/jobs/location-utils (shared with the job normalizer's
+// inferRemoteScope and the remote-scope extractor).
 
 /**
  * Check if the job requires physical presence in a location that excludes the
@@ -594,6 +608,15 @@ export function runHardBlockerPreFilter(
   if (check2.blocker) {
     blockers.push(check2.blocker);
     if (!patternDetected) patternDetected = check2.pattern;
+  }
+
+  // Check 2b: Remote + specific foreign location with undetermined scope
+  // (Fix 2 — catches the dominant mismatch pattern: remote jobs with a specific
+  // city/country location that the scope extractor couldn't classify)
+  const check2b = checkRemoteSpecificForeignLocation(input);
+  if (check2b.blocker) {
+    blockers.push(check2b.blocker);
+    if (!patternDetected) patternDetected = check2b.pattern;
   }
 
   // Check 3: No remote designation = on-site (Pattern 3)

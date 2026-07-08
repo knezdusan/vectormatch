@@ -535,3 +535,166 @@ describe("Full extraction ladder integration", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 });
+
+// =============================================================================
+// STEP 1e — LOCATION-BASED FALLBACK (Fix 1b — mismatch investigation)
+// =============================================================================
+
+describe("Step 1e — Location-based fallback (Fix 1b)", () => {
+  it("classifies remote + 'Pakistan' location as country_fenced without calling LLM", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior engineer to build scalable systems.",
+      "remote",
+      "lever",
+      "Pakistan",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("classifies remote + 'Pune, MH, in' location as country_fenced", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Full Stack Java Developer with 3+ years of experience.",
+      "remote",
+      "smartrecruiters",
+      "Pune, MH, in",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("classifies remote + 'San Francisco, CA' location as country_fenced", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Software Engineer for an applied AI product.",
+      "remote",
+      "ashby",
+      "San Francisco, CA",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fire when JD says 'Remote - Global' (Step 1c regex wins)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "country_fenced",
+      allowedCountries: ["US"],
+      confidence: 1.0,
+    });
+    const result = await extractRemoteScope(
+      "Remote - Global. Work from anywhere. We are a distributed team.",
+      "remote",
+      "lever",
+      "San Francisco, CA",
+      mockLlm,
+    );
+    // Step 1c regex finds "Remote - Global" → global (Step 1e never runs)
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+  });
+
+  it("does NOT fire for 'Remote - Global' location (not specific)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems.",
+      "remote",
+      "lever",
+      "Remote - Global",
+      mockLlm,
+    );
+    // "Remote - Global" is not a specific location → Step 1e doesn't fire → LLM
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
+  });
+
+  it("does NOT fire for 'European Union' location (broad region)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems.",
+      "remote",
+      "lever",
+      "European Union",
+      mockLlm,
+    );
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
+  });
+
+  it("does NOT fire for on-site jobs (Step 1a handles them)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 1.0,
+    });
+    const result = await extractRemoteScope(
+      "Some job description text here.",
+      "on-site",
+      "lever",
+      "Pakistan",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("onsite");
+    expect(result.resolvedBy).toBe("step1_ats_native");
+  });
+
+  it("does NOT fire for null workplaceType (location handled by Gate 0.5 Check 3)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems.",
+      null,
+      "greenhouse",
+      "Pakistan",
+      mockLlm,
+    );
+    // null workplace → Step 1e doesn't fire (only for remote) → LLM
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
+  });
+
+  it("does NOT fire for null location", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems.",
+      "remote",
+      "lever",
+      null,
+      mockLlm,
+    );
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
+  });
+});

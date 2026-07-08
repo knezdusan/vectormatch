@@ -98,6 +98,7 @@ export async function fetchRemoteOKJobs(
         normalizedText: description,
         extractedTags: tags,
         applyUrl: rj.apply_url ?? rj.url ?? null,
+        jobUrl: rj.apply_url ?? rj.url ?? null,
         locationName: rj.location ?? null,
         workplaceType: "remote", // RemoteOK is remote-first
         employmentType: null, // RemoteOK doesn't provide structured employment type

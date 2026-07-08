@@ -25,6 +25,11 @@ export interface DirectIngestionJob {
   extractedTags: string[];
   /** Direct application URL (mapped to job.applyUrl). */
   applyUrl: string | null;
+  /**
+   * Public job posting / listing page URL (mapped to job.jobUrl).
+   * Optional — when omitted, the upsert falls back to applyUrl.
+   */
+  jobUrl?: string | null;
   /** Raw location string from the board. */
   locationName: string | null;
   /** Workplace type from the board's structured field. */

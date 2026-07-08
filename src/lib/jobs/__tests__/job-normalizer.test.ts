@@ -19,6 +19,7 @@ import {
   extractJobContent,
   extractJobMetadata,
   extractJobUrl,
+  inferRemoteScope,
   type LlmSummaryExtractor,
   type LlmTagExtractor,
   normalizeAggregatorJob,
@@ -2204,5 +2205,88 @@ describe("normalizeAggregatorJob — G3 (TDD §1.7)", () => {
 
     expect(result.status).toBe("normalized");
     // Title still passes Gate 0
+  });
+});
+
+// =============================================================================
+// inferRemoteScope — Fix 1: remote + specific location → country_fenced
+// =============================================================================
+
+describe("inferRemoteScope — Fix 1: remote + specific location", () => {
+  it("classifies remote + 'Pakistan' as country_fenced", () => {
+    expect(inferRemoteScope("Pakistan", null, "remote")).toBe("country_fenced");
+  });
+
+  it("classifies remote + 'Pune, MH, in' as country_fenced", () => {
+    expect(inferRemoteScope("Pune, MH, in", null, "remote")).toBe(
+      "country_fenced",
+    );
+  });
+
+  it("classifies remote + 'San Francisco, CA' as country_fenced", () => {
+    expect(inferRemoteScope("San Francisco, CA", null, "remote")).toBe(
+      "country_fenced",
+    );
+  });
+
+  it("classifies remote + 'Delhi' as country_fenced", () => {
+    expect(inferRemoteScope("Delhi", null, "remote")).toBe("country_fenced");
+  });
+
+  it("classifies remote + 'Spain' as country_fenced", () => {
+    expect(inferRemoteScope("Spain", null, "remote")).toBe("country_fenced");
+  });
+
+  it("still classifies remote + 'Remote - Global' as global (explicit pattern wins)", () => {
+    expect(inferRemoteScope("Remote - Global", null, "remote")).toBe("global");
+  });
+
+  it("still classifies remote + bare 'Remote' as global", () => {
+    expect(inferRemoteScope("Remote", null, "remote")).toBe("global");
+  });
+
+  it("still classifies remote + 'Remote - US Only' as country_fenced (explicit pattern)", () => {
+    expect(inferRemoteScope("Remote - US Only", null, "remote")).toBe(
+      "country_fenced",
+    );
+  });
+
+  it("classifies remote + 'European Union' as unknown (broad region, not specific)", () => {
+    expect(inferRemoteScope("European Union", null, "remote")).toBe("unknown");
+  });
+
+  it("classifies remote + 'EMEA' as unknown (broad region)", () => {
+    expect(inferRemoteScope("EMEA", null, "remote")).toBe("unknown");
+  });
+
+  it("classifies on-site as onsite regardless of location", () => {
+    expect(inferRemoteScope("Pakistan", null, "on-site")).toBe("onsite");
+  });
+
+  it("classifies hybrid as onsite regardless of location", () => {
+    expect(inferRemoteScope("Berlin, Germany", null, "hybrid")).toBe("onsite");
+  });
+
+  it("classifies remote + 'work from anywhere' in content as global (JD overrides location)", () => {
+    expect(
+      inferRemoteScope(
+        "Pakistan",
+        "We are a global team. Work from anywhere.",
+        "remote",
+      ),
+    ).toBe("global");
+  });
+
+  it("classifies null workplace + specific location as unknown (not country_fenced)", () => {
+    // Fix 1 only applies to remote jobs — null workplace is handled by Gate 0.5 Check 3
+    expect(inferRemoteScope("Pakistan", null, null)).toBe("unknown");
+  });
+
+  it("classifies remote + null location as unknown", () => {
+    expect(inferRemoteScope(null, null, "remote")).toBe("unknown");
+  });
+
+  it("classifies remote + empty location as unknown", () => {
+    expect(inferRemoteScope("", null, "remote")).toBe("unknown");
   });
 });

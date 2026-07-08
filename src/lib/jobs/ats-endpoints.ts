@@ -49,6 +49,11 @@ export interface AtsEndpointConfig {
   readonly jobDetail?: (slug: string, jobId: string) => string;
   /** The hosted career page URL (for the admin dashboard link-out). */
   readonly hostedBoard: (slug: string) => string;
+  /**
+   * Public job posting URL for a specific job. Returns null when the source
+   * cannot construct a reliable per-job URL from (slug, externalJobId).
+   */
+  readonly jobPosting: (slug: string, externalJobId: string) => string | null;
 }
 
 // ── Registry ─────────────────────────────────────────────────────────────────
@@ -64,6 +69,8 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     jobDetail: (slug, jobId) =>
       `https://boards-api.greenhouse.io/v1/boards/${slug}/jobs/${jobId}`,
     hostedBoard: (slug) => `https://boards.greenhouse.io/${slug}`,
+    jobPosting: (slug, jobId) =>
+      `https://boards.greenhouse.io/${slug}/jobs/${jobId}`,
   },
   lever: {
     // Public Postings API v0 — no auth required.
@@ -78,6 +85,8 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     jobDetail: (slug, postingId) =>
       `https://api.lever.co/v0/postings/${slug}/${postingId}`,
     hostedBoard: (slug) => `https://jobs.lever.co/${slug}`,
+    jobPosting: (slug, postingId) =>
+      `https://jobs.lever.co/${slug}/${postingId}`,
   },
   ashby: {
     // Public Job Posting API — no auth required.
@@ -92,6 +101,7 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     // separate single-job endpoint. The health probe uses jobsList with a
     // known-active slug and inspects the first element.
     hostedBoard: (slug) => `https://jobs.ashbyhq.com/${slug}`,
+    jobPosting: (slug, jobId) => `https://jobs.ashbyhq.com/${slug}/${jobId}`,
   },
   smartrecruiters: {
     // Public API — no auth required.
@@ -107,6 +117,8 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     jobDetail: (slug, postingId) =>
       `https://api.smartrecruiters.com/v1/companies/${slug}/postings/${postingId}`,
     hostedBoard: (slug) => `https://jobs.smartrecruiters.com/${slug}`,
+    jobPosting: (slug, postingId) =>
+      `https://jobs.smartrecruiters.com/${slug}/${postingId}`,
   },
   workable: {
     // Public widget API — no auth required.
@@ -117,6 +129,8 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     jobsList: (slug) =>
       `https://apply.workable.com/api/v1/widget/accounts/${slug}?details=true`,
     hostedBoard: (slug) => `https://apply.workable.com/${slug}`,
+    jobPosting: (slug, shortcode) =>
+      `https://apply.workable.com/${slug}/j/${shortcode}`,
   },
   recruitee: {
     // Public API — no auth required.
@@ -125,6 +139,7 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
     apiHost: "api.recruitee.com",
     jobsList: (slug) => `https://api.recruitee.com/v1/companies/${slug}/offers`,
     hostedBoard: (slug) => `https://${slug}.recruitee.com`,
+    jobPosting: (slug, offerId) => `https://${slug}.recruitee.com/o/${offerId}`,
   },
 } as const;
 
@@ -132,6 +147,21 @@ export const ATS_ENDPOINTS: Record<AtsSource, AtsEndpointConfig> = {
 
 /** All supported ATS sources as a readonly array (for iteration). */
 export const ATS_SOURCES = Object.keys(ATS_ENDPOINTS) as AtsSource[];
+
+/**
+ * Build a public job posting URL from source metadata.
+ * Returns null for unknown sources or when the source cannot reliably
+ * construct a per-job URL from (slug, externalJobId).
+ */
+export function buildJobUrl(
+  source: string,
+  slug: string,
+  externalJobId: string,
+): string | null {
+  const config = ATS_ENDPOINTS[source as AtsSource];
+  if (!config) return null;
+  return config.jobPosting(slug, externalJobId);
+}
 
 /**
  * Get the endpoint config for a given ATS source. Throws if the source is

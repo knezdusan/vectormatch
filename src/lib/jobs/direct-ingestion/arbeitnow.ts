@@ -105,6 +105,7 @@ export async function fetchArbeitnowJobs(
           normalizedText: description,
           extractedTags: tags,
           applyUrl: aj.url ?? null,
+          jobUrl: aj.url ?? null,
           locationName: aj.location ?? null,
           workplaceType: aj.remote ? "remote" : null,
           employmentType: normalizeEmploymentType(aj.job_types),

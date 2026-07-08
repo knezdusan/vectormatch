@@ -1125,3 +1125,255 @@ describe("Gate 0.5 — country matching substring regression", () => {
     expect(result.passes).toBe(true);
   });
 });
+
+// =============================================================================
+// CHECK 2b: REMOTE + SPECIFIC FOREIGN LOCATION (Fix 2 — mismatch investigation)
+// =============================================================================
+
+describe("Gate 0.5 — Check 2b: Remote + specific foreign location", () => {
+  it("rejects remote job in Pakistan for Serbia applicant with unknown scope", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Full Stack Developer",
+          locationName: "Pakistan",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+    expect(result.blockers[0]).toContain("Pakistan");
+    expect(result.blockers[0]).toContain("RS");
+  });
+
+  it("rejects remote job in 'Pune, MH, in' for Serbia applicant with undetermined scope", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Full Stack Java Developer",
+          locationName: "Pune, MH, in",
+          workplaceType: "remote",
+          remoteScope: "undetermined",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+
+  it("rejects remote job in 'San Francisco, CA' for Serbia applicant without US compliance", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer - Product (New Grad)",
+          locationName: "San Francisco, CA",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: [],
+        },
+      }),
+    );
+    // "San Francisco, CA" doesn't contain "US" as a word, so the US exception
+    // doesn't apply → hard-blocked as remote_specific_foreign_location.
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+
+  it("passes remote job in US for Serbia applicant WITH w8ben compliance", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "San Francisco, United States",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: ["w8ben"],
+        },
+      }),
+    );
+    // US location + w8ben compliance → pass through to Gate 3
+    expect(result.passes).toBe(true);
+  });
+
+  it("passes remote job in US for Serbia applicant WITH ic_global compliance", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "New York, USA",
+          workplaceType: "remote",
+          remoteScope: "undetermined",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: ["ic_global"],
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects remote job in US for Serbia applicant WITHOUT w8ben/ic_global", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "San Francisco, United States",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: [],
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+
+  it("passes remote job in applicant's own country", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Belgrade, Serbia",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        applicant: {
+          country: "RS",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("does not fire when remoteScope is global (Check 2 handles it)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Pakistan",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+      }),
+    );
+    // remoteScope = "global" → Check 2 passes, Check 2b doesn't fire
+    expect(result.passes).toBe(true);
+  });
+
+  it("does not fire when remoteScope is country_fenced (Check 2 handles it)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Pakistan",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["Pakistan"],
+        },
+      }),
+    );
+    // Check 2 handles country_fenced with locationCountries
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("location_country_list");
+  });
+
+  it("does not fire for non-remote jobs (on-site handled by Check 3)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Pakistan",
+          workplaceType: "on-site",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    // on-site in foreign country → Check 3 handles it
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("explicit_on_site");
+  });
+
+  it("does not fire for 'Remote - Global' location (not specific)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - Global",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("does not fire for 'European Union' location (broad region)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "European Union",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("does not fire when locationName is null", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: null,
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects remote job in India for Serbia applicant (Delhi case)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer (Remote, Full-Time)",
+          locationName: "Delhi",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+
+  it("rejects remote job in Spain for Serbia applicant (Airalo case)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Backend/PHP Engineer",
+          locationName: "Spain",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+});

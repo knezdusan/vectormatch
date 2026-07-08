@@ -185,6 +185,12 @@ describe("fetchHimalayasJobs", () => {
     expect(result.jobs[0].compensationMax).toBe(120000);
     expect(result.jobs[0].employmentType).toBe("full-time");
     expect(result.jobs[0].externalJobId).toBe("acme-senior-react-dev");
+    expect(result.jobs[0].applyUrl).toBe(
+      "https://himalayas.app/jobs/acme-senior-react-dev",
+    );
+    expect(result.jobs[0].jobUrl).toBe(
+      "https://himalayas.app/jobs/acme-senior-react-dev",
+    );
   });
 
   it("applies the tech filter and excludes non-matching jobs", async () => {
@@ -293,6 +299,10 @@ describe("fetchRemoteOKJobs", () => {
     expect(result.jobs[0].workplaceType).toBe("remote");
     expect(result.jobs[0].remoteScope).toBe("global");
     expect(result.jobs[0].externalJobId).toBe("1134548");
+    expect(result.jobs[0].applyUrl).toBe(
+      "https://remoteok.com/remote-jobs/123",
+    );
+    expect(result.jobs[0].jobUrl).toBe("https://remoteok.com/remote-jobs/123");
   });
 
   it("strips HTML from description", async () => {
@@ -471,6 +481,9 @@ describe("fetchNoFluffJobs", () => {
     expect(job.extractedTags).toEqual(["vue.js", "nuxt.js", "c#"]);
     // Apply URL prefixed with the NoFluffJobs job path
     expect(job.applyUrl).toBe(
+      "https://nofluffjobs.com/job/senior-vue-js-engineer-n-ix-remote",
+    );
+    expect(job.jobUrl).toBe(
       "https://nofluffjobs.com/job/senior-vue-js-engineer-n-ix-remote",
     );
     // Location formatted from places
@@ -754,6 +767,9 @@ describe("fetchArbeitnowJobs", () => {
     expect(job.applyUrl).toBe(
       "https://arbeitnow.com/jobs/react-developer-acme-123",
     );
+    expect(job.jobUrl).toBe(
+      "https://arbeitnow.com/jobs/react-developer-acme-123",
+    );
     expect(job.locationName).toBe("Berlin, Germany");
     expect(job.employmentType).toBe("full-time");
     expect(job.publishedAt).toEqual(new Date("2026-07-05T10:00:00Z"));
@@ -967,6 +983,9 @@ describe("fetchRemotiveJobs", () => {
     expect(job.applyUrl).toBe(
       "https://remotive.com/remote-jobs/react-developer-1185979",
     );
+    expect(job.jobUrl).toBe(
+      "https://remotive.com/remote-jobs/react-developer-1185979",
+    );
     expect(job.locationName).toBe("Anywhere in the World");
     expect(job.publishedAt).toEqual(new Date("2026-07-04T12:00:00+00:00"));
     // Remotive salary is free text — not parsed into structured fields
@@ -1141,6 +1160,9 @@ describe("fetchWeWorkRemotelyJobs", () => {
     expect(job.companyName).toBe("Acme");
     expect(job.externalJobId).toBe("acme-senior-react-engineer");
     expect(job.applyUrl).toBe(
+      "https://weworkremotely.com/remote-jobs/acme-senior-react-engineer",
+    );
+    expect(job.jobUrl).toBe(
       "https://weworkremotely.com/remote-jobs/acme-senior-react-engineer",
     );
     expect(job.workplaceType).toBe("remote");
