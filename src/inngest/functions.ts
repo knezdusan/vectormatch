@@ -1707,8 +1707,14 @@ export const directJobBoardIngestion = inngest.createFunction(
     }
 
     // ── Board 3: NoFluffJobs ────────────────────────────────────────────────
+    // Demoted from 1000→100: NoFluffJobs is overwhelmingly Poland-locked
+    // (~95%+ of remote listings). With the country_fenced fix, these are
+    // blocked at Gate 0.5 before reaching the LLM, but the embedding cost
+    // (~$0.01/run at 1000 jobs) and transient DB rows are wasted. A low
+    // volume still catches the rare multi-country CEE listings (5Blue-style)
+    // that are worth routing to Gate 3.
     const nofluffResult = await step.run("fetch-nofluffjobs", async () => {
-      const result = await fetchNoFluffJobs(1000, techFilter);
+      const result = await fetchNoFluffJobs(100, techFilter);
       if (!result.success) {
         return {
           success: false as const,
