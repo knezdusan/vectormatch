@@ -22,10 +22,7 @@ async function DashboardLayoutInner({
   const session = await getAuthSession();
 
   if (!session) {
-    const callbackUrl = encodeURIComponent(
-      typeof window !== "undefined" ? window.location.pathname : "/dashboard",
-    );
-    redirect(`/auth?callbackUrl=${callbackUrl}`);
+    redirect("/auth?tab=signin");
   }
 
   // Fetch unread match count for the sidebar badge. Runs on every navigation

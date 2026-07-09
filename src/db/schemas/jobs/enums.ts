@@ -187,3 +187,16 @@ export const ingestionLogStatusEnum = pgEnum("ingestion_log_status", [
   "partial", // Some items failed but the run completed
   "failed", // The entire run failed
 ]);
+
+// Structured rejection reason for match_queue rows (v4 lock §1-A.4).
+// Replaces free-text llm_blockers for future matches — enables group-by
+// queries without text parsing. Null for approved/pending matches.
+export const rejectionReasonEnum = pgEnum("rejection_reason", [
+  "geo_country_fenced", // Job restricted to specific countries excluding applicant
+  "geo_region_fenced", // Job restricted to a broad region (APAC, EMEA) excluding applicant
+  "stack_mismatch", // Tech stack doesn't align with persona's must-have tags
+  "seniority_mismatch", // Seniority level doesn't match persona
+  "contract_compliance", // Work authorization / contractor arrangement issues
+  "stale", // Job expired or was closed after matching
+  "other", // Unclassified rejection reason
+]);

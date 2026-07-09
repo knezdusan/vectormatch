@@ -23,6 +23,7 @@ import { PipelineHealthMonitor } from "@/components/admin/PipelineHealthMonitor"
 import { PipelineStatus } from "@/components/admin/PipelineStatus";
 import { RecentAlerts } from "@/components/admin/RecentAlerts";
 import { RejectionPatternAnalysis } from "@/components/admin/RejectionPatternAnalysis";
+import { TargetStackMetricTile } from "@/components/admin/TargetStackMetricTile";
 import {
   Card,
   CardContent,
@@ -118,6 +119,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
           </Suspense>
         </TabsContent>
         <TabsContent value="matching" className="space-y-4">
+          <Suspense fallback={<MatchingFunnelSkeleton />}>
+            <TargetStackMetricTile />
+          </Suspense>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">

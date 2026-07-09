@@ -209,24 +209,24 @@ export async function vacuumAnalyze(): Promise<CleanupStepResult> {
 //      per-batch WAL generation on the last-resort tier.
 
 /** Maximum rows to delete in a single batch (Neon WAL spike protection). */
-export const PURGE_BATCH_SIZE = 1000;
+const PURGE_BATCH_SIZE = 1000;
 
 /** Smaller batch size for the active_fifo tier (last resort — limits WAL). */
-export const PURGE_ACTIVE_FIFO_BATCH_SIZE = 500;
+const PURGE_ACTIVE_FIFO_BATCH_SIZE = 500;
 
 /**
  * Storage fraction at which the emergency purge stops.
  * 75% of STORAGE_LIMIT_MB (460) = 345 MB. This is conservative because
  * pg_database_size underestimates Neon's synthetic storage by ~12%.
  */
-export const PURGE_RECOVERY_THRESHOLD = 0.75;
+const PURGE_RECOVERY_THRESHOLD = 0.75;
 
 /**
  * Maximum number of consecutive batches where storage increased (WAL inflation)
  * before the purge aborts. This prevents a death spiral where each DELETE batch
  * generates more WAL than it reclaims, pushing synthetic storage higher.
  */
-export const PURGE_MAX_WAL_INFLATION_BATCHES = 2;
+const PURGE_MAX_WAL_INFLATION_BATCHES = 2;
 
 export interface PurgeTierResult {
   /** Tier label for logging. */
@@ -373,18 +373,6 @@ export async function purgeStale(
 // ── Tier 5: active FIFO (LAST RESORT) ────────────────────────────────────────
 
 /**
- * Minimum age (in hours) for a job to be eligible for the active_fifo purge
- * tier. Jobs younger than this are protected — they haven't had enough time to
- * be normalized, embedded, and matched. Sacrificing them would destroy data
- * that may have just been ingested and is still in the normalizer's queue.
- *
- * 48 hours gives the normalizer (4h cron, 2000 jobs/run = 12000/day throughput)
- * ample time to process any job, and gives the matching pipeline at least one
- * full batchPollTier cycle (active_hot every 3h) to produce matches.
- */
-export const PURGE_ACTIVE_FIFO_MIN_AGE_HOURS = 48;
-
-/**
  * Maximum fraction of the active corpus that the active_fifo tier is allowed to
  * delete in a single purge run. If the cumulative deletion count exceeds this
  * fraction of the initial active job count, the purge aborts with a
@@ -399,32 +387,13 @@ export const PURGE_ACTIVE_FIFO_MIN_AGE_HOURS = 48;
  * the purge surfaces a "cannot recover without major data loss" alert instead
  * of silently destroying the corpus.
  */
-export const PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION = 0.2;
-
-/**
- * Count active jobs that are eligible for the active_fifo tier (normalized,
- * older than 48h, no approved matches). Used by the orchestrator to enforce
- * the corpus percentage guard.
- */
-export async function countActiveFifoEligible(): Promise<number> {
-  const result = await db.execute(sql`
-    SELECT count(*)::int as cnt FROM job j
-    WHERE j.status = 'active'
-      AND j.normalized_at IS NOT NULL
-      AND j.detected_at < NOW() - INTERVAL '48 hours'
-      AND j.id NOT IN (
-        SELECT mq.job_id FROM match_queue mq WHERE mq.status = 'approved'
-      )
-  `);
-  const row = result.rows[0] as { cnt?: number } | undefined;
-  return row?.cnt ?? 0;
-}
+const PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION = 0.2;
 
 /**
  * Count all active jobs (regardless of eligibility). Used by the orchestrator
  * to calculate the corpus percentage guard budget.
  */
-export async function countActiveJobs(): Promise<number> {
+async function countActiveJobs(): Promise<number> {
   const result = await db.execute(sql`
     SELECT count(*)::int as cnt FROM job WHERE status = 'active'
   `);

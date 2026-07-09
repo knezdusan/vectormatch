@@ -116,6 +116,26 @@
     {
       "file": "src/lib/jobs/storage-check.ts",
       "exports": ["STORAGE_WARNING_THRESHOLD", "STORAGE_CRITICAL_THRESHOLD"]
+    },
+    {
+      "file": "src/lib/jobs/poller/cleanup-queries.ts",
+      "exports": [
+        "purgeNormalizationFailed",
+        "purgeRejected",
+        "purgeGone",
+        "purgeStale",
+        "purgeActiveFifo"
+      ]
+    },
+    {
+      "file": "src/lib/jobs/remote-scope-extractor.ts",
+      "exports": [
+        "step1AtsNativeTrust",
+        "extractMainContent",
+        "step1RegexHardSignals",
+        "stripCompanyHq",
+        "isHardFailRetryable"
+      ]
     }
   ],
   "duplicates": {

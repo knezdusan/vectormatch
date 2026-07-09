@@ -1,0 +1,2 @@
+CREATE TYPE "public"."rejection_reason" AS ENUM('geo_country_fenced', 'geo_region_fenced', 'stack_mismatch', 'seniority_mismatch', 'contract_compliance', 'stale', 'other');--> statement-breakpoint
+ALTER TABLE "match_queue" ADD COLUMN "rejection_reason" "rejection_reason";

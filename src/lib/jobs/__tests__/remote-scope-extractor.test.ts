@@ -663,7 +663,7 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(result.resolvedBy).toBe("step1_ats_native");
   });
 
-  it("does NOT fire for null workplaceType (location handled by Gate 0.5 Check 3)", async () => {
+  it("Rule 6: null workplaceType + specific location 'Pakistan' → onsite (no LLM)", async () => {
     const mockLlm = makeMockLlm({
       remoteScope: "global",
       allowedCountries: null,
@@ -676,9 +676,10 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
       "Pakistan",
       mockLlm,
     );
-    // null workplace → Step 1e doesn't fire (only for remote) → LLM
-    expect(result.resolvedBy).toBe("step2_llm");
-    expect(mockLlm).toHaveBeenCalled();
+    // Rule 6: null workplace + specific location → onsite (no LLM call)
+    expect(result.remoteScope).toBe("onsite");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 
   it("does NOT fire for null location", async () => {
@@ -802,5 +803,105 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     // check doesn't fire because "San Francisco, CA" has no remote indicator)
     expect(result.remoteScope).toBe("global");
     expect(result.resolvedBy).toBe("step1_regex");
+  });
+});
+
+// =============================================================================
+// STEP 1f — RULE 6: null workplaceType + specific city → onsite (v4 lock)
+// =============================================================================
+
+describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", () => {
+  it("classifies null workplace + 'San Francisco, CA' as onsite (SF New Grad case)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Software Engineer - Product (New Grad). We are an early stage applied AI startup building agents that automate knowledge work with code.",
+      null,
+      "greenhouse",
+      "San Francisco, CA",
+      mockLlm,
+    );
+    // Rule 6: null workplace + specific city → onsite (no LLM call)
+    expect(result.remoteScope).toBe("onsite");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("classifies null workplace + 'Remote - US' as country_fenced (not onsite)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems with modern web technologies.",
+      null,
+      "greenhouse",
+      "Remote - US",
+      mockLlm,
+    );
+    // "Remote - US" contains "remote" → isSpecificLocation returns false →
+    // Rule 6 doesn't fire. Step 1e catches it as country_fenced (US).
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(result.allowedCountries).toEqual(["US"]);
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fire for remote workplaceType (only applies to null)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Remote - Global. Work from anywhere. We are a distributed team.",
+      "remote",
+      "lever",
+      "San Francisco, CA",
+      mockLlm,
+    );
+    // workplaceType = "remote" → Rule 6 doesn't fire → regex evaluates JD text
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+  });
+
+  it("does NOT fire for broad region location 'APAC'", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems with modern web technologies.",
+      null,
+      "greenhouse",
+      "APAC",
+      mockLlm,
+    );
+    // "APAC" is a broad region → isSpecificLocation returns false →
+    // Rule 6 doesn't fire → LLM evaluates
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
+  });
+
+  it("does NOT fire for null location", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team.",
+      null,
+      "greenhouse",
+      null,
+      mockLlm,
+    );
+    // No location → Rule 6 doesn't fire → LLM evaluates
+    expect(result.resolvedBy).toBe("step2_llm");
+    expect(mockLlm).toHaveBeenCalled();
   });
 });

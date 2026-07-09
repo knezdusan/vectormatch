@@ -13,6 +13,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import type z from "zod";
 import { applicant } from "./applicant";
+import { rejectionReasonEnum } from "./enums";
 import { job } from "./job";
 import { persona } from "./persona";
 
@@ -66,6 +67,12 @@ export const matchQueue = pgTable(
     // verdict.blockers. Empty for approved matches. Useful for calibration —
     // shows WHY the LLM rejected a candidate.
     llmBlockers: text("llm_blockers").array(),
+    // Structured rejection reason (v4 lock §1-A.4). Replaces free-text
+    // llm_blockers for future matches — enables group-by queries without
+    // text parsing. Null for approved/pending matches. Populated by Gate 3
+    // when the LLM rejects a match, or by Gate 0.5 when the pre-filter
+    // tombstones a job.
+    rejectionReason: rejectionReasonEnum("rejection_reason"),
     // Which model evaluated: gpt-4o-mini (MVP) | gpt-4o (escalation, post-MVP).
     llmModel: text("llm_model"),
     // Which Gate 3 prompt variant was used for this evaluation. Used for A/B

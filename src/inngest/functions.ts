@@ -3054,7 +3054,9 @@ export const gate3Evaluator = inngest.createFunction(
       const { db } = await import("@/db/db");
       const { matchQueue } = await import("@/db/schemas/jobs/matchQueue");
       const { eq } = await import("drizzle-orm");
-      const { mapVerdict } = await import("@/lib/jobs/gate-3");
+      const { mapVerdict, classifyRejectionReason } = await import(
+        "@/lib/jobs/gate-3"
+      );
 
       const verdictString = mapVerdict(verdict);
 
@@ -3066,6 +3068,10 @@ export const gate3Evaluator = inngest.createFunction(
           llmReasoning: verdict.matchReasoning,
           llmConfidence: verdict.matchConfidence,
           llmBlockers: verdict.blockers,
+          rejectionReason:
+            verdictString === "rejected"
+              ? classifyRejectionReason(verdict.blockers)
+              : null,
           llmModel: "gpt-4o-mini",
           promptVariant: promptVariant,
           workAuthRiskFlag: verdict.workAuthRiskFlag ?? false,
@@ -4817,7 +4823,10 @@ export const batchSourceB4VcPortfolios = inngest.createFunction(
   {
     id: "batch-source-vc-portfolios",
     name: "Batch Source — VC Portfolios",
-    triggers: [{ event: "batch/vc-portfolios" }, { cron: "0 0 1 * *" }],
+    // v4 lock §1-C.8: cron trigger disabled — seeder produces garbage slugs
+    // ("190pacificavenuesanfranciscoca94111", "login", etc.). 0/438 yield.
+    // Event trigger retained for manual invocation after seeder fix.
+    triggers: [{ event: "batch/vc-portfolios" }],
   },
   async ({ step }) => {
     const { runVcPortfolioSeeder } = await import(
@@ -4847,7 +4856,10 @@ export const batchSourceB5NewsletterArchives = inngest.createFunction(
   {
     id: "batch-source-newsletter-archives",
     name: "Batch Source — Newsletter Archives",
-    triggers: [{ event: "batch/newsletter-archives" }, { cron: "0 0 1 * *" }],
+    // v4 lock §1-C.9: cron trigger disabled pending fix — 1/1,767 yield,
+    // same slug-parse pathology suspected as vc_portfolio.
+    // Event trigger retained for manual invocation after fix.
+    triggers: [{ event: "batch/newsletter-archives" }],
   },
   async ({ step }) => {
     const { runNewsletterArchiveSeeder } = await import(

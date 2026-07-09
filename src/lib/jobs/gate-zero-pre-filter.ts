@@ -223,7 +223,15 @@ function checkLocationCountryList(input: PreFilterInput): {
   }
 
   // Structured country list from ATS API
-  if (job.locationCountries && job.locationCountries.length > 0) {
+  // v4 lock: when normalizedText is available, defer to Check 8 (work-auth
+  // fencing) which evaluates contractor-friendly vs fencing language.
+  // Check 2 only fires for the structured list when there's no JD text
+  // (legacy jobs without normalizedText — Check 8 soft-fail-opens).
+  if (
+    job.locationCountries &&
+    job.locationCountries.length > 0 &&
+    (!job.normalizedText || job.normalizedText.length === 0)
+  ) {
     const isAllowed = job.locationCountries.some(
       (c) =>
         locationMentionsCountry(c, country) ||
@@ -255,7 +263,15 @@ function checkLocationCountryList(input: PreFilterInput): {
   //    (indicating it's a remote job fenced to that country), block it.
   //    This catches single-item locations like "Remote (US)" that the 3+ item
   //    check misses.
-  if (job.locationName) {
+  // v4 lock: skip fallback parsing when locationCountries + normalizedText
+  // are available — Check 8 handles these jobs (fencing vs contractor-friendly).
+  if (
+    job.locationName &&
+    (!job.locationCountries ||
+      job.locationCountries.length === 0 ||
+      !job.normalizedText ||
+      job.normalizedText.length === 0)
+  ) {
     const lowerLoc = job.locationName.toLowerCase();
     if (lowerLoc.includes("remote")) {
       // Strategy 1: Multi-item country list (commas + " / " separators)
@@ -370,7 +386,13 @@ function checkRemoteSpecificForeignLocation(input: PreFilterInput): {
     isSpecificLocation(job.locationName);
   const isCase2 =
     job.remoteScope === "global" &&
-    extractLocationCountry(job.locationName) !== null;
+    extractLocationCountry(job.locationName) !== null &&
+    // v4 lock: defer to Check 8 when locationCountries + normalizedText are
+    // available (Check 8 evaluates fencing vs contractor-friendly language).
+    (!job.locationCountries ||
+      job.locationCountries.length === 0 ||
+      !job.normalizedText ||
+      job.normalizedText.length === 0);
 
   if (!isCase1 && !isCase2) {
     return { blocker: null, pattern: null };
@@ -1128,6 +1150,141 @@ function checkRegionFencedLocation(input: PreFilterInput): {
 }
 
 // =============================================================================
+// CHECK 8: WORK-AUTHORIZATION FENCING (Rule 5 revised — v4 lock)
+// =============================================================================
+
+/**
+ * Regex patterns for work-authorization / residency requirement language.
+ * When a job's JD text contains these phrases AND the location_countries
+ * list doesn't include the applicant's country, the job is hard-blocked.
+ *
+ * This is the corrected Rule 5 from the v4 lock: fence on requirement
+ * language, not list membership alone. A job with location_countries=[US]
+ * but no fencing language may still accept global contractors (the Ruby
+ * Labs pattern) — so it routes to the LLM flagged ambiguous, not hard-blocked.
+ */
+const WORK_AUTH_FENCING_SIGNALS: readonly RegExp[] = [
+  /\bmust\s+be\s+(?:authorized|eligible)\s+to\s+work\s+(?:in|within)\b/i,
+  /\bmust\s+reside\s+in\b/i,
+  /\beligible\s+to\s+work\s+in\b/i,
+  /\bauthorized\s+to\s+work\s+in\b/i,
+  /\bmust\s+have\s+(?:work\s+)?authorization\s+(?:for|in)\b/i,
+  /\brequires\s+(?:work\s+)?authorization\s+(?:for|in)\b/i,
+  /\bonly\s+(?:accepting|considering)\s+(?:candidates|applicants)\s+(?:from|in|located\s+in)\b/i,
+  /\bcandidates\s+must\s+be\s+(?:based|located)\s+in\b/i,
+];
+
+/**
+ * Regex patterns for contractor-friendly / global-remote language.
+ * When a job's JD text contains these phrases, it's likely a global-remote
+ * contractor role that lists corporate-entity countries but accepts
+ * contractors worldwide. These jobs are kept (not blocked) even if the
+ * location_countries list doesn't include the applicant's country.
+ */
+const CONTRACTOR_FRIENDLY_SIGNALS: readonly RegExp[] = [
+  /\bwork\s+from\s+anywhere\b/i,
+  /\bglobal\s+remote\b/i,
+  /\bremote\s*[-–]\s*global\b/i,
+  /\bdistributed\s+team\b/i,
+  /\bworldwide\s+remote\b/i,
+  /\bany\s+location\b/i,
+  /\bany\s+country\b/i,
+  /\bwork\s+from\s+any\s+country\b/i,
+  /\bcontractor\s+friendly\b/i,
+  /\bopen\s+to\s+(?:remote|global)\s+(?:contractors|candidates)\b/i,
+  /\bw-?8ben\b/i,
+  /\bic_global\b/i,
+  /\bindependent\s+contractor\b/i,
+];
+
+/**
+ * Check if the job's JD text contains work-authorization fencing language
+ * AND the location_countries list doesn't include the applicant's country.
+ *
+ * Per v4 lock §2:
+ * - Bounded location_countries AND fencing language AND applicant not covered → block
+ * - Bounded list AND contractor-friendly language → keep (target role)
+ * - Applicant merely absent from list, no fencing language → pass through
+ *   (Gate 3 LLM evaluates — do not hard-block)
+ *
+ * This check only fires when:
+ * 1. locationCountries is non-null and non-empty (bounded list)
+ * 2. remoteScope is "country_fenced" or "global" (remote jobs with a
+ *    country list — on-site/onsite jobs are handled by Check 3)
+ * 3. The applicant's country is NOT in the location_countries list
+ *
+ * The check scans normalizedText for fencing and contractor-friendly signals.
+ * If normalizedText is null, soft-fail-open (pass through to Gate 3).
+ */
+function checkWorkAuthFencing(input: PreFilterInput): {
+  blocker: string | null;
+  pattern: string | null;
+} {
+  const { job, applicant } = input;
+  const country = applicant.country;
+  if (!country) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Need a bounded country list to evaluate
+  if (!job.locationCountries || job.locationCountries.length === 0) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Only applies to remote jobs (on-site/hybrid handled by Check 3)
+  if (job.workplaceType !== "remote" && job.workplaceType !== null) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Skip if remoteScope is "onsite" — handled by Check 3
+  if (job.remoteScope === "onsite") {
+    return { blocker: null, pattern: null };
+  }
+
+  // Check if the applicant's country is in the list
+  const isAllowed = job.locationCountries.some(
+    (c) =>
+      locationMentionsCountry(c, country) ||
+      locationMentionsCountry(country, c),
+  );
+
+  // If the applicant's country is in the list, no fencing concern
+  if (isAllowed) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Need JD text to evaluate fencing language
+  if (!job.normalizedText) {
+    return { blocker: null, pattern: null };
+  }
+
+  const text = job.normalizedText;
+
+  // Check for contractor-friendly / global-remote language → keep
+  const hasContractorFriendly = CONTRACTOR_FRIENDLY_SIGNALS.some((re) =>
+    re.test(text),
+  );
+  if (hasContractorFriendly) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Check for work-authorization fencing language → block
+  const hasFencingLanguage = WORK_AUTH_FENCING_SIGNALS.some((re) =>
+    re.test(text),
+  );
+  if (hasFencingLanguage) {
+    return {
+      blocker: `Job requires work authorization in ${job.locationCountries?.join(", ")} and JD contains residency/work-auth fencing language — excludes ${country}`,
+      pattern: "work_auth_fencing",
+    };
+  }
+
+  // Applicant absent from list, no fencing language → pass through to Gate 3
+  // (the LLM evaluates — this is the "ambiguous" case from v4 lock §2)
+  return { blocker: null, pattern: null };
+}
+
+// =============================================================================
 // MAIN PRE-FILTER FUNCTION
 // =============================================================================
 
@@ -1165,7 +1322,22 @@ export function runHardBlockerPreFilter(
     patternDetected = check1.pattern;
   }
 
+  // Check 8: Work-authorization fencing (Rule 5 revised — v4 lock)
+  // Runs BEFORE Check 2/2b because it replaces the simple country-list
+  // exclusion for jobs with a bounded location_countries list + JD text.
+  // - Contractor-friendly language → keep (skip Check 2/2b)
+  // - Fencing language → block
+  // - Ambiguous (no fencing, no contractor-friendly) → pass through to Gate 3
+  //   (Check 2/2b skip when Check 8 has already evaluated)
+  const check8 = checkWorkAuthFencing(input);
+  if (check8.blocker) {
+    blockers.push(check8.blocker);
+    if (!patternDetected) patternDetected = check8.pattern;
+  }
+
   // Check 2: Location country lists (Pattern 2)
+  // v4 lock: skips the structured-list check when normalizedText is available
+  // (Check 8 handles it). Still fires for legacy jobs without normalizedText.
   const check2 = checkLocationCountryList(input);
   if (check2.blocker) {
     blockers.push(check2.blocker);
@@ -1175,6 +1347,8 @@ export function runHardBlockerPreFilter(
   // Check 2b: Remote + specific foreign location with undetermined scope
   // (Fix 2 — catches the dominant mismatch pattern: remote jobs with a specific
   // city/country location that the scope extractor couldn't classify)
+  // v4 lock: Case 2 defers to Check 8 when locationCountries + normalizedText
+  // are available.
   const check2b = checkRemoteSpecificForeignLocation(input);
   if (check2b.blocker) {
     blockers.push(check2b.blocker);

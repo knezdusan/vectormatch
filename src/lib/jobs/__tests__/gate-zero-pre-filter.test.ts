@@ -1851,3 +1851,175 @@ describe("Gate 0.5 — July 2026 Mismatch Regression Tests", () => {
     expect(result.passes).toBe(true);
   });
 });
+
+// =============================================================================
+// CHECK 8: WORK-AUTHORIZATION FENCING (Rule 5 revised — v4 lock)
+// =============================================================================
+
+describe("Gate 0.5 — Check 8: Work-authorization fencing (Rule 5 revised)", () => {
+  it("blocks when location_countries=[US] + 'must be authorized to work in US' + RS applicant", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["US"],
+          normalizedText:
+            "We are hiring a senior software engineer. Candidates must be authorized to work in the United States. This is a remote position within the US.",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("work_auth_fencing");
+  });
+
+  it("keeps when location_countries=[US] + 'work from anywhere' (contractor-friendly)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "global",
+          locationCountries: ["US"],
+          normalizedText:
+            "We are hiring a senior software engineer. Work from anywhere. We are a distributed team across multiple time zones.",
+        },
+      }),
+    );
+    // Contractor-friendly language → keep (target global-remote role)
+    expect(result.passes).toBe(true);
+  });
+
+  it("keeps when location_countries=[US,GB] + 'global remote' (Ruby Labs pattern)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior React Native Developer",
+          locationName: "European Union",
+          workplaceType: "remote",
+          remoteScope: "global",
+          locationCountries: ["US", "GB"],
+          normalizedText:
+            "We are hiring a senior developer. Global remote position. We welcome applicants from around the world.",
+        },
+      }),
+    );
+    // Contractor-friendly language → keep (target global-contractor role)
+    expect(result.passes).toBe(true);
+  });
+
+  it("passes through when location_countries=[US] + no fencing language (ambiguous)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "global",
+          locationCountries: ["US"],
+          normalizedText:
+            "We are hiring a senior software engineer to build scalable systems with React and Node.js.",
+        },
+      }),
+    );
+    // No fencing language, no contractor-friendly language → pass through
+    // to Gate 3 (LLM evaluates — the "ambiguous" case from v4 lock §2)
+    expect(result.passes).toBe(true);
+  });
+
+  it("blocks when location_countries=[PL] + 'must reside in Poland' + RS applicant", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Fullstack Developer",
+          locationName: "Poland / Remote / Poland",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["PL"],
+          normalizedText:
+            "We are hiring a fullstack developer. Candidates must reside in Poland. This is a remote position within Poland.",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("work_auth_fencing");
+  });
+
+  it("does not fire when applicant's country IS in location_countries", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["US", "RS"],
+          normalizedText:
+            "We are hiring. Candidates must be authorized to work in the US or Serbia.",
+        },
+        applicant: { country: "RS" },
+      }),
+    );
+    // RS is in the list → no fencing concern
+    expect(result.passes).toBe(true);
+  });
+
+  it("falls back to Check 2 when normalizedText is null (no JD text to evaluate)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["US"],
+          normalizedText: null,
+        },
+      }),
+    );
+    // No JD text → Check 8 soft-fail-opens → Check 2 fires as fallback
+    // (simple country-list exclusion for legacy jobs without normalizedText)
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("location_country_list");
+  });
+
+  it("does not fire for on-site jobs (handled by Check 3)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "San Francisco, CA",
+          workplaceType: "on-site",
+          remoteScope: "onsite",
+          locationCountries: ["US"],
+          normalizedText:
+            "Must be authorized to work in the US. On-site position in San Francisco.",
+        },
+      }),
+    );
+    // On-site jobs are handled by Check 3, not Check 8
+    expect(result.patternDetected).not.toBe("work_auth_fencing");
+  });
+
+  it("blocks when location_countries=[IN] + 'must be based in India' + RS applicant", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Full Stack Developer (MERN + LLMs)",
+          locationName: "Pune",
+          workplaceType: "remote",
+          remoteScope: "global",
+          locationCountries: ["US", "IN", "HK"],
+          normalizedText:
+            "We are hiring a full stack developer. Candidates must be based in India for this role. We build agentic AI for SMBs globally.",
+        },
+      }),
+    );
+    // RS not in [US, IN, HK] + "must be based in India" fencing language → block
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("work_auth_fencing");
+  });
+});

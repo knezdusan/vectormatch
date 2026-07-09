@@ -23,6 +23,7 @@ vi.mock("server-only", () => ({}));
 import { generateObject } from "ai";
 import {
   buildGate3Prompt,
+  classifyRejectionReason,
   evaluateGate3,
   type Gate3Context,
   type Gate3Verdict,
@@ -909,5 +910,74 @@ describe("Gate 3 Sprint 8 prompt tuning", () => {
   it("includes applicant country in the prompt", () => {
     const prompt = buildGate3Prompt(mockContext);
     expect(prompt).toContain("Country: RS");
+  });
+});
+
+// =============================================================================
+// REJECTION REASON CLASSIFICATION (v4 lock §1-A.4)
+// =============================================================================
+
+describe("classifyRejectionReason", () => {
+  it("classifies geo-country-fenced blockers", () => {
+    const reason = classifyRejectionReason([
+      "location restriction (Bengaluru)",
+      "Country-specific restriction to India",
+    ]);
+    expect(reason).toBe("geo_country_fenced");
+  });
+
+  it("classifies geo-region-fenced blockers", () => {
+    const reason = classifyRejectionReason([
+      "Job location is APAC — applicant's country is not in this region",
+    ]);
+    expect(reason).toBe("geo_region_fenced");
+  });
+
+  it("classifies stack-mismatch blockers", () => {
+    const reason = classifyRejectionReason([
+      "tech stack does not align with applicant's must-have tags",
+      "requires Java and Spring Boot which are not in the persona's skill set",
+    ]);
+    expect(reason).toBe("stack_mismatch");
+  });
+
+  it("classifies seniority-mismatch blockers", () => {
+    const reason = classifyRejectionReason([
+      "Job expects 2-3 years with senior responsibilities, applicant has 15+ years — likely overqualified",
+    ]);
+    expect(reason).toBe("seniority_mismatch");
+  });
+
+  it("classifies contract-compliance blockers", () => {
+    const reason = classifyRejectionReason([
+      "requires W-2 employment, applicant is a contractor",
+      "no visa sponsorship provided",
+    ]);
+    expect(reason).toBe("contract_compliance");
+  });
+
+  it("classifies stale blockers", () => {
+    const reason = classifyRejectionReason([
+      "job is no longer active — expired",
+    ]);
+    expect(reason).toBe("stale");
+  });
+
+  it("returns 'other' for unclassifiable blockers", () => {
+    const reason = classifyRejectionReason([
+      "some unknown reason that doesn't match any category",
+    ]);
+    expect(reason).toBe("other");
+  });
+
+  it("returns 'other' for empty blockers", () => {
+    expect(classifyRejectionReason([])).toBe("other");
+  });
+
+  it("prioritizes geo_region_fenced over geo_country_fenced", () => {
+    const reason = classifyRejectionReason([
+      "Job location is EMEA region — applicant's country is not in this region",
+    ]);
+    expect(reason).toBe("geo_region_fenced");
   });
 });

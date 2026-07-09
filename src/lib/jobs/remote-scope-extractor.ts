@@ -527,7 +527,7 @@ CRITICAL RULES:
  * The batch path (batch-llm-client.ts) serves SLA-indifferent paths and is
  * wired in Phase 3.
  */
-export async function extractScopeLLM(cleanedText: string): Promise<{
+async function extractScopeLLM(cleanedText: string): Promise<{
   remoteScope: RemoteScope;
   allowedCountries: string[] | null;
   confidence: number;
@@ -621,7 +621,16 @@ export async function extractRemoteScope(
   // would cause false country_fenced classifications for HQ locations.
   //
   // Callers pass the job's locationName as the companyLocation parameter.
-  if (workplaceType === "remote" && companyLocation) {
+  //
+  // v4 lock: also fire for null workplaceType — many ATS systems (especially
+  // Greenhouse) don't set workplaceType but the location field still contains
+  // "Remote - US" or "Poland / Remote / Poland". Without this, null-workplace
+  // jobs with remote-indicator locations fall through to Rule 6 (onsite) or
+  // the LLM, misclassifying remote jobs as onsite or global.
+  if (
+    (workplaceType === "remote" || workplaceType === null) &&
+    companyLocation
+  ) {
     const lowerLoc = companyLocation.toLowerCase();
     const hasRemoteIndicator = REMOTE_LOCATION_INDICATORS.some((ind) =>
       lowerLoc.includes(ind),
@@ -639,6 +648,29 @@ export async function extractRemoteScope(
           confidence: MEDIUM_CONFIDENCE_VALUE,
         };
       }
+    }
+  }
+
+  // Step 1f: Null workplaceType + specific city → onsite (Rule 6, v4 lock).
+  //
+  // When workplaceType is null AND the location is a specific city (not a
+  // remote indicator, not a broad region), the job is almost certainly
+  // on-site. Without this check, the LLM (Step 2) defaults to "global" or
+  // "undetermined" for jobs that lack explicit remote/onsite signals in JD
+  // text, causing false positives like the SF "New Grad" cases that reached
+  // Gate 3 and were LLM-approved despite being clearly on-site roles.
+  //
+  // "Remote - US" with null workplaceType still classifies as country_fenced
+  // (not onsite) because isSpecificLocation("Remote - US") returns false —
+  // the existing Step 1e check handles it.
+  if (workplaceType === null && companyLocation) {
+    if (isSpecificLocation(companyLocation)) {
+      return {
+        remoteScope: "onsite",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
     }
   }
 

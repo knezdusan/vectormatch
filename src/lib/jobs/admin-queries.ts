@@ -113,6 +113,28 @@ export interface SystemOverviewStats {
   staleMatches24h: number;
 }
 
+/**
+ * Global-remote target-stack metric (v4 lock §1-D.11 — the North Star).
+ *
+ * Leading indicator: count of active global-remote jobs matching the target
+ * stack (react, typescript, nextjs, javascript, nodejs, graphql, tailwindcss,
+ * frontend) via extracted_tags OR a frontend title pattern.
+ *
+ * Lagging indicator: approved matches in the last 7 days.
+ */
+export interface TargetStackMetric {
+  /** Active jobs with remote_scope = 'global' */
+  totalGlobalJobs: number;
+  /** Global jobs with target-stack tags (react/ts/nextjs/js/node/graphql/tailwind/frontend) */
+  globalJobsWithTargetStackTags: number;
+  /** Global jobs with a frontend-leaning title */
+  globalJobsWithFrontendTitle: number;
+  /** Global jobs with target-stack tags OR frontend title (the addressable pool) */
+  addressablePool: number;
+  /** Approved matches in the last 7 days */
+  approvedMatches7d: number;
+}
+
 export interface StatusDistribution {
   status: string;
   count: number;
@@ -405,6 +427,62 @@ export async function getSystemOverviewStats(): Promise<SystemOverviewStats> {
     totalMatches: matchRows[0]?.cnt ?? 0,
     approvedMatches: approvedMatchRows[0]?.cnt ?? 0,
     staleMatches24h: staleMatchRows[0]?.cnt ?? 0,
+  };
+}
+
+/**
+ * Get the global-remote target-stack metric (v4 lock §1-D.11 — the North Star).
+ *
+ * Leading: active jobs WHERE remote_scope='global' AND (tags overlap target
+ * stack OR title matches frontend pattern). Baseline: ~299.
+ * Lagging: approved matches in the last 7 days. Baseline: 0.
+ */
+export async function getGlobalRemoteTargetStackMetric(): Promise<TargetStackMetric> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+
+  const TARGET_STACK_TAGS = sql`ARRAY['react', 'typescript', 'nextjs', 'javascript', 'nodejs', 'graphql', 'tailwindcss', 'frontend']::text[]`;
+  const FRONTEND_TITLE_PATTERN = sql`'(frontend|front-end|front end|react|nextjs|next\.js|ui engineer|ui developer|web developer|full.?stack)'`;
+
+  const [totalRow, tagsRow, titleRow, bothRow, approvedRow] = await Promise.all(
+    [
+      db
+        .select({ cnt: count() })
+        .from(job)
+        .where(sql`${job.status} = 'active' AND ${job.remoteScope} = 'global'`),
+      db
+        .select({ cnt: count() })
+        .from(job)
+        .where(
+          sql`${job.status} = 'active' AND ${job.remoteScope} = 'global' AND ${job.extractedTags} && ${TARGET_STACK_TAGS}`,
+        ),
+      db
+        .select({ cnt: count() })
+        .from(job)
+        .where(
+          sql`${job.status} = 'active' AND ${job.remoteScope} = 'global' AND ${job.title} ~* ${FRONTEND_TITLE_PATTERN}`,
+        ),
+      db
+        .select({ cnt: count() })
+        .from(job)
+        .where(
+          sql`${job.status} = 'active' AND ${job.remoteScope} = 'global' AND (${job.extractedTags} && ${TARGET_STACK_TAGS} OR ${job.title} ~* ${FRONTEND_TITLE_PATTERN})`,
+        ),
+      db
+        .select({ cnt: count() })
+        .from(matchQueue)
+        .where(
+          sql`${matchQueue.status} = 'approved' AND ${matchQueue.evaluatedAt} >= ${cutoff}`,
+        ),
+    ],
+  );
+
+  return {
+    totalGlobalJobs: totalRow[0]?.cnt ?? 0,
+    globalJobsWithTargetStackTags: tagsRow[0]?.cnt ?? 0,
+    globalJobsWithFrontendTitle: titleRow[0]?.cnt ?? 0,
+    addressablePool: bothRow[0]?.cnt ?? 0,
+    approvedMatches7d: approvedRow[0]?.cnt ?? 0,
   };
 }
 

@@ -404,3 +404,87 @@ export type LlmVerdictString = "approved" | "rejected" | "error";
 export function mapVerdict(verdict: Gate3Verdict): LlmVerdictString {
   return verdict.approved ? "approved" : "rejected";
 }
+
+// =============================================================================
+// REJECTION REASON CLASSIFICATION (v4 lock §1-A.4)
+// =============================================================================
+
+/**
+ * Structured rejection reason enum values (matches the pgEnum).
+ */
+export type RejectionReason =
+  | "geo_country_fenced"
+  | "geo_region_fenced"
+  | "stack_mismatch"
+  | "seniority_mismatch"
+  | "contract_compliance"
+  | "stale"
+  | "other";
+
+/**
+ * Classify free-text LLM blockers into a structured rejection_reason enum.
+ *
+ * This enables group-by queries without text parsing (v4 lock §1-A.4).
+ * The classification is based on keyword matching against the blocker text.
+ * If no category matches, "other" is returned.
+ *
+ * @param blockers The LLM's free-text blockers array
+ * @returns The classified rejection reason
+ */
+export function classifyRejectionReason(blockers: string[]): RejectionReason {
+  if (!blockers || blockers.length === 0) return "other";
+
+  const text = blockers.join(" ").toLowerCase();
+
+  // Geo-region fenced (check before country — "APAC", "EMEA", "Latam")
+  if (
+    /\b(apac|emea|latam|europe|asia|africa|north america|south america|balkans|eastern europe|western europe|region)\b/.test(
+      text,
+    )
+  ) {
+    return "geo_region_fenced";
+  }
+
+  // Geo-country fenced
+  if (
+    /\b(country|poland|india|canada|argentina|pakistan|ukraine|germany|france|netherlands|spain|italy|portugal|romania|bengaluru|mumbai|delhi|pune|gujarat|hong kong|singapore|reside|residency|authorized|eligible|location restriction|foreign country|commute|on-site|hybrid job)\b/.test(
+      text,
+    )
+  ) {
+    return "geo_country_fenced";
+  }
+
+  // Stack mismatch
+  if (
+    /\b(tech stack|must-have|java|spring|nodejs|node\.js|angular|python|fastapi|pixi|backend skill|frontend focus|next\.js|graphql|wrong tech|stack|alignment|primary.*language|core.*skill)\b/.test(
+      text,
+    )
+  ) {
+    return "stack_mismatch";
+  }
+
+  // Seniority mismatch
+  if (
+    /\b(seniority|senior|junior|mid|lead|staff|principal|years.*experience|overqualified|underqualified|inverted.*band)\b/.test(
+      text,
+    )
+  ) {
+    return "seniority_mismatch";
+  }
+
+  // Contract compliance
+  if (
+    /\b(contractor|compliance|employment|w-2|w2|visa|sponsorship|payroll|benefits|work authorization|work auth|citizenship|permit|green card)\b/.test(
+      text,
+    )
+  ) {
+    return "contract_compliance";
+  }
+
+  // Stale
+  if (/\b(stale|expired|closed|no longer|removed|filled)\b/.test(text)) {
+    return "stale";
+  }
+
+  return "other";
+}
