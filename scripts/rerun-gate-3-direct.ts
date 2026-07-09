@@ -66,6 +66,8 @@ async function main() {
           workplaceType: job.workplaceType,
           locationName: job.locationName,
           employmentType: job.employmentType,
+          remoteScope: job.remoteScope,
+          locationCountries: job.locationCountries,
         })
         .from(job)
         .where(eq(job.id, mqRow.jobId))
@@ -122,6 +124,15 @@ async function main() {
           | null,
         locationName: jobRows[0].locationName,
         employmentType: jobRows[0].employmentType,
+        remoteScope: jobRows[0].remoteScope as
+          | "global"
+          | "country_fenced"
+          | "region_fenced"
+          | "onsite"
+          | "unknown"
+          | "undetermined"
+          | null,
+        locationCountries: jobRows[0].locationCountries ?? null,
       },
       persona: {
         personaLabel: personaRows[0].personaLabel,

@@ -281,9 +281,10 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("PASSES null workplaceType job with broad region location", () => {
+  it("REJECTS null workplaceType job with broad region location not matching applicant", () => {
     // A null workplaceType job with a broad region (e.g., "European Union")
-    // should pass through to Gate 3 — it's not a specific city.
+    // where the applicant's country is NOT in that region should be blocked
+    // by Check 7 (region-fenced location). Serbia is not an EU member state.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -291,6 +292,24 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
           locationName: "European Union",
           workplaceType: null,
         },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("region_fenced_location");
+  });
+
+  it("PASSES null workplaceType job with broad region location matching applicant", () => {
+    // A null workplaceType job with a broad region where the applicant's
+    // country IS in that region should pass through to Gate 3.
+    // Germany is in the European Union.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "European Union",
+          workplaceType: null,
+        },
+        applicant: { country: "DE" },
       }),
     );
     expect(result.passes).toBe(true);
@@ -477,11 +496,10 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("PASSES job with remoteScope='region_fenced' (Gate 3 evaluates region)", () => {
+  it("REJECTS job with remoteScope='region_fenced' when applicant not in region", () => {
     // region_fenced jobs are fenced to a broad region (Latam, APAC, EMEA).
-    // Gate 0.5 cannot hard-block on a single country match because region
-    // membership is fuzzy. Gate 3 (LLM) evaluates whether the applicant's
-    // country is within the region.
+    // Check 7 now hard-blocks when the applicant's country is NOT in the
+    // detected region. Serbia is not in APAC.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -490,6 +508,24 @@ describe("Gate 0.5 — Pattern 3: Explicit on-site in foreign country", () => {
           workplaceType: "remote",
           remoteScope: "region_fenced",
         },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("region_fenced_location");
+  });
+
+  it("PASSES job with remoteScope='region_fenced' when applicant in region", () => {
+    // region_fenced job where the applicant's country IS in the region.
+    // Japan is in APAC.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - APAC",
+          workplaceType: "remote",
+          remoteScope: "region_fenced",
+        },
+        applicant: { country: "JP" },
       }),
     );
     expect(result.passes).toBe(true);
@@ -1409,7 +1445,10 @@ describe("Gate 0.5 — Check 2b: Remote + specific foreign location", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("does not fire for 'European Union' location (broad region)", () => {
+  it("does not fire Check 2b for 'European Union' location (broad region)", () => {
+    // Check 2b should not fire for "European Union" — it's a broad region,
+    // not a specific city. However, Check 7 (region-fenced) may fire if the
+    // applicant's country is not in the EU. Serbia is not an EU member.
     const result = runHardBlockerPreFilter(
       makeInput({
         job: {
@@ -1418,6 +1457,25 @@ describe("Gate 0.5 — Check 2b: Remote + specific foreign location", () => {
           workplaceType: "remote",
           remoteScope: "unknown",
         },
+      }),
+    );
+    // Check 2b should not fire (no "location_country_list" pattern from 2b),
+    // but Check 7 fires with "region_fenced_location".
+    expect(result.patternDetected).toBe("region_fenced_location");
+    expect(result.passes).toBe(false);
+  });
+
+  it("PASSES 'European Union' location for EU member applicant", () => {
+    // Applicant in Germany (EU member) — region check passes.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "European Union",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        applicant: { country: "DE" },
       }),
     );
     expect(result.passes).toBe(true);
@@ -1613,5 +1671,183 @@ describe("Gate 0.5 — Check 6: Excluded countries", () => {
     );
     expect(result.passes).toBe(false);
     expect(result.patternDetected).toBe("excluded_country");
+  });
+});
+
+// =============================================================================
+// REGRESSION TESTS — July 2026 Mismatch Investigation
+// =============================================================================
+// These tests cover the 5 root causes identified in the mismatch investigation:
+//   Fix 2: Check 2 fallback parsing for ' / ' separators and single-item locations
+//   Fix 5: Region-fenced check for broad regions like APAC
+//
+// Fix 1 (Gate 0.5 in matchBulkReprocess) and Fix 3 (scope extractor) are
+// tested in their respective test files. Fix 4 (Gate 3 context) is tested
+// in gate-3.test.ts.
+
+describe("Gate 0.5 — July 2026 Mismatch Regression Tests", () => {
+  // ── Fix 2: Check 2 fallback parsing ──────────────────────────────────────
+
+  it("Fix 2: rejects 'Remote (US)' single-item location for RS applicant without w8ben", () => {
+    // The old Check 2 fallback required 3+ comma-separated items, so
+    // "Remote (US)" (1 item) was not detected as country-fenced.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Staff Software Engineer",
+          locationName: "Remote (US)",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+  });
+
+  it("Fix 2: passes 'Remote (US)' for RS applicant WITH w8ben compliance", () => {
+    // US exception: w8ben compliance covers US contractor arrangements.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Staff Software Engineer",
+          locationName: "Remote (US)",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: ["w8ben"],
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 2: rejects 'Poland / Remote / Poland' location for RS applicant", () => {
+    // The old Check 2 fallback only split on commas, not ' / ' separators.
+    // NoFluffJobs format: "Poland / Remote / Poland / Poland"
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Poland / Remote / Poland / Poland",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["PL"],
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+  });
+
+  it("Fix 2: rejects 'Remote - U.S.' location for RS applicant without w8ben", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Staff Software Engineer (Core UI)",
+          locationName: "Remote - U.S.",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+  });
+
+  // ── Fix 5: Region-fenced location check ──────────────────────────────────
+
+  it("Fix 5: rejects 'APAC' location for RS applicant (Serbia not in APAC)", () => {
+    // The Greenhouse mismatch pattern: workplaceType=null, remoteScope=
+    // undetermined, location="APAC". No other check caught this.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Web3 Frontend Developer",
+          locationName: "APAC",
+          workplaceType: null,
+          remoteScope: "undetermined",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("region_fenced_location");
+  });
+
+  it("Fix 5: passes 'APAC' location for JP applicant (Japan in APAC)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Web3 Frontend Developer",
+          locationName: "APAC",
+          workplaceType: null,
+          remoteScope: "undetermined",
+        },
+        applicant: { country: "JP" },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 5: rejects 'Latam' location for RS applicant (Serbia not in Latam)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "Remote - Latam",
+          workplaceType: "remote",
+          remoteScope: "region_fenced",
+        },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("region_fenced_location");
+  });
+
+  it("Fix 5: passes 'EMEA' location for RS applicant (Serbia in EMEA)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "EMEA",
+          workplaceType: "remote",
+          remoteScope: "region_fenced",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 5: does not fire when remoteScope is explicitly 'global'", () => {
+    // A global remote job with HQ in APAC should not be blocked.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "APAC",
+          workplaceType: "remote",
+          remoteScope: "global",
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 5: passes 'North America' for RS applicant with w8ben compliance", () => {
+    // US exception: w8ben covers North America contractor arrangements.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Software Engineer",
+          locationName: "North America",
+          workplaceType: "remote",
+          remoteScope: "region_fenced",
+        },
+        applicant: {
+          country: "RS",
+          preferredCompliance: ["w8ben"],
+        },
+      }),
+    );
+    expect(result.passes).toBe(true);
   });
 });

@@ -753,4 +753,54 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(result.resolvedBy).toBe("step2_llm");
     expect(mockLlm).toHaveBeenCalled();
   });
+
+  // July 2026 mismatch regression: "Remote - U.S." was misclassified as "global"
+  // because the JD text contained "global" phrases that the regex matched before
+  // the location check ran. Fix 3 moves the location check before the regex for
+  // location strings containing remote indicators.
+  it("Fix 3: classifies 'Remote - U.S.' as country_fenced even when JD says 'global'", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Join our global team. We are a distributed workforce building scalable systems. Work from anywhere in the US.",
+      "remote",
+      "ashby",
+      "Remote - U.S.",
+      mockLlm,
+    );
+    // The location "Remote - U.S." contains "remote" + "U.S." (country name)
+    // → Step 1e fires BEFORE the regex, classifying as country_fenced (US).
+    // Without Fix 3, the regex would match "global" / "distributed" first
+    // and classify as "global" — the root cause of the Ashby mismatch.
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(result.allowedCountries).toEqual(["US"]);
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("Fix 3: does NOT fire for 'San Francisco, CA' (no remote indicator)", async () => {
+    // Pure city locations (no "remote" in the location string) should NOT
+    // trigger the pre-regex location check. This prevents false positives
+    // from state abbreviations that conflict with country codes (CA =
+    // California vs Canada). The regex evaluates the JD text first.
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Remote - Global. Work from anywhere. We are a distributed team.",
+      "remote",
+      "lever",
+      "San Francisco, CA",
+      mockLlm,
+    );
+    // Step 1c regex finds "Remote - Global" → global (Step 1e pre-regex
+    // check doesn't fire because "San Francisco, CA" has no remote indicator)
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+  });
 });

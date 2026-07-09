@@ -81,6 +81,26 @@ export type Gate3Context = {
     workplaceType: "remote" | "hybrid" | "on-site" | null;
     locationName: string | null;
     employmentType: string | null;
+    // Remote scope (added July 2026 — mismatch investigation). Structured
+    // geo-fencing data from the normalizer's remote-scope extraction ladder.
+    // Gives the LLM explicit fencing information instead of forcing it to
+    // infer from the location string alone (which produced false approvals
+    // for Poland-locked and US-only remote jobs).
+    //   "global" = worldwide remote, "country_fenced" = restricted to specific
+    //   countries (see locationCountries), "region_fenced" = restricted to a
+    //   broad region, "onsite" = on-site/hybrid, "unknown"/"undetermined" =
+    //   couldn't be determined.
+    remoteScope?:
+      | "global"
+      | "country_fenced"
+      | "region_fenced"
+      | "onsite"
+      | "unknown"
+      | "undetermined"
+      | null;
+    // ISO 3166-1 alpha-2 country codes the job is fenced to (when
+    // remoteScope = "country_fenced"). Null for other scopes.
+    locationCountries?: string[] | null;
   };
   persona: {
     personaLabel: string;
@@ -117,7 +137,12 @@ EVALUATION CRITERIA:
    **PRIMARY STACK FROM TITLE (HARD BLOCKER)**: If the job TITLE explicitly names a primary technology (e.g., "Java Developer", "Python Engineer", "Fullstack Developer (Java + React)", "Go Backend Engineer", "C++ Programmer") and that technology is NOT in the persona's must-have tags, this is a HARD BLOCKER — reject immediately. The title declares the role's primary stack; do not approve based on secondary/ancillary tag overlap (e.g., a "Java + React" job is a Java role that also uses React, not a React role that also uses Java). This rule only applies when the title names a specific programming language/framework — generic titles like "Software Engineer" or "Full Stack Developer" without a named technology do not trigger this rule.
 2. **Seniority fit**: Does the job's seniority level match the persona? Read the years of experience from the persona's self-description carefully. Do NOT reject solely because the persona summary says "5+ years" or "7+ years" and the job asks for "8+ years" — the stated number is a minimum in the persona summary, not a maximum. A persona with "7+ years" can qualify for a role asking 8+ years. Only reject on seniority if the gap is extreme (e.g., junior persona vs. principal/staff role requiring 12+ years). If the persona has specified preferred seniority levels, only reject if the job's inferred seniority is NOT among the persona's selected levels. If the persona's seniority levels are empty or "any", do not reject on seniority.
 3. **Hard constraints (blockers)**: Check the applicant's assignment types against the job's structured workplace type. If the job's Workplace Type is "on-site" and the applicant's assignment types do not include "on-site" or "hybrid", that's a hard blocker. If the job's Workplace Type is "hybrid", check the LOCATION: if the hybrid job is in the applicant's country (or a country they can work in), treat it as a SOFT concern — many hybrid roles offer remote options for the right candidate. BUT if the hybrid job is in a DIFFERENT country than the applicant's, this is a HARD BLOCKER — the applicant cannot commute to a foreign country for hybrid work, regardless of seniority or contractor status. If Workplace Type is null, infer from the location: if the location is a specific city/country (e.g., "Pune, India", "Hong Kong", "Kuala Lumpur") and does NOT contain remote indicators ("remote", "global", "worldwide", "anywhere", "distributed"), infer ON-SITE and reject if the applicant is in a different country. If the location contains remote indicators or is a broad region (e.g., "European Union", "EMEA", "Remote"), do not assume on-site — evaluate based on the JD text. Also check modalities and compliance preferences.
-4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. Carefully scan the job description for phrases like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]", or similar geographic limitations. If the applicant's Country does not match the job's remote geographic restriction, check the APPLICANT's compliance preferences (not the job's — the job will never state compliance arrangements):
+4. **Country-specific remote restrictions**: Many remote jobs restrict applications to specific countries or regions. The Remote Scope field provides structured geo-fencing data from the normalizer — USE IT as the primary signal:
+   - Remote Scope = "country_fenced" with locationCountries listed: the job is restricted to those specific countries. If the applicant's Country is NOT in the list, apply the compliance rules below.
+   - Remote Scope = "region_fenced": the job is restricted to a broad region (e.g., APAC, EMEA, Latam). If the applicant's Country is NOT in that region, this is a HARD BLOCKER (unless the applicant has relevant compliance/work authorization for that region).
+   - Remote Scope = "global": the job is worldwide remote — no geographic restrictions.
+   - Remote Scope = "unknown"/"undetermined"/null: fall back to scanning the job description and location string for geographic limitations like "remote (US only)", "must be located in [country/region]", "must reside in [country]", "remote within [region]". Also check the Location field for country names alongside "Remote" (e.g., "Poland / Remote / Poland" means remote-within-Poland, NOT global remote).
+   If the applicant's Country does not match the job's remote geographic restriction, check the APPLICANT's compliance preferences (not the job's — the job will never state compliance arrangements):
    - If the APPLICANT's preferred compliance includes "w8ben" or "ic_global", US/North America geographic restrictions are NOT automatic hard blockers — DEFAULT TO APPROVING unless the job EXPLICITLY requires W-2 employment. Check the job posting's employment-type language:
      * KEY DISTINCTION: "full-time" is a MODALITY, not an employment type. ATS systems report "Full-time" for both W-2 employees AND B2B contractors. "Full-time" alone is NOT a W-2 signal — the applicant's modalities include "full-time", meaning they are open to full-time B2B contracting.
      * CONTRACTOR-FRIENDLY (SOFT concern — approve if tech stack aligns): The job mentions "contractor", "contract", "1099", "freelance", "B2B", "independent contractor", "consultant", OR does NOT specify any employment type, OR only says "full-time" without "employee" or "W-2". ABSENCE of contractor-friendly language is NOT a hard blocker — most ATS postings don't mention contractor arrangements even when they accept them.
@@ -204,6 +229,7 @@ export function buildGate3Prompt(ctx: Gate3Context): string {
 Title: ${job.title}
 Workplace Type: ${job.workplaceType ?? "not specified"}
 Location: ${job.locationName ?? "not specified"}
+Remote Scope: ${job.remoteScope ?? "not specified"}${job.locationCountries && job.locationCountries.length > 0 ? ` (restricted to: ${job.locationCountries.join(", ")})` : ""}
 Employment Type: ${job.employmentType ?? "not specified"}
 Required Skills: ${job.extractedTags.join(", ") || "none specified"}
 Description:

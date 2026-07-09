@@ -37,6 +37,7 @@ import { z } from "zod";
 import {
   extractLocationCountry,
   isSpecificLocation,
+  REMOTE_LOCATION_INDICATORS,
 } from "@/lib/jobs/location-utils";
 import {
   extractCountryCodesFromText,
@@ -599,7 +600,51 @@ export async function extractRemoteScope(
   // Step 1d: Strip company HQ from scope inference.
   const hqStrippedText = stripCompanyHq(cleanedText, companyLocation);
 
-  // Step 1c: Regex hard-signals.
+  // Step 1e: Location-based check (runs BEFORE regex — Fix 3, mismatch July 2026).
+  //
+  // The location field is structured ATS metadata — more reliable than JD text
+  // for determining geographic restrictions. The JD text may contain "global"
+  // or "distributed" in a non-restriction context (e.g., "global impact",
+  // "distributed team across the US"), causing the regex to misclassify as
+  // "global" when the location field clearly says "Remote - U.S." or
+  // "Poland / Remote / Poland".
+  //
+  // IMPORTANT: This check only takes precedence over the regex when the
+  // location string contains a REMOTE INDICATOR ("remote", "worldwide", etc.).
+  // This distinguishes between:
+  //   - "Remote - U.S." → remote job location with fencing → country_fenced
+  //   - "Poland / Remote / Poland" → remote job location with fencing → country_fenced
+  //   - "San Francisco, CA" → just a city (HQ) → let regex evaluate JD text first
+  //
+  // Without the remote indicator guard, city names with state abbreviations
+  // that conflict with country codes (e.g., "CA" = California vs Canada)
+  // would cause false country_fenced classifications for HQ locations.
+  //
+  // Callers pass the job's locationName as the companyLocation parameter.
+  if (workplaceType === "remote" && companyLocation) {
+    const lowerLoc = companyLocation.toLowerCase();
+    const hasRemoteIndicator = REMOTE_LOCATION_INDICATORS.some((ind) =>
+      lowerLoc.includes(ind),
+    );
+
+    if (hasRemoteIndicator) {
+      // Location string contains "remote" + a country name → country_fenced.
+      // Handles "Remote - U.S.", "Poland / Remote / Poland", "Remote (US)".
+      const locationCountry = extractLocationCountry(companyLocation);
+      if (locationCountry !== null) {
+        return {
+          remoteScope: "country_fenced",
+          allowedCountries: [locationCountry],
+          resolvedBy: "step1_regex",
+          confidence: MEDIUM_CONFIDENCE_VALUE,
+        };
+      }
+    }
+  }
+
+  // Step 1c: Regex hard-signals (runs after remote-location check so the
+  // location field takes precedence for "Remote - Country" formats, but
+  // pure city locations fall through to regex evaluation of JD text).
   const regexResult = step1RegexHardSignals(hqStrippedText, workplaceType);
   if (
     regexResult !== null &&
@@ -608,42 +653,11 @@ export async function extractRemoteScope(
     return regexResult;
   }
 
-  // Step 1e: Location-based fallback (Fix 1b + Fix 3 — mismatch investigation).
-  // If the regex didn't resolve with high confidence and the job is remote,
-  // check the location field for geographic fencing signals:
-  //
-  // 1. (Fix 3) A country name in the location string (e.g., "Poland / Remote /
-  //    Poland"). Handles the NoFluffJobs format where both a country name AND
-  //    "Remote" appear — the country name indicates fencing. This check runs
-  //    first because it detects country names even when "Remote" is present
-  //    (isSpecificLocation would return false for such strings).
-  //
-  // 2. (Fix 1b) A specific city/country location (e.g., "Pakistan", "Pune, MH,
-  //    in", "San Francisco, CA") — no remote indicators or broad regions.
-  //
-  // Both checks classify as country_fenced. ATS systems set the location to the
-  // country the role is based in — a remote job with a specific location is
-  // almost certainly remote-within-that-country, not global remote. Without
-  // these checks, such jobs fall through to the LLM (Step 2) which often
-  // classifies them as "global" because the JD text is silent on restrictions.
-  //
-  // Callers pass the job's locationName as the companyLocation parameter. This
-  // check uses that value directly (not the HQ-stripped text) — the location
-  // field is structured ATS metadata, not JD text that needs stripping.
+  // Step 1e fallback: Location-based check for specific city/country locations
+  // (no remote indicators). Runs AFTER the regex so that JD text patterns like
+  // "Remote - Global" take precedence over HQ city locations.
   if (workplaceType === "remote" && companyLocation) {
-    // Fix 3: Check for a country name in the location string first (handles
-    // "Poland / Remote / Poland" format where isSpecificLocation returns false).
-    const locationCountry = extractLocationCountry(companyLocation);
-    if (locationCountry !== null) {
-      return {
-        remoteScope: "country_fenced",
-        allowedCountries: [locationCountry],
-        resolvedBy: "step1_regex",
-        confidence: MEDIUM_CONFIDENCE_VALUE,
-      };
-    }
-
-    // Fix 1b: Check for a specific city/country location (no remote indicators).
+    // Check for a specific city/country location (no remote indicators).
     if (isSpecificLocation(companyLocation)) {
       return {
         remoteScope: "country_fenced",

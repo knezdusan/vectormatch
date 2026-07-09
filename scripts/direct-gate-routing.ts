@@ -300,6 +300,9 @@ async function main() {
               | null,
             locationName: j.locationName,
             employmentType: j.employmentType,
+            remoteScope: (j.remoteScope ??
+              null) as Gate3Context["job"]["remoteScope"],
+            locationCountries: j.locationCountries ?? null,
           },
           persona: {
             personaLabel: personaRow.personaLabel,

@@ -38,6 +38,7 @@
 import { toPlausibleAnnualUSD } from "@/lib/jobs/currency";
 import { findExcludedCountry } from "@/lib/jobs/excluded-countries";
 import {
+  BROAD_REGION_NAMES,
   extractLocationCountry,
   isSpecificLocation,
   locationMentionsCountry,
@@ -238,13 +239,30 @@ function checkLocationCountryList(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
-  // Fallback: parse locationName for a comma-separated country list
+  // Fallback: parse locationName for country fencing indicators.
+  //
+  // Two sub-strategies:
+  //
+  // 1. Country list detection: split on BOTH commas and " / " separators (the
+  //    NoFluffJobs format uses " / " e.g. "Poland / Remote / Poland / ...").
+  //    If 3+ items and "remote" is present, check if the applicant's country
+  //    appears in any item.
+  //
+  // 2. Single-country detection: use extractLocationCountry to detect a
+  //    specific country name in the location string (e.g., "Remote (US)",
+  //    "Remote - U.S.", "Poland / Remote / Poland"). If a country is detected
+  //    that is NOT the applicant's country, and the location contains "remote"
+  //    (indicating it's a remote job fenced to that country), block it.
+  //    This catches single-item locations like "Remote (US)" that the 3+ item
+  //    check misses.
   if (job.locationName) {
-    // Check if locationName looks like a country list (3+ comma-separated items
-    // and contains "remote" — suggesting it's a remote job with geo-restrictions)
     const lowerLoc = job.locationName.toLowerCase();
     if (lowerLoc.includes("remote")) {
-      const items = job.locationName.split(",").map((s) => s.trim());
+      // Strategy 1: Multi-item country list (commas + " / " separators)
+      const items = job.locationName
+        .split(/[,/]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (items.length >= 3) {
         const isAllowed = items.some((item) =>
           locationMentionsCountry(item, country),
@@ -256,6 +274,32 @@ function checkLocationCountryList(input: PreFilterInput): {
             pattern: "location_country_list",
           };
         }
+      }
+
+      // Strategy 2: Single-country detection via extractLocationCountry.
+      // Catches "Remote (US)", "Remote - U.S.", "Poland / Remote / Poland"
+      // where the 3+ item check may not fire (e.g., "Remote (US)" is 1 item).
+      const detectedCountry = extractLocationCountry(job.locationName);
+      if (
+        detectedCountry !== null &&
+        detectedCountry.toUpperCase() !== country.toUpperCase()
+      ) {
+        // US exception: if the location is in the US and the applicant has
+        // w8ben or ic_global compliance, pass through to Gate 3 (which
+        // evaluates W-2 vs contractor). w8ben/ic_global covers US/North
+        // America contractor arrangements.
+        const isUsLocation = detectedCountry.toUpperCase() === "US";
+        const hasUsCompliance =
+          applicant.preferredCompliance.includes("w8ben") ||
+          applicant.preferredCompliance.includes("ic_global");
+        if (isUsLocation && hasUsCompliance) {
+          return { blocker: null, pattern: null };
+        }
+
+        return {
+          blocker: `Job location indicates country fencing to ${detectedCountry}: ${job.locationName} — excludes ${country}`,
+          pattern: "location_country_list",
+        };
       }
     }
   }
@@ -590,6 +634,500 @@ function checkExcludedCountries(input: PreFilterInput): {
 }
 
 // =============================================================================
+// CHECK 7: REGION-FENCED LOCATION (APAC, EMEA, Latam, etc.)
+// =============================================================================
+
+/**
+ * Country-to-region mapping for broad region fencing checks.
+ *
+ * Used by Check 7 to determine if the applicant's country is in the region
+ * mentioned in the job's location string. When a job's location is a broad
+ * region (e.g., "APAC", "EMEA") and the applicant's country is NOT in that
+ * region, the job is region-fenced and should be blocked at Gate 0.5.
+ *
+ * This catches the Greenhouse "APAC" mismatch pattern: jobs with
+ * workplaceType=null, remoteScope=undetermined, and location="APAC" were
+ * passing through all Gate 0.5 checks because:
+ *   - Check 2 doesn't apply (workplaceType is null, not remote/hybrid)
+ *   - Check 2b doesn't apply (workplaceType is not "remote")
+ *   - Check 3 Case 4 doesn't fire (isSpecificLocation("APAC") returns false —
+ *     APAC is in BROAD_REGION_NAMES)
+ *
+ * The mapping covers the regions in BROAD_REGION_NAMES. Countries not listed
+ * are treated as not in any region (conservative — passes through to Gate 3).
+ */
+const COUNTRY_REGION_MAP: Record<string, string[]> = {
+  "european union": [
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE",
+  ],
+  eu: [
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE",
+  ],
+  apac: [
+    "AU",
+    "NZ",
+    "CN",
+    "JP",
+    "KR",
+    "IN",
+    "ID",
+    "TH",
+    "VN",
+    "MY",
+    "SG",
+    "PH",
+    "HK",
+    "TW",
+    "BD",
+    "PK",
+    "LK",
+    "KH",
+    "LA",
+    "MM",
+    "BN",
+    "FJ",
+    "PG",
+    "SB",
+    "VU",
+    "NC",
+    "PF",
+    "GU",
+    "MP",
+    "KH",
+    "TL",
+  ],
+  emea: [
+    // EU + EEA
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE",
+    "GB",
+    "IS",
+    "LI",
+    "NO",
+    "CH",
+    // Middle East
+    "TR",
+    "IL",
+    "AE",
+    "SA",
+    "QA",
+    "KW",
+    "BH",
+    "OM",
+    "JO",
+    "LB",
+    "IQ",
+    "IR",
+    "EG",
+    "MA",
+    "DZ",
+    "TN",
+    "LY",
+    // Non-EU Eastern Europe
+    "RS",
+    "AL",
+    "BA",
+    "MK",
+    "ME",
+    "XK",
+    "UA",
+    "MD",
+    "BY",
+    "RU",
+    "GE",
+    "AM",
+    "AZ",
+  ],
+  latam: [
+    "BR",
+    "AR",
+    "MX",
+    "CO",
+    "CL",
+    "PE",
+    "VE",
+    "EC",
+    "BO",
+    "PY",
+    "UY",
+    "CR",
+    "PA",
+    "DO",
+    "GT",
+    "HN",
+    "SV",
+    "NI",
+    "CU",
+    "PR",
+  ],
+  "north america": ["US", "CA", "MX", "GL"],
+  "south america": [
+    "BR",
+    "AR",
+    "CO",
+    "CL",
+    "PE",
+    "VE",
+    "EC",
+    "BO",
+    "PY",
+    "UY",
+    "GY",
+    "SR",
+  ],
+  europe: [
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE",
+    "GB",
+    "IS",
+    "LI",
+    "NO",
+    "CH",
+    "RS",
+    "AL",
+    "BA",
+    "MK",
+    "ME",
+    "XK",
+    "UA",
+    "MD",
+    "BY",
+    "RU",
+  ],
+  asia: [
+    "CN",
+    "JP",
+    "KR",
+    "IN",
+    "ID",
+    "TH",
+    "VN",
+    "MY",
+    "SG",
+    "PH",
+    "HK",
+    "TW",
+    "BD",
+    "PK",
+    "LK",
+    "KH",
+    "LA",
+    "MM",
+    "BN",
+    "KZ",
+    "UZ",
+    "TM",
+    "KG",
+    "TJ",
+    "AF",
+    "MN",
+    "NP",
+    "BT",
+  ],
+  africa: [
+    "NG",
+    "ZA",
+    "EG",
+    "MA",
+    "DZ",
+    "TN",
+    "LY",
+    "KE",
+    "ET",
+    "GH",
+    "UG",
+    "TZ",
+    "CM",
+    "CI",
+    "SN",
+    "ML",
+    "BF",
+    "GN",
+    "BJ",
+    "TG",
+    "RW",
+    "BI",
+    "MZ",
+    "AO",
+    "ZM",
+    "ZW",
+    "BW",
+    "NA",
+    "LS",
+    "SZ",
+    "MG",
+    "MR",
+    "SL",
+    "LR",
+    "TD",
+    "CF",
+    "CG",
+    "CD",
+    "SO",
+    "SS",
+    "ER",
+    "DJ",
+    "KM",
+    "SC",
+    "ST",
+    "GQ",
+    "GA",
+  ],
+  "middle east": [
+    "TR",
+    "IL",
+    "AE",
+    "SA",
+    "QA",
+    "KW",
+    "BH",
+    "OM",
+    "JO",
+    "LB",
+    "IQ",
+    "IR",
+    "SY",
+    "YE",
+    "PS",
+  ],
+  balkans: ["RS", "AL", "BA", "MK", "ME", "XK", "HR", "SI", "RO", "BG", "GR"],
+  "eastern europe": [
+    "PL",
+    "CZ",
+    "SK",
+    "HU",
+    "RO",
+    "BG",
+    "RS",
+    "AL",
+    "BA",
+    "MK",
+    "ME",
+    "XK",
+    "UA",
+    "MD",
+    "BY",
+    "RU",
+    "LT",
+    "LV",
+    "EE",
+    "HR",
+    "SI",
+  ],
+  "western europe": [
+    "AT",
+    "BE",
+    "FR",
+    "DE",
+    "IE",
+    "LU",
+    "NL",
+    "CH",
+    "GB",
+    "LI",
+  ],
+  "central europe": ["AT", "CZ", "DE", "HU", "PL", "SK", "SI", "CH", "LI"],
+  nordics: ["DK", "FI", "IS", "NO", "SE"],
+  benelux: ["BE", "NL", "LU"],
+  dach: ["DE", "AT", "CH"],
+};
+
+/**
+ * Check if the applicant's country is in the given broad region.
+ *
+ * @param country The applicant's ISO 3166-1 alpha-2 country code
+ * @param regionName The broad region name (e.g., "APAC", "EMEA")
+ * @returns true if the country is in the region, false otherwise
+ */
+function isCountryInRegion(country: string, regionName: string): boolean {
+  const regionKey = regionName.toLowerCase().trim();
+  const countries = COUNTRY_REGION_MAP[regionKey];
+  if (!countries) return false;
+  return countries.includes(country.toUpperCase());
+}
+
+/**
+ * Detect a broad region name in a location string.
+ *
+ * @param locationName The raw location string from the ATS
+ * @returns The matched region name (lowercase), or null if no region found
+ */
+function detectBroadRegion(locationName: string): string | null {
+  const lower = locationName.toLowerCase();
+  for (const region of BROAD_REGION_NAMES) {
+    if (lower.includes(region)) {
+      return region;
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if the job's location is a broad region (APAC, EMEA, Latam, etc.)
+ * that does NOT include the applicant's country.
+ *
+ * This catches jobs with:
+ *   - workplaceType = null or "remote"
+ *   - remoteScope = "undetermined", "unknown", or "region_fenced"
+ *   - location = "APAC", "EMEA", "Latam", etc.
+ *
+ * The Greenhouse "APAC" mismatch pattern: a job with location "APAC" and an
+ * applicant in Serbia (Europe) should be blocked — Serbia is not in APAC.
+ * Without this check, the job passes through to Gate 3, which approves it
+ * because the LLM doesn't reliably parse "APAC" as a region restriction.
+ */
+function checkRegionFencedLocation(input: PreFilterInput): {
+  blocker: string | null;
+  pattern: string | null;
+} {
+  const { job, applicant } = input;
+  const country = applicant.country;
+  if (!country || !job.locationName) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Only apply to remote or null workplaceType jobs (on-site/hybrid are
+  // handled by Check 3).
+  if (job.workplaceType !== "remote" && job.workplaceType !== null) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Skip if remoteScope is explicitly "global" — the normalizer determined
+  // the job is worldwide remote, so the location field's region is not a
+  // restriction (e.g., a global remote job with HQ in APAC).
+  if (job.remoteScope === "global") {
+    return { blocker: null, pattern: null };
+  }
+
+  const region = detectBroadRegion(job.locationName);
+  if (region === null) {
+    return { blocker: null, pattern: null };
+  }
+
+  // Check if the applicant's country is in the detected region
+  if (isCountryInRegion(country, region)) {
+    return { blocker: null, pattern: null };
+  }
+
+  // US exception: if the region is "north america" and the applicant has
+  // w8ben or ic_global compliance, pass through to Gate 3 (same as Check 2).
+  if (
+    region === "north america" &&
+    (applicant.preferredCompliance.includes("w8ben") ||
+      applicant.preferredCompliance.includes("ic_global"))
+  ) {
+    return { blocker: null, pattern: null };
+  }
+
+  return {
+    blocker: `Job location is ${job.locationName} (region: ${region.toUpperCase()}) — applicant's country ${country} is not in this region`,
+    pattern: "region_fenced_location",
+  };
+}
+
+// =============================================================================
 // MAIN PRE-FILTER FUNCTION
 // =============================================================================
 
@@ -648,6 +1186,16 @@ export function runHardBlockerPreFilter(
   if (check3.blocker) {
     blockers.push(check3.blocker);
     if (!patternDetected) patternDetected = check3.pattern;
+  }
+
+  // Check 7: Region-fenced location (APAC, EMEA, Latam — mismatch July 2026)
+  // Catches jobs with location="APAC" and applicant in Serbia (Europe).
+  // Runs after Check 3 because Check 3 handles specific locations (cities),
+  // while Check 7 handles broad regions that Check 3 explicitly skips.
+  const check7 = checkRegionFencedLocation(input);
+  if (check7.blocker) {
+    blockers.push(check7.blocker);
+    if (!patternDetected) patternDetected = check7.pattern;
   }
 
   // Check 4: Compensation tier (soft-fail-open)

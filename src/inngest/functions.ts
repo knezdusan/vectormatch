@@ -2597,7 +2597,10 @@ export const jobIngestedHandler = inngest.createFunction(
             remoteScope: (jobRow.remoteScope ?? "unknown") as
               | "global"
               | "country_fenced"
-              | "unknown",
+              | "region_fenced"
+              | "onsite"
+              | "unknown"
+              | "undetermined",
           },
           applicant: {
             country: app.country,
@@ -2927,6 +2930,8 @@ export const gate3Evaluator = inngest.createFunction(
             workplaceType: job.workplaceType,
             locationName: job.locationName,
             employmentType: job.employmentType,
+            remoteScope: job.remoteScope,
+            locationCountries: job.locationCountries,
           })
           .from(job)
           .where(eq(job.id, jobId))
@@ -2988,6 +2993,15 @@ export const gate3Evaluator = inngest.createFunction(
             workplaceType: jobRows[0].workplaceType,
             locationName: jobRows[0].locationName,
             employmentType: jobRows[0].employmentType,
+            remoteScope: jobRows[0].remoteScope as
+              | "global"
+              | "country_fenced"
+              | "region_fenced"
+              | "onsite"
+              | "unknown"
+              | "undetermined"
+              | null,
+            locationCountries: jobRows[0].locationCountries ?? null,
           },
           persona: {
             personaLabel: personaRows[0].personaLabel,
@@ -3397,6 +3411,7 @@ export const matchBulkReprocess = inngest.createFunction(
     //     under the 1MB response size limit
     const BATCH = 25;
     let totalCandidates = 0;
+    let totalGate05Rejected = 0;
 
     for (let i = 0; i < jobIds.length; i += BATCH) {
       const batchIds = jobIds.slice(i, i + BATCH);
@@ -3405,8 +3420,18 @@ export const matchBulkReprocess = inngest.createFunction(
 
       const batchResult = await step.run(stepName, async () => {
         const { db } = await import("@/db/db");
-        const { sql } = await import("drizzle-orm");
+        const { sql, eq } = await import("drizzle-orm");
         const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
+        const { runHardBlockerPreFilter } = await import(
+          "@/lib/jobs/gate-zero-pre-filter"
+        );
+        const { getExcludedCountriesRaw } = await import(
+          "@/lib/jobs/excluded-countries"
+        );
+        const { job: jobSchema } = await import("@/db/schemas/jobs/job");
+        const { applicant: applicantSchema } = await import(
+          "@/db/schemas/jobs/applicant"
+        );
 
         // Build a UUID array literal for the WHERE clause.
         // Drizzle's parameterized array binding doesn't work with ANY() —
@@ -3415,14 +3440,30 @@ export const matchBulkReprocess = inngest.createFunction(
         // UUIDs are safe to interpolate (validated by the DB in the prior query).
         const uuidArraySql = `ARRAY[${batchIds.map((id) => `'${id}'`).join(",")}]::uuid[]`;
 
-        // Load tags + embeddings for this batch only.
+        // Load tags + embeddings + Gate 0.5 metadata for this batch only.
         // Re-check status = 'active' and job_embedding IS NOT NULL in case the
         // job was deactivated or re-normalized between step 1 and this batch.
+        // Gate 0.5 metadata fields are needed to run the hard-blocker pre-filter
+        // before Gate 1+2 — without this, country-fenced remote jobs from direct
+        // ingestion boards bypass Gate 0.5 entirely (the root cause of the
+        // NoFluffJobs Poland-locked mismatch bug).
         const result = await db.execute(sql`
           SELECT
             j.id,
             j.extracted_tags,
-            j.job_embedding::text AS job_embedding_str
+            j.job_embedding::text AS job_embedding_str,
+            j.title,
+            j.location_name,
+            j.workplace_type,
+            j.normalized_text,
+            j.title_region_tag,
+            j.location_countries,
+            j.experience_min_years,
+            j.experience_max_years,
+            j.compensation_min,
+            j.compensation_max,
+            j.compensation_currency,
+            j.remote_scope
           FROM job j
           WHERE j.id = ANY(${sql.raw(uuidArraySql)})
             AND j.status = 'active'
@@ -3433,7 +3474,107 @@ export const matchBulkReprocess = inngest.createFunction(
           id: row.id as string,
           extractedTags: (row.extracted_tags as string[]) ?? [],
           jobEmbedding: parseVectorString(row.job_embedding_str as string),
+          // Gate 0.5 metadata
+          title: row.title as string,
+          locationName: row.location_name as string | null,
+          workplaceType: row.workplace_type as
+            | "remote"
+            | "hybrid"
+            | "on-site"
+            | null,
+          normalizedText: row.normalized_text as string | null,
+          titleRegionTag: row.title_region_tag as string | null,
+          locationCountries: row.location_countries as string[] | null,
+          experienceMinYears: row.experience_min_years as number | null,
+          experienceMaxYears: row.experience_max_years as number | null,
+          compensationMin:
+            row.compensation_min !== null ? Number(row.compensation_min) : null,
+          compensationMax:
+            row.compensation_max !== null ? Number(row.compensation_max) : null,
+          compensationCurrency: row.compensation_currency as string | null,
+          remoteScope: (row.remote_scope ?? "unknown") as
+            | "global"
+            | "country_fenced"
+            | "region_fenced"
+            | "onsite"
+            | "unknown"
+            | "undetermined",
         }));
+
+        // ── Gate 0.5: Hard-blocker pre-filter ──────────────────────────────
+        // Direct-ingested jobs (NoFluffJobs, JustJoin, etc.) bypass the
+        // jobIngestedHandler (which contains Gate 0.5) because upsertDirectJobs
+        // sets normalizedAt = now. This sweep picks them up and must run Gate 0.5
+        // here — otherwise country-fenced remote jobs reach Gate 3, which
+        // approves them (the root cause of the 13 mismatch rows).
+        const excludedSet = await getExcludedCountriesRaw();
+
+        const applicants = await db
+          .select({
+            country: applicantSchema.country,
+            assignmentTypes: applicantSchema.assignmentTypes,
+            preferredCompliance: applicantSchema.preferredCompliance,
+            expectedCompMin: applicantSchema.expectedCompMin,
+            yearsOfExperience: applicantSchema.yearsOfExperience,
+          })
+          .from(applicantSchema);
+
+        let gate05Rejected = 0;
+        const gate05Passed: typeof jobs = [];
+
+        if (applicants.length > 0) {
+          for (const j of jobs) {
+            const results = applicants.map((app) =>
+              runHardBlockerPreFilter({
+                job: {
+                  title: j.title,
+                  locationName: j.locationName,
+                  workplaceType: j.workplaceType,
+                  normalizedText: j.normalizedText,
+                  titleRegionTag: j.titleRegionTag,
+                  locationCountries: j.locationCountries,
+                  experienceMinYears: j.experienceMinYears,
+                  experienceMaxYears: j.experienceMaxYears,
+                  compensationMin: j.compensationMin,
+                  compensationMax: j.compensationMax,
+                  compensationCurrency: j.compensationCurrency,
+                  remoteScope: j.remoteScope,
+                },
+                applicant: {
+                  country: app.country,
+                  assignmentTypes: app.assignmentTypes ?? [],
+                  preferredCompliance: app.preferredCompliance ?? [],
+                  expectedCompMin:
+                    app.expectedCompMin !== null
+                      ? Number(app.expectedCompMin)
+                      : null,
+                  yearsOfExperience: app.yearsOfExperience,
+                },
+                excludedCountries: excludedSet,
+              }),
+            );
+
+            const anyPass = results.some((r) => r.passes);
+            if (anyPass) {
+              gate05Passed.push(j);
+            } else {
+              // All applicants failed Gate 0.5 — tombstone the job
+              const firstFailure = results.find((r) => !r.passes);
+              await db
+                .update(jobSchema)
+                .set({
+                  status: "rejected",
+                  rejectionPattern: firstFailure?.patternDetected ?? null,
+                  normalizedAt: new Date(),
+                })
+                .where(eq(jobSchema.id, j.id));
+              gate05Rejected++;
+            }
+          }
+        } else {
+          // No applicants — pass all through (defensive, same as jobIngestedHandler)
+          gate05Passed.push(...jobs);
+        }
 
         const candidates: {
           matchQueueId: string;
@@ -3442,12 +3583,12 @@ export const matchBulkReprocess = inngest.createFunction(
           applicantId: string;
         }[] = [];
 
-        // Run Gate 1+2 for all jobs in the batch in parallel.
+        // Run Gate 1+2 for Gate 0.5-passed jobs in the batch in parallel.
         // Sequential processing (25 jobs × ~3s each = 75s per batch) was the
         // bottleneck causing 41+ minute runs. Parallelizing with Promise.all
         // cuts each batch to ~3-5s (limited by DB connection pool concurrency).
         const batchResults = await Promise.all(
-          jobs.map((j) =>
+          gate05Passed.map((j) =>
             runGateSQLRouter(j.id, j.extractedTags, j.jobEmbedding).then(
               (jobCandidates) =>
                 jobCandidates.map((c) => ({
@@ -3481,15 +3622,17 @@ export const matchBulkReprocess = inngest.createFunction(
           );
         }
 
-        return { count: candidates.length };
+        return { count: candidates.length, gate05Rejected };
       });
 
       totalCandidates += batchResult.count;
+      totalGate05Rejected += batchResult.gate05Rejected;
     }
 
     return {
       reprocessed: jobIds.length,
       candidates: totalCandidates,
+      gate05Rejected: totalGate05Rejected,
       personaId,
       includeRejected,
     };

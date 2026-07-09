@@ -115,6 +115,35 @@ describe("buildGate3Prompt", () => {
     expect(prompt).toContain("Employment Type: full-time");
   });
 
+  it("Fix 4: includes remote scope and location countries in prompt", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      job: {
+        ...mockContext.job,
+        remoteScope: "country_fenced",
+        locationCountries: ["PL"],
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("Remote Scope: country_fenced");
+    expect(prompt).toContain("restricted to: PL");
+  });
+
+  it("Fix 4: shows 'not specified' for null remote scope", () => {
+    const ctx: Gate3Context = {
+      ...mockContext,
+      job: {
+        ...mockContext.job,
+        remoteScope: null,
+        locationCountries: null,
+      },
+    };
+    const prompt = buildGate3Prompt(ctx);
+
+    expect(prompt).toContain("Remote Scope: not specified");
+  });
+
   it("shows 'not specified' for null job metadata", () => {
     const ctx: Gate3Context = {
       ...mockContext,
