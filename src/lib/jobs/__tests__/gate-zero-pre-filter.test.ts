@@ -20,7 +20,11 @@ type JobOverrides = Partial<PreFilterInput["job"]>;
 type ApplicantOverrides = Partial<PreFilterInput["applicant"]>;
 
 function makeInput(
-  overrides: { job?: JobOverrides; applicant?: ApplicantOverrides } = {},
+  overrides: {
+    job?: JobOverrides;
+    applicant?: ApplicantOverrides;
+    excludedCountries?: Set<string>;
+  } = {},
 ): PreFilterInput {
   return {
     job: {
@@ -46,6 +50,7 @@ function makeInput(
       yearsOfExperience: null,
       ...overrides.applicant,
     },
+    excludedCountries: overrides.excludedCountries,
   };
 }
 
@@ -1460,5 +1465,153 @@ describe("Gate 0.5 — Check 2b: Remote + specific foreign location", () => {
     );
     expect(result.passes).toBe(false);
     expect(result.patternDetected).toBe("remote_specific_foreign_location");
+  });
+});
+
+// =============================================================================
+// CHECK 6: EXCLUDED COUNTRIES (admin-managed blocklist)
+// =============================================================================
+
+describe("Gate 0.5 — Check 6: Excluded countries", () => {
+  it("blocks job with locationCountries matching excluded set", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Mumbai, India",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["IN"],
+        },
+        excludedCountries: new Set(["IN", "PK"]),
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("excluded_country");
+    expect(result.blockers[0]).toContain("IN");
+  });
+
+  it("blocks job with locationName mentioning excluded country (no structured codes)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Engineer",
+          locationName: "Lahore, Pakistan",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        excludedCountries: new Set(["IN", "PK"]),
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("excluded_country");
+  });
+
+  it("blocks job with locationName 'India' (extractLocationCountry path)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Full Stack Developer",
+          locationName: "Bangalore, India",
+          workplaceType: "remote",
+          remoteScope: "unknown",
+        },
+        excludedCountries: new Set(["IN"]),
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("excluded_country");
+  });
+
+  it("does not block when excluded set is empty", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Mumbai, India",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["IN"],
+        },
+        excludedCountries: new Set(),
+      }),
+    );
+    // Check 6 doesn't fire, but Check 2b might (India is a specific foreign
+    // location with unknown scope). The key assertion is that Check 6
+    // doesn't add an "excluded_country" pattern.
+    expect(result.patternDetected).not.toBe("excluded_country");
+  });
+
+  it("does not block when excludedCountries is undefined (not provided)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Mumbai, India",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["IN"],
+        },
+      }),
+    );
+    expect(result.patternDetected).not.toBe("excluded_country");
+  });
+
+  it("does not block job in a non-excluded country", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Berlin, Germany",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["DE"],
+        },
+        excludedCountries: new Set(["IN", "PK"]),
+      }),
+    );
+    // Germany is not excluded — Check 6 doesn't fire. Check 2 may fire
+    // (country_fenced + DE doesn't include RS), but the pattern won't be
+    // "excluded_country".
+    expect(result.patternDetected).not.toBe("excluded_country");
+  });
+
+  it("blocks for all applicants regardless of applicant country", () => {
+    // Even an applicant in the excluded country should be blocked — the
+    // admin exclusion is absolute, not per-applicant.
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Pune, India",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["IN"],
+        },
+        applicant: {
+          country: "IN",
+        },
+        excludedCountries: new Set(["IN"]),
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("excluded_country");
+  });
+
+  it("blocks with lowercase country code in locationCountries (normalizes to uppercase)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "React Developer",
+          locationName: "Karachi, Pakistan",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["pk"],
+        },
+        excludedCountries: new Set(["PK"]),
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("excluded_country");
   });
 });

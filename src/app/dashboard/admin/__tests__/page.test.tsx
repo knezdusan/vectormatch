@@ -57,6 +57,12 @@ vi.mock("@/components/admin/PipelineStatus", () => ({
 vi.mock("@/components/admin/RecentAlerts", () => ({
   RecentAlerts: () => null,
 }));
+vi.mock("@/components/admin/CountryExclusionManager", () => ({
+  CountryExclusionManager: () => null,
+}));
+vi.mock("@/lib/jobs/excluded-countries", () => ({
+  getExcludedCountryRecords: vi.fn().mockResolvedValue([]),
+}));
 
 // --- Helpers ---
 

@@ -10,11 +10,15 @@
 // Security: every action calls requireRole("admin") — non-admins get
 // redirected to /dashboard. The actions are scoped to the admin role only.
 
-import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
+import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
+import { db } from "@/db/db";
+import { excludedCountries } from "@/db/schemas/jobs/excludedCountries";
 import { inngest } from "@/inngest/client";
 import { requireRole } from "@/lib/auth";
 import { resolveAlert, resolveAllAlerts } from "@/lib/jobs/alerting";
+import { COUNTRY_NAMES } from "@/lib/jobs/location-utils";
 import { disableSource, enableSource } from "@/lib/jobs/source-health";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -209,6 +213,64 @@ export async function triggerEmergencyPurgeAction(): Promise<AdminActionState> {
       name: "purge/emergency-storage",
       data: { triggeredBy: "admin-dashboard" },
     });
+    revalidatePath("/dashboard/admin");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed" };
+  }
+}
+
+// ── Excluded Countries Management ───────────────────────────────────────────
+
+const countryCodeSchema = z
+  .string()
+  .length(2)
+  .regex(/^[A-Za-z]{2}$/, "Must be a 2-letter ISO country code");
+
+/**
+ * Add a country to the exclusion list. Jobs located in or mentioning this
+ * country will be hard-blocked at ingestion (direct boards) and Gate 0.5 (ATS).
+ */
+export async function addExcludedCountryAction(
+  countryCode: string,
+): Promise<AdminActionState> {
+  await requireRole("admin");
+  const parsed = countryCodeSchema.safeParse(countryCode);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid country code" };
+  }
+  const code = parsed.data.toUpperCase();
+  const names = COUNTRY_NAMES[code];
+  const countryName = names?.[0] ?? code;
+  try {
+    await db
+      .insert(excludedCountries)
+      .values({ countryCode: code, countryName })
+      .onConflictDoNothing();
+    updateTag("excluded-countries");
+    revalidatePath("/dashboard/admin");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : "Failed" };
+  }
+}
+
+/**
+ * Remove a country from the exclusion list.
+ */
+export async function removeExcludedCountryAction(
+  countryCode: string,
+): Promise<AdminActionState> {
+  await requireRole("admin");
+  const parsed = countryCodeSchema.safeParse(countryCode);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid country code" };
+  }
+  try {
+    await db
+      .delete(excludedCountries)
+      .where(eq(excludedCountries.countryCode, parsed.data.toUpperCase()));
+    updateTag("excluded-countries");
     revalidatePath("/dashboard/admin");
     return { success: true };
   } catch (e) {

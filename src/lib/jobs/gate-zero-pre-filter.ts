@@ -36,6 +36,7 @@
 // See docs/reports/EXTERNAL_AUDIT_TECHNICAL_OVERVIEW.md §7.1 for root cause.
 
 import { toPlausibleAnnualUSD } from "@/lib/jobs/currency";
+import { findExcludedCountry } from "@/lib/jobs/excluded-countries";
 import {
   extractLocationCountry,
   isSpecificLocation,
@@ -83,6 +84,10 @@ export interface PreFilterInput {
     expectedCompMin: number | null; // Annual USD
     yearsOfExperience: number | null;
   };
+  // Admin-managed excluded countries (ISO 3166-1 alpha-2 codes). Jobs located
+  // in or sourced from these countries are hard-blocked. Empty set = no
+  // exclusions. The caller loads this from getExcludedCountries() (cached).
+  excludedCountries?: Set<string>;
 }
 
 export interface PreFilterResult {
@@ -542,6 +547,49 @@ function checkExperienceBand(input: PreFilterInput): {
 }
 
 // =============================================================================
+// CHECK 6: EXCLUDED COUNTRIES (admin-managed blocklist)
+// =============================================================================
+
+/**
+ * Check if the job is located in or mentions a country on the admin-managed
+ * excluded countries list. This is a hard block — the admin has explicitly
+ * decided not to facilitate these markets.
+ *
+ * Checks both structured locationCountries (from ATS API or direct-ingestion
+ * adapter) and the free-text locationName string. Uses findExcludedCountry()
+ * from the excluded-countries module for the matching logic.
+ *
+ * Unlike Checks 1-3 (which are applicant-relative), this check is absolute —
+ * it blocks the job for ALL applicants regardless of their country. The admin
+ * exclusion is a source-level decision, not a per-applicant geo-fence.
+ */
+function checkExcludedCountries(input: PreFilterInput): {
+  blocker: string | null;
+  pattern: string | null;
+} {
+  const { job, excludedCountries } = input;
+
+  if (!excludedCountries || excludedCountries.size === 0) {
+    return { blocker: null, pattern: null };
+  }
+
+  const matched = findExcludedCountry(
+    job.locationCountries,
+    job.locationName,
+    excludedCountries,
+  );
+
+  if (matched) {
+    return {
+      blocker: `Job is located in excluded country ${matched} (admin blocklist)`,
+      pattern: "excluded_country",
+    };
+  }
+
+  return { blocker: null, pattern: null };
+}
+
+// =============================================================================
 // MAIN PRE-FILTER FUNCTION
 // =============================================================================
 
@@ -560,6 +608,17 @@ export function runHardBlockerPreFilter(
 ): PreFilterResult {
   const blockers: string[] = [];
   let patternDetected: string | null = null;
+
+  // Check 6: Excluded countries (admin-managed blocklist — absolute block)
+  // Runs first because it's an admin-level decision that takes priority over
+  // all per-applicant geo-fencing checks. The pattern is reported as
+  // "excluded_country" so the admin can distinguish admin-blocked jobs from
+  // applicant-relative geo-fence rejections in analytics.
+  const check6 = checkExcludedCountries(input);
+  if (check6.blocker) {
+    blockers.push(check6.blocker);
+    patternDetected = check6.pattern;
+  }
 
   // Check 1: Title region tags (Pattern 1)
   const check1 = checkTitleRegionTag(input);

@@ -1580,6 +1580,9 @@ export const directJobBoardIngestion = inngest.createFunction(
     const { upsertDirectJobs } = await import(
       "@/lib/jobs/direct-ingestion/upsert"
     );
+    const { findExcludedCountry } = await import(
+      "@/lib/jobs/excluded-countries"
+    );
     type DirectIngestionJob =
       import("@/lib/jobs/direct-ingestion/types").DirectIngestionJob;
 
@@ -1603,6 +1606,34 @@ export const directJobBoardIngestion = inngest.createFunction(
       error: string | null;
     }> = [];
 
+    // ── Excluded countries filter ───────────────────────────────────────────
+    // Load the admin-managed excluded countries set once. Jobs located in or
+    // mentioning these countries are filtered out before upsert — saving
+    // embedding cost, DB writes, and all downstream gate processing.
+    // Inngest runs outside the Next.js request lifecycle, so we use the
+    // uncached read (Cache Components "use cache" doesn't apply here).
+    const excludedSet = (await step.run("load-excluded-countries", async () => {
+      const { getExcludedCountriesRaw } = await import(
+        "@/lib/jobs/excluded-countries"
+      );
+      return getExcludedCountriesRaw();
+    })) as unknown as Set<string>;
+
+    /** Filter out jobs located in excluded countries. */
+    const filterExcluded = (
+      jobs: DirectIngestionJob[],
+    ): DirectIngestionJob[] => {
+      if (excludedSet.size === 0) return jobs;
+      return jobs.filter(
+        (j) =>
+          !findExcludedCountry(
+            j.locationCountries ?? null,
+            j.locationName,
+            excludedSet,
+          ),
+      );
+    };
+
     // ── Board 1: Himalayas ──────────────────────────────────────────────────
     const himalayasResult = await step.run("fetch-himalayas", async () => {
       const result = await fetchHimalayasJobs(500, techFilter);
@@ -1624,13 +1655,13 @@ export const directJobBoardIngestion = inngest.createFunction(
 
     if (himalayasResult.success && himalayasResult.jobs.length > 0) {
       // step.run() may serialize Date → string. Rebuild with proper Date types.
-      const jobsForUpsert: DirectIngestionJob[] = himalayasResult.jobs.map(
-        (j) => ({
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        himalayasResult.jobs.map((j) => ({
           ...j,
           publishedAt: j.publishedAt
             ? new Date(j.publishedAt as unknown as string)
             : null,
-        }),
+        })),
       );
       const upsertResult = await step.run("upsert-himalayas", async () => {
         return upsertDirectJobs(
@@ -1675,13 +1706,13 @@ export const directJobBoardIngestion = inngest.createFunction(
     });
 
     if (remoteokResult.success && remoteokResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = remoteokResult.jobs.map(
-        (j) => ({
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        remoteokResult.jobs.map((j) => ({
           ...j,
           publishedAt: j.publishedAt
             ? new Date(j.publishedAt as unknown as string)
             : null,
-        }),
+        })),
       );
       const upsertResult = await step.run("upsert-remoteok", async () => {
         return upsertDirectJobs(
@@ -1732,13 +1763,13 @@ export const directJobBoardIngestion = inngest.createFunction(
     });
 
     if (nofluffResult.success && nofluffResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = nofluffResult.jobs.map(
-        (j) => ({
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        nofluffResult.jobs.map((j) => ({
           ...j,
           publishedAt: j.publishedAt
             ? new Date(j.publishedAt as unknown as string)
             : null,
-        }),
+        })),
       );
       const upsertResult = await step.run("upsert-nofluffjobs", async () => {
         return upsertDirectJobs(
@@ -1786,13 +1817,13 @@ export const directJobBoardIngestion = inngest.createFunction(
     });
 
     if (justjoinResult.success && justjoinResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = justjoinResult.jobs.map(
-        (j) => ({
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        justjoinResult.jobs.map((j) => ({
           ...j,
           publishedAt: j.publishedAt
             ? new Date(j.publishedAt as unknown as string)
             : null,
-        }),
+        })),
       );
       const upsertResult = await step.run("upsert-justjoin", async () => {
         return upsertDirectJobs("justjoin", "justjoin", jobsForUpsert, embedFn);
@@ -1832,13 +1863,13 @@ export const directJobBoardIngestion = inngest.createFunction(
     });
 
     if (arbeitnowResult.success && arbeitnowResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = arbeitnowResult.jobs.map(
-        (j) => ({
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        arbeitnowResult.jobs.map((j) => ({
           ...j,
           publishedAt: j.publishedAt
             ? new Date(j.publishedAt as unknown as string)
             : null,
-        }),
+        })),
       );
       const upsertResult = await step.run("upsert-arbeitnow", async () => {
         return upsertDirectJobs(
@@ -1883,13 +1914,13 @@ export const directJobBoardIngestion = inngest.createFunction(
     });
 
     if (remotiveResult.success && remotiveResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = remotiveResult.jobs.map(
-        (j) => ({
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        remotiveResult.jobs.map((j) => ({
           ...j,
           publishedAt: j.publishedAt
             ? new Date(j.publishedAt as unknown as string)
             : null,
-        }),
+        })),
       );
       const upsertResult = await step.run("upsert-remotive", async () => {
         return upsertDirectJobs("remotive", "remotive", jobsForUpsert, embedFn);
@@ -1929,12 +1960,14 @@ export const directJobBoardIngestion = inngest.createFunction(
     });
 
     if (wwrResult.success && wwrResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = wwrResult.jobs.map((j) => ({
-        ...j,
-        publishedAt: j.publishedAt
-          ? new Date(j.publishedAt as unknown as string)
-          : null,
-      }));
+      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
+        wwrResult.jobs.map((j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        })),
+      );
       const upsertResult = await step.run("upsert-weworkremotely", async () => {
         return upsertDirectJobs(
           "weworkremotely",
@@ -2476,6 +2509,14 @@ export const jobIngestedHandler = inngest.createFunction(
       const { runHardBlockerPreFilter } = await import(
         "@/lib/jobs/gate-zero-pre-filter"
       );
+      const { getExcludedCountriesRaw } = await import(
+        "@/lib/jobs/excluded-countries"
+      );
+
+      // Load the admin-managed excluded countries set (uncached — Inngest
+      // runs outside the Next.js request lifecycle, so Cache Components
+      // "use cache" directives don't apply here).
+      const excludedSet = await getExcludedCountriesRaw();
 
       // Fetch the job with Gate 0.5 metadata fields
       const jobRows = await db
@@ -2566,6 +2607,7 @@ export const jobIngestedHandler = inngest.createFunction(
               app.expectedCompMin !== null ? Number(app.expectedCompMin) : null,
             yearsOfExperience: app.yearsOfExperience,
           },
+          excludedCountries: excludedSet,
         }),
       );
 

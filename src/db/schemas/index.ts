@@ -33,6 +33,7 @@ export * from "./jobs/companyDiscoverySources";
 export * from "./jobs/companyQualityScore";
 export * from "./jobs/cvUpload";
 export * from "./jobs/enums";
+export * from "./jobs/excludedCountries";
 export * from "./jobs/inboundEmail";
 export * from "./jobs/ingestionLog";
 export * from "./jobs/job";

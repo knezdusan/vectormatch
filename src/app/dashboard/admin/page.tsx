@@ -1,9 +1,20 @@
 import { ArrowLeft, Users } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { AdminDashboardTabs } from "@/components/admin/AdminDashboardTabs";
 import { AdminOverview } from "@/components/admin/AdminOverview";
+import {
+  AdminOverviewSkeleton,
+  InfrastructureHealthSkeleton,
+  IngestionAnalyticsSkeleton,
+  MatchingFunnelSkeleton,
+  PipelineHealthMonitorSkeleton,
+  PipelineStatusSkeleton,
+  RejectionPatternAnalysisSkeleton,
+} from "@/components/admin/AdminSkeletons";
 import { AlertsPanel } from "@/components/admin/AlertsPanel";
 import { BulkReprocessButton } from "@/components/admin/BulkReprocessButton";
+import { CountryExclusionManager } from "@/components/admin/CountryExclusionManager";
 import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
 import { IngestionAnalytics } from "@/components/admin/IngestionAnalytics";
 import { InngestStatusControl } from "@/components/admin/InngestStatusControl";
@@ -21,6 +32,7 @@ import {
 } from "@/components/ui/card";
 import { TabsContent } from "@/components/ui/tabs";
 import { requireRole } from "@/lib/auth";
+import { getExcludedCountryRecords } from "@/lib/jobs/excluded-countries";
 
 interface AdminPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -32,6 +44,10 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
   const params = await searchParams;
   const range = typeof params?.range === "string" ? params.range : undefined;
   const tab = typeof params?.tab === "string" ? params.tab : "infrastructure";
+
+  // Fetch excluded countries for the CountryExclusionManager (cached via
+  // Cache Components "use cache" + cacheTag("excluded-countries")).
+  const excludedCountryRecords = await getExcludedCountryRecords();
 
   return (
     <main className="flex flex-col gap-4 sm:gap-6 px-4 py-6 sm:px-6 max-w-7xl mx-auto w-full">
@@ -73,7 +89,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
       </div>
 
       {/* System overview stat cards */}
-      <AdminOverview />
+      <Suspense fallback={<AdminOverviewSkeleton />}>
+        <AdminOverview />
+      </Suspense>
 
       {/* Active alerts (only renders when there are alerts) */}
       <AlertsPanel />
@@ -90,10 +108,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
         ]}
       >
         <TabsContent value="infrastructure" className="space-y-4">
-          <InfrastructureHealth />
+          <Suspense fallback={<InfrastructureHealthSkeleton />}>
+            <InfrastructureHealth />
+          </Suspense>
         </TabsContent>
         <TabsContent value="ingestion" className="space-y-4">
-          <IngestionAnalytics range={range} />
+          <Suspense fallback={<IngestionAnalyticsSkeleton />}>
+            <IngestionAnalytics range={range} />
+          </Suspense>
         </TabsContent>
         <TabsContent value="matching" className="space-y-4">
           <Card>
@@ -111,18 +133,29 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
               <BulkReprocessButton />
             </CardContent>
           </Card>
-          <MatchingFunnel range={range} />
-          <RejectionPatternAnalysis range={range} />
+          <Suspense fallback={<MatchingFunnelSkeleton />}>
+            <MatchingFunnel range={range} />
+          </Suspense>
+          <Suspense fallback={<RejectionPatternAnalysisSkeleton />}>
+            <RejectionPatternAnalysis range={range} />
+          </Suspense>
         </TabsContent>
         <TabsContent value="pipeline" className="space-y-4">
           <InngestStatusControl />
-          <PipelineHealthMonitor />
-          <PipelineStatus />
+          <Suspense fallback={<PipelineHealthMonitorSkeleton />}>
+            <PipelineHealthMonitor />
+          </Suspense>
+          <Suspense fallback={<PipelineStatusSkeleton />}>
+            <PipelineStatus />
+          </Suspense>
         </TabsContent>
         <TabsContent value="activity" className="space-y-4">
           <RecentAlerts />
         </TabsContent>
       </AdminDashboardTabs>
+
+      {/* Country Exclusions — admin-managed ingestion blocklist */}
+      <CountryExclusionManager excludedCountries={excludedCountryRecords} />
     </main>
   );
 }
