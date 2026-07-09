@@ -16,8 +16,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 //   2. db.select().from().where(...)            → recoverBannedSources (awaitable)
 // We make .where() return a thenable that also has a .limit() method.
 const selectLimitMock = vi.fn().mockResolvedValue([]);
-function makeWhereResult(): Promise<any[]> & { limit: typeof selectLimitMock } {
-  const p: any = Promise.resolve([]);
+function makeWhereResult(): Promise<unknown[]> & {
+  limit: typeof selectLimitMock;
+} {
+  const p = Promise.resolve([]) as unknown as Promise<unknown[]> & {
+    limit: typeof selectLimitMock;
+  };
   p.limit = selectLimitMock;
   return p;
 }
@@ -547,7 +551,11 @@ describe("recoverBannedSources", () => {
     vi.clearAllMocks();
     // selectWhereMock returns a thenable; override it for this describe block.
     selectWhereMock.mockImplementation(() => {
-      const p: any = Promise.resolve([{ sourceName: "banned-source-1" }]);
+      const p = Promise.resolve([
+        { sourceName: "banned-source-1" },
+      ]) as unknown as Promise<unknown[]> & {
+        limit: typeof selectLimitMock;
+      };
       p.limit = selectLimitMock;
       return p;
     });
@@ -569,7 +577,9 @@ describe("recoverBannedSources", () => {
 
   it("returns empty array when no banned sources are past cooldown", async () => {
     selectWhereMock.mockImplementation(() => {
-      const p: any = Promise.resolve([]);
+      const p = Promise.resolve([]) as unknown as Promise<unknown[]> & {
+        limit: typeof selectLimitMock;
+      };
       p.limit = selectLimitMock;
       return p;
     });

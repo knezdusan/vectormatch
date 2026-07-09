@@ -2011,7 +2011,9 @@ describe("Gate 0.5 — Check 8: Work-authorization fencing (Rule 5 revised)", ()
           title: "Full Stack Developer (MERN + LLMs)",
           locationName: "Pune",
           workplaceType: "remote",
-          remoteScope: "global",
+          // C2 fix: must be country_fenced, not global — global-remote jobs
+          // are never blocked by Check 8 (they're worldwide remote)
+          remoteScope: "country_fenced",
           locationCountries: ["US", "IN", "HK"],
           normalizedText:
             "We are hiring a full stack developer. Candidates must be based in India for this role. We build agentic AI for SMBs globally.",
@@ -2021,5 +2023,35 @@ describe("Gate 0.5 — Check 8: Work-authorization fencing (Rule 5 revised)", ()
     // RS not in [US, IN, HK] + "must be based in India" fencing language → block
     expect(result.passes).toBe(false);
     expect(result.patternDetected).toBe("work_auth_fencing");
+  });
+
+  // C2 fix: global-remote jobs must never be blocked by Check 8
+  it("C2: passes through global-remote jobs even with fencing language + applicant not in list", () => {
+    const input = makeInput({
+      job: {
+        title: "Engineering Manager",
+        workplaceType: "remote",
+        remoteScope: "global",
+        locationCountries: ["US"],
+        locationName: "Remote, USA",
+        normalizedText:
+          "We are looking for an Engineering Manager. " +
+          "Candidates must be authorized to work in the US. " +
+          "Must reside in the United States.",
+      },
+      applicant: {
+        country: "RS",
+        assignmentTypes: ["remote"],
+      },
+    });
+
+    const result = runHardBlockerPreFilter(input);
+
+    // Even though the JD has fencing language ("must be authorized to work in the US",
+    // "must reside in the United States"), the remote_scope extractor classified
+    // this as "global" — meaning the JD also has worldwide remote indicators.
+    // A global-remote job must NEVER be blocked by Check 8.
+    expect(result.passes).toBe(true);
+    expect(result.patternDetected).not.toBe("work_auth_fencing");
   });
 });

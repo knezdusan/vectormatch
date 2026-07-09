@@ -1241,6 +1241,17 @@ function checkWorkAuthFencing(input: PreFilterInput): {
     return { blocker: null, pattern: null };
   }
 
+  // C2 fix: Skip if remoteScope is "global" — the remote scope extractor
+  // classified this job as worldwide remote. A global-remote job should
+  // NEVER be blocked by fencing language, even if location_countries lists
+  // specific countries. The global classification means the JD indicates
+  // worldwide remote (e.g., "work from anywhere", "remote - global").
+  // Blocking a global-remote job is a false negative that suppresses the
+  // exact contractor-friendly roles the app exists to surface.
+  if (job.remoteScope === "global") {
+    return { blocker: null, pattern: null };
+  }
+
   // Check if the applicant's country is in the list
   const isAllowed = job.locationCountries.some(
     (c) =>

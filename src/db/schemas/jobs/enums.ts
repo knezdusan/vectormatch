@@ -129,6 +129,10 @@ export const atsSourceEnum = pgEnum("ats_source", [
 export const companyTierEnum = pgEnum("company_tier", [
   "active_hot", // Tier A-Hot: approved matches in last 30d → poll every 3h (G1)
   "active", // Tier A: posted a job in last 14 days → poll every 12h
+  "probation", // v4 lock §1-B.5: new companies start here — polled but not
+  //              embedded. Promoted to active on first job yield, demoted to
+  //              dormant after 7 days of zero yield. Protected from premature
+  //              decay to dead for the first 7 days regardless of poll failures.
   "dormant", // Tier B: no jobs in >14 days → poll weekly
   "dead", // Tier C: endpoint returns 404 or 3+ consecutive failures → stop
 ]);

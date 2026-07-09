@@ -57,7 +57,7 @@ export async function getCompanyById(
  * @param limit  Max companies to return (default 100 — the G5 batch size)
  */
 export async function getBatchForTier(
-  tier: "active_hot" | "active" | "dormant",
+  tier: "active_hot" | "active" | "probation" | "dormant",
   limit = 100,
 ): Promise<CompanyToPoll[]> {
   const rows = await db
@@ -124,9 +124,14 @@ export async function getNeverPolledBatch(
  *
  * Tier transitions (evaluated in order — first match wins):
  *   - health = "dead" OR consecutiveFailures >= 3 → tier = "dead"
+ *     (v4 lock §1-B.5: probation companies <7d old are PROTECTED from this —
+ *      they stay on probation even if polls fail, giving them time to yield)
  *   - approved match_queue entry in last 30 days → tier = "active_hot"
  *   - discovered within last 48 hours (Q4 bootstrap) → tier = "active_hot"
  *   - lastJobPostedAt within 14 days → tier = "active"
+ *   - discovered within 7 days AND zero_yield_poll_count < 7 → tier = "probation"
+ *     (v4 lock §1-B.5: new companies with no yield stay on probation — polled
+ *      but not embedded. Promoted to active on first job yield.)
  *   - otherwise → tier = "dormant"
  *
  * The `active_hot` tier (G1) polls every 3h — companies that recently produced
@@ -136,6 +141,18 @@ export async function getNeverPolledBatch(
  * (schema default). This check preserves that tier for the first 48h after
  * discovery, giving new companies a chance to be polled before being demoted
  * to `active` or `dormant` by the job-count-based logic.
+ *
+ * v4 lock §1-B.5 — Probation tier: New companies that don't produce jobs in
+ * the first 48h drop to `probation` (not `dormant`). They're polled at a
+ * reduced cadence but NOT embedded (§1-B.7 defers embedding). After 3
+ * zero-yield polls (zero_yield_poll_count >= 3), they're demoted to `dormant`.
+ *
+ * C3 fix — poll-state guard, not age: The dead check is skipped for companies
+ * that have NEVER been polled (last_polled_at IS NULL), regardless of age.
+ * The original bug was decay of companies evaluated before their first poll —
+ * a 30-day-old never-polled company would decay to dead under the age-based
+ * guard, despite never having a chance to yield. The poll-state guard ensures
+ * a company gets at least one poll before it can be demoted to dead.
  */
 export async function recalculateTiers(): Promise<number> {
   // The tier column is a custom enum type (company_tier). PostgreSQL requires
@@ -149,10 +166,15 @@ export async function recalculateTiers(): Promise<number> {
   //
   // Q4: The bootstrap check uses discovered_at > NOW() - INTERVAL '48 hours'
   // to preserve active_hot for newly discovered companies.
+  //
+  // C3 fix: The dead check guards on last_polled_at IS NOT NULL — never-polled
+  // companies are protected from dead decay regardless of age. A 30-day-old
+  // never-polled company stays on probation until it gets its first poll.
   const result = await db.execute(
     sql`UPDATE company SET
   tier = CASE
-    WHEN health = 'dead' OR consecutive_failures >= 3 THEN 'dead'::company_tier
+    WHEN (health = 'dead' OR consecutive_failures >= 3)
+      AND last_polled_at IS NOT NULL THEN 'dead'::company_tier
     WHEN EXISTS (
       SELECT 1 FROM match_queue mq
       JOIN job j ON j.id = mq.job_id
@@ -163,6 +185,8 @@ export async function recalculateTiers(): Promise<number> {
     ) THEN 'active_hot'::company_tier
     WHEN discovered_at > NOW() - INTERVAL '48 hours' THEN 'active_hot'::company_tier
     WHEN last_job_posted_at > NOW() - INTERVAL '14 days' THEN 'active'::company_tier
+    WHEN last_polled_at IS NULL THEN 'probation'::company_tier
+    WHEN zero_yield_poll_count < 3 THEN 'probation'::company_tier
     ELSE 'dormant'::company_tier
   END
 WHERE polling_enabled = true`,

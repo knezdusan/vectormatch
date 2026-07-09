@@ -907,6 +907,146 @@ export const tierRecalc = inngest.createFunction(
 );
 
 /**
+ * Probation Embedding Backfill (v4 lock §1-B.7 — C1 critical fix).
+ *
+ * Triggers: cron "15 4 * * *" (daily at 04:15 UTC, after tier recalc at 04:00)
+ *
+ * When a company is promoted from "probation" to "active" by the tier recalc,
+ * its jobs that were normalized during probation have NULL job_embedding
+ * (embedding was deferred to save OpenAI calls on unproven companies). Without
+ * this backfill, those jobs are permanently invisible to Gate 2 (HNSW cosine
+ * similarity) — they can never be matched even though they're status='active'.
+ *
+ * This function:
+ *   1. Finds jobs with job_embedding IS NULL + status='active' + normalized_text IS NOT NULL
+ *   2. Joins to company on (ats_source, ats_slug) to confirm company is NOT on probation
+ *   3. Re-embeds each job using its normalized_text
+ *   4. Updates job_embedding in place
+ *
+ * Idempotency: only selects rows where job_embedding IS NULL — re-running
+ * after a successful embed is a no-op. Inngest step.run provides retry
+ * semantics for individual embed failures.
+ *
+ * Batch limit: 200 jobs/run to stay within OpenAI rate limits. If more
+ * pending jobs exist, they're picked up on the next daily run.
+ */
+export const probationEmbeddingBackfill = inngest.createFunction(
+  {
+    id: "probation-embedding-backfill",
+    name: "Probation Embedding Backfill",
+    triggers: [{ cron: "15 4 * * *" }],
+  },
+  async ({ step }) => {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("@/db/db");
+    const { job } = await import("@/db/schemas/jobs/job");
+    const { company } = await import("@/db/schemas/jobs/company");
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    // Step 1: Find jobs with NULL embeddings where the company is no longer
+    // on probation. This is the promotion-triggered backfill — the company
+    // was promoted by the tier recalc at 04:00, and now its jobs need embeddings.
+    const pendingJobs = await step.run("find-pending-embeds", async () => {
+      const rows = await db
+        .select({
+          id: job.id,
+          normalizedText: job.normalizedText,
+          atsSource: job.atsSource,
+          atsSlug: job.atsSlug,
+        })
+        .from(job)
+        .innerJoin(
+          company,
+          sql`${company.atsSource} = ${job.atsSource} AND ${company.atsSlug} = ${job.atsSlug}`,
+        )
+        .where(
+          sql`${job.jobEmbedding} IS NULL
+              AND ${job.status} = 'active'
+              AND ${job.normalizedText} IS NOT NULL
+              AND ${company.tier} != 'probation'::company_tier
+              AND ${company.tier} != 'dead'::company_tier`,
+        )
+        .limit(200);
+
+      return rows;
+    });
+
+    if (pendingJobs.length === 0) {
+      await step.run("write-log-empty", async () => {
+        return writeIngestionLog({
+          type: "backfill",
+          source: "probation_embedding_backfill",
+          status: "success",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return { embedded: 0, skipped: 0 };
+    }
+
+    // Step 2: Embed each job. Individual failures are logged but don't
+    // fail the whole batch — the next run picks up any that remain NULL.
+    let embedded = 0;
+    let failed = 0;
+
+    for (const j of pendingJobs) {
+      const normalizedText = j.normalizedText;
+      if (!normalizedText) {
+        continue;
+      }
+
+      try {
+        const embedding = await step.run(`embed-${j.id}`, async () => {
+          const { embedJob } = await import("@/lib/jobs/job-embedder");
+          return embedJob(normalizedText);
+        });
+
+        await step.run(`update-${j.id}`, async () => {
+          await db
+            .update(job)
+            .set({ jobEmbedding: embedding })
+            .where(sql`${job.id} = ${j.id} AND ${job.jobEmbedding} IS NULL`);
+        });
+
+        embedded++;
+      } catch (err) {
+        console.error(
+          `[probationEmbeddingBackfill] Failed to embed job ${j.id}:`,
+          err instanceof Error ? err.message : String(err),
+        );
+        failed++;
+      }
+    }
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "backfill",
+        source: "probation_embedding_backfill",
+        status: failed > 0 ? "partial" : "success",
+        itemsProcessed: pendingJobs.length,
+        itemsInserted: 0,
+        itemsUpdated: embedded,
+        itemsRejected: 0,
+        itemsSkipped: failed,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return { embedded, failed, total: pendingJobs.length };
+  },
+);
+
+/**
  * Quality Flywheel Recalculation — Q2 (CORPUS_EXPANSION_TDD §3.2)
  *
  * Triggers: cron "0 4 * * *" (daily at 04:00 UTC, after tier recalc)
@@ -2276,6 +2416,7 @@ export const jobIngestedHandler = inngest.createFunction(
         .select({
           id: job.id,
           atsSource: job.atsSource,
+          atsSlug: job.atsSlug,
           title: job.title,
           rawJson: job.rawJson,
           status: job.status,
@@ -2325,12 +2466,40 @@ export const jobIngestedHandler = inngest.createFunction(
     // ── Step 3: Embed (§4.4 — only if normalized) ──────────────────────────
     // Generate the job embedding from the cleaned fullText. Only runs for
     // 'normalized' jobs — rejected/failed jobs don't need an embedding.
+    //
+    // v4 lock §1-B.7: Defer embedding for probation-tier companies. Probation
+    // companies haven't proven yield yet — embedding their jobs wastes OpenAI
+    // calls on companies that may never produce a match. The job is still
+    // normalized and stored (status='normalized'), just without an embedding.
+    // When the company is promoted to 'active' (first job yield), a backfill
+    // embeds its pending jobs.
     let embedding: number[] | null = null;
     if (normalization.status === "normalized") {
-      embedding = await step.run("embed", async () => {
-        const { embedJob } = await import("@/lib/jobs/job-embedder");
-        return embedJob(normalization.fullText);
+      // Check if the company is on probation — defer embedding if so.
+      const companyTier = await step.run("check-company-tier", async () => {
+        const { db } = await import("@/db/db");
+        const { company } = await import("@/db/schemas/jobs/company");
+        const { sql } = await import("drizzle-orm");
+        const rows = await db
+          .select({ tier: company.tier })
+          .from(company)
+          .where(
+            sql`${company.atsSource} = ${decision.job.atsSource} AND ${company.atsSlug} = ${decision.job.atsSlug}`,
+          )
+          .limit(1);
+        return rows[0]?.tier ?? "active";
       });
+
+      if (companyTier === "probation") {
+        // Skip embedding — job is stored as normalized without a vector.
+        // A backfill will embed it when the company is promoted to active.
+        embedding = null;
+      } else {
+        embedding = await step.run("embed", async () => {
+          const { embedJob } = await import("@/lib/jobs/job-embedder");
+          return embedJob(normalization.fullText);
+        });
+      }
     }
 
     // ── Step 4: Write normalization results to DB ─────────────────────────

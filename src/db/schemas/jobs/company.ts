@@ -56,13 +56,20 @@ export const company = pgTable(
     discoveryContext: text("discovery_context"), // HN comment URL, BQ query date, etc.
 
     // ── Tier & Polling State ────────────────────────────────────────────────
-    // Q4 Bootstrap: new companies default to "active_hot" for the first 48h
-    // (poll every 3h) to immediately test their ATS endpoint. The daily tier
-    // recalc demotes them to "active" or "dormant" after 48h based on job count.
+    // v4 lock §1-B.5: new companies default to "probation" — polled but not
+    // embedded. Promoted to "active" on first job yield, demoted to "dormant"
+    // after 7 days of zero yield. Protected from premature decay to "dead"
+    // for the first 7 days regardless of poll failures.
+    // Legacy companies retain "active_hot" default for backward compatibility.
     tier: companyTierEnum("tier").notNull().default("active_hot"),
     lastPolledAt: timestamp("last_polled_at"),
     lastJobPostedAt: timestamp("last_job_posted_at"), // Drives tier transitions
     activeJobCount: integer("active_job_count").notNull().default(0),
+    // v4 lock §1-B.6: consecutive zero-yield poll count. Incremented when a
+    // poll returns 0 new jobs, reset to 0 when a poll yields ≥1 job. Used by
+    // the tier recalc to demote probation companies after 7 zero-yield polls
+    // (≈7 days at 1 poll/day for probation tier).
+    zeroYieldPollCount: integer("zero_yield_poll_count").notNull().default(0),
 
     // ── Health & Error Tracking ─────────────────────────────────────────────
     health: companyHealthEnum("health").notNull().default("healthy"),

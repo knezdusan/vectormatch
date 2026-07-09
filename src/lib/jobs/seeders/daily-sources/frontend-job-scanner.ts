@@ -21,9 +21,9 @@
 //
 // ── Env var requirement ──────────────────────────────────────────────────────
 // Requires BRAVE_SEARCH_API_KEY in .env. The Brave Search free tier allows
-// 2,000 queries/month. This scanner runs 3 queries/day (one per ATS domain:
-// Greenhouse, Lever, Ashby) × 30 days = 90 queries/month — well within the
-// free tier.
+// 2,000 queries/month. This scanner runs 9 queries/run (3 query variants ×
+// 3 ATS domains) every 6h = 36 queries/day × 30 days = 1,080 queries/month —
+// within the free tier (v4 lock §1-C.10 scaled from 3 to 9 queries/run).
 //
 // ── Est. yield ───────────────────────────────────────────────────────────────
 // 10-30 frontend-hiring companies/day. The research report confirms 350-450
@@ -65,6 +65,21 @@ const FRONTEND_ATS_DOMAINS: { domain: string; source: AtsSource }[] = [
 export const FRONTEND_KEYWORDS =
   '("React" OR "Next.js" OR "TypeScript" OR "Frontend" OR "Vue.js" OR "Angular" OR "Svelte" OR "GraphQL" OR "CSS" OR "Web Developer")';
 
+/**
+ * Remote-specific frontend keywords (v4 lock §1-C.10 — scale frontend_job_scanner).
+ * Separate query variant that adds "remote" to the keyword clause to surface
+ * global-remote frontend roles specifically — the North Star metric target.
+ */
+export const REMOTE_FRONTEND_KEYWORDS =
+  '(remote) ("React" OR "Next.js" OR "TypeScript" OR "Frontend" OR "Vue.js" OR "Angular" OR "Svelte" OR "GraphQL" OR "Web Developer")';
+
+/**
+ * Senior frontend keywords — targets senior/staff/lead roles which are more
+ * likely to be remote-eligible and match the persona's seniority band.
+ */
+export const SENIOR_FRONTEND_KEYWORDS =
+  '("Senior" OR "Staff" OR "Lead") ("Frontend" OR "React" OR "Next.js" OR "Web")';
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface FrontendJobScannerConfig {
@@ -97,6 +112,35 @@ export interface FrontendJobScannerResult {
 export function buildFrontendQuery(domain: string): string {
   return `site:${domain} ${FRONTEND_KEYWORDS}`;
 }
+
+/**
+ * Build a remote-scoped frontend query (v4 lock §1-C.10).
+ * Adds "remote" to the keyword clause to surface global-remote roles.
+ */
+export function buildRemoteFrontendQuery(domain: string): string {
+  return `site:${domain} ${REMOTE_FRONTEND_KEYWORDS}`;
+}
+
+/**
+ * Build a senior frontend query (v4 lock §1-C.10).
+ * Targets senior/staff/lead roles which are more likely remote-eligible.
+ */
+export function buildSeniorFrontendQuery(domain: string): string {
+  return `site:${domain} ${SENIOR_FRONTEND_KEYWORDS}`;
+}
+
+/**
+ * All query builder functions — used by the scanner to run multiple variants
+ * per ATS domain (v4 lock §1-C.10: scale from 3 queries/run to 9 queries/run).
+ */
+const QUERY_BUILDERS: Array<{
+  name: string;
+  build: (domain: string) => string;
+}> = [
+  { name: "frontend", build: buildFrontendQuery },
+  { name: "remote-frontend", build: buildRemoteFrontendQuery },
+  { name: "senior-frontend", build: buildSeniorFrontendQuery },
+];
 
 // ── Internal: execute a single Brave Search query ────────────────────────────
 
@@ -177,25 +221,34 @@ export async function runFrontendJobScanner(
 
   try {
     for (const { domain } of FRONTEND_ATS_DOMAINS) {
-      const query = buildFrontendQuery(domain);
-      const response = await executeBraveQuery(query, config, fetchFn, options);
-      queriesExecuted++;
-      const results = response.web?.results ?? [];
-      totalResultsFound += results.length;
+      // v4 lock §1-C.10: run all query variants per ATS domain (3 variants
+      // × 3 domains = 9 queries/run, up from 3 queries/run).
+      for (const { build } of QUERY_BUILDERS) {
+        const query = build(domain);
+        const response = await executeBraveQuery(
+          query,
+          config,
+          fetchFn,
+          options,
+        );
+        queriesExecuted++;
+        const results = response.web?.results ?? [];
+        totalResultsFound += results.length;
 
-      // Map Brave results to the format extractCompaniesFromResults expects
-      const items = results.map((r) => ({ link: r.url }));
-      const inputs = extractCompaniesFromResults(items, query);
-      for (const input of inputs) {
-        const key = `${input.atsSource}:${input.atsSlug}`;
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          // Override discoverySource to frontend_job_scanner
-          allInputs.push({
-            ...input,
-            discoverySource: "frontend_job_scanner",
-            discoveryContext: `frontend-job-scanner:keyword:${query.slice(0, 80)}`,
-          });
+        // Map Brave results to the format extractCompaniesFromResults expects
+        const items = results.map((r) => ({ link: r.url }));
+        const inputs = extractCompaniesFromResults(items, query);
+        for (const input of inputs) {
+          const key = `${input.atsSource}:${input.atsSlug}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            // Override discoverySource to frontend_job_scanner
+            allInputs.push({
+              ...input,
+              discoverySource: "frontend_job_scanner",
+              discoveryContext: `frontend-job-scanner:keyword:${query.slice(0, 80)}`,
+            });
+          }
         }
       }
     }

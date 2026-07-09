@@ -59,10 +59,14 @@ async function main() {
   for (const row of perApplicant.rows) {
     console.log(`\nApplicant: ${row.applicant_id}`);
     console.log(`  country: ${row.country}`);
-    console.log(`  preferred_compliance: ${JSON.stringify(row.preferred_compliance)}`);
+    console.log(
+      `  preferred_compliance: ${JSON.stringify(row.preferred_compliance)}`,
+    );
     console.log(`  assignment_types: ${JSON.stringify(row.assignment_types)}`);
     console.log(`  modalities: ${JSON.stringify(row.modalities)}`);
-    console.log(`  work_authorizations: ${JSON.stringify(row.work_authorizations)}`);
+    console.log(
+      `  work_authorizations: ${JSON.stringify(row.work_authorizations)}`,
+    );
     console.log(`  mismatch_count: ${row.mismatch_count}`);
   }
 
@@ -207,7 +211,9 @@ async function main() {
       r.workplace_type === "hybrid" &&
       r.location_name &&
       r.country &&
-      !String(r.location_name).toLowerCase().includes(String(r.country).toLowerCase())
+      !String(r.location_name)
+        .toLowerCase()
+        .includes(String(r.country).toLowerCase())
     ) {
       patterns.hybrid_foreign_country++;
     }
@@ -215,7 +221,8 @@ async function main() {
     // 3. Country-fenced remote (not matching applicant country)
     if (
       r.workplace_type === "remote" &&
-      (r.remote_scope === "country_fenced" || r.remote_scope === "region_fenced")
+      (r.remote_scope === "country_fenced" ||
+        r.remote_scope === "region_fenced")
     ) {
       patterns.country_fenced_remote++;
     }
@@ -271,9 +278,13 @@ async function main() {
     if (r.employment_type) {
       const et = String(r.employment_type).toLowerCase();
       if (
-        (et.includes("contract") || et.includes("freelance") || et.includes("part-time")) &&
+        (et.includes("contract") ||
+          et.includes("freelance") ||
+          et.includes("part-time")) &&
         !modalities.some((m) =>
-          ["contract", "freelance", "part-time"].includes(String(m).toLowerCase()),
+          ["contract", "freelance", "part-time"].includes(
+            String(m).toLowerCase(),
+          ),
         )
       ) {
         patterns.employment_type_mismatch++;
@@ -288,15 +299,31 @@ async function main() {
     // Print individual row summary
     console.log("---");
     console.log(`Match: ${r.match_id}`);
-    console.log(`  Job: ${r.title} @ ${r.company_name} (${r.ats_source}/${r.ats_slug})`);
+    console.log(
+      `  Job: ${r.title} @ ${r.company_name} (${r.ats_source}/${r.ats_slug})`,
+    );
     console.log(`  Persona: ${r.persona_label}`);
-    console.log(`  Applicant country: ${r.country} | work_auth: ${JSON.stringify(r.work_authorizations)}`);
-    console.log(`  Job workplace: ${r.workplace_type} | remote_scope: ${r.remote_scope} | location: ${r.location_name}`);
-    console.log(`  Job employment_type: ${r.employment_type} | exp: ${r.experience_min_years}-${r.experience_max_years}y`);
-    console.log(`  Job comp: ${r.compensation_min}-${r.compensation_max} ${r.compensation_currency}`);
-    console.log(`  Applicant exp: ${r.years_of_experience}y | expected_comp_min: ${r.expected_comp_min}`);
-    console.log(`  overlap_score: ${r.overlap_score} | cosine_distance: ${r.cosine_distance}`);
-    console.log(`  llm_verdict: ${r.llm_verdict} | llm_confidence: ${r.llm_confidence}`);
+    console.log(
+      `  Applicant country: ${r.country} | work_auth: ${JSON.stringify(r.work_authorizations)}`,
+    );
+    console.log(
+      `  Job workplace: ${r.workplace_type} | remote_scope: ${r.remote_scope} | location: ${r.location_name}`,
+    );
+    console.log(
+      `  Job employment_type: ${r.employment_type} | exp: ${r.experience_min_years}-${r.experience_max_years}y`,
+    );
+    console.log(
+      `  Job comp: ${r.compensation_min}-${r.compensation_max} ${r.compensation_currency}`,
+    );
+    console.log(
+      `  Applicant exp: ${r.years_of_experience}y | expected_comp_min: ${r.expected_comp_min}`,
+    );
+    console.log(
+      `  overlap_score: ${r.overlap_score} | cosine_distance: ${r.cosine_distance}`,
+    );
+    console.log(
+      `  llm_verdict: ${r.llm_verdict} | llm_confidence: ${r.llm_confidence}`,
+    );
     console.log(`  llm_blockers: ${JSON.stringify(llmBlockers)}`);
     console.log(`  work_auth_risk_flag: ${r.work_auth_risk_flag}`);
     console.log(`  job_tags: ${JSON.stringify(jobTags)}`);
@@ -314,44 +341,63 @@ async function main() {
   console.log("\n=== PATTERN AGGREGATION ===");
   const sortedPatterns = Object.entries(patterns).sort((a, b) => b[1] - a[1]);
   for (const [pattern, count] of sortedPatterns) {
-    const pct = rows.rows.length > 0 ? ((count / rows.rows.length) * 100).toFixed(1) : "0";
+    const pct =
+      rows.rows.length > 0
+        ? ((count / rows.rows.length) * 100).toFixed(1)
+        : "0";
     console.log(`  ${pattern}: ${count} (${pct}%)`);
   }
 
   console.log("\n=== JOB TITLE FREQUENCY (top 20) ===");
-  const sortedTitles = Object.entries(jobTitleCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const sortedTitles = Object.entries(jobTitleCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20);
   for (const [title, count] of sortedTitles) {
     console.log(`  [${count}] ${title}`);
   }
 
   console.log("\n=== COMPANY FREQUENCY (top 20) ===");
-  const sortedCompanies = Object.entries(companyCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const sortedCompanies = Object.entries(companyCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20);
   for (const [company, count] of sortedCompanies) {
     console.log(`  [${count}] ${company}`);
   }
 
   console.log("\n=== ATS SOURCE DISTRIBUTION ===");
-  for (const [src, count] of Object.entries(atsSourceCounts).sort((a, b) => b[1] - a[1])) {
+  for (const [src, count] of Object.entries(atsSourceCounts).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`  ${src}: ${count}`);
   }
 
   console.log("\n=== WORKPLACE TYPE DISTRIBUTION ===");
-  for (const [wt, count] of Object.entries(workplaceCounts).sort((a, b) => b[1] - a[1])) {
+  for (const [wt, count] of Object.entries(workplaceCounts).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`  ${wt}: ${count}`);
   }
 
   console.log("\n=== REMOTE SCOPE DISTRIBUTION ===");
-  for (const [rs, count] of Object.entries(remoteScopeCounts).sort((a, b) => b[1] - a[1])) {
+  for (const [rs, count] of Object.entries(remoteScopeCounts).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`  ${rs}: ${count}`);
   }
 
-  console.log("\n=== LLM VERDICT DISTRIBUTION (at time of mismatch marking) ===");
-  for (const [v, count] of Object.entries(llmVerdictCounts).sort((a, b) => b[1] - a[1])) {
+  console.log(
+    "\n=== LLM VERDICT DISTRIBUTION (at time of mismatch marking) ===",
+  );
+  for (const [v, count] of Object.entries(llmVerdictCounts).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`  ${v}: ${count}`);
   }
 
   // Compare mismatch rate vs approved/rejected rates for context
-  console.log("\n=== OVERALL MATCH_QUEUE STATUS DISTRIBUTION (for context) ===");
+  console.log(
+    "\n=== OVERALL MATCH_QUEUE STATUS DISTRIBUTION (for context) ===",
+  );
   const overall = await db.execute(sql`
     SELECT status, COUNT(*) AS cnt
     FROM match_queue
@@ -363,7 +409,9 @@ async function main() {
   }
 
   // Cosine distance + overlap score stats for mismatched vs approved
-  console.log("\n=== COSINE DISTANCE / OVERLAP STATS: mismatch vs approved ===");
+  console.log(
+    "\n=== COSINE DISTANCE / OVERLAP STATS: mismatch vs approved ===",
+  );
   const stats = await db.execute(sql`
     SELECT
       status,

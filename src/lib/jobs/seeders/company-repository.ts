@@ -35,6 +35,117 @@ export interface InsertResult {
   insertedCompanies: { id: string; atsSource: string; atsSlug: string }[];
   /** Count of companies filtered by the aggregator blacklist. */
   aggregatorFiltered: number;
+  /** Count of companies filtered by the slug-validation gate (v4 lock §3). */
+  slugValidationFiltered?: number;
+}
+
+// ── Slug Validation Gate (v4 lock §3) ─────────────────────────────────────────
+
+/**
+ * Reject clearly invalid ATS slugs before they enter the company table.
+ *
+ * The v4 lock investigation found that 54% of companies have never been polled
+ * and many have garbage slugs like "190pacificavenuesanfranciscoca94111",
+ * "login", "register", "careers", etc. These slugs waste polling budget and
+ * pollute the corpus. This gate catches them at insertion time.
+ *
+ * Validation rules:
+ * 1. Length: must be 2-60 chars (real company slugs are 3-40 chars)
+ * 2. No pure digits (real slugs have at least some letters)
+ * 3. No common navigation paths (login, register, careers, jobs, admin, etc.)
+ * 4. No address-like slugs (long strings of concatenated words without hyphens)
+ * 5. Must contain at least one vowel (company names have vowels)
+ *
+ * @param slug  The ATS slug to validate
+ * @returns     true if the slug is valid, false if it should be rejected
+ */
+export function isValidAtsSlug(slug: string): boolean {
+  if (!slug || typeof slug !== "string") return false;
+
+  const trimmed = slug.trim().toLowerCase();
+
+  // Rule 1: Length check
+  if (trimmed.length < 2 || trimmed.length > 60) return false;
+
+  // Rule 2: No pure digits
+  if (/^\d+$/.test(trimmed)) return false;
+
+  // Rule 3: No common navigation paths
+  const NAV_PATHS = new Set([
+    "login",
+    "register",
+    "signup",
+    "sign-up",
+    "signin",
+    "sign-in",
+    "careers",
+    "jobs",
+    "job",
+    "admin",
+    "dashboard",
+    "settings",
+    "profile",
+    "account",
+    "about",
+    "contact",
+    "help",
+    "support",
+    "faq",
+    "privacy",
+    "terms",
+    "api",
+    "docs",
+    "blog",
+    "news",
+    "press",
+    "team",
+    "company",
+    "home",
+    "index",
+    "search",
+    "apply",
+    "post",
+    "new",
+    "edit",
+    "delete",
+    "create",
+    "view",
+    "list",
+    "all",
+    "none",
+    "null",
+    "undefined",
+    "test",
+    "demo",
+    "example",
+    "sample",
+    "temp",
+    "tmp",
+    "foo",
+    "bar",
+    "baz",
+  ]);
+  if (NAV_PATHS.has(trimmed)) return false;
+
+  // Rule 4: No address-like slugs (long concatenated words without separators)
+  // Real company slugs use hyphens or are short. A 30+ char slug with no
+  // hyphens/underscores and no spaces is likely an address or garbage.
+  if (
+    trimmed.length > 25 &&
+    !trimmed.includes("-") &&
+    !trimmed.includes("_") &&
+    !trimmed.includes(".") &&
+    !trimmed.includes("/")
+  ) {
+    return false;
+  }
+
+  // Rule 5: 2-char consonant-only slugs are likely garbage (e.g., "js", "nv",
+  // "p0"). But 3+ char consonant-only slugs may be real companies (e.g., "tkd",
+  // "pgx", "ryvn", "wwdc"). Only reject if the slug is 2 chars AND has no vowels.
+  if (trimmed.length <= 2 && !/[aeiou]/.test(trimmed)) return false;
+
+  return true;
 }
 
 // ── Insert ───────────────────────────────────────────────────────────────────
@@ -63,6 +174,7 @@ export async function insertDiscoveredCompanies(
       insertedCompanyIds: [],
       insertedCompanies: [],
       aggregatorFiltered: 0,
+      slugValidationFiltered: 0,
     };
   }
 
@@ -70,14 +182,24 @@ export async function insertDiscoveredCompanies(
   // Also filter out known job aggregators (Hirehangar, Ketryx, etc.) — they
   // re-host listings from other companies' ATSs and conflict with the core
   // mission of discovering untapped opportunities.
+  //
+  // v4 lock §3: Also filter out garbage slugs via isValidAtsSlug — catches
+  // the "190pacificavenuesanfranciscoca94111", "login", etc. slugs that
+  // polluted the corpus and wasted 54% of polling budget.
   const valid: SeedCompanyInput[] = [];
   const rejected: SeedCompanyInput[] = [];
   let aggregatorFiltered = 0;
+  let slugValidationFiltered = 0;
 
   for (const input of inputs) {
     // Aggregator blacklist check (before Zod validation — cheaper)
     if (isAggregator(input.atsSlug, input.companyName)) {
       aggregatorFiltered++;
+      continue;
+    }
+    // v4 lock §3: Slug validation gate — reject garbage slugs before insertion
+    if (!isValidAtsSlug(input.atsSlug)) {
+      slugValidationFiltered++;
       continue;
     }
     const result = seedCompanyInputSchema.safeParse(input);
@@ -96,6 +218,7 @@ export async function insertDiscoveredCompanies(
       insertedCompanyIds: [],
       insertedCompanies: [],
       aggregatorFiltered,
+      slugValidationFiltered,
     };
   }
 
@@ -185,6 +308,7 @@ export async function insertDiscoveredCompanies(
       atsSlug: r.atsSlug,
     })),
     aggregatorFiltered,
+    slugValidationFiltered,
   };
 }
 

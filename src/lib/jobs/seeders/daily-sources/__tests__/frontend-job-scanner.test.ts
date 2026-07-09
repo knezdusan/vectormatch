@@ -31,6 +31,7 @@ import {
   FRONTEND_KEYWORDS,
   runFrontendJobScanner,
 } from "@/lib/jobs/seeders/daily-sources/frontend-job-scanner";
+import type { SeedCompanyInput } from "@/lib/jobs/seeders/schemas";
 import type { FetchFn } from "@/lib/jobs/types";
 
 // ── buildFrontendQuery ──────────────────────────────────────────────────────
@@ -62,13 +63,13 @@ describe("runFrontendJobScanner", () => {
   it("returns error when API key is empty", async () => {
     const result = await runFrontendJobScanner(
       { apiKey: "" },
-      vi.fn() as any as FetchFn,
+      vi.fn() as unknown as FetchFn,
     );
     // Empty API key will cause the Brave API to return an error
     expect(result.error).toBeDefined();
   });
 
-  it("executes 3 queries (one per ATS domain) and returns results", async () => {
+  it("executes 9 queries (3 variants × 3 ATS domains) and returns results", async () => {
     const mockFetch = vi.fn().mockImplementation(async (url: string) => {
       // Simulate Brave Search API response with a job URL
       const urlObj = new URL(url);
@@ -98,9 +99,10 @@ describe("runFrontendJobScanner", () => {
       mockFetch,
     );
 
-    expect(result.queriesExecuted).toBe(3);
+    // v4 lock §1-C.10: 3 query variants × 3 ATS domains = 9 queries
+    expect(result.queriesExecuted).toBe(9);
     expect(result.error).toBeUndefined();
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch).toHaveBeenCalledTimes(9);
     // The insert function should have been called
     expect(insertDiscoveredCompanies).toHaveBeenCalled();
   });
@@ -151,15 +153,16 @@ describe("runFrontendJobScanner", () => {
       mockFetch,
     );
 
-    // 3 queries executed, but only 2 unique slugs (greenhouse + lever have
-    // different atsSource so they're different keys; ashby is a third)
-    expect(result.queriesExecuted).toBe(3);
+    // v4 lock §1-C.10: 9 queries (3 variants × 3 domains), deduplicated
+    expect(result.queriesExecuted).toBe(9);
     // The insert function should have been called with deduplicated inputs
-    const insertCall = (insertDiscoveredCompanies as any).mock.calls[0];
+    const insertCall = (
+      insertDiscoveredCompanies as unknown as { mock: { calls: unknown[][] } }
+    ).mock.calls[0];
     expect(insertCall).toBeDefined();
     // Each (atsSource, atsSlug) pair should be unique
-    const inputs = insertCall[0];
-    const keys = inputs.map((i: any) => `${i.atsSource}:${i.atsSlug}`);
+    const inputs = insertCall[0] as SeedCompanyInput[];
+    const keys = inputs.map((i) => `${i.atsSource}:${i.atsSlug}`);
     expect(new Set(keys).size).toBe(inputs.length);
   });
 });

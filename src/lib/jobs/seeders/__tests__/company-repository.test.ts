@@ -30,7 +30,10 @@ vi.mock("@/lib/jobs/quality/fusion-score", () => ({
 }));
 
 import { recordDiscoverySource } from "@/lib/jobs/quality/fusion-score";
-import { insertDiscoveredCompanies } from "@/lib/jobs/seeders/company-repository";
+import {
+  insertDiscoveredCompanies,
+  isValidAtsSlug,
+} from "@/lib/jobs/seeders/company-repository";
 import type { SeedCompanyInput } from "@/lib/jobs/seeders/schemas";
 
 // Type the mocked db
@@ -296,7 +299,8 @@ describe("insertDiscoveredCompanies", () => {
         atsSource: "greenhouse",
         discoverySource: "wayback_cdx",
       }),
-      // Invalid: missing required atsSlug
+      // Invalid: missing required atsSlug — caught by slug validation gate
+      // (v4 lock §3) before Zod validation
       { atsSource: "lever", discoverySource: "httparchive" },
     ];
 
@@ -309,11 +313,107 @@ describe("insertDiscoveredCompanies", () => {
     );
 
     expect(result.inserted).toBe(1);
-    expect(result.rejected).toHaveLength(1);
+    // The missing-atsSlug input is caught by the slug validation gate,
+    // not Zod — so rejected is empty and slugValidationFiltered is 1
+    expect(result.slugValidationFiltered).toBe(1);
     expect(recordDiscoverySource).toHaveBeenCalledTimes(1);
     expect(recordDiscoverySource).toHaveBeenCalledWith(
       "company-1",
       "wayback_cdx",
     );
+  });
+});
+
+// =============================================================================
+// SLUG VALIDATION GATE (v4 lock §3)
+// =============================================================================
+
+describe("isValidAtsSlug — slug validation gate (v4 lock §3)", () => {
+  it("accepts a normal company slug", () => {
+    expect(isValidAtsSlug("acme")).toBe(true);
+    expect(isValidAtsSlug("my-tech-company")).toBe(true);
+    expect(isValidAtsSlug("stripe")).toBe(true);
+    expect(isValidAtsSlug("vercel")).toBe(true);
+  });
+
+  it("rejects navigation paths (login, register, careers, etc.)", () => {
+    expect(isValidAtsSlug("login")).toBe(false);
+    expect(isValidAtsSlug("register")).toBe(false);
+    expect(isValidAtsSlug("careers")).toBe(false);
+    expect(isValidAtsSlug("jobs")).toBe(false);
+    expect(isValidAtsSlug("admin")).toBe(false);
+    expect(isValidAtsSlug("signup")).toBe(false);
+  });
+
+  it("rejects address-like slugs (long concatenated words)", () => {
+    expect(isValidAtsSlug("190pacificavenuesanfranciscoca94111")).toBe(false);
+    expect(isValidAtsSlug("123mainstreetnewyorkny10001")).toBe(false);
+  });
+
+  it("rejects pure digits", () => {
+    expect(isValidAtsSlug("12345")).toBe(false);
+    expect(isValidAtsSlug("999")).toBe(false);
+  });
+
+  it("rejects too-short slugs (< 2 chars)", () => {
+    expect(isValidAtsSlug("a")).toBe(false);
+    expect(isValidAtsSlug("")).toBe(false);
+  });
+
+  it("rejects too-long slugs (> 60 chars)", () => {
+    expect(isValidAtsSlug("a".repeat(61))).toBe(false);
+  });
+
+  it("rejects 2-char slugs without vowels (likely garbage)", () => {
+    expect(isValidAtsSlug("js")).toBe(false);
+    expect(isValidAtsSlug("nv")).toBe(false);
+    expect(isValidAtsSlug("p0")).toBe(false);
+  });
+
+  it("accepts 3+ char consonant-only slugs (real companies like ryvn, tkd, pgx)", () => {
+    expect(isValidAtsSlug("xyz")).toBe(true);
+    expect(isValidAtsSlug("ryvn")).toBe(true);
+    expect(isValidAtsSlug("tkd")).toBe(true);
+    expect(isValidAtsSlug("pgx")).toBe(true);
+    expect(isValidAtsSlug("wwdc")).toBe(true);
+    expect(isValidAtsSlug("bcdfg")).toBe(true);
+  });
+
+  it("accepts long slugs with hyphens (real company names)", () => {
+    expect(isValidAtsSlug("my-very-long-company-name-inc")).toBe(true);
+    expect(isValidAtsSlug("a-really-long-startup-name-with-hyphens")).toBe(
+      true,
+    );
+  });
+
+  it("rejects null/undefined/non-string", () => {
+    expect(isValidAtsSlug(null as unknown as string)).toBe(false);
+    expect(isValidAtsSlug(undefined as unknown as string)).toBe(false);
+    expect(isValidAtsSlug(123 as unknown as string)).toBe(false);
+  });
+});
+
+describe("insertDiscoveredCompanies — slug validation gate integration", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("filters out garbage slugs and counts them in slugValidationFiltered", async () => {
+    const db = await getMockDb();
+    mockInsertReturning(db, [
+      { id: "company-1", atsSource: "greenhouse", atsSlug: "acme" },
+    ]);
+
+    const inputs: SeedCompanyInput[] = [
+      makeInput({ atsSlug: "acme" }), // valid
+      makeInput({ atsSlug: "login" }), // garbage — nav path
+      makeInput({ atsSlug: "190pacificavenuesanfranciscoca94111" }), // garbage — address
+      makeInput({ atsSlug: "12345" }), // garbage — pure digits
+    ];
+
+    const result = await insertDiscoveredCompanies(inputs);
+
+    expect(result.inserted).toBe(1);
+    expect(result.slugValidationFiltered).toBe(3);
   });
 });

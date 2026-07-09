@@ -101,8 +101,19 @@ async function main() {
   console.log("Employment type:", r.employment_type);
   console.log("Location name:", r.location_name);
   console.log("Location countries:", JSON.stringify(r.location_countries));
-  console.log("Experience:", r.experience_min_years, "-", r.experience_max_years);
-  console.log("Compensation:", r.compensation_min, "-", r.compensation_max, r.compensation_currency);
+  console.log(
+    "Experience:",
+    r.experience_min_years,
+    "-",
+    r.experience_max_years,
+  );
+  console.log(
+    "Compensation:",
+    r.compensation_min,
+    "-",
+    r.compensation_max,
+    r.compensation_currency,
+  );
   console.log("Rejection pattern:", r.rejection_pattern);
   console.log("Extracted tags:", JSON.stringify(jobTags));
   console.log("Short description:", r.short_description);
@@ -127,30 +138,74 @@ async function main() {
   // Fix 1: inferRemoteScope — remote + specific location → country_fenced
   const isRemote = r.workplace_type === "remote";
   const locationStr = String(r.location_name ?? "").toLowerCase();
-  const remoteIndicators = ["remote", "global", "worldwide", "anywhere", "distributed", "work from", "any location", "any country"];
-  const broadRegions = ["european union", "eu", "emea", "apac", "latam", "north america", "south america", "europe", "asia", "africa", "middle east", "balkans", "eastern europe", "western europe", "central europe", "nordics", "benelux", "dach"];
-  const hasRemoteIndicator = remoteIndicators.some((ind) => locationStr.includes(ind));
-  const hasBroadRegion = broadRegions.some((region) => locationStr.includes(region));
-  const isSpecificLocation = !hasRemoteIndicator && !hasBroadRegion && locationStr.length > 0;
+  const remoteIndicators = [
+    "remote",
+    "global",
+    "worldwide",
+    "anywhere",
+    "distributed",
+    "work from",
+    "any location",
+    "any country",
+  ];
+  const broadRegions = [
+    "european union",
+    "eu",
+    "emea",
+    "apac",
+    "latam",
+    "north america",
+    "south america",
+    "europe",
+    "asia",
+    "africa",
+    "middle east",
+    "balkans",
+    "eastern europe",
+    "western europe",
+    "central europe",
+    "nordics",
+    "benelux",
+    "dach",
+  ];
+  const hasRemoteIndicator = remoteIndicators.some((ind) =>
+    locationStr.includes(ind),
+  );
+  const hasBroadRegion = broadRegions.some((region) =>
+    locationStr.includes(region),
+  );
+  const isSpecificLocation =
+    !hasRemoteIndicator && !hasBroadRegion && locationStr.length > 0;
 
   console.log("Fix 1 (inferRemoteScope):");
   console.log("  workplace_type is remote:", isRemote);
   console.log("  location has remote indicator:", hasRemoteIndicator);
   console.log("  location has broad region:", hasBroadRegion);
   console.log("  isSpecificLocation:", isSpecificLocation);
-  console.log("  Would Fix 1 classify as country_fenced?", isRemote && isSpecificLocation ? "YES" : "NO");
+  console.log(
+    "  Would Fix 1 classify as country_fenced?",
+    isRemote && isSpecificLocation ? "YES" : "NO",
+  );
 
   // Fix 2: Gate 0.5 Check 2b — remote + specific foreign location + unknown/undetermined scope
-  const scopeIsAmbiguous = r.remote_scope === "unknown" || r.remote_scope === "undetermined";
+  const scopeIsAmbiguous =
+    r.remote_scope === "unknown" || r.remote_scope === "undetermined";
   console.log("\nFix 2 (Gate 0.5 Check 2b):");
   console.log("  remote_scope:", r.remote_scope);
   console.log("  scope is unknown/undetermined:", scopeIsAmbiguous);
-  console.log("  Would Fix 2 fire?", isRemote && isSpecificLocation && scopeIsAmbiguous ? "YES" : "NO");
+  console.log(
+    "  Would Fix 2 fire?",
+    isRemote && isSpecificLocation && scopeIsAmbiguous ? "YES" : "NO",
+  );
   if (r.remote_scope === "country_fenced") {
-    console.log("  (remote_scope is already country_fenced — Check 2 would handle it)");
+    console.log(
+      "  (remote_scope is already country_fenced — Check 2 would handle it)",
+    );
   }
   if (r.remote_scope === "global") {
-    console.log("  (remote_scope is global — Check 2 passes, Check 2b does NOT fire)");
+    console.log(
+      "  (remote_scope is global — Check 2 passes, Check 2b does NOT fire)",
+    );
   }
 
   // Check if location mentions applicant's country
@@ -164,23 +219,38 @@ async function main() {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`(^|[^a-z])${escaped}(?=$|[^a-z])`).test(locationStr);
   });
-  console.log("  Location mentions applicant country (" + country + "):", locationMentionsCountry);
+  console.log(
+    "  Location mentions applicant country (" + country + "):",
+    locationMentionsCountry,
+  );
 
   // Tech stack analysis
   console.log("\n=== TECH STACK ANALYSIS ===\n");
   const mustHaveInJobTags = mustHave.filter((t) => jobTags.includes(t));
   const mustHaveNotInJobTags = mustHave.filter((t) => !jobTags.includes(t));
   const jobTagsNotInMustHave = jobTags.filter((t) => !mustHave.includes(t));
-  console.log("Persona must-have tags found in job tags:", JSON.stringify(mustHaveInJobTags));
-  console.log("Persona must-have tags NOT in job tags:", JSON.stringify(mustHaveNotInJobTags));
-  console.log("Job tags NOT in persona must-have:", JSON.stringify(jobTagsNotInMustHave));
+  console.log(
+    "Persona must-have tags found in job tags:",
+    JSON.stringify(mustHaveInJobTags),
+  );
+  console.log(
+    "Persona must-have tags NOT in job tags:",
+    JSON.stringify(mustHaveNotInJobTags),
+  );
+  console.log(
+    "Job tags NOT in persona must-have:",
+    JSON.stringify(jobTagsNotInMustHave),
+  );
   console.log("Java in persona must-have?", mustHave.includes("java"));
   console.log("Java in applicant all_tags?", allTags.includes("java"));
   console.log("Java in job tags?", jobTags.includes("java"));
 
   // Check if job title declares a primary stack
   const titleLower = String(r.title ?? "").toLowerCase();
-  const titleDeclaresStack = /\b(java|python|golang|rust|c\+\+|ruby|php|kotlin|swift)\b/i.test(titleLower);
+  const titleDeclaresStack =
+    /\b(java|python|golang|rust|c\+\+|ruby|php|kotlin|swift)\b/i.test(
+      titleLower,
+    );
   console.log("\nJob title declares primary stack?", titleDeclaresStack);
   console.log("Title:", r.title);
 

@@ -18,8 +18,9 @@ import {
 import { getGlobalRemoteTargetStackMetric } from "@/lib/jobs/admin-queries";
 
 export async function TargetStackMetricTile() {
-  let metric: Awaited<ReturnType<typeof getGlobalRemoteTargetStackMetric>> | null =
-    null;
+  let metric: Awaited<
+    ReturnType<typeof getGlobalRemoteTargetStackMetric>
+  > | null = null;
   let error: string | null = null;
 
   try {
@@ -52,7 +53,9 @@ export async function TargetStackMetricTile() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">Global-Remote Target Stack</CardTitle>
+            <CardTitle className="text-base">
+              Global-Remote Target Stack
+            </CardTitle>
             <CardDescription>
               The North Star — addressable job pool for the target persona
             </CardDescription>
@@ -70,10 +73,14 @@ export async function TargetStackMetricTile() {
             <p className="text-2xl font-bold tabular-nums">
               {safe.totalGlobalJobs.toLocaleString()}
             </p>
-            <p className="text-xs text-muted-foreground">Active, remote_scope=global</p>
+            <p className="text-xs text-muted-foreground">
+              Active, remote_scope=global
+            </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">With Target Tags</div>
+            <div className="text-xs text-muted-foreground">
+              With Target Tags
+            </div>
             <p className="text-2xl font-bold tabular-nums">
               {safe.globalJobsWithTargetStackTags.toLocaleString()}
             </p>
@@ -82,7 +89,9 @@ export async function TargetStackMetricTile() {
             </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Addressable Pool</div>
+            <div className="text-xs text-muted-foreground">
+              Addressable Pool
+            </div>
             <p className="text-2xl font-bold tabular-nums text-primary">
               {safe.addressablePool.toLocaleString()}
             </p>
