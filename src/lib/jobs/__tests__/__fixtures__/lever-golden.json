@@ -1,0 +1,38 @@
+[
+  {
+    "id": "abc123-def456",
+    "text": "Senior React Engineer",
+    "categories": {
+      "location": "Remote - US",
+      "commitment": "Full-time",
+      "team": "Frontend",
+      "department": "Engineering",
+      "allLocations": ["San Francisco, CA", "New York, NY", "Remote - US"]
+    },
+    "country": "United States",
+    "descriptionPlain": "We are looking for a Senior React Engineer to join our Frontend team. You will build user-facing components using React, TypeScript, and Next.js.",
+    "description": "<p>We are looking for a Senior React Engineer to join our Frontend team.</p>",
+    "hostedUrl": "https://jobs.lever.co/acme/abc123-def456",
+    "applyUrl": "https://jobs.lever.co/acme/abc123-def456/apply",
+    "workplaceType": "remote",
+    "salaryRange": {
+      "currency": "USD",
+      "interval": "per-year-salaried",
+      "min": 150000,
+      "max": 200000
+    }
+  },
+  {
+    "id": "xyz789-uvw012",
+    "text": "Backend Engineer",
+    "categories": {
+      "location": null,
+      "commitment": null,
+      "team": null,
+      "department": null
+    },
+    "country": null,
+    "hostedUrl": "https://jobs.lever.co/acme/xyz789-uvw012",
+    "workplaceType": "on-site"
+  }
+]

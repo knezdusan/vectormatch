@@ -1,0 +1,70 @@
+{
+  "limit": 100,
+  "offset": 0,
+  "totalFound": 2,
+  "content": [
+    {
+      "id": "posting-uuid-001",
+      "uuid": "full-uuid-001",
+      "name": "Senior Frontend Developer",
+      "jobAdId": "jobad-001",
+      "refNumber": "REF-2026-001",
+      "company": {
+        "identifier": "acme",
+        "name": "Acme Corp"
+      },
+      "releasedDate": "2026-07-01T10:00:00.000Z",
+      "location": {
+        "city": null,
+        "region": "Remote",
+        "country": "United States",
+        "remote": true
+      },
+      "department": {
+        "id": "dept-001",
+        "label": "Engineering"
+      },
+      "function": {
+        "id": "func-001",
+        "label": "Software Engineering"
+      },
+      "typeOfEmployment": {
+        "id": "perm",
+        "label": "Permanent"
+      },
+      "experienceLevel": {
+        "id": "senior",
+        "label": "Senior"
+      },
+      "ref": "https://api.smartrecruiters.com/v1/companies/acme/postings/posting-uuid-001",
+      "customField": [
+        { "fieldId": "tech_stack", "valueLabel": "React, TypeScript" }
+      ]
+    },
+    {
+      "id": "posting-uuid-002",
+      "uuid": "full-uuid-002",
+      "name": "Product Designer",
+      "company": {
+        "identifier": "acme",
+        "name": "Acme Corp"
+      },
+      "releasedDate": null,
+      "location": {
+        "city": "Berlin",
+        "region": "Berlin",
+        "country": "Germany",
+        "remote": false
+      },
+      "department": {
+        "id": 123,
+        "label": "Design"
+      },
+      "typeOfEmployment": {
+        "id": null,
+        "label": null
+      },
+      "experienceLevel": null
+    }
+  ]
+}

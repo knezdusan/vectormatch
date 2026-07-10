@@ -1,0 +1,39 @@
+{
+  "id": "posting-uuid-001",
+  "name": "Senior Frontend Developer",
+  "jobAd": {
+    "sections": {
+      "description": {
+        "title": "About the Role",
+        "text": "We are looking for a Senior Frontend Developer to join our Platform team. You will build user-facing components using React, TypeScript, and Next.js, and work on performance optimization and accessibility."
+      },
+      "qualifications": {
+        "title": "What You'll Need",
+        "text": "- 5+ years of React experience\n- Strong TypeScript skills\n- Experience with Next.js or similar frameworks\n- Understanding of web performance and accessibility"
+      },
+      "companyDescription": {
+        "title": "About Us",
+        "text": "Acme Corp builds developer tools used by millions of engineers worldwide."
+      }
+    }
+  },
+  "applyUrl": "https://careers.smartrecruiters.com/AcmeCorp/posting-uuid-001/apply",
+  "location": {
+    "city": null,
+    "region": "Remote",
+    "country": "United States",
+    "remote": true
+  },
+  "department": {
+    "id": "dept-001",
+    "label": "Engineering"
+  },
+  "typeOfEmployment": {
+    "id": "perm",
+    "label": "Permanent"
+  },
+  "experienceLevel": {
+    "id": "senior",
+    "label": "Senior"
+  }
+}

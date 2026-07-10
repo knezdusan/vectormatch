@@ -38,6 +38,7 @@ export * from "./jobs/inboundEmail";
 export * from "./jobs/ingestionLog";
 export * from "./jobs/job";
 export * from "./jobs/matchQueue";
+export * from "./jobs/migrationTracking";
 export * from "./jobs/persona";
 export * from "./jobs/sentEmail";
 export * from "./jobs/sluggerRetry";

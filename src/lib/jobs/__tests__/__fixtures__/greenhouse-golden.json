@@ -1,0 +1,42 @@
+{
+  "jobs": [
+    {
+      "id": 489021,
+      "internal_job_id": 489020,
+      "title": "Senior Frontend Engineer, Platform",
+      "updated_at": "2026-07-10T14:32:00.000Z",
+      "requisition_id": "REQ-2026-001",
+      "location": { "name": "Remote - Global" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/489021",
+      "content": "<p>We are looking for a Senior Frontend Engineer to join our Platform team.</p><h3>What you'll do</h3><ul><li>Build React components</li><li>Work with TypeScript</li></ul>",
+      "departments": [{ "id": 123, "name": "Engineering" }],
+      "offices": [
+        { "id": 1, "name": "Remote", "location": null },
+        { "id": 2, "name": "San Francisco", "location": "San Francisco, CA" }
+      ],
+      "first_published": "2026-07-01T10:00:00.000Z",
+      "company_name": "Acme Corp",
+      "metadata": [
+        { "name": "Remote eligible", "value": true },
+        { "name": "Employment type", "value": "Full-time" },
+        { "name": "Seniority", "value": { "id": 5, "name": "Senior" } },
+        { "name": "Compensation", "value": "$180k - $220k" }
+      ],
+      "language": "en"
+    },
+    {
+      "id": 489022,
+      "internal_job_id": null,
+      "title": "Staff Software Engineer, Infrastructure",
+      "updated_at": "2026-07-09T08:15:00.000Z",
+      "requisition_id": null,
+      "location": { "name": "New York, NY" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/489022",
+      "content": "<p>Join our infrastructure team.</p>",
+      "first_published": "2026-06-28T10:00:00.000Z",
+      "company_name": "Acme Corp",
+      "metadata": null
+    }
+  ],
+  "meta": { "total": 2 }
+}

@@ -1,0 +1,55 @@
+{
+  "offers": [
+    {
+      "id": 12345,
+      "title": "Senior Python Developer",
+      "company_name": "Acme Corp",
+      "slug": "senior-python-developer",
+      "department": "Engineering",
+      "status": "published",
+      "careers_url": "https://acme.recruitee.com/o/senior-python-developer",
+      "careers_apply_url": "https://acme.recruitee.com/o/senior-python-developer/apply",
+      "description": "We are looking for a Senior Python Developer to join our team.\n\nRequirements:\n- 5+ years Python\n- Django or FastAPI",
+      "requirements": "- 5+ years Python\n- Django or FastAPI\n- PostgreSQL",
+      "highlight": "Join a fast-growing startup building developer tools.",
+      "remote": true,
+      "on_site": false,
+      "hybrid": false,
+      "employment_type_code": "fulltime_permanent",
+      "experience_code": "senior",
+      "locations": [
+        {
+          "id": 1,
+          "name": "Remote - Worldwide",
+          "city": null,
+          "country": "Worldwide",
+          "country_code": null
+        },
+        {
+          "id": 2,
+          "name": "Berlin, Germany",
+          "city": "Berlin",
+          "country": "Germany",
+          "country_code": "DE"
+        }
+      ],
+      "published_at": "2026-07-01T10:00:00.000Z",
+      "created_at": "2026-06-28T08:00:00.000Z"
+    },
+    {
+      "id": 12346,
+      "title": "DevOps Engineer",
+      "company_name": null,
+      "slug": null,
+      "department": null,
+      "status": null,
+      "careers_url": "https://acme.recruitee.com/o/devops-engineer",
+      "remote": null,
+      "on_site": null,
+      "hybrid": null,
+      "locations": [],
+      "published_at": null,
+      "created_at": null
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "jobs": [
+    {
+      "id": "job-uuid-001",
+      "title": "Senior Fullstack Engineer",
+      "location": "Remote - Global",
+      "descriptionHtml": "<p>We are looking for a Senior Fullstack Engineer to join our team.</p><h3>Requirements</h3><ul><li>5+ years React + Node.js</li><li>TypeScript</li></ul>",
+      "descriptionPlain": "We are looking for a Senior Fullstack Engineer to join our team.\n\nRequirements:\n- 5+ years React + Node.js\n- TypeScript",
+      "jobUrl": "https://careers.acme.com/job-uuid-001",
+      "applyUrl": "https://careers.acme.com/job-uuid-001/apply",
+      "workplaceType": "Remote",
+      "employmentType": "Full-time",
+      "isRemote": "true",
+      "department": "Engineering",
+      "team": "Platform",
+      "publishedAt": "2026-07-01T10:00:00.000Z",
+      "isListed": true,
+      "shouldDisplayCompensationOnJobPostings": true,
+      "compensation": {
+        "currency": "USD",
+        "min": 180000,
+        "max": 220000,
+        "interval": "yearly"
+      },
+      "customFields": {
+        "seniority": "Senior",
+        "tech_stack": ["React", "TypeScript", "Node.js"]
+      }
+    },
+    {
+      "id": "job-uuid-002",
+      "title": "Engineering Manager",
+      "location": "Berlin, Germany",
+      "workplaceType": "OnSite",
+      "isRemote": false,
+      "publishedAt": "2026-06-15T10:00:00.000Z",
+      "isListed": false
+    },
+    {
+      "id": "job-uuid-003",
+      "title": "DevOps Engineer",
+      "location": "Hybrid - London",
+      "workplaceType": "Hybrid",
+      "isRemote": null,
+      "publishedAt": null
+    }
+  ],
+  "board": {
+    "name": "Acme Careers",
+    "slug": "acme"
+  }
+}

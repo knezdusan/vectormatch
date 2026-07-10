@@ -1,0 +1,37 @@
+{
+  "name": "Acme Corp",
+  "description": "We build tools for developers.",
+  "jobs": [
+    {
+      "id": "job-001",
+      "shortcode": "ABC001",
+      "title": "Senior Vue.js Developer",
+      "companyName": "Acme Corp",
+      "department": "Engineering",
+      "employmentType": "Full-time",
+      "workplace": "remote",
+      "location": {
+        "city": null,
+        "region": "Remote",
+        "country": "Worldwide",
+        "countryCode": null
+      },
+      "url": "https://apply.workable.com/j/ABC001",
+      "applyUrl": "https://apply.workable.com/j/ABC001/apply",
+      "description": "<p>We are looking for a Senior Vue.js Developer to join our team.</p><h3>Requirements</h3><ul><li>5+ years Vue.js</li><li>TypeScript</li></ul>",
+      "publishedAt": "2026-07-01T10:00:00.000Z"
+    },
+    {
+      "id": "job-002",
+      "shortcode": "ABC002",
+      "title": "Product Manager",
+      "companyName": null,
+      "department": null,
+      "employmentType": null,
+      "workplace": null,
+      "location": null,
+      "url": "https://apply.workable.com/j/ABC002",
+      "publishedAt": null
+    }
+  ]
+}
