@@ -469,14 +469,12 @@ describe("Full extraction ladder integration", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Step 1d HQ stripping prevents false country_fenced from HQ location", async () => {
-    // The JD says "Remote - Global" but also mentions the HQ city.
-    // Without HQ stripping, the HQ city might trigger country_fenced.
-    // Classifier fix (2026-07-10): when workplaceType='remote' and the location
-    // is a specific place (San Francisco, CA), the job is country_fenced (US)
-    // regardless of JD text. The HQ stripping prevents the HQ city from
-    // polluting the JD text evaluation, but the location field itself is
-    // structured ATS metadata that correctly indicates US fencing.
+  it("Step 1d HQ stripping + location-vs-JD conflict → LLM adjudication", async () => {
+    // The JD says "Remote - Global" but location says "San Francisco, CA".
+    // Recall-check refinement (2026-07-10): when the regex finds a global
+    // signal AND the location is specific, this is a CONFLICT — route to LLM
+    // adjudication, not auto-fence. The LLM reads full JD context to determine
+    // whether the location is a fencing restriction or just the HQ city.
     const mockLlm = makeMockLlm({
       remoteScope: "country_fenced",
       allowedCountries: ["US"],
@@ -489,9 +487,9 @@ describe("Full extraction ladder integration", () => {
       "San Francisco, CA",
       mockLlm,
     );
-    // Classifier fix: location "San Francisco, CA" is specific → country_fenced
+    // Conflict case → LLM adjudication (mock returns country_fenced)
     expect(result.remoteScope).toBe("country_fenced");
-    expect(result.resolvedBy).toBe("step1_regex");
+    expect(result.resolvedBy).toBe("step2_llm");
   });
 
   it("Greenhouse jobs skip Step 1a and go to Step 1b/1c/2", async () => {
@@ -597,11 +595,11 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Classifier fix: location fencing wins over JD 'Remote - Global' text", async () => {
-    // Classifier fix (2026-07-10): when workplaceType='remote' and location is
-    // a specific place (San Francisco, CA), the job is country_fenced regardless
-    // of JD text saying "Remote - Global". The location field is structured ATS
-    // metadata — more reliable than JD text patterns.
+  it("Recall-check refinement: JD global + specific location → LLM adjudication", async () => {
+    // Recall-check refinement (2026-07-10): when the regex finds a global
+    // signal AND the location is specific, route to LLM adjudication.
+    // The recall check showed 80.6% false-negative rate when auto-fencing
+    // — these are genuinely global jobs with HQ city in location field.
     const mockLlm = makeMockLlm({
       remoteScope: "country_fenced",
       allowedCountries: ["US"],
@@ -614,9 +612,9 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
       "San Francisco, CA",
       mockLlm,
     );
-    // Classifier fix: location "San Francisco, CA" is specific → country_fenced
+    // Conflict case → LLM adjudication (mock returns country_fenced)
     expect(result.remoteScope).toBe("country_fenced");
-    expect(result.resolvedBy).toBe("step1_regex");
+    expect(result.resolvedBy).toBe("step2_llm");
   });
 
   it("does NOT fire for 'Remote - Global' location (not specific)", async () => {
@@ -790,13 +788,11 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Classifier fix: 'San Francisco, CA' with remote workplace → country_fenced", async () => {
-    // Classifier fix (2026-07-10): Pure city locations (no "remote" in the
-    // location string) with workplaceType='remote' now correctly trigger
-    // country_fenced. The old behavior let the regex match "Remote - Global"
-    // in JD text and return 'global', ignoring the specific location.
-    // The fix: location field is structured ATS metadata — if it says
-    // "San Francisco, CA" and the job is remote, it's remote within the US.
+  it("Recall-check refinement: 'San Francisco, CA' + JD global → LLM adjudication", async () => {
+    // Recall-check refinement (2026-07-10): Pure city locations with
+    // workplaceType='remote' AND a JD global signal → CONFLICT → LLM.
+    // The recall check showed these are often genuinely global jobs where
+    // the location is the HQ city, not a fencing restriction.
     const mockLlm = makeMockLlm({
       remoteScope: "global",
       allowedCountries: null,
@@ -809,9 +805,9 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
       "San Francisco, CA",
       mockLlm,
     );
-    // Classifier fix: location is specific → country_fenced (US)
-    expect(result.remoteScope).toBe("country_fenced");
-    expect(result.resolvedBy).toBe("step1_regex");
+    // Conflict case → LLM adjudication (mock returns global)
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step2_llm");
   });
 });
 
@@ -859,10 +855,10 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Classifier fix: remote workplace + specific location → country_fenced (not global)", async () => {
-    // Classifier fix (2026-07-10): Rule 6 (null workplace + specific city → onsite)
-    // only applies to null workplaceType. But for remote workplaceType, the new
-    // Step 1g location fencing check correctly classifies as country_fenced.
+  it("Recall-check refinement: remote + specific location + JD global → LLM", async () => {
+    // Recall-check refinement (2026-07-10): Rule 6 (null workplace + specific
+    // city → onsite) only applies to null workplaceType. For remote workplaceType
+    // with a JD global signal + specific location → CONFLICT → LLM adjudication.
     const mockLlm = makeMockLlm({
       remoteScope: "global",
       allowedCountries: null,
@@ -875,9 +871,9 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
       "San Francisco, CA",
       mockLlm,
     );
-    // Classifier fix: remote + specific location → country_fenced
-    expect(result.remoteScope).toBe("country_fenced");
-    expect(result.resolvedBy).toBe("step1_regex");
+    // Conflict case → LLM adjudication (mock returns global)
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step2_llm");
   });
 
   it("does NOT fire for broad region location 'APAC'", async () => {
@@ -897,6 +893,28 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     // Rule 6 doesn't fire → LLM evaluates
     expect(result.resolvedBy).toBe("step2_llm");
     expect(mockLlm).toHaveBeenCalled();
+  });
+
+  it("Recall-check: remote + specific location + NO JD global signal → auto-fence", async () => {
+    // When the JD has NO global signal and the location is specific, the
+    // location IS the fencing signal. "Remote" + "Poland" (no JD saying
+    // "worldwide") = remote within Poland. This is the true-negative case.
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team and build scalable systems with modern web technologies.",
+      "remote",
+      "ashby",
+      "Poland",
+      mockLlm,
+    );
+    // No JD global signal → location is the fencing signal → country_fenced
+    expect(result.remoteScope).toBe("country_fenced");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 
   it("does NOT fire for null location", async () => {
