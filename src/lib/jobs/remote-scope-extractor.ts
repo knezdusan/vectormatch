@@ -40,6 +40,7 @@ import {
   REMOTE_LOCATION_INDICATORS,
 } from "@/lib/jobs/location-utils";
 import {
+  deterministicMultiProbe,
   extractCountryCodesFromText,
   extractCountryFromCapture,
   HIGH_CONFIDENCE_SIGNALS,
@@ -587,6 +588,7 @@ export async function extractRemoteScope(
   atsSource: string,
   companyLocation: string | null,
   llmExtractor: LlmScopeExtractor = extractScopeLLM,
+  deterministicOnly: boolean = false,
 ): Promise<RemoteScopeResult> {
   // Step 1a: ATS-native trust path.
   const atsNativeResult = step1AtsNativeTrust(workplaceType, atsSource);
@@ -762,6 +764,43 @@ export async function extractRemoteScope(
     }
   }
 
+  // Step 1h: Deterministic multi-probe (runs BEFORE LLM).
+  //
+  // Cost + accuracy linchpin (2026-07-10): Resolves "global vs region-fenced"
+  // conflicts with regex signals — NO LLM. Catches region-fencing-behind-"Remote"
+  // that the location fix cannot see: jobs with location="Remote" but JD text
+  // containing timezone requirements, salary currency, "candidates from",
+  // work authorization language.
+  //
+  // Runs on the conflict cases that would otherwise route to LLM:
+  //   1. Regex found "global" + location is specific (location-vs-JD conflict)
+  //   2. Regex found nothing + location is "Remote" (no signal either way)
+  //
+  // If multi-probe fires (≥1 high or ≥2 medium probes) → region_fenced, no LLM.
+  // If multi-probe is clean → genuinely global, no LLM.
+  // LLM is only for the residual ambiguous cases (multi-probe inconclusive).
+  if (hqStrippedText.length >= 50) {
+    const probeResult = deterministicMultiProbe(hqStrippedText);
+    if (probeResult.scope === "region_fenced") {
+      return {
+        remoteScope: "region_fenced",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: probeResult.confidence,
+      };
+    }
+    // Multi-probe is clean (no fencing signals). If the regex also found
+    // global, confirm it — the job is genuinely worldwide. No LLM needed.
+    if (regexFoundGlobal && probeResult.scope === "global") {
+      return {
+        remoteScope: "global",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: probeResult.confidence,
+      };
+    }
+  }
+
   // If the cleaned text is empty or too short, hard-fail immediately
   // (no point calling the LLM on empty input).
   if (hqStrippedText.length < 50) {
@@ -769,6 +808,19 @@ export async function extractRemoteScope(
       remoteScope: "undetermined",
       allowedCountries: null,
       resolvedBy: "hard_fail",
+      confidence: 0,
+    };
+  }
+
+  // Deterministic-only mode: return "unknown" instead of calling LLM.
+  // Used at ingestion time (Step 4.4) to resolve remote-scope without LLM cost.
+  // The LLM fallback is deferred to Step 5.5 (after Gate 1+2) — only runs on
+  // the viable set (jobs that passed stack/persona filter).
+  if (deterministicOnly) {
+    return {
+      remoteScope: "unknown",
+      allowedCountries: null,
+      resolvedBy: "deterministic_only_no_signal",
       confidence: 0,
     };
   }

@@ -810,3 +810,165 @@ export const ALL_SIGNALS: readonly ScopeSignal[] = [
   ...HIGH_CONFIDENCE_SIGNALS,
   ...MEDIUM_CONFIDENCE,
 ];
+
+// =============================================================================
+// DETERMINISTIC MULTI-PROBE (region-fencing-behind-"Remote" detector)
+// =============================================================================
+// Resolves "global vs region-fenced" conflicts with regex signals — NO LLM.
+// Catches the contamination that the location fix cannot see: jobs with
+// location="Remote" but JD text containing region-specific signals (timezone
+// requirements, salary currency, "candidates from", work authorization).
+//
+// A job is region_fenced if ≥1 high-severity probe fires, or ≥2 medium-severity.
+// A job is global if NO probes fire (clean worldwide signal).
+
+export type ProbeSeverity = "high" | "medium";
+
+export interface MultiProbeResult {
+  /** "global" if no probes fire, "region_fenced" if enough fire. */
+  scope: "global" | "region_fenced";
+  /** Which probes fired. */
+  firedProbes: { signal: string; severity: ProbeSeverity }[];
+  /** Confidence 0.0–1.0. 1.0 if high-severity probe fires, 0.7 if 2+ medium. */
+  confidence: number;
+}
+
+/** Region-fencing probes — signals that indicate the job is NOT worldwide. */
+const REGION_FENCING_PROBES: {
+  pattern: RegExp;
+  signal: string;
+  severity: ProbeSeverity;
+}[] = [
+  // Timezone restrictions — narrow range = region-fenced
+  {
+    pattern: /\bUTC[-+]\d+\s+to\s+UTC[-+]?\d+\b/i,
+    signal: "utc_range",
+    severity: "high",
+  },
+  {
+    pattern: /\bGMT[-+]\d+\s+to\s+GMT[-+]?\d+\b/i,
+    signal: "gmt_range",
+    severity: "high",
+  },
+  // Named timezone requirements
+  {
+    pattern:
+      /\b(?:working\s+hours|timezone|time\s+zone).*?(?:UTC|GMT|EST|PST|CET|EET|IST|JST|AEST|PST|EST)\b/i,
+    signal: "timezone_named",
+    severity: "high",
+  },
+  // Region-named hours/timezone
+  {
+    pattern:
+      /\b(?:EMEA|APAC|Latam|Americas|Europe|Asia|Africa)\s+(?:hours|timezone|time)\b/i,
+    signal: "region_hours",
+    severity: "high",
+  },
+  // "Must be based in [region]"
+  {
+    pattern:
+      /\bmust\s+(?:be\s+)?(?:based|located|reside|live)\s+in\s+(?:Europe|Asia|Africa|South\s+America|North\s+America|EMEA|APAC|Latam|the\s+EU|the\s+UK|the\s+US)\b/i,
+    signal: "must_be_in_region",
+    severity: "high",
+  },
+  // "Candidates from [region/country]"
+  {
+    pattern:
+      /\bcandidates\s+(?:from|in|based\s+in)\s+(?:Europe|Asia|Africa|South\s+America|North\s+America|EMEA|APAC|Latam)\b/i,
+    signal: "candidates_from_region",
+    severity: "high",
+  },
+  // Work authorization for specific country
+  {
+    pattern:
+      /\b(?:eligible|authorized)\s+to\s+work\s+(?:in|for)\s+(?:the\s+)?(?:US|USA|UK|EU|Germany|France|India|Poland|Brazil|Canada|Australia|Singapore|Netherlands|Ireland)\b/i,
+    signal: "work_auth_country",
+    severity: "high",
+  },
+  // "Must have visa/permit for [country]"
+  {
+    pattern:
+      /\bmust\s+(?:have|possess|hold)\s+(?:a\s+)?(?:work\s+)?(?:visa|permit)\s+(?:for|in)\s+/i,
+    signal: "visa_required",
+    severity: "high",
+  },
+  // "Only accepting candidates from"
+  {
+    pattern:
+      /\bonly\s+(?:accepting|considering|hiring)\s+(?:candidates\s+)?(?:from|in)\s+/i,
+    signal: "only_from",
+    severity: "high",
+  },
+  // Salary currency (medium — doesn't always mean fenced, but strong hint)
+  {
+    pattern:
+      /\b(?:salary|compensation|pay).*?(?:EUR|GBP|PLN|INR|BRL|CAD|AUD|SGD|ZAR|AED|SEK|NOK|DKK|CHF)\b/i,
+    signal: "salary_currency_non_usd",
+    severity: "medium",
+  },
+  // Core hours overlap requirement
+  {
+    pattern: /\b(?:core|business)\s+hours\s+(?:overlap|with)\s+/i,
+    signal: "core_hours_overlap",
+    severity: "medium",
+  },
+  // "During our business hours"
+  {
+    pattern: /\bduring\s+(?:our|the)\s+(?:business|core|working)\s+hours\b/i,
+    signal: "during_business_hours",
+    severity: "medium",
+  },
+  // Timezone overlap of N hours
+  {
+    pattern: /\boverlap\s+(?:with|of)\s+\d+\s+hours?\b/i,
+    signal: "overlap_hours",
+    severity: "medium",
+  },
+];
+
+/**
+ * Run deterministic multi-probe on JD text to detect region-fencing-behind-"Remote".
+ *
+ * Returns "region_fenced" if ≥1 high-severity probe fires, or ≥2 medium-severity.
+ * Returns "global" if no probes fire (the job appears genuinely worldwide).
+ *
+ * This is a COST tool as much as accuracy: it resolves conflicts without LLM.
+ * Used after the regex finds "global" + location is "Remote" (the conflict case
+ * that previously routed to LLM). If multi-probe fires, the job is region_fenced
+ * — no LLM needed. If multi-probe is clean, the job is genuinely global — no
+ * LLM needed. LLM is only for the residual ambiguous cases.
+ */
+export function deterministicMultiProbe(text: string): MultiProbeResult {
+  const firedProbes: { signal: string; severity: ProbeSeverity }[] = [];
+
+  for (const probe of REGION_FENCING_PROBES) {
+    if (probe.pattern.test(text)) {
+      firedProbes.push({ signal: probe.signal, severity: probe.severity });
+    }
+  }
+
+  const highCount = firedProbes.filter((p) => p.severity === "high").length;
+  const mediumCount = firedProbes.filter((p) => p.severity === "medium").length;
+
+  if (highCount >= 1) {
+    return {
+      scope: "region_fenced",
+      firedProbes,
+      confidence: 1.0,
+    };
+  }
+
+  if (mediumCount >= 2) {
+    return {
+      scope: "region_fenced",
+      firedProbes,
+      confidence: 0.7,
+    };
+  }
+
+  return {
+    scope: "global",
+    firedProbes,
+    confidence: 0.7,
+  };
+}

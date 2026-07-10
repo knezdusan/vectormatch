@@ -82,7 +82,7 @@ export async function deleteGoneJobs(): Promise<CleanupStepResult> {
  * with NULL published_at don't slip through the cleanup net.
  */
 export async function deleteAncientJobs(
-  retentionDays = 90,
+  retentionDays = 30,
 ): Promise<CleanupStepResult> {
   const result = await db.execute(
     sql`DELETE FROM job WHERE COALESCE(published_at, detected_at) < NOW() - INTERVAL '${sql.raw(String(retentionDays))} days'`,

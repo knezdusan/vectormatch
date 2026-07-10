@@ -155,7 +155,7 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
       expect(result).toEqual({ deletedCount: 500 });
     });
 
-    it("uses default 90-day retention when no argument is provided", async () => {
+    it("uses default 30-day retention when no argument is provided", async () => {
       const { db } = await import("@/db/db");
       const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
       executeMock.mockResolvedValueOnce({ rowCount: 10 });
@@ -163,7 +163,7 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
       await deleteAncientJobs();
 
       const sqlJson = JSON.stringify(executeMock.mock.calls[0][0]);
-      expect(sqlJson).toContain("90");
+      expect(sqlJson).toContain("30");
     });
 
     it("supports a custom retention window", async () => {

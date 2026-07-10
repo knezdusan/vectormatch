@@ -469,12 +469,11 @@ describe("Full extraction ladder integration", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Step 1d HQ stripping + location-vs-JD conflict → LLM adjudication", async () => {
+  it("Step 1d HQ stripping + location-vs-JD conflict → multi-probe resolves", async () => {
     // The JD says "Remote - Global" but location says "San Francisco, CA".
-    // Recall-check refinement (2026-07-10): when the regex finds a global
-    // signal AND the location is specific, this is a CONFLICT — route to LLM
-    // adjudication, not auto-fence. The LLM reads full JD context to determine
-    // whether the location is a fencing restriction or just the HQ city.
+    // Multi-probe (2026-07-10): the JD has no region-fencing signals (no
+    // timezone, no salary currency, no "candidates from") → multi-probe
+    // confirms global. No LLM needed.
     const mockLlm = makeMockLlm({
       remoteScope: "country_fenced",
       allowedCountries: ["US"],
@@ -487,9 +486,10 @@ describe("Full extraction ladder integration", () => {
       "San Francisco, CA",
       mockLlm,
     );
-    // Conflict case → LLM adjudication (mock returns country_fenced)
-    expect(result.remoteScope).toBe("country_fenced");
-    expect(result.resolvedBy).toBe("step2_llm");
+    // Multi-probe: no fencing signals → global confirmed, no LLM
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 
   it("Greenhouse jobs skip Step 1a and go to Step 1b/1c/2", async () => {
@@ -595,11 +595,10 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Recall-check refinement: JD global + specific location → LLM adjudication", async () => {
-    // Recall-check refinement (2026-07-10): when the regex finds a global
-    // signal AND the location is specific, route to LLM adjudication.
-    // The recall check showed 80.6% false-negative rate when auto-fencing
-    // — these are genuinely global jobs with HQ city in location field.
+  it("Recall-check refinement: JD global + specific location → multi-probe resolves", async () => {
+    // Multi-probe (2026-07-10): JD has global signals, no fencing signals →
+    // multi-probe confirms global. No LLM needed. This is the cost win:
+    // conflict cases that would have gone to LLM are now resolved deterministically.
     const mockLlm = makeMockLlm({
       remoteScope: "country_fenced",
       allowedCountries: ["US"],
@@ -612,9 +611,10 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
       "San Francisco, CA",
       mockLlm,
     );
-    // Conflict case → LLM adjudication (mock returns country_fenced)
-    expect(result.remoteScope).toBe("country_fenced");
-    expect(result.resolvedBy).toBe("step2_llm");
+    // Multi-probe: no fencing signals → global confirmed, no LLM
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 
   it("does NOT fire for 'Remote - Global' location (not specific)", async () => {
@@ -788,11 +788,9 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Recall-check refinement: 'San Francisco, CA' + JD global → LLM adjudication", async () => {
-    // Recall-check refinement (2026-07-10): Pure city locations with
-    // workplaceType='remote' AND a JD global signal → CONFLICT → LLM.
-    // The recall check showed these are often genuinely global jobs where
-    // the location is the HQ city, not a fencing restriction.
+  it("Recall-check refinement: 'San Francisco, CA' + JD global → multi-probe resolves", async () => {
+    // Multi-probe (2026-07-10): JD has global signals, no fencing signals →
+    // multi-probe confirms global. No LLM needed.
     const mockLlm = makeMockLlm({
       remoteScope: "global",
       allowedCountries: null,
@@ -805,9 +803,10 @@ describe("Step 1e — Location-based fallback (Fix 1b)", () => {
       "San Francisco, CA",
       mockLlm,
     );
-    // Conflict case → LLM adjudication (mock returns global)
+    // Multi-probe: no fencing signals → global confirmed, no LLM
     expect(result.remoteScope).toBe("global");
-    expect(result.resolvedBy).toBe("step2_llm");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 });
 
@@ -855,10 +854,9 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
-  it("Recall-check refinement: remote + specific location + JD global → LLM", async () => {
-    // Recall-check refinement (2026-07-10): Rule 6 (null workplace + specific
-    // city → onsite) only applies to null workplaceType. For remote workplaceType
-    // with a JD global signal + specific location → CONFLICT → LLM adjudication.
+  it("Recall-check refinement: remote + specific location + JD global → multi-probe", async () => {
+    // Multi-probe (2026-07-10): JD has global signals, no fencing signals →
+    // multi-probe confirms global. No LLM needed.
     const mockLlm = makeMockLlm({
       remoteScope: "global",
       allowedCountries: null,
@@ -871,9 +869,10 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
       "San Francisco, CA",
       mockLlm,
     );
-    // Conflict case → LLM adjudication (mock returns global)
+    // Multi-probe: no fencing signals → global confirmed, no LLM
     expect(result.remoteScope).toBe("global");
-    expect(result.resolvedBy).toBe("step2_llm");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 
   it("does NOT fire for broad region location 'APAC'", async () => {
@@ -917,6 +916,44 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     expect(mockLlm).not.toHaveBeenCalled();
   });
 
+  it("Multi-probe: region-fencing-behind-Remote → region_fenced, no LLM", async () => {
+    // Multi-probe catches fencing hidden behind location="Remote":
+    // JD says "Remote" but contains timezone requirement + salary in EUR.
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are a fully remote team. Working hours UTC+1 to UTC+5. Salary: EUR 60,000-80,000. Must be based in Europe.",
+      "remote",
+      "ashby",
+      "Remote",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("region_fenced");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("Multi-probe: clean worldwide JD → global, no LLM", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are a fully remote team. Work from anywhere. We have team members across 12 countries.",
+      "remote",
+      "ashby",
+      "Remote",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
   it("does NOT fire for null location", async () => {
     const mockLlm = makeMockLlm({
       remoteScope: "global",
@@ -933,5 +970,68 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     // No location → Rule 6 doesn't fire → LLM evaluates
     expect(result.resolvedBy).toBe("step2_llm");
     expect(mockLlm).toHaveBeenCalled();
+  });
+
+  it("deterministicOnly=true: no regex signal → returns 'unknown', no LLM", async () => {
+    // Pipeline reorder (2026-07-10): When deterministicOnly=true, the function
+    // runs regex + multi-probe but skips the LLM. Jobs with no deterministic
+    // signal return "unknown" instead of calling the LLM. The LLM is deferred
+    // to Step 5.5 (after Gate 1+2) for cost reduction.
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring a senior software engineer to join our growing team.",
+      "remote",
+      "ashby",
+      null,
+      mockLlm,
+      true, // deterministicOnly
+    );
+    expect(result.remoteScope).toBe("unknown");
+    expect(result.resolvedBy).toBe("deterministic_only_no_signal");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("deterministicOnly=true: regex signal → resolves, no LLM", async () => {
+    // Even in deterministic mode, if the regex finds a high-confidence signal,
+    // the job is resolved without LLM.
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Remote - Worldwide. Work from anywhere. We are a distributed team.",
+      "remote",
+      "ashby",
+      null,
+      mockLlm,
+      true, // deterministicOnly
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("deterministicOnly=true: multi-probe catches fencing → region_fenced, no LLM", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "global",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Remote. Working hours UTC+1 to UTC+5. Salary EUR 60,000. Must be based in Europe.",
+      "remote",
+      "ashby",
+      "Remote",
+      mockLlm,
+      true, // deterministicOnly
+    );
+    expect(result.remoteScope).toBe("region_fenced");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
   });
 });

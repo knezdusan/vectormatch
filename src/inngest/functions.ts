@@ -2511,7 +2511,7 @@ export const jobIngestedHandler = inngest.createFunction(
       );
     });
 
-    // ── Step 3: Embed (§4.4 — only if normalized) ──────────────────────────
+    // ── Step 3: Embed (§4.4 — only if normalized + addressable) ─────────────
     // Generate the job embedding from the cleaned fullText. Only runs for
     // 'normalized' jobs — rejected/failed jobs don't need an embedding.
     //
@@ -2521,6 +2521,14 @@ export const jobIngestedHandler = inngest.createFunction(
     // normalized and stored (status='normalized'), just without an embedding.
     // When the company is promoted to 'active' (first job yield), a backfill
     // embeds its pending jobs.
+    //
+    // Rolling-window storage (2026-07-10): Skip embedding for jobs that are
+    // deterministically fenced (country_fenced, region_fenced, onsite). These
+    // jobs are not addressable for global remote personas — embedding them
+    // wastes OpenAI calls AND storage (vectors are the main storage consumer).
+    // The job's remoteScope is set by the poller's initial inferRemoteScope
+    // (regex-only). The deterministic multi-probe at Step 4.4 may upgrade
+    // "unknown" to fenced — if so, the embedding is nulled post-hoc.
     let embedding: number[] | null = null;
     if (normalization.status === "normalized") {
       // Check if the company is on probation — defer embedding if so.
@@ -2538,9 +2546,30 @@ export const jobIngestedHandler = inngest.createFunction(
         return rows[0]?.tier ?? "active";
       });
 
+      // Check if the job is deterministically fenced — skip embedding if so.
+      const jobRemoteScope = await step.run("check-remote-scope", async () => {
+        const { db } = await import("@/db/db");
+        const { job } = await import("@/db/schemas/jobs/job");
+        const { eq } = await import("drizzle-orm");
+        const rows = await db
+          .select({ remoteScope: job.remoteScope })
+          .from(job)
+          .where(eq(job.id, jobId))
+          .limit(1);
+        return rows[0]?.remoteScope ?? "unknown";
+      });
+
+      const isFenced = ["country_fenced", "region_fenced", "onsite"].includes(
+        jobRemoteScope ?? "unknown",
+      );
+
       if (companyTier === "probation") {
         // Skip embedding — job is stored as normalized without a vector.
         // A backfill will embed it when the company is promoted to active.
+        embedding = null;
+      } else if (isFenced) {
+        // Skip embedding — job is fenced (not addressable for global remote
+        // personas). Saves OpenAI calls + vector storage.
         embedding = null;
       } else {
         embedding = await step.run("embed", async () => {
@@ -2639,15 +2668,15 @@ export const jobIngestedHandler = inngest.createFunction(
       };
     }
 
-    // ── Step 4.4: Remote-scope upgrade (v2 ladder for unknown jobs) ────────
-    // The poller sets an initial remoteScope at insert time using the
-    // regex-only inferRemoteScope (Step 1). Jobs that remain "unknown" after
-    // Step 1 are upgraded here via the full v2 extractRemoteScope ladder
-    // (Step 1 regex + Step 2 LLM fallback via gpt-4o-mini). This ensures new
-    // jobs get accurate geo-classification before Gate 0.5, improving
-    // pre-filter precision and preventing the unknown bucket from growing.
-    // Jobs that already have a definitive scope (global, country_fenced,
-    // region_fenced, onsite) are skipped — no need to re-run the ladder.
+    // ── Step 4.4: Remote-scope upgrade (DETERMINISTIC ONLY — no LLM) ────────
+    // Pipeline reorder (2026-07-10): The deterministic multi-probe + regex
+    // runs here at ingestion time WITHOUT LLM. This resolves most jobs to a
+    // definitive scope (global, country_fenced, region_fenced, onsite) using
+    // regex signals + multi-probe (timezone, salary currency, candidates-from,
+    // work-auth). Jobs that remain "unknown" after the deterministic pass are
+    // NOT upgraded with LLM here — the LLM is deferred to Step 5.5 (after
+    // Gate 1+2) so it only runs on the viable set (jobs that passed the
+    // stack/persona filter). This cuts LLM calls by ~80-90%.
     await step.run("upgrade-remote-scope", async () => {
       const { db } = await import("@/db/db");
       const { job } = await import("@/db/schemas/jobs/job");
@@ -2680,31 +2709,51 @@ export const jobIngestedHandler = inngest.createFunction(
       }
 
       try {
+        // DETERMINISTIC ONLY: regex + multi-probe, NO LLM.
+        // LLM is deferred to Step 5.5 (after Gate 1+2) for cost reduction.
         const scopeResult = await extractRemoteScope(
           row.normalizedText,
           row.workplaceType as "remote" | "hybrid" | "on-site" | null,
           row.atsSource,
           row.locationName,
+          undefined, // default LLM extractor (not used in deterministic mode)
+          true, // deterministicOnly — skip LLM
         );
 
-        await db
-          .update(job)
-          .set({
-            remoteScope: scopeResult.remoteScope,
-            locationCountries: scopeResult.allowedCountries,
-          })
-          .where(eq(job.id, jobId));
+        // Only update if the deterministic pass resolved to something
+        // definitive. If it returned "unknown", leave the job as-is —
+        // the LLM will handle it at Step 5.5.
+        if (scopeResult.remoteScope !== "unknown") {
+          // Rolling-window storage (2026-07-10): If the deterministic pass
+          // fences a job that was already embedded (the poller set it to
+          // "unknown" and Step 3 embedded it), null out the embedding to
+          // reclaim vector storage. Fenced jobs are not addressable.
+          const isFenced = [
+            "country_fenced",
+            "region_fenced",
+            "onsite",
+          ].includes(scopeResult.remoteScope);
+          await db
+            .update(job)
+            .set({
+              remoteScope: scopeResult.remoteScope,
+              locationCountries: scopeResult.allowedCountries,
+              // Null the embedding for fenced jobs to reclaim storage.
+              ...(isFenced ? { jobEmbedding: null } : {}),
+            })
+            .where(eq(job.id, jobId));
+        }
 
         return {
-          upgraded: true,
+          upgraded: scopeResult.remoteScope !== "unknown",
           newScope: scopeResult.remoteScope,
           resolvedBy: scopeResult.resolvedBy,
         };
       } catch (error) {
-        // Non-fatal: if the LLM call fails, the job keeps remoteScope="unknown"
-        // and passes through Gate 0.5 to Gate 3 (which evaluates JD text).
+        // Non-fatal: if the deterministic pass fails, the job keeps
+        // remoteScope="unknown" and the LLM will handle it at Step 5.5.
         console.warn(
-          `[jobIngestedHandler] Remote-scope upgrade failed for job ${jobId}:`,
+          `[jobIngestedHandler] Deterministic remote-scope upgrade failed for job ${jobId}:`,
           error instanceof Error ? error.message : error,
         );
         return { upgraded: false, reason: "extraction-failed" };
@@ -2902,6 +2951,82 @@ export const jobIngestedHandler = inngest.createFunction(
         queued: 0,
       };
     }
+
+    // ── Step 5.5: LLM remote-scope upgrade (ONLY for viable jobs) ──────────
+    // Pipeline reorder (2026-07-10): The LLM remote-scope upgrade is deferred
+    // to here — AFTER Gate 1+2 (stack/persona filter) confirmed this job is
+    // viable. This means the LLM only runs on jobs that:
+    //   1. Passed Gate 0.5 (not deterministically fenced)
+    //   2. Passed Gate 1+2 (stack/persona match — has candidates)
+    //   3. Still have remoteScope="unknown" (deterministic multi-probe couldn't resolve)
+    //
+    // Cost impact: Instead of running LLM on ALL unknown jobs at ingestion
+    // (55% adjudication rate), the LLM only runs on the viable set (~15-20%
+    // of ingested jobs). Combined with the deterministic multi-probe, this
+    // cuts LLM calls by ~80-90%.
+    await step.run("llm-remote-scope-upgrade", async () => {
+      const { db } = await import("@/db/db");
+      const { job } = await import("@/db/schemas/jobs/job");
+      const { eq } = await import("drizzle-orm");
+      const { extractRemoteScope } = await import(
+        "@/lib/jobs/remote-scope-extractor"
+      );
+
+      const rows = await db
+        .select({
+          remoteScope: job.remoteScope,
+          workplaceType: job.workplaceType,
+          atsSource: job.atsSource,
+          locationName: job.locationName,
+          normalizedText: job.normalizedText,
+        })
+        .from(job)
+        .where(eq(job.id, jobId))
+        .limit(1);
+
+      if (rows.length === 0) return { upgraded: false, reason: "not-found" };
+
+      const row = rows[0];
+
+      // Only upgrade jobs that are still "unknown" after the deterministic pass.
+      // Definitive scopes (global, country_fenced, region_fenced, onsite,
+      // undetermined) are left as-is.
+      if (row.remoteScope !== "unknown") {
+        return { upgraded: false, reason: `scope=${row.remoteScope}` };
+      }
+
+      try {
+        // Full ladder: regex + multi-probe + LLM fallback.
+        const scopeResult = await extractRemoteScope(
+          row.normalizedText,
+          row.workplaceType as "remote" | "hybrid" | "on-site" | null,
+          row.atsSource,
+          row.locationName,
+        );
+
+        await db
+          .update(job)
+          .set({
+            remoteScope: scopeResult.remoteScope,
+            locationCountries: scopeResult.allowedCountries,
+          })
+          .where(eq(job.id, jobId));
+
+        return {
+          upgraded: true,
+          newScope: scopeResult.remoteScope,
+          resolvedBy: scopeResult.resolvedBy,
+        };
+      } catch (error) {
+        // Non-fatal: if the LLM call fails, the job keeps remoteScope="unknown"
+        // and passes through to Gate 3 (which evaluates JD text directly).
+        console.warn(
+          `[jobIngestedHandler] LLM remote-scope upgrade failed for job ${jobId}:`,
+          error instanceof Error ? error.message : error,
+        );
+        return { upgraded: false, reason: "llm-failed" };
+      }
+    });
 
     // ── Step 6: Fan out match/gate-3-evaluate events (§3.1) ───────────────
     // One event per candidate → one gate3Evaluator function instance per
