@@ -806,7 +806,11 @@ describe("fetchNoFluffJobs", () => {
     expect(result.jobs[0].locationCountries).toEqual(["PL"]);
   });
 
-  it("defaults to global when places have no country data", async () => {
+  it("defaults to country_fenced (PL) when places have no country data", async () => {
+    // NoFluffJobs is a Polish board — jobs without explicit country data are
+    // almost certainly Poland-only. Default to country_fenced with PL rather
+    // than global (the previous default caused 137 Poland jobs to be
+    // misclassified as global).
     const mockResponse = {
       totalCount: 1,
       postings: [
@@ -824,8 +828,8 @@ describe("fetchNoFluffJobs", () => {
 
     expect(result.success).toBe(true);
     if (!result.success) return;
-    expect(result.jobs[0].remoteScope).toBe("global");
-    expect(result.jobs[0].locationCountries).toBeNull();
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["PL"]);
   });
 
   it("defaults to global when places array is empty", async () => {

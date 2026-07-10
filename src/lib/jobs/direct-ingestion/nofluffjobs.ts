@@ -274,8 +274,14 @@ function inferScopeFromPlaces(
   }
 
   if (countryCodes.size === 0) {
-    // No structured country codes → can't determine fencing, default to global
-    return { remoteScope: "global", locationCountries: null };
+    // Places exist but no country codes could be extracted. NoFluffJobs is a
+    // Polish/CEE board — jobs without explicit country data are almost
+    // certainly Poland-only remote. Default to country_fenced with PL rather
+    // than global, which was the previous (incorrect) default that caused 137
+    // Poland jobs to be misclassified as global. If a job is truly worldwide,
+    // the country name would contain "Anywhere"/"World"/"Global" (checked
+    // above) and would have already returned global.
+    return { remoteScope: "country_fenced", locationCountries: ["PL"] };
   }
 
   const codes = [...countryCodes];

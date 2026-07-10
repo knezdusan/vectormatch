@@ -71,7 +71,12 @@ export interface RemoteScopeResult {
    *  when the LLM or regex can identify specific countries. */
   allowedCountries: string[] | null;
   /** Which step produced this result — for observability and cost tracking. */
-  resolvedBy: "step1_ats_native" | "step1_regex" | "step2_llm" | "hard_fail";
+  resolvedBy:
+    | "step1_ats_native"
+    | "step1_regex"
+    | "step2_llm"
+    | "hard_fail"
+    | "deterministic_only_no_signal";
   /** Confidence 0.0–1.0. Step 1 high-confidence = 1.0; Step 2 = LLM-reported. */
   confidence: number;
 }
@@ -866,13 +871,13 @@ export async function extractRemoteScope(
     };
   }
 
-  // Deterministic-only mode: return "unknown" instead of calling LLM.
+  // Deterministic-only mode: return "undetermined" instead of calling LLM.
   // Used at ingestion time (Step 4.4) to resolve remote-scope without LLM cost.
   // The LLM fallback is deferred to Step 5.5 (after Gate 1+2) — only runs on
   // the viable set (jobs that passed stack/persona filter).
   if (deterministicOnly) {
     return {
-      remoteScope: "unknown",
+      remoteScope: "undetermined",
       allowedCountries: null,
       resolvedBy: "deterministic_only_no_signal",
       confidence: 0,

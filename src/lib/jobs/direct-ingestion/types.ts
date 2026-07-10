@@ -9,6 +9,51 @@
 // Unlike the ATS poller's NormalizedJob, DirectIngestionJob includes
 // extractedTags and normalizedText directly from the board's structured data,
 // because we skip LLM normalization entirely (WI3 Step 4).
+//
+// ── Architecture Decision: Per-Adapter Scope Logic (C3, July 2026) ──────────
+//
+// Direct-ingestion adapters do NOT route through extractRemoteScope (the
+// central classifier used by ATS poller jobs). Instead, each adapter has its
+// own audited, tested scope inference logic. This is an intentional design
+// choice, not an oversight:
+//
+//   1. Structured data is more reliable than regex on JD text. Each board
+//      exposes country data in a different format:
+//        - NoFluffJobs: places[] with country.code + country.name
+//        - JustJoin:    single countryCode (ISO alpha-2)
+//        - Remotive:    candidate_required_location (free-text string)
+//        - WWR:         <region> XML field (free-text string)
+//        - Himalayas:   no country data at all (truly global board)
+//        - RemoteOK:    no country data at all (truly global board)
+//        - Arbeitnow:   no country data at all (truly global board)
+//      Routing these through extractRemoteScope (designed for unstructured
+//      JD text) would discard the structured signal and rely on regex matching
+//      against a synthesized text blob — less accurate, not more.
+//
+//   2. Each adapter's scope logic is tested in direct-ingestion.test.ts.
+//      The tests cover: single-country fencing, multi-country region fencing,
+//      "Anywhere"/"World" global detection, alpha-3→alpha-2 normalization,
+//      and the no-country-data fallback.
+//
+//   3. The "no country data" fallback is adapter-specific:
+//        - NoFluffJobs: defaults to country_fenced/PL (Polish board)
+//        - JustJoin:    defaults to global (remote-first, no primary country)
+//        - Himalayas:   hardcoded global (truly global board)
+//        - RemoteOK:    hardcoded global (truly global board)
+//        - Arbeitnow:   hardcoded global (truly global board)
+//        - Remotive:    infers from candidate_required_location string
+//        - WWR:         infers from <region> field
+//
+//   4. Recall checks must state which paths they cover. The A1 amendment
+//      recall check covers BOTH paths:
+//        - ATS poller path: extractRemoteScope (greenhouse, ashby, lever,
+//          smartrecruiters) — multi-probe + LLM fallback
+//        - Direct-ingestion path: per-adapter scope logic (nofluffjobs,
+//          justjoin, himalayas, remotive, remoteok, arbeitnow, wwr)
+//      Any future recall check must explicitly state which paths it covers.
+//
+//   5. The stale-classification sweep (C4) targets BOTH paths — it re-checks
+//      global jobs with specific locations regardless of source.
 
 /** A job normalized from a direct job board API response. */
 export interface DirectIngestionJob {

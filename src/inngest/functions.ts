@@ -2408,6 +2408,194 @@ export const nightlyResurrectionSweep = inngest.createFunction(
   },
 );
 
+// ── Stale Classification Sweep (C4) ──────────────────────────────────────────
+//
+// Nightly sweep that re-checks jobs classified as "global" but which have a
+// specific (non-generic) location name. These are often stale classifications
+// from before a classifier fix shipped — the upgrade-remote-scope step only
+// processes "unknown" jobs, and re-poll overwrites remoteScope to "unknown"
+// but doesn't trigger re-classification for already-definitive jobs.
+//
+// This sweep prevents the kind of stale-residue gap that caused 304 clear FNs
+// (C1) to accumulate: jobs classified as "global" before the location-based
+// fencing logic was added, never re-touched because they were already
+// "definitive".
+//
+// The sweep uses the same FN detection logic as the C1 one-off fix:
+//   1. Job is active with remoteScope='global'
+//   2. location_name is specific (not Remote/Worldwide/Global/Anywhere)
+//   3. location_name doesn't contain multi-continent indicators
+//   4. normalized_text has no high-confidence global signal
+//
+// Jobs matching all 4 criteria are re-classified to country_fenced or
+// region_fenced based on the location string, and their embeddings are nulled.
+//
+// Triggered by: cron "30 3 * * *" (daily at 03:30 UTC — 30 min after the
+// resurrection sweep, so they don't compete for DB connections).
+export const nightlyStaleClassificationSweep = inngest.createFunction(
+  {
+    id: "nightly-stale-classification-sweep",
+    name: "Nightly Stale Classification Sweep",
+    triggers: [{ cron: "30 3 * * *" }],
+  },
+  async ({ step }) => {
+    const { sql } = await import("drizzle-orm");
+    const { db } = await import("@/db/db");
+    const { job } = await import("@/db/schemas/jobs/job");
+    const { writeIngestionLog } = await import(
+      "@/lib/jobs/poller/ingestion-log"
+    );
+
+    const startedAt = new Date();
+
+    // Step 1: Find stale global jobs with specific locations and no global signal.
+    // This is the same query pattern as the C1 one-off fix, but running nightly.
+    const staleCandidateIds = await step.run(
+      "get-stale-global-jobs",
+      async () => {
+        const result = await db.execute(sql`
+          SELECT id FROM job
+          WHERE status = 'active'
+            AND remote_scope = 'global'
+            AND location_name IS NOT NULL
+            AND lower(location_name) NOT IN ('remote', 'worldwide', 'global', 'anywhere')
+            AND lower(location_name) NOT LIKE '%global%'
+            AND lower(location_name) NOT LIKE '%worldwide%'
+            AND location_name NOT IN ('AMER/EMEA/APAC', 'Americas, Europe, Asia, Oceania', 'Northern America, LATAM, Europe, APAC')
+            AND normalized_text !~* 'anywhere\s+in\s+the\s+world|worldwide|work\s+from\s+anywhere|work\s+from\s+any\s+location|any\s+country|any\s+location|remote[- ]first|distributed\s+(team|company|workforce|organization)|global\s+remote|no\s+location\s+restrictions|location\s+independent|borderless|team\s+members\s+across\s+\d+\s+countries|operates\s+in\s+\d+\s+countries|fully\s+remote\s+worldwide'
+          LIMIT 500
+        `);
+        return (result.rows ?? result).map(
+          (r: Record<string, unknown>) => r.id as string,
+        );
+      },
+    );
+
+    if (staleCandidateIds.length === 0) {
+      await step.run("write-log", async () => {
+        return writeIngestionLog({
+          type: "tier_recalc",
+          status: "success",
+          source: "nightly_stale_classification_sweep",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt,
+          finishedAt: new Date(),
+        });
+      });
+      return { staleFound: 0, reclassified: 0 };
+    }
+
+    // Step 2: Re-classify each stale job based on its location string.
+    // Region-fenced for broad regions (EMEA, APAC, LATAM, Europe, Asia, etc.),
+    // country_fenced for specific countries (extracted from location_name).
+    const BATCH_SIZE = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < staleCandidateIds.length; i += BATCH_SIZE) {
+      batches.push(staleCandidateIds.slice(i, i + BATCH_SIZE));
+    }
+
+    let reclassified = 0;
+
+    for (const batchIds of batches) {
+      const result = await step.run("reclassify-batch", async () => {
+        const { inArray } = await import("drizzle-orm");
+
+        // Region-fenced: broad regions + multi-country locations
+        const regionResult = await db
+          .update(job)
+          .set({
+            remoteScope: "region_fenced",
+            locationCountries: null,
+            jobEmbedding: null,
+          })
+          .where(
+            sql`${job.id} IN ${sql.raw(`(${batchIds.map((id) => `'${id}'`).join(",")})`)}
+            AND ${job.status} = 'active'
+            AND ${job.remoteScope} = 'global'
+            AND ${job.locationName} IS NOT NULL
+            AND lower(${job.locationName}) NOT IN ('remote', 'worldwide', 'global', 'anywhere')
+            AND lower(${job.locationName}) NOT LIKE '%global%'
+            AND lower(${job.locationName}) NOT LIKE '%worldwide%'
+            AND ${job.locationName} NOT IN ('AMER/EMEA/APAC', 'Americas, Europe, Asia, Oceania', 'Northern America, LATAM, Europe, APAC')
+            AND ${job.normalizedText} !~* 'anywhere\\s+in\\s+the\\s+world|worldwide|work\\s+from\\s+anywhere|work\\s+from\\s+any\\s+location|any\\s+country|any\\s+location|remote[- ]first|distributed\\s+(team|company|workforce|organization)|global\\s+remote|no\\s+location\\s+restrictions|location\\s+independent|borderless|team\\s+members\\s+across\\s+\\d+\\s+countries|operates\\s+in\\s+\\d+\\s+countries|fully\\s+remote\\s+worldwide'
+            AND (
+              lower(${job.locationName}) LIKE '%emea%'
+              OR lower(${job.locationName}) LIKE '%apac%'
+              OR lower(${job.locationName}) LIKE '%latam%'
+              OR lower(${job.locationName}) LIKE '%americas%'
+              OR lower(${job.locationName}) = 'europe'
+              OR lower(${job.locationName}) LIKE 'europe %'
+              OR lower(${job.locationName}) LIKE '%europe)'
+              OR (lower(${job.locationName}) LIKE '%europe%' AND lower(${job.locationName}) NOT LIKE '%european%')
+              OR lower(${job.locationName}) = 'asia'
+              OR lower(${job.locationName}) LIKE '%africa%'
+              OR lower(${job.locationName}) LIKE '%north america%'
+            )`,
+          )
+          .returning({ id: job.id });
+
+        // Country-fenced: specific country locations (everything else)
+        const countryResult = await db
+          .update(job)
+          .set({
+            remoteScope: "country_fenced",
+            jobEmbedding: null,
+          })
+          .where(
+            sql`${job.id} IN ${sql.raw(`(${batchIds.map((id) => `'${id}'`).join(",")})`)}
+            AND ${job.status} = 'active'
+            AND ${job.remoteScope} = 'global'
+            AND ${job.locationName} IS NOT NULL
+            AND lower(${job.locationName}) NOT IN ('remote', 'worldwide', 'global', 'anywhere')
+            AND lower(${job.locationName}) NOT LIKE '%global%'
+            AND lower(${job.locationName}) NOT LIKE '%worldwide%'
+            AND ${job.locationName} NOT IN ('AMER/EMEA/APAC', 'Americas, Europe, Asia, Oceania', 'Northern America, LATAM, Europe, APAC')
+            AND ${job.normalizedText} !~* 'anywhere\\s+in\\s+the\\s+world|worldwide|work\\s+from\\s+anywhere|work\\s+from\\s+any\\s+location|any\\s+country|any\\s+location|remote[- ]first|distributed\\s+(team|company|workforce|organization)|global\\s+remote|no\\s+location\\s+restrictions|location\\s+independent|borderless|team\\s+members\\s+across\\s+\\d+\\s+countries|operates\\s+in\\s+\\d+\\s+countries|fully\\s+remote\\s+worldwide'
+            AND lower(${job.locationName}) NOT LIKE '%emea%'
+            AND lower(${job.locationName}) NOT LIKE '%apac%'
+            AND lower(${job.locationName}) NOT LIKE '%latam%'
+            AND lower(${job.locationName}) NOT LIKE '%americas%'
+            AND lower(${job.locationName}) NOT LIKE '%europe%'
+            AND lower(${job.locationName}) NOT LIKE '%asia%'
+            AND lower(${job.locationName}) NOT LIKE '%africa%'
+            AND lower(${job.locationName}) NOT LIKE '%north america%'
+            AND lower(${job.locationName}) NOT LIKE '%south america%'
+            AND lower(${job.locationName}) NOT LIKE '%middle east%'`,
+          )
+          .returning({ id: job.id });
+
+        return {
+          regionReclassified: regionResult.length,
+          countryReclassified: countryResult.length,
+        };
+      });
+
+      reclassified += result.regionReclassified + result.countryReclassified;
+    }
+
+    await step.run("write-log", async () => {
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: "success",
+        source: "nightly_stale_classification_sweep",
+        itemsProcessed: staleCandidateIds.length,
+        itemsInserted: 0,
+        itemsUpdated: reclassified,
+        itemsRejected: 0,
+        itemsSkipped: staleCandidateIds.length - reclassified,
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
+    return { staleFound: staleCandidateIds.length, reclassified };
+  },
+);
+
 // ── Module C Trigger (Event-Driven) ─────────────────────────────────────────
 
 /**
@@ -2722,9 +2910,9 @@ export const jobIngestedHandler = inngest.createFunction(
         );
 
         // Only update if the deterministic pass resolved to something
-        // definitive. If it returned "unknown", leave the job as-is —
+        // definitive. If it returned "undetermined", leave the job as-is —
         // the LLM will handle it at Step 5.5.
-        if (scopeResult.remoteScope !== "unknown") {
+        if (scopeResult.remoteScope !== "undetermined") {
           // Rolling-window storage (2026-07-10): If the deterministic pass
           // fences a job that was already embedded (the poller set it to
           // "unknown" and Step 3 embedded it), null out the embedding to
@@ -2746,7 +2934,7 @@ export const jobIngestedHandler = inngest.createFunction(
         }
 
         return {
-          upgraded: scopeResult.remoteScope !== "unknown",
+          upgraded: scopeResult.remoteScope !== "undetermined",
           newScope: scopeResult.remoteScope,
           resolvedBy: scopeResult.resolvedBy,
         };
