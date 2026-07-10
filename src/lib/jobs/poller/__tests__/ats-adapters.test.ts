@@ -500,23 +500,27 @@ describe("fetchJobsFromAts — SmartRecruiters", () => {
 // ── Workable (F2) ────────────────────────────────────────────────────────────
 
 describe("fetchJobsFromAts — Workable", () => {
-  const validResponse = [
-    {
-      shortcode: "ABC123",
-      title: "Full Stack Engineer",
-      companyName: "Acme Corp",
-      department: "Engineering",
-      employmentType: "Full-time",
-      workplace: "remote",
-      location: { city: "Berlin", country: "Germany" },
-      url: "https://apply.workable.com/j/ABC123",
-      applyUrl: "https://apply.workable.com/j/ABC123/apply",
-      description: "<p>We need a React developer</p>",
-      publishedAt: "2024-01-15",
-    },
-  ];
+  const validResponse = {
+    name: "Acme Corp",
+    description: "<p>We make things.</p>",
+    jobs: [
+      {
+        shortcode: "ABC123",
+        title: "Full Stack Engineer",
+        companyName: "Acme Corp",
+        department: "Engineering",
+        employmentType: "Full-time",
+        workplace: "remote",
+        location: { city: "Berlin", country: "Germany" },
+        url: "https://apply.workable.com/j/ABC123",
+        applyUrl: "https://apply.workable.com/j/ABC123/apply",
+        description: "<p>We need a React developer</p>",
+        publishedAt: "2024-01-15",
+      },
+    ],
+  };
 
-  it("fetches and normalizes Workable jobs (bare array)", async () => {
+  it("fetches and normalizes Workable jobs (widget API object)", async () => {
     const result = await fetchJobsFromAts(
       "workable",
       "acme",
@@ -532,11 +536,11 @@ describe("fetchJobsFromAts — Workable", () => {
     }
   });
 
-  it("handles empty array", async () => {
+  it("handles empty jobs array", async () => {
     const result = await fetchJobsFromAts(
       "workable",
       "acme",
-      mockFetch(jsonResponse([])),
+      mockFetch(jsonResponse({ name: "Empty", description: null, jobs: [] })),
     );
 
     expect(result.success).toBe(true);
@@ -545,11 +549,11 @@ describe("fetchJobsFromAts — Workable", () => {
     }
   });
 
-  it("returns validation error on non-array response", async () => {
+  it("returns validation error on bare array (old incorrect format)", async () => {
     const result = await fetchJobsFromAts(
       "workable",
       "acme",
-      mockFetch(jsonResponse({ jobs: [] })), // Workable returns a bare array
+      mockFetch(jsonResponse([{ title: "Engineer" }])), // Old format — should fail
     );
 
     expect(result.success).toBe(false);

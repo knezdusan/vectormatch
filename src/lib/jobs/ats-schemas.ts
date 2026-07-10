@@ -345,8 +345,16 @@ export const workableJobSchema = z
   })
   .passthrough();
 
-// Workable widget API returns a bare array of jobs (like Lever v0)
-export const workableJobsResponseSchema = z.array(workableJobSchema);
+// Workable widget API returns { name, description, jobs: [...] } — an object
+// with a jobs array, NOT a bare array. Schema drift discovered 2026-07-09
+// during M3 never-polled hit-rate audit: the previous schema (z.array) caused
+// 100% Zod validation failures for all 1,159 workable companies in the
+// backlog, silently blocking them from ever being polled successfully.
+export const workableJobsResponseSchema = z.object({
+  name: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  jobs: z.array(workableJobSchema),
+});
 
 // =============================================================================
 // RECRUITEE — Careers Site API v1 (F2)

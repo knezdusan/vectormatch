@@ -366,10 +366,11 @@ function normalizeWorkable(json: unknown): AtsFetchResult {
     };
   }
 
-  // Workable widget API returns a bare array (like Lever v0)
-  const rawJobs = json as unknown[];
-  const jobs: NormalizedJob[] = parsed.data.map((job, i) => {
-    const rawJsonStr = JSON.stringify(rawJobs[i]);
+  // Workable widget API returns { name, description, jobs: [...] }
+  // Schema drift fix (2026-07-09): was treating the response as a bare array.
+  const rawJobs = parsed.data.jobs;
+  const jobs: NormalizedJob[] = rawJobs.map((job) => {
+    const rawJsonStr = JSON.stringify(job);
     return {
       externalJobId: job.shortcode ?? job.id ?? "",
       title: job.title,

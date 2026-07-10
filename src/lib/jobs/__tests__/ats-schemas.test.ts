@@ -601,16 +601,33 @@ describe("workableJobSchema", () => {
 });
 
 describe("workableJobsResponseSchema", () => {
-  it("parses a bare array of jobs", () => {
-    const result = workableJobsResponseSchema.safeParse([
-      { title: "Engineer", shortcode: "A1" },
-      { title: "Designer", shortcode: "A2" },
-    ]);
+  it("parses the widget API response object with jobs array", () => {
+    const result = workableJobsResponseSchema.safeParse({
+      name: "Acme Corp",
+      description: "<p>We make things.</p>",
+      jobs: [
+        { title: "Engineer", shortcode: "A1" },
+        { title: "Designer", shortcode: "A2" },
+      ],
+    });
     expect(result.success).toBe(true);
+    expect(result.data?.jobs).toHaveLength(2);
   });
 
-  it("fails on non-array input", () => {
-    const result = workableJobsResponseSchema.safeParse({ jobs: [] });
+  it("parses a response with empty jobs array", () => {
+    const result = workableJobsResponseSchema.safeParse({
+      name: "Empty Corp",
+      description: null,
+      jobs: [],
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.jobs).toHaveLength(0);
+  });
+
+  it("fails on a bare array (old incorrect format)", () => {
+    const result = workableJobsResponseSchema.safeParse([
+      { title: "Engineer", shortcode: "A1" },
+    ]);
     expect(result.success).toBe(false);
   });
 });
