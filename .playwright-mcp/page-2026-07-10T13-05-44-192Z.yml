@@ -1,0 +1,327 @@
+- generic [active] [ref=f6e1]:
+  - generic [ref=f6e2]:
+    - banner [ref=f6e3]:
+      - generic [ref=f6e4]:
+        - link "Vector••Match" [ref=f6e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=f6e7]
+          - generic [ref=f6e12]: Vector••Match
+        - navigation [ref=f6e13]:
+          - link "Jobs" [ref=f6e14] [cursor=pointer]:
+            - /url: /jobs
+          - link "How it works" [ref=f6e15] [cursor=pointer]:
+            - /url: /#how
+          - link "For Developers" [ref=f6e16] [cursor=pointer]:
+            - /url: /#pitch
+          - link "Blog" [ref=f6e17] [cursor=pointer]:
+            - /url: /blog
+        - generic [ref=f6e21]:
+          - button "Log in" [ref=f6e22]:
+            - link "Log in" [ref=f6e23] [cursor=pointer]:
+              - /url: /auth?tab=signin
+          - link "Get Started" [ref=f6e24] [cursor=pointer]:
+            - /url: /auth?tab=signup
+    - main [ref=f6e25]:
+      - generic [ref=f6e27]:
+        - generic [ref=f6e28]:
+          - generic [ref=f6e29]:
+            - img [ref=f6e30]
+            - text: The AI Agent for Web Developers
+          - heading "Skip the gatekeepers. Get hired on your terms." [level=1] [ref=f6e33]:
+            - text: Skip the gatekeepers.
+            - text: Get hired on your terms.
+          - paragraph [ref=f6e34]: VectorMatch finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner, not just another applicant.
+          - generic [ref=f6e35]:
+            - link "Start Your AI Job Hunt" [ref=f6e36] [cursor=pointer]:
+              - /url: /auth?tab=signup
+              - text: Start Your AI Job Hunt
+              - img
+            - link "See How It Works" [ref=f6e37] [cursor=pointer]:
+              - /url: "#how"
+              - generic [ref=f6e38]:
+                - img
+              - text: See How It Works
+          - generic [ref=f6e39]:
+            - generic [ref=f6e40]: Trusted by developers
+            - generic [ref=f6e41]:
+              - generic [ref=f6e42]:
+                - img "Developer 1" [ref=f6e44]
+                - img "Developer 2" [ref=f6e46]
+                - img "Developer 3" [ref=f6e48]
+                - img "Developer 4" [ref=f6e50]
+                - img "Developer 5" [ref=f6e52]
+                - generic [ref=f6e53]: +2k
+              - generic [ref=f6e54]:
+                - generic [ref=f6e55]: 2,000+ developers
+                - text: found better opportunities
+        - generic [ref=f6e56]:
+          - img "Developer facing a glowing code portal" [ref=f6e58]
+          - generic [ref=f6e59]:
+            - generic [ref=f6e61]: HN
+            - generic [ref=f6e62]:
+              - generic [ref=f6e63]: Hacker News
+              - generic [ref=f6e64]: Who is Hiring
+          - generic [ref=f6e65]:
+            - img [ref=f6e67]
+            - generic [ref=f6e69]:
+              - generic [ref=f6e70]: Greenhouse
+              - generic [ref=f6e71]: ATS Jobs
+          - generic [ref=f6e72]:
+            - img [ref=f6e74]
+            - generic [ref=f6e76]:
+              - generic [ref=f6e77]: Lever
+              - generic [ref=f6e78]: Opportunities
+          - generic [ref=f6e79]:
+            - img [ref=f6e81]
+            - generic [ref=f6e84]:
+              - generic [ref=f6e85]: Hidden Boards
+              - generic [ref=f6e86]: httparchive
+          - generic [ref=f6e87]:
+            - img "CTO" [ref=f6e89]
+            - generic [ref=f6e90]:
+              - generic [ref=f6e91]: CTO
+              - generic [ref=f6e92]: Fintech Startup
+          - generic [ref=f6e94]:
+            - img "Eng Manager" [ref=f6e96]
+            - generic [ref=f6e97]:
+              - generic [ref=f6e98]: Eng Manager
+              - generic [ref=f6e99]: AI Company
+          - generic [ref=f6e101]:
+            - img "Tech Lead" [ref=f6e103]
+            - generic [ref=f6e104]:
+              - generic [ref=f6e105]: Tech Lead
+              - generic [ref=f6e106]: SaaS Platform
+          - generic [ref=f6e108]:
+            - img "Founder" [ref=f6e110]
+            - generic [ref=f6e111]:
+              - generic [ref=f6e112]: Founder
+              - generic [ref=f6e113]: Web3 Startup
+          - generic [ref=f6e115]:
+            - generic [ref=f6e116]: You focus on coding.
+            - generic [ref=f6e117]: VectorMatch handles the rest.
+      - generic [ref=f6e119]:
+        - generic [ref=f6e120]:
+          - text: How it works
+          - heading "AI-Powered. Developer-Focused. Results-Driven." [level=2] [ref=f6e121]
+          - paragraph [ref=f6e122]: Our 3-Gate AI Pipeline ensures you only see opportunities that truly match your skills, preferences, and career goals.
+        - generic [ref=f6e123]:
+          - complementary [ref=f6e124]:
+            - generic [ref=f6e125]: Job Sources
+            - generic [ref=f6e126]:
+              - generic [ref=f6e128]: HN
+              - generic [ref=f6e129]:
+                - generic [ref=f6e130]: Hacker News
+                - generic [ref=f6e131]: Who is Hiring
+            - generic [ref=f6e132]:
+              - img [ref=f6e134]
+              - generic [ref=f6e136]:
+                - generic [ref=f6e137]: Greenhouse
+                - generic [ref=f6e138]: ATS
+            - generic [ref=f6e139]:
+              - img [ref=f6e141]
+              - generic [ref=f6e143]:
+                - generic [ref=f6e144]: Lever
+                - generic [ref=f6e145]: Opportunities
+            - generic [ref=f6e146]:
+              - img [ref=f6e148]
+              - generic [ref=f6e151]:
+                - generic [ref=f6e152]: httparchive
+                - generic [ref=f6e153]: Company Scans
+            - generic [ref=f6e154]:
+              - img [ref=f6e156]
+              - generic [ref=f6e161]:
+                - generic [ref=f6e162]: Hidden Channels
+                - generic [ref=f6e163]: "& Networks"
+          - generic [ref=f6e164]:
+            - article [ref=f6e165]:
+              - generic [ref=f6e166]: "1"
+              - heading "Database Filter (GIN Index)" [level=3] [ref=f6e167]:
+                - text: Database Filter
+                - generic [ref=f6e168]: (GIN Index)
+              - paragraph [ref=f6e169]: Lightning-fast tag screening using advanced database indexing technology.
+            - article [ref=f6e170]:
+              - generic [ref=f6e171]: "2"
+              - heading "Vector Search (HNSW)" [level=3] [ref=f6e172]:
+                - text: Vector Search
+                - generic [ref=f6e173]: (HNSW)
+              - paragraph [ref=f6e174]: Semantic similarity matching surfaces conceptually relevant opportunities.
+            - article [ref=f6e175]:
+              - generic [ref=f6e176]: "3"
+              - heading "AI Reasoning (Agent Swarm)" [level=3] [ref=f6e177]:
+                - text: AI Reasoning
+                - generic [ref=f6e178]: (Agent Swarm)
+              - paragraph [ref=f6e179]: Deep analysis ensures a perfect fit for your unique profile and goals.
+          - complementary [ref=f6e180]:
+            - generic [ref=f6e181]: Perfect Matches
+            - generic [ref=f6e182]:
+              - generic [ref=f6e183]:
+                - generic [ref=f6e184]:
+                  - generic [ref=f6e185]:
+                    - heading "Senior Full Stack Dev" [level=4] [ref=f6e186]
+                    - generic [ref=f6e187]: Fintech Startup
+                  - img [ref=f6e188]
+                - generic [ref=f6e190]:
+                  - generic [ref=f6e191]: $120k – $160k
+                  - generic [ref=f6e192]:
+                    - img [ref=f6e193]
+                    - text: Remote
+              - generic [ref=f6e196]:
+                - generic [ref=f6e197]:
+                  - generic [ref=f6e198]:
+                    - heading "Staff Engineer" [level=4] [ref=f6e199]
+                    - generic [ref=f6e200]: AI Platform
+                  - img [ref=f6e201]
+                - generic [ref=f6e203]:
+                  - generic [ref=f6e204]: $150k – $200k
+                  - generic [ref=f6e205]:
+                    - img [ref=f6e206]
+                    - text: Remote
+              - generic [ref=f6e209]:
+                - generic [ref=f6e210]:
+                  - generic [ref=f6e211]:
+                    - heading "Tech Lead" [level=4] [ref=f6e212]
+                    - generic [ref=f6e213]: SaaS Company
+                  - img [ref=f6e214]
+                - generic [ref=f6e216]:
+                  - generic [ref=f6e217]: $130k – $170k
+                  - generic [ref=f6e218]:
+                    - img [ref=f6e219]
+                    - text: Remote
+              - generic [ref=f6e222]: And more opportunities…
+        - generic [ref=f6e224]: Quality over quantity. Relevance over noise.
+      - generic [ref=f6e226]:
+        - generic [ref=f6e227]:
+          - generic [ref=f6e228]:
+            - img [ref=f6e229]
+            - text: Bypass the ATS Black Hole
+          - heading "Pitch directly. Partner effectively. Get contracted." [level=2] [ref=f6e231]:
+            - text: Pitch directly.
+            - text: Partner effectively.
+            - text: Get contracted.
+          - paragraph [ref=f6e232]: VectorMatch helps you connect directly with CTOs and Engineering Managers, positioning you as a strategic partner through frictionless B2B contracts.
+          - list [ref=f6e233]:
+            - listitem [ref=f6e234]:
+              - img [ref=f6e236]
+              - text: Direct access to decision makers
+            - listitem [ref=f6e239]:
+              - img [ref=f6e241]
+              - text: B2B contracts, not complex employment
+            - listitem [ref=f6e244]:
+              - img [ref=f6e246]
+              - text: Global opportunities, simplified
+            - listitem [ref=f6e249]:
+              - img [ref=f6e251]
+              - text: Higher rates, better relationships
+          - generic [ref=f6e254]:
+            - link "Start Pitching Smarter" [ref=f6e255] [cursor=pointer]:
+              - /url: /auth?tab=signup
+              - text: Start Pitching Smarter
+              - img
+            - link "Learn More" [ref=f6e256] [cursor=pointer]:
+              - /url: /developers
+              - generic [ref=f6e257]:
+                - img
+              - text: Learn More
+        - generic [ref=f6e258]:
+          - generic [ref=f6e259]:
+            - generic [ref=f6e260]:
+              - img "Alex Chen" [ref=f6e262]
+              - generic [ref=f6e263]:
+                - generic [ref=f6e264]: Alex Webb
+                - generic [ref=f6e265]: Senior Full Stack Developer
+            - generic [ref=f6e266]:
+              - generic [ref=f6e267]: React
+              - generic [ref=f6e268]: TypeScript
+              - generic [ref=f6e269]: Node.js
+              - generic [ref=f6e270]: PostgreSQL
+              - generic [ref=f6e271]: +8 more
+          - generic [ref=f6e272]:
+            - generic [ref=f6e273]: Recommended Companies
+            - generic [ref=f6e274]:
+              - generic [ref=f6e275]:
+                - generic [ref=f6e276]: F
+                - generic [ref=f6e277]:
+                  - generic [ref=f6e278]: FintechFlow
+                  - generic [ref=f6e279]: Series B · 50–100 people
+                  - generic [ref=f6e280]: Building the future of financial infrastructure
+                  - generic [ref=f6e281]: "TechStack Match: 95%"
+                - img [ref=f6e282]
+              - generic [ref=f6e284]:
+                - generic [ref=f6e285]: A
+                - generic [ref=f6e286]:
+                  - generic [ref=f6e287]: AI Labs
+                  - generic [ref=f6e288]: Series A · 20–50 people
+                  - generic [ref=f6e289]: AI-powered developer tools
+                  - generic [ref=f6e290]: "TechStack Match: 92%"
+                - img [ref=f6e291]
+          - generic [ref=f6e293]:
+            - heading "Partnership Benefits" [level=3] [ref=f6e294]
+            - list [ref=f6e295]:
+              - listitem [ref=f6e296]:
+                - img [ref=f6e297]
+                - text: Higher compensation
+              - listitem [ref=f6e299]:
+                - img [ref=f6e300]
+                - text: Flexible arrangements
+              - listitem [ref=f6e302]:
+                - img [ref=f6e303]
+                - text: Global opportunities
+              - listitem [ref=f6e305]:
+                - img [ref=f6e306]
+                - text: Long-term relationships
+          - generic [ref=f6e308]:
+            - generic [ref=f6e309]:
+              - img [ref=f6e310]
+              - text: New Pitch
+            - generic [ref=f6e312]: "To: engineering@fintechflow.com"
+            - generic [ref=f6e313]: "Subject: Senior Developer Partnership Opportunity"
+            - generic [ref=f6e314]:
+              - generic [ref=f6e315]: Hi Sarah,
+              - generic [ref=f6e316]: I came across FintechFlow's work on modernizing financial infrastructure — impressive stuff.
+              - generic [ref=f6e317]: I'd love to help accelerate your roadmap as a technical partner. I've attached a brief overview of how I can contribute.
+              - generic [ref=f6e318]: Looking forward to hearing your thoughts.
+              - generic [ref=f6e319]:
+                - text: Best regards,
+                - text: Alex
+            - button "Send Pitch" [ref=f6e320]
+    - contentinfo [ref=f6e321]:
+      - generic [ref=f6e322]:
+        - generic [ref=f6e323]:
+          - generic [ref=f6e324]:
+            - link "Vector••Match" [ref=f6e325] [cursor=pointer]:
+              - /url: /
+              - img [ref=f6e327]
+              - generic [ref=f6e332]: Vector••Match
+            - paragraph [ref=f6e333]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+          - generic [ref=f6e334]:
+            - generic [ref=f6e335]:
+              - heading "Product" [level=2] [ref=f6e336]
+              - link "How it works" [ref=f6e337] [cursor=pointer]:
+                - /url: "#how"
+              - link "For Developers" [ref=f6e338] [cursor=pointer]:
+                - /url: /#pitch
+              - link "VectorMatch" [ref=f6e339] [cursor=pointer]:
+                - /url: /#top
+            - generic [ref=f6e340]:
+              - heading "Company" [level=2] [ref=f6e341]
+              - link "Blog" [ref=f6e342] [cursor=pointer]:
+                - /url: /blog
+              - link "About" [ref=f6e343] [cursor=pointer]:
+                - /url: /about
+              - link "Contact" [ref=f6e344] [cursor=pointer]:
+                - /url: /contact
+            - generic [ref=f6e345]:
+              - heading "Legal" [level=2] [ref=f6e346]
+              - link "Privacy" [ref=f6e347] [cursor=pointer]:
+                - /url: /privacy
+              - link "Terms" [ref=f6e348] [cursor=pointer]:
+                - /url: /terms
+              - link "B2B Compliance" [ref=f6e349] [cursor=pointer]:
+                - /url: /compliance
+        - generic [ref=f6e350]:
+          - generic [ref=f6e351]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+          - generic [ref=f6e352]: Built for developers, by developers.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f6e358] [cursor=pointer]:
+    - img [ref=f6e359]
+  - alert [ref=f6e362]

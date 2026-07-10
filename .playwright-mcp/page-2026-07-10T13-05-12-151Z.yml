@@ -1,0 +1,286 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e2]:
+    - banner [ref=f4e3]:
+      - generic [ref=f4e4]:
+        - link "Vector••Match" [ref=f4e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=f4e7]
+          - generic [ref=f4e12]: Vector••Match
+        - navigation [ref=f4e13]:
+          - link "Jobs" [ref=f4e14] [cursor=pointer]:
+            - /url: /jobs
+          - link "How it works" [ref=f4e15] [cursor=pointer]:
+            - /url: /#how
+          - link "For Developers" [ref=f4e16] [cursor=pointer]:
+            - /url: /#pitch
+          - link "Blog" [ref=f4e17] [cursor=pointer]:
+            - /url: /blog
+        - generic [ref=f4e21]:
+          - button "Log in" [ref=f4e22]:
+            - link "Log in" [ref=f4e23] [cursor=pointer]:
+              - /url: /auth?tab=signin
+          - link "Get Started" [ref=f4e24] [cursor=pointer]:
+            - /url: /auth?tab=signup
+    - main [ref=f4e25]:
+      - generic [ref=f4e27]:
+        - generic [ref=f4e28]: Terms
+        - heading "Terms of Service" [level=1] [ref=f4e29]
+        - paragraph [ref=f4e30]: These terms govern your use of VectorMatch. They define our role as a user-driven job intelligence tool, your responsibilities, and the legal boundaries that protect both you and the Platform.
+        - paragraph [ref=f4e31]: "Last updated: 10 July 2026"
+      - generic [ref=f4e33]:
+        - complementary [ref=f4e34]:
+          - navigation [ref=f4e35]:
+            - heading "Contents" [level=2] [ref=f4e36]
+            - list [ref=f4e37]:
+              - listitem [ref=f4e38]:
+                - link "1. Acceptance of Terms" [ref=f4e39] [cursor=pointer]:
+                  - /url: "#acceptance"
+              - listitem [ref=f4e40]:
+                - link "2. What VectorMatch Is" [ref=f4e41] [cursor=pointer]:
+                  - /url: "#definition"
+              - listitem [ref=f4e42]:
+                - link "3. User-Driven Job Intelligence Tool" [ref=f4e43] [cursor=pointer]:
+                  - /url: "#user-driven"
+              - listitem [ref=f4e44]:
+                - link "4. Accounts & Authentication" [ref=f4e45] [cursor=pointer]:
+                  - /url: "#accounts"
+              - listitem [ref=f4e46]:
+                - link "5. Acceptable Use" [ref=f4e47] [cursor=pointer]:
+                  - /url: "#acceptable-use"
+              - listitem [ref=f4e48]:
+                - link "6. CV Accuracy & User Responsibility" [ref=f4e49] [cursor=pointer]:
+                  - /url: "#cv-accuracy"
+              - listitem [ref=f4e50]:
+                - link "7. Public Data Disclaimer" [ref=f4e51] [cursor=pointer]:
+                  - /url: "#public-data"
+              - listitem [ref=f4e52]:
+                - link "8. Outbound Pitches & Communications" [ref=f4e53] [cursor=pointer]:
+                  - /url: "#pitches"
+              - listitem [ref=f4e54]:
+                - link "9. B2B Compliance Resources" [ref=f4e55] [cursor=pointer]:
+                  - /url: "#compliance"
+              - listitem [ref=f4e56]:
+                - link "10. Intellectual Property" [ref=f4e57] [cursor=pointer]:
+                  - /url: "#intellectual-property"
+              - listitem [ref=f4e58]:
+                - link "11. Disclaimer of Warranties" [ref=f4e59] [cursor=pointer]:
+                  - /url: "#disclaimer"
+              - listitem [ref=f4e60]:
+                - link "12. Limitation of Liability" [ref=f4e61] [cursor=pointer]:
+                  - /url: "#liability"
+              - listitem [ref=f4e62]:
+                - link "13. Indemnification" [ref=f4e63] [cursor=pointer]:
+                  - /url: "#indemnification"
+              - listitem [ref=f4e64]:
+                - link "14. Termination" [ref=f4e65] [cursor=pointer]:
+                  - /url: "#termination"
+              - listitem [ref=f4e66]:
+                - link "15. Governing Law & Disputes" [ref=f4e67] [cursor=pointer]:
+                  - /url: "#governing-law"
+              - listitem [ref=f4e68]:
+                - link "16. Changes to These Terms" [ref=f4e69] [cursor=pointer]:
+                  - /url: "#changes"
+              - listitem [ref=f4e70]:
+                - link "17. Contact" [ref=f4e71] [cursor=pointer]:
+                  - /url: "#contact"
+        - generic [ref=f4e72]:
+          - heading "1. Acceptance of Terms" [level=2] [ref=f4e73]
+          - paragraph [ref=f4e74]: By creating an account, uploading your CV, or otherwise using VectorMatch (the “Platform”), you agree to be bound by these Terms of Service (“Terms”). If you do not agree to these Terms, you must not use the Platform.
+          - paragraph [ref=f4e75]: These Terms form a legally binding agreement between you (“you”, “User”) and VectorMatch (“we”, “us”). If you are using the Platform on behalf of an entity, you represent that you have authority to bind that entity.
+          - heading "2. What VectorMatch Is" [level=2] [ref=f4e76]
+          - paragraph [ref=f4e77]: VectorMatch is an AI-powered job-matching service for web developers. It analyzes your CV, extracts your technical skills and experience, generates semantic embeddings, and matches you against job postings sourced from public Applicant Tracking Systems (ATS) and remote-first job boards. The Platform also generates personalized cold-outreach email templates to help you pitch directly to hiring managers.
+          - generic [ref=f4e78]:
+            - generic [ref=f4e79]:
+              - generic [ref=f4e80]: "!"
+              - text: What VectorMatch is NOT
+            - list [ref=f4e82]:
+              - listitem [ref=f4e83]:
+                - strong [ref=f4e85]: Not an employer or recruiter.
+                - text: We do not hire, we do not make hiring decisions, and we are not a staffing agency.
+              - listitem [ref=f4e86]:
+                - strong [ref=f4e88]: Not a job board.
+                - text: We do not host job postings ourselves — we discover and match postings that already exist publicly on third-party ATS platforms.
+              - listitem [ref=f4e89]:
+                - strong [ref=f4e91]: Not a guarantee of employment.
+                - text: We provide tools and recommendations. Outcomes depend on your skills, the market, and the employers you choose to engage with.
+          - heading "3. User-Driven Job Intelligence Tool" [level=2] [ref=f4e92]
+          - paragraph [ref=f4e93]:
+            - text: VectorMatch operates as a
+            - strong [ref=f4e94]: user-driven automated agent
+            - text: ". This means:"
+          - list [ref=f4e95]:
+            - listitem [ref=f4e96]:
+              - text: The Platform acts
+              - strong [ref=f4e98]: on your behalf
+              - text: when reading publicly accessible job data from ATS platforms, job boards, and company career pages. You authorize the Platform to access this public data for the purpose of finding matches for your profile.
+            - listitem [ref=f4e99]:
+              - text: The Platform reads only
+              - strong [ref=f4e101]: publicly visible
+              - text: data — job postings that are accessible without authentication on the source platforms. We do not access private, gated, or login-protected content.
+            - listitem [ref=f4e102]:
+              - text: You acknowledge that the Platform has
+              - strong [ref=f4e104]: no affiliation
+              - text: with the third-party ATS platforms (Greenhouse, Lever, Ashby, Workday, etc.) or job boards (Himalayas, NoFluffJobs, RemoteOK, Remotive, WeWorkRemotely, Arbeitnow) it reads from. We do not represent them, and they do not endorse us.
+            - listitem [ref=f4e105]:
+              - text: You are solely responsible for any outreach you send using the Platform’s pitch generation tools. The Platform drafts templates;
+              - strong [ref=f4e107]: you
+              - text: decide whether to send them.
+          - heading "4. Accounts & Authentication" [level=2] [ref=f4e108]
+          - paragraph [ref=f4e109]: You must provide accurate and complete information when creating your account. You are responsible for maintaining the security of your account credentials and for all activity that occurs under your account.
+          - paragraph [ref=f4e110]: We offer authentication via email/password and OAuth (Google, GitHub). You may close your account at any time by contacting us. We reserve the right to suspend or terminate accounts that violate these Terms or applicable law.
+          - heading "5. Acceptable Use" [level=2] [ref=f4e111]
+          - paragraph [ref=f4e112]: "You agree not to:"
+          - list [ref=f4e113]:
+            - listitem [ref=f4e114]: Upload a CV that contains false, misleading, or fraudulent information about your experience or qualifications
+            - listitem [ref=f4e116]: Use the Platform to scrape, harvest, or redistribute job postings for commercial purposes beyond your personal job search
+            - listitem [ref=f4e118]: Send unsolicited mass emails or spam using the pitch generation tools
+            - listitem [ref=f4e120]: Attempt to reverse-engineer, decompile, or otherwise extract the Platform’s source code, algorithms, or proprietary data
+            - listitem [ref=f4e122]: Use automated scripts, bots, or crawlers to access the Platform outside of the provided interface
+            - listitem [ref=f4e124]: Use the Platform in any way that violates applicable laws, including employment discrimination laws, data protection laws, or anti-spam regulations
+            - listitem [ref=f4e126]: Impersonate another person or misrepresent your affiliation with a company or organization
+          - heading "6. CV Accuracy & User Responsibility" [level=2] [ref=f4e128]
+          - paragraph [ref=f4e129]:
+            - text: You are
+            - strong [ref=f4e130]: solely responsible
+            - text: for the accuracy and truthfulness of the information in the CV you upload. The Platform extracts and structures data from your CV using AI, but it does not verify the accuracy of your claims.
+          - paragraph [ref=f4e131]: "You acknowledge that:"
+          - list [ref=f4e132]:
+            - listitem [ref=f4e133]: Any pitch email generated by the Platform is based on the information you provided. If that information is inaccurate, the pitch will be inaccurate.
+            - listitem [ref=f4e135]: Employers may verify the claims in your CV independently. You are responsible for any consequences of misrepresentation.
+            - listitem [ref=f4e137]: The Platform’s AI may occasionally misinterpret or misclassify information from your CV. You should review your extracted profile in the dashboard and correct any errors before relying on match results.
+          - heading "7. Public Data Disclaimer" [level=2] [ref=f4e139]
+          - paragraph [ref=f4e140]:
+            - text: All job postings matched and displayed by the Platform are derived from
+            - strong [ref=f4e141]: publicly visible employer data feeds
+            - text: "on third-party ATS platforms and job boards. We formally declare:"
+          - list [ref=f4e142]:
+            - listitem [ref=f4e143]:
+              - text: We make
+              - strong [ref=f4e145]: no guarantee
+              - text: of uninterrupted access to any third-party platform. ATS platforms may change their APIs, rate limits, or data structures at any time without notice.
+            - listitem [ref=f4e146]:
+              - text: We have
+              - strong [ref=f4e148]: no affiliation
+              - text: with any ATS platform, job board, or employer whose data appears on the Platform.
+            - listitem [ref=f4e149]:
+              - text: Job postings may be
+              - strong [ref=f4e151]: stale, expired, or removed
+              - text: by the time you view them. We display the last seen date and mark stale postings, but we cannot guarantee that a posting is still active.
+            - listitem [ref=f4e152]: Job descriptions, requirements, and compensation details are provided by the employer and may contain errors. We do not verify or endorse the accuracy of third-party job content.
+            - listitem [ref=f4e154]: The Platform may cease to source from a particular ATS or job board if that platform blocks access, changes its terms, or becomes unavailable. This does not constitute a breach of these Terms.
+          - heading "8. Outbound Pitches & Communications" [level=2] [ref=f4e156]
+          - paragraph [ref=f4e157]: "The Platform generates personalized cold-outreach email templates (“Minute Zero pitches”) based on your profile and the matched job. You are solely responsible for:"
+          - list [ref=f4e158]:
+            - listitem [ref=f4e159]: Deciding whether to send a pitch and to whom
+            - listitem [ref=f4e161]: The accuracy of any claims made in the pitch (which are derived from your CV)
+            - listitem [ref=f4e163]: Compliance with anti-spam laws (CAN-SPAM, GDPR, ePrivacy Directive) applicable to your outreach
+            - listitem [ref=f4e165]: Any consequences of contacting a third party, including being blocked, ignored, or reported
+          - paragraph [ref=f4e167]: The Platform does not send emails on your behalf. It generates drafts that you review and send through your own email client.
+          - heading "9. B2B Compliance Resources" [level=2] [ref=f4e168]
+          - paragraph [ref=f4e169]:
+            - text: The Platform provides B2B compliance resources, including guidance on W-8BEN forms, independent contractor arrangements, and international payment methods. These resources are
+            - strong [ref=f4e170]: informational only
+            - text: and do not constitute legal, tax, or accounting advice.
+          - paragraph [ref=f4e171]: You should consult a qualified professional before entering into any contractor or employment arrangement. We are not responsible for any tax liabilities, legal disputes, or compliance failures arising from your use of these resources.
+          - heading "10. Intellectual Property" [level=2] [ref=f4e172]
+          - heading "10.1 Platform IP" [level=3] [ref=f4e173]
+          - paragraph [ref=f4e174]: The Platform, including its software, algorithms, design, matching engine, and brand, is owned by VectorMatch and protected by intellectual property laws. These Terms do not grant you any right to use the Platform’s trademarks, logos, or proprietary technology except as necessary to use the service.
+          - heading "10.2 Your Content" [level=3] [ref=f4e175]
+          - paragraph [ref=f4e176]: You retain ownership of your CV, profile data, and any content you create using the Platform. By uploading your CV, you grant us a limited license to process it for the purpose of providing the matching service, generating embeddings, and producing pitch drafts as described in our Privacy Policy.
+          - heading "10.3 Third-Party Content" [level=3] [ref=f4e177]
+          - paragraph [ref=f4e178]: Job postings displayed on the Platform are the property of the respective employers and ATS platforms. We display them for your personal job search and do not claim ownership of third-party content.
+          - heading "11. Disclaimer of Warranties" [level=2] [ref=f4e179]
+          - paragraph [ref=f4e180]:
+            - text: The Platform is provided
+            - strong [ref=f4e181]: “as is”
+            - text: and
+            - strong [ref=f4e182]: “as available”
+            - text: "without warranties of any kind, whether express or implied. We do not warrant that:"
+          - list [ref=f4e183]:
+            - listitem [ref=f4e184]: The Platform will be uninterrupted, error-free, or secure
+            - listitem [ref=f4e186]: The job matches will be accurate, relevant, or lead to employment
+            - listitem [ref=f4e188]: The AI extraction and matching will be free from errors or bias
+            - listitem [ref=f4e190]: Third-party ATS platforms will remain accessible or continue to provide data
+          - paragraph [ref=f4e192]: You use the Platform at your own risk.
+          - heading "12. Limitation of Liability" [level=2] [ref=f4e193]
+          - paragraph [ref=f4e194]: To the maximum extent permitted by law, VectorMatch shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or goodwill, arising from your use of (or inability to use) the Platform.
+          - paragraph [ref=f4e195]:
+            - text: Our total aggregate liability for all claims arising from these Terms shall not exceed the amount you have paid us in the 12 months preceding the claim, or
+            - strong [ref=f4e196]: €100
+            - text: if you have not paid us anything (e.g., during the free tier).
+          - paragraph [ref=f4e197]: This limitation does not apply to liability that cannot be excluded under applicable law (e.g., gross negligence, willful misconduct, or mandatory consumer protection provisions).
+          - heading "13. Indemnification" [level=2] [ref=f4e198]
+          - paragraph [ref=f4e199]:
+            - text: You agree to
+            - strong [ref=f4e200]: indemnify and hold harmless
+            - text: "VectorMatch, its officers, employees, and affiliates from any claims, damages, losses, or expenses (including reasonable legal fees) arising from:"
+          - list [ref=f4e201]:
+            - listitem [ref=f4e202]: The inaccuracy of information in your CV or profile
+            - listitem [ref=f4e204]: Your use of the Platform in violation of these Terms or applicable law
+            - listitem [ref=f4e206]: Outbound pitches or communications you send to third parties
+            - listitem [ref=f4e208]: Any misrepresentation of your qualifications, identity, or affiliation
+            - listitem [ref=f4e210]: Any breach of your obligations regarding CV accuracy and application outcomes
+          - heading "14. Termination" [level=2] [ref=f4e212]
+          - paragraph [ref=f4e213]: You may terminate your account at any time by contacting us. Upon termination, we will delete your personal data in accordance with our Privacy Policy retention schedule.
+          - paragraph [ref=f4e214]: We may suspend or terminate your access to the Platform at any time, with or without cause, including if you violate these Terms. Upon termination, all licenses granted to you under these Terms cease immediately.
+          - heading "15. Governing Law & Disputes" [level=2] [ref=f4e215]
+          - paragraph [ref=f4e216]:
+            - text: These Terms are governed by the laws of the
+            - strong [ref=f4e217]: European Union
+            - text: and the jurisdiction in which VectorMatch is established. Any disputes arising from these Terms shall be resolved in the competent courts of that jurisdiction, unless mandatory consumer protection law requires otherwise.
+          - paragraph [ref=f4e218]: Before initiating litigation, we encourage both parties to attempt good-faith resolution through direct communication. You may also use an alternative dispute resolution (ADR) procedure where available.
+          - heading "16. Changes to These Terms" [level=2] [ref=f4e219]
+          - paragraph [ref=f4e220]: We may update these Terms from time to time. We will notify you of material changes via email or in-app notification at least 14 days before they take effect. If you continue using the Platform after the effective date, you are deemed to have accepted the updated Terms.
+          - paragraph [ref=f4e221]: If you do not agree to the updated Terms, you may terminate your account as described in Section 14.
+          - heading "17. Contact" [level=2] [ref=f4e222]
+          - paragraph [ref=f4e223]: "If you have questions about these Terms, please contact us:"
+          - list [ref=f4e224]:
+            - listitem [ref=f4e225]:
+              - text: "Email:"
+              - link "legal@vectormatch.dev" [ref=f4e227] [cursor=pointer]:
+                - /url: mailto:legal@vectormatch.dev
+            - listitem [ref=f4e228]:
+              - text: "General inquiries:"
+              - link "hello@vectormatch.dev" [ref=f4e230] [cursor=pointer]:
+                - /url: mailto:hello@vectormatch.dev
+    - contentinfo [ref=f4e231]:
+      - generic [ref=f4e232]:
+        - generic [ref=f4e233]:
+          - generic [ref=f4e234]:
+            - link "Vector••Match" [ref=f4e235] [cursor=pointer]:
+              - /url: /
+              - img [ref=f4e237]
+              - generic [ref=f4e242]: Vector••Match
+            - paragraph [ref=f4e243]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+          - generic [ref=f4e244]:
+            - generic [ref=f4e245]:
+              - heading "Product" [level=2] [ref=f4e246]
+              - link "How it works" [ref=f4e247] [cursor=pointer]:
+                - /url: "#how"
+              - link "For Developers" [ref=f4e248] [cursor=pointer]:
+                - /url: /#pitch
+              - link "VectorMatch" [ref=f4e249] [cursor=pointer]:
+                - /url: /#top
+            - generic [ref=f4e250]:
+              - heading "Company" [level=2] [ref=f4e251]
+              - link "Blog" [ref=f4e252] [cursor=pointer]:
+                - /url: /blog
+              - link "About" [ref=f4e253] [cursor=pointer]:
+                - /url: /about
+              - link "Contact" [ref=f4e254] [cursor=pointer]:
+                - /url: /contact
+            - generic [ref=f4e255]:
+              - heading "Legal" [level=2] [ref=f4e256]
+              - link "Privacy" [ref=f4e257] [cursor=pointer]:
+                - /url: /privacy
+              - link "Terms" [ref=f4e258] [cursor=pointer]:
+                - /url: /terms
+              - link "B2B Compliance" [ref=f4e259] [cursor=pointer]:
+                - /url: /compliance
+        - generic [ref=f4e260]:
+          - generic [ref=f4e261]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+          - generic [ref=f4e262]: Built for developers, by developers.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f4e268] [cursor=pointer]:
+    - img [ref=f4e269]
+  - alert [ref=f4e272]

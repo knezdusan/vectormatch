@@ -403,6 +403,36 @@
   );
 }
 
+/* Legal pages — subtle brand ambient surface */
+.legal-surface {
+  background:
+    radial-gradient(
+      900px 500px at 18% 0%,
+      oklch(0.63 0.23 292 / 0.1),
+      transparent 55%
+    ),
+    radial-gradient(
+      700px 400px at 85% 12%,
+      oklch(0.79 0.17 165 / 0.08),
+      transparent 60%
+    ),
+    linear-gradient(180deg, oklch(0.14 0.018 274), oklch(0.12 0.016 273));
+}
+
+/* Legal content prose styling */
+.legal-content p {
+  color: var(--muted-foreground);
+}
+.legal-content a {
+  color: var(--primary-bright);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.legal-content a:hover {
+  color: oklch(0.78 0.2 296);
+  text-decoration: underline;
+}
+
 /* Plain CSS classes for Tailwind non-supported properties */
 
 .animate-how-it-works {

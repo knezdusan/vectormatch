@@ -1,0 +1,384 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - banner [ref=f3e3]:
+      - generic [ref=f3e4]:
+        - link "Vector••Match" [ref=f3e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=f3e7]
+          - generic [ref=f3e12]: Vector••Match
+        - navigation [ref=f3e13]:
+          - link "Jobs" [ref=f3e14] [cursor=pointer]:
+            - /url: /jobs
+          - link "How it works" [ref=f3e15] [cursor=pointer]:
+            - /url: /#how
+          - link "For Developers" [ref=f3e16] [cursor=pointer]:
+            - /url: /#pitch
+          - link "Blog" [ref=f3e17] [cursor=pointer]:
+            - /url: /blog
+        - generic [ref=f3e21]:
+          - button "Log in" [ref=f3e22]:
+            - link "Log in" [ref=f3e23] [cursor=pointer]:
+              - /url: /auth?tab=signin
+          - link "Get Started" [ref=f3e24] [cursor=pointer]:
+            - /url: /auth?tab=signup
+    - main [ref=f3e25]:
+      - generic [ref=f3e27]:
+        - generic [ref=f3e28]: Privacy
+        - heading "Privacy Policy" [level=1] [ref=f3e29]
+        - paragraph [ref=f3e30]: Your privacy is foundational to VectorMatch. This policy explains what personal data we collect, why we process it, how AI is involved, and the rights you have under the GDPR and other applicable laws.
+        - paragraph [ref=f3e31]: "Last updated: 10 July 2026"
+      - generic [ref=f3e33]:
+        - complementary [ref=f3e34]:
+          - navigation [ref=f3e35]:
+            - heading "Contents" [level=2] [ref=f3e36]
+            - list [ref=f3e37]:
+              - listitem [ref=f3e38]:
+                - link "1. Overview" [ref=f3e39] [cursor=pointer]:
+                  - /url: "#overview"
+              - listitem [ref=f3e40]:
+                - link "2. Data Controller" [ref=f3e41] [cursor=pointer]:
+                  - /url: "#controller"
+              - listitem [ref=f3e42]:
+                - link "3. Data We Collect" [ref=f3e43] [cursor=pointer]:
+                  - /url: "#data-we-collect"
+              - listitem [ref=f3e44]:
+                - link "4. Legal Basis for Processing" [ref=f3e45] [cursor=pointer]:
+                  - /url: "#legal-basis"
+              - listitem [ref=f3e46]:
+                - link "5. AI & Automated Processing" [ref=f3e47] [cursor=pointer]:
+                  - /url: "#ai-processing"
+              - listitem [ref=f3e48]:
+                - link "6. How We Use Your Data" [ref=f3e49] [cursor=pointer]:
+                  - /url: "#how-we-use"
+              - listitem [ref=f3e50]:
+                - link "7. Data Retention" [ref=f3e51] [cursor=pointer]:
+                  - /url: "#data-retention"
+              - listitem [ref=f3e52]:
+                - link "8. Data Sharing & Sub-Processors" [ref=f3e53] [cursor=pointer]:
+                  - /url: "#data-sharing"
+              - listitem [ref=f3e54]:
+                - link "9. International Transfers" [ref=f3e55] [cursor=pointer]:
+                  - /url: "#international-transfers"
+              - listitem [ref=f3e56]:
+                - link "10. Cookies & Tracking" [ref=f3e57] [cursor=pointer]:
+                  - /url: "#cookies"
+              - listitem [ref=f3e58]:
+                - link "11. Your GDPR Rights" [ref=f3e59] [cursor=pointer]:
+                  - /url: "#your-rights"
+              - listitem [ref=f3e60]:
+                - link "12. Security Measures" [ref=f3e61] [cursor=pointer]:
+                  - /url: "#security"
+              - listitem [ref=f3e62]:
+                - link "13. Children's Privacy" [ref=f3e63] [cursor=pointer]:
+                  - /url: "#children"
+              - listitem [ref=f3e64]:
+                - link "14. Changes to This Policy" [ref=f3e65] [cursor=pointer]:
+                  - /url: "#changes"
+              - listitem [ref=f3e66]:
+                - link "15. Contact" [ref=f3e67] [cursor=pointer]:
+                  - /url: "#contact"
+        - generic [ref=f3e68]:
+          - heading "1. Overview" [level=2] [ref=f3e69]
+          - paragraph [ref=f3e70]: VectorMatch (“we”, “us”, “the Platform”) is an AI-powered job-matching service that connects web developers with relevant job opportunities sourced from public Applicant Tracking Systems (ATS) and remote-first job boards. To provide this service, we process personal data including your curriculum vitae, professional experience, technical skills, and account credentials.
+          - paragraph [ref=f3e71]:
+            - text: This Privacy Policy describes how we collect, use, store, share, and protect your personal data in accordance with the
+            - strong [ref=f3e72]: General Data Protection Regulation (GDPR)
+            - text: (EU 2016/679), the UK Data Protection Act 2018, and other applicable data protection laws.
+          - generic [ref=f3e73]:
+            - generic [ref=f3e74]:
+              - generic [ref=f3e75]: "!"
+              - text: Not a recruiter or employer
+            - generic [ref=f3e76]:
+              - text: VectorMatch is a
+              - strong [ref=f3e77]: user-driven tool
+              - text: that acts on your behalf to discover and match publicly available job postings. We are not an employer, recruitment agency, or staffing firm. We do not make employment decisions and we do not share your data with employers without your explicit action.
+          - heading "2. Data Controller" [level=2] [ref=f3e78]
+          - paragraph [ref=f3e79]:
+            - text: VectorMatch is the
+            - strong [ref=f3e80]: data controller
+            - text: responsible for your personal data within the meaning of Article 4(7) GDPR. We determine the purposes and means of processing your data as described in this policy.
+          - paragraph [ref=f3e81]:
+            - text: For data protection inquiries, you can reach our Data Protection Officer at
+            - link "privacy@vectormatch.dev" [ref=f3e82] [cursor=pointer]:
+              - /url: mailto:privacy@vectormatch.dev
+            - text: .
+          - heading "3. Data We Collect" [level=2] [ref=f3e83]
+          - heading "3.1 Account Data" [level=3] [ref=f3e84]
+          - paragraph [ref=f3e85]: "When you register, we collect the information necessary to create and secure your account:"
+          - list [ref=f3e86]:
+            - listitem [ref=f3e87]:
+              - strong [ref=f3e89]: Email address
+              - text: (used as your unique identifier)
+            - listitem [ref=f3e90]:
+              - strong [ref=f3e92]: Password
+              - text: (stored as a bcrypt hash — we never see the plaintext)
+            - listitem [ref=f3e93]:
+              - strong [ref=f3e95]: OAuth profile data
+              - text: (name, email, avatar URL) if you sign in via Google or GitHub
+            - listitem [ref=f3e96]:
+              - strong [ref=f3e98]: Session tokens
+              - text: for authentication management
+          - heading "3.2 CV & Professional Profile Data" [level=3] [ref=f3e99]
+          - paragraph [ref=f3e100]: "When you upload your CV (PDF), we process the following data extracted from it:"
+          - list [ref=f3e101]:
+            - listitem [ref=f3e102]:
+              - strong [ref=f3e104]: Employment history
+              - text: — job titles, company names, start/end dates, responsibilities
+            - listitem [ref=f3e105]:
+              - strong [ref=f3e107]: Technical skills
+              - text: — programming languages, frameworks, tools, mapped against our canonical tag dictionary
+            - listitem [ref=f3e108]:
+              - strong [ref=f3e110]: Education
+              - text: — degrees, institutions, graduation years
+            - listitem [ref=f3e111]:
+              - strong [ref=f3e113]: Inferred seniority level
+              - text: — derived from the chronological overlap-merge of your work history
+            - listitem [ref=f3e114]:
+              - strong [ref=f3e116]: Persona embeddings
+              - text: — numerical vector representations (1536-dimensional floats) generated from your skill profile for semantic similarity matching
+          - paragraph [ref=f3e117]:
+            - text: You also provide
+            - strong [ref=f3e118]: work preferences
+            - text: "directly: country of residence, ability to work US hours, assignment types (full-time, part-time, contract), modalities (remote, hybrid, on-site), and preferred compliance arrangements (W-2, B2B, 1099, W-8BEN, EOR, international contractor)."
+          - heading "3.3 Usage & Technical Data" [level=3] [ref=f3e119]
+          - list [ref=f3e120]:
+            - listitem [ref=f3e121]: IP address, browser type, device information (collected automatically via Cloudflare edge and server logs)
+            - listitem [ref=f3e123]: Match interactions — which jobs you view, approve, or reject
+            - listitem [ref=f3e125]: Pitch emails you generate and the recipient addresses you enter
+          - heading "4. Legal Basis for Processing" [level=2] [ref=f3e127]
+          - paragraph [ref=f3e128]: "Under Article 6 GDPR, we rely on the following legal bases:"
+          - list [ref=f3e129]:
+            - listitem [ref=f3e130]:
+              - strong [ref=f3e132]: Performance of a contract (Art. 6(1)(b))
+              - text: — processing your CV, profile, and preferences to provide the job-matching service you requested
+            - listitem [ref=f3e133]:
+              - strong [ref=f3e135]: Consent (Art. 6(1)(a))
+              - text: — for optional features like OAuth sign-in, marketing communications, and any processing that goes beyond what is necessary for the core service
+            - listitem [ref=f3e136]:
+              - strong [ref=f3e138]: Legitimate interests (Art. 6(1)(f))
+              - text: — for security monitoring, fraud prevention, platform analytics, and improving the matching algorithm. These interests are balanced against your rights and never override your fundamental privacy expectations
+            - listitem [ref=f3e139]:
+              - strong [ref=f3e141]: Legal obligation (Art. 6(1)(c))
+              - text: — where we are required to retain records for tax or legal compliance
+          - heading "5. AI & Automated Processing" [level=2] [ref=f3e142]
+          - paragraph [ref=f3e143]: VectorMatch uses artificial intelligence in several ways. We are transparent about each use so you can exercise your right to meaningful information about the logic involved (Art. 13(2)(f) GDPR).
+          - heading "5.1 CV Extraction & Skill Mapping" [level=3] [ref=f3e144]
+          - paragraph [ref=f3e145]:
+            - text: Your uploaded CV is parsed client-side in your browser using
+            - strong [ref=f3e146]: pdfjs-dist
+            - text: . The extracted text is then sent to
+            - strong [ref=f3e147]: OpenAI GPT-4o
+            - text: via the Vercel AI SDK, which applies a Chain-of-Thought overlap-merge algorithm to extract structured employment history, map skills against our canonical tag dictionary, and propose 1–2 initial personas. This processing is necessary to provide the core matching service.
+          - heading "5.2 Vector Embeddings for Semantic Matching" [level=3] [ref=f3e148]
+          - paragraph [ref=f3e149]:
+            - text: We generate a 1536-dimensional numerical embedding of your persona using
+            - strong [ref=f3e150]: OpenAI text-embedding-3-small
+            - text: . This embedding is a mathematical representation of your skill profile and contains no human-readable personal data. It is used for cosine similarity matching against job postings.
+          - heading "5.3 LLM Job Evaluation (Gate 3)" [level=3] [ref=f3e151]
+          - paragraph [ref=f3e152]:
+            - text: For each candidate job match, an LLM (GPT-4o or GPT-4o-mini) evaluates the fit between your persona and the job posting. The LLM receives your skill tags, seniority level, work preferences, and country information —
+            - strong [ref=f3e153]: not
+            - text: your raw CV text, name, or contact details. The LLM produces a verdict (approve/reject), confidence score, and reasoning.
+          - generic [ref=f3e154]:
+            - generic [ref=f3e155]:
+              - generic [ref=f3e156]: "!"
+              - text: No automated decisions with legal effect
+            - generic [ref=f3e157]: The AI matching process does not produce decisions that produce legal effects concerning you (Art. 22 GDPR). It recommends job opportunities — you decide whether to pursue them. No employer sees your data unless you explicitly choose to apply or send a pitch.
+          - heading "6. How We Use Your Data" [level=2] [ref=f3e158]
+          - list [ref=f3e159]:
+            - listitem [ref=f3e160]:
+              - strong [ref=f3e162]: Provide the matching service
+              - text: — parse your CV, generate embeddings, match you against job postings, and display results in your dashboard
+            - listitem [ref=f3e163]:
+              - strong [ref=f3e165]: Generate pitch emails
+              - text: — draft personalized cold-outreach templates referencing the matched job’s tech stack and context
+            - listitem [ref=f3e166]:
+              - strong [ref=f3e168]: Improve matching quality
+              - text: — calibrate thresholds, tune LLM prompts, and analyze aggregate match outcomes
+            - listitem [ref=f3e169]:
+              - strong [ref=f3e171]: Account security
+              - text: — authenticate sessions, detect abuse, and enforce rate limits
+            - listitem [ref=f3e172]:
+              - strong [ref=f3e174]: Communicate with you
+              - text: — service notifications, password resets, and product updates (only with consent where required)
+          - heading "7. Data Retention" [level=2] [ref=f3e175]
+          - paragraph [ref=f3e176]: "We retain your personal data only as long as necessary for the purposes described in this policy:"
+          - list [ref=f3e177]:
+            - listitem [ref=f3e178]:
+              - strong [ref=f3e180]: Account & profile data
+              - text: — retained for the lifetime of your account. You can request deletion at any time (see Section 11).
+            - listitem [ref=f3e181]:
+              - strong [ref=f3e183]: CV uploads
+              - text: — the latest CV is retained while your account is active. Orphaned uploads (from incomplete onboarding) are automatically purged by a scheduled job.
+            - listitem [ref=f3e184]:
+              - strong [ref=f3e186]: Match data
+              - text: — approved and rejected matches are retained for 90 days, then archived/deleted.
+            - listitem [ref=f3e187]:
+              - strong [ref=f3e189]: Job postings
+              - text: — public job data is retained for 60 days after the posting is last seen, then marked stale. Jobs older than 90 days are hard-deleted.
+            - listitem [ref=f3e190]:
+              - strong [ref=f3e192]: Server logs
+              - text: — retained for up to 30 days for security and debugging purposes.
+          - heading "8. Data Sharing & Sub-Processors" [level=2] [ref=f3e193]
+          - paragraph [ref=f3e194]:
+            - text: We do
+            - strong [ref=f3e195]: not sell
+            - text: your personal data. We share data only with the following sub-processors who help us operate the Platform. All sub-processors are bound by data processing agreements (DPAs) consistent with Article 28 GDPR.
+          - list [ref=f3e196]:
+            - listitem [ref=f3e197]:
+              - strong [ref=f3e199]: OpenAI
+              - text: (United States) — LLM inference (GPT-4o, GPT-4o-mini) and embedding generation (text-embedding-3-small). Receives CV text for parsing and skill tags/preferences for matching. OpenAI does not train on your data via our API usage.
+            - listitem [ref=f3e200]:
+              - strong [ref=f3e202]: Neon (PostgreSQL)
+              - text: (Frankfurt, aws-eu-central-1) — primary database hosting with pgvector extension for embedding storage and similarity search
+            - listitem [ref=f3e203]:
+              - strong [ref=f3e205]: Cloudflare
+              - text: — edge protection, WAF, rate limiting, and DNS. Processes IP addresses and request metadata at the edge.
+            - listitem [ref=f3e206]:
+              - strong [ref=f3e208]: Resend
+              - text: — transactional email delivery (password resets, service notifications)
+            - listitem [ref=f3e209]:
+              - strong [ref=f3e211]: Hetzner Cloud
+              - text: (Helsinki, eu-central) — application server hosting via Coolify
+            - listitem [ref=f3e212]:
+              - strong [ref=f3e214]: Google / GitHub
+              - text: — OAuth identity providers (only if you choose to sign in with these services)
+          - heading "9. International Data Transfers" [level=2] [ref=f3e215]
+          - paragraph [ref=f3e216]: "Your data is primarily processed within the European Union (Neon Postgres in Frankfurt, application servers in Helsinki). However, some sub-processors operate outside the EU:"
+          - list [ref=f3e217]:
+            - listitem [ref=f3e218]:
+              - strong [ref=f3e220]: OpenAI
+              - text: processes API inputs in the United States. We rely on Standard Contractual Clauses (SCCs) and OpenAI’s GDPR compliance commitments. We send only the minimum data necessary (CV text for parsing, anonymized skill tags for matching) and never your full contact details.
+            - listitem [ref=f3e221]:
+              - strong [ref=f3e223]: Cloudflare
+              - text: operates globally at the edge. The Data Processing Addendum (DPA) and SCCs apply.
+          - paragraph [ref=f3e224]: We monitor developments in EU–US data transfer frameworks (including the EU–US Data Privacy Framework) and update our safeguards accordingly.
+          - heading "10. Cookies & Tracking" [level=2] [ref=f3e225]
+          - paragraph [ref=f3e226]: "VectorMatch uses a minimal set of cookies and local storage:"
+          - list [ref=f3e227]:
+            - listitem [ref=f3e228]:
+              - strong [ref=f3e230]: Authentication session cookie
+              - text: — essential for keeping you logged in. No third-party tracking.
+            - listitem [ref=f3e231]:
+              - strong [ref=f3e233]: Theme preference
+              - text: — stored in local storage to remember your dark/light mode choice.
+            - listitem [ref=f3e234]:
+              - strong [ref=f3e236]: Cloudflare analytics
+              - text: — privacy-preserving, cookie-free analytics that do not track individual users across sessions.
+          - paragraph [ref=f3e237]:
+            - text: We do
+            - strong [ref=f3e238]: not
+            - text: use advertising cookies, cross-site tracking pixels, or third-party analytics that profile individual users.
+          - heading "11. Your GDPR Rights" [level=2] [ref=f3e239]
+          - paragraph [ref=f3e240]: "Under the GDPR, you have the following rights regarding your personal data:"
+          - list [ref=f3e241]:
+            - listitem [ref=f3e242]:
+              - strong [ref=f3e244]: Right of access (Art. 15)
+              - text: — request a copy of all personal data we hold about you
+            - listitem [ref=f3e245]:
+              - strong [ref=f3e247]: Right to rectification (Art. 16)
+              - text: — correct inaccurate or incomplete data. You can edit your profile directly in the dashboard at any time.
+            - listitem [ref=f3e248]:
+              - strong [ref=f3e250]: Right to erasure (Art. 17)
+              - text: — request deletion of your account and all associated data
+            - listitem [ref=f3e251]:
+              - strong [ref=f3e253]: Right to restrict processing (Art. 18)
+              - text: — limit how we process your data while a request is being resolved
+            - listitem [ref=f3e254]:
+              - strong [ref=f3e256]: Right to data portability (Art. 20)
+              - text: — receive your data in a structured, machine-readable format
+            - listitem [ref=f3e257]:
+              - strong [ref=f3e259]: Right to object (Art. 21)
+              - text: — object to processing based on legitimate interests
+            - listitem [ref=f3e260]:
+              - strong [ref=f3e262]: Right to withdraw consent (Art. 7(3))
+              - text: — withdraw consent for optional processing at any time without affecting the lawfulness of prior processing
+            - listitem [ref=f3e263]:
+              - strong [ref=f3e265]: Right to lodge a complaint (Art. 77)
+              - text: — complain to your local supervisory authority. We encourage you to contact us first, but you are not required to do so.
+          - paragraph [ref=f3e266]:
+            - text: To exercise any of these rights, email
+            - link "privacy@vectormatch.dev" [ref=f3e267] [cursor=pointer]:
+              - /url: mailto:privacy@vectormatch.dev
+            - text: . We respond within
+            - strong [ref=f3e268]: 30 days
+            - text: (typically much faster). We may ask for verification of your identity to protect against unauthorized requests.
+          - heading "12. Security Measures" [level=2] [ref=f3e269]
+          - paragraph [ref=f3e270]: "We implement industry-standard security measures to protect your personal data:"
+          - list [ref=f3e271]:
+            - listitem [ref=f3e272]:
+              - strong [ref=f3e274]: Encryption in transit
+              - text: — all connections use TLS 1.3 via Cloudflare edge
+            - listitem [ref=f3e275]:
+              - strong [ref=f3e277]: Password hashing
+              - text: — bcrypt with adaptive cost; plaintext passwords are never stored or logged
+            - listitem [ref=f3e278]:
+              - strong [ref=f3e280]: Database security
+              - text: — Neon Postgres with network isolation, encrypted connections, and role-based access control
+            - listitem [ref=f3e281]:
+              - strong [ref=f3e283]: Rate limiting
+              - text: — Cloudflare WAF rate limits on authentication and high-cost API endpoints to prevent brute-force attacks
+            - listitem [ref=f3e284]:
+              - strong [ref=f3e286]: Secret management
+              - text: — API keys and credentials stored as environment variables, never committed to source control
+            - listitem [ref=f3e287]:
+              - strong [ref=f3e289]: Least-privilege access
+              - text: — only the application server has database access; no direct human access to production data except for verified incident response
+          - paragraph [ref=f3e290]: No system is 100% secure. If a data breach occurs that is likely to result in a risk to your rights and freedoms, we will notify the relevant supervisory authority within 72 hours and inform you directly if the risk is high (Arts. 33–34 GDPR).
+          - heading "13. Children’s Privacy" [level=2] [ref=f3e291]
+          - paragraph [ref=f3e292]: VectorMatch is intended for professionals seeking employment opportunities. The Platform is not directed at children under 16, and we do not knowingly collect personal data from anyone under 16. If you believe we have collected data from a minor, please contact us and we will promptly delete it.
+          - heading "14. Changes to This Policy" [level=2] [ref=f3e293]
+          - paragraph [ref=f3e294]: We may update this Privacy Policy from time to time to reflect changes in our practices, legal requirements, or operational needs. We will update the “Last updated” date at the top of this page and notify you of material changes via email or in-app notification. We encourage you to review this policy periodically.
+          - heading "15. Contact" [level=2] [ref=f3e295]
+          - paragraph [ref=f3e296]: "If you have any questions about this Privacy Policy or how we handle your personal data, please contact us:"
+          - list [ref=f3e297]:
+            - listitem [ref=f3e298]:
+              - text: "Email:"
+              - link "privacy@vectormatch.dev" [ref=f3e300] [cursor=pointer]:
+                - /url: mailto:privacy@vectormatch.dev
+            - listitem [ref=f3e301]:
+              - text: "General inquiries:"
+              - link "hello@vectormatch.dev" [ref=f3e303] [cursor=pointer]:
+                - /url: mailto:hello@vectormatch.dev
+          - paragraph [ref=f3e304]: You also have the right to lodge a complaint with your local data protection supervisory authority.
+    - contentinfo [ref=f3e305]:
+      - generic [ref=f3e306]:
+        - generic [ref=f3e307]:
+          - generic [ref=f3e308]:
+            - link "Vector••Match" [ref=f3e309] [cursor=pointer]:
+              - /url: /
+              - img [ref=f3e311]
+              - generic [ref=f3e316]: Vector••Match
+            - paragraph [ref=f3e317]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+          - generic [ref=f3e318]:
+            - generic [ref=f3e319]:
+              - heading "Product" [level=2] [ref=f3e320]
+              - link "How it works" [ref=f3e321] [cursor=pointer]:
+                - /url: "#how"
+              - link "For Developers" [ref=f3e322] [cursor=pointer]:
+                - /url: /#pitch
+              - link "VectorMatch" [ref=f3e323] [cursor=pointer]:
+                - /url: /#top
+            - generic [ref=f3e324]:
+              - heading "Company" [level=2] [ref=f3e325]
+              - link "Blog" [ref=f3e326] [cursor=pointer]:
+                - /url: /blog
+              - link "About" [ref=f3e327] [cursor=pointer]:
+                - /url: /about
+              - link "Contact" [ref=f3e328] [cursor=pointer]:
+                - /url: /contact
+            - generic [ref=f3e329]:
+              - heading "Legal" [level=2] [ref=f3e330]
+              - link "Privacy" [ref=f3e331] [cursor=pointer]:
+                - /url: /privacy
+              - link "Terms" [ref=f3e332] [cursor=pointer]:
+                - /url: /terms
+              - link "B2B Compliance" [ref=f3e333] [cursor=pointer]:
+                - /url: /compliance
+        - generic [ref=f3e334]:
+          - generic [ref=f3e335]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+          - generic [ref=f3e336]: Built for developers, by developers.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f3e342] [cursor=pointer]:
+    - img [ref=f3e343]
+  - alert [ref=f3e346]

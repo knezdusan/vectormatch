@@ -1,0 +1,360 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - banner [ref=f5e3]:
+      - generic [ref=f5e4]:
+        - link "Vector••Match" [ref=f5e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=f5e7]
+          - generic [ref=f5e12]: Vector••Match
+        - navigation [ref=f5e13]:
+          - link "Jobs" [ref=f5e14] [cursor=pointer]:
+            - /url: /jobs
+          - link "How it works" [ref=f5e15] [cursor=pointer]:
+            - /url: /#how
+          - link "For Developers" [ref=f5e16] [cursor=pointer]:
+            - /url: /#pitch
+          - link "Blog" [ref=f5e17] [cursor=pointer]:
+            - /url: /blog
+        - generic [ref=f5e21]:
+          - button "Log in" [ref=f5e22]:
+            - link "Log in" [ref=f5e23] [cursor=pointer]:
+              - /url: /auth?tab=signin
+          - link "Get Started" [ref=f5e24] [cursor=pointer]:
+            - /url: /auth?tab=signup
+    - main [ref=f5e25]:
+      - generic [ref=f5e27]:
+        - generic [ref=f5e28]: B2B Compliance
+        - heading "Hiring International Developers as Contractors" [level=1] [ref=f5e29]
+        - paragraph [ref=f5e30]: Everything a hiring company needs to engage an international developer as an independent contractor — from W-8BEN forms and 0% withholding tax to procurement-friendly invoicing and payment setup. This guide lowers the corporate friction of B2B hiring.
+        - paragraph [ref=f5e31]: "Last updated: 10 July 2026"
+      - generic [ref=f5e33]:
+        - complementary [ref=f5e34]:
+          - navigation [ref=f5e35]:
+            - heading "Contents" [level=2] [ref=f5e36]
+            - list [ref=f5e37]:
+              - listitem [ref=f5e38]:
+                - link "1. Overview" [ref=f5e39] [cursor=pointer]:
+                  - /url: "#overview"
+              - listitem [ref=f5e40]:
+                - link "2. Why B2B Over Employment" [ref=f5e41] [cursor=pointer]:
+                  - /url: "#why-b2b"
+              - listitem [ref=f5e42]:
+                - link "3. Engagement Models" [ref=f5e43] [cursor=pointer]:
+                  - /url: "#engagement-models"
+              - listitem [ref=f5e44]:
+                - link "4. The W-8BEN Form" [ref=f5e45] [cursor=pointer]:
+                  - /url: "#w-8ben"
+              - listitem [ref=f5e46]:
+                - link "5. 0% US Withholding Tax" [ref=f5e47] [cursor=pointer]:
+                  - /url: "#withholding"
+              - listitem [ref=f5e48]:
+                - link "6. Payment Methods" [ref=f5e49] [cursor=pointer]:
+                  - /url: "#payment"
+              - listitem [ref=f5e50]:
+                - link "7. Procurement Alignment" [ref=f5e51] [cursor=pointer]:
+                  - /url: "#procurement"
+              - listitem [ref=f5e52]:
+                - link "8. Hiring Checklist" [ref=f5e53] [cursor=pointer]:
+                  - /url: "#checklist"
+              - listitem [ref=f5e54]:
+                - link "9. Contractor vs. Employee" [ref=f5e55] [cursor=pointer]:
+                  - /url: "#misclassification"
+              - listitem [ref=f5e56]:
+                - link "10. Legal Disclaimer" [ref=f5e57] [cursor=pointer]:
+                  - /url: "#disclaimer"
+        - generic [ref=f5e58]:
+          - heading "1. Overview" [level=2] [ref=f5e59]
+          - paragraph [ref=f5e60]:
+            - text: When VectorMatch matches you with a developer in another country, the simplest and most cost-effective engagement model is often a
+            - strong [ref=f5e61]: business-to-business (B2B) contractor arrangement
+            - text: rather than traditional employment. This guide explains how it works, what forms are needed, and why procurement teams find it straightforward to approve.
+          - generic [ref=f5e62]:
+            - generic [ref=f5e63]:
+              - generic [ref=f5e64]: "!"
+              - text: The 30-second version
+            - generic [ref=f5e65]:
+              - text: A foreign developer working from outside the US can be hired as an independent contractor with
+              - strong [ref=f5e66]: 0% US tax withholding
+              - text: . You collect a one-page W-8BEN form, pay them via wire/Deel/Wise, and treat the engagement like any other vendor relationship. No payroll, no benefits administration, no local entity required.
+          - heading "2. Why B2B Over Employment" [level=2] [ref=f5e67]
+          - paragraph [ref=f5e68]: "Hiring a full-time employee in another country typically requires either setting up a local legal entity or using an Employer of Record (EOR) service like Deel or Remote.com. Both add cost, complexity, and administrative overhead. A B2B contractor arrangement avoids all of this:"
+          - list [ref=f5e69]:
+            - listitem [ref=f5e70]:
+              - strong [ref=f5e72]: No local entity needed
+              - text: — you contract directly with the developer’s sole proprietorship or LLC in their home country
+            - listitem [ref=f5e73]:
+              - strong [ref=f5e75]: No payroll processing
+              - text: — the contractor invoices you, you pay the invoice, done
+            - listitem [ref=f5e76]:
+              - strong [ref=f5e78]: No benefits administration
+              - text: — health insurance, pension, paid time off, and taxes are the contractor’s responsibility
+            - listitem [ref=f5e79]:
+              - strong [ref=f5e81]: No employment law compliance
+              - text: in the contractor’s jurisdiction — the relationship is governed by the contract, not local labor law
+            - listitem [ref=f5e82]:
+              - strong [ref=f5e84]: Lower total cost
+              - text: — no EOR markup (typically 15–25%), no employer payroll taxes, no benefits overhead
+            - listitem [ref=f5e85]:
+              - strong [ref=f5e87]: Faster to set up
+              - text: — sign a contract, collect a W-8BEN, and start paying. No weeks-long EOR onboarding.
+          - heading "3. Engagement Models" [level=2] [ref=f5e88]
+          - paragraph [ref=f5e89]: "VectorMatch supports several compliance arrangements. The right one depends on the developer’s country, business structure, and your company’s preferences:"
+          - list [ref=f5e90]:
+            - listitem [ref=f5e91]:
+              - strong [ref=f5e93]: B2B (Company-to-Company)
+              - text: — the developer operates through a registered entity (sole proprietorship, LLC, Ltd). You pay their company, they handle their own taxes. Common in Serbia, UK (Outside IR35), Poland, Estonia.
+            - listitem [ref=f5e94]:
+              - strong [ref=f5e96]: W-8BEN (Foreign Solo Contractor for US Client)
+              - text: — the developer is an individual contractor outside the US. 0% US tax withholding, exempt from IRS 1099 reporting. The most common model for non-US developers working with US companies.
+            - listitem [ref=f5e97]:
+              - strong [ref=f5e99]: 1099 (US Resident Solo Contractor)
+              - text: — for US-based freelancers. Requires W-9 form and IRS 1099-NEC filing if payments exceed $600/year.
+            - listitem [ref=f5e100]:
+              - strong [ref=f5e102]: IC Global (International Solo Contractor for non-US Client)
+              - text: — the developer contracts with a non-US company and files taxes locally in their home country.
+            - listitem [ref=f5e103]:
+              - strong [ref=f5e105]: EOR (Employer of Record)
+              - text: — full-time employment via Deel, Remote, or similar. Higher cost but provides full employment benefits and compliance. Use when you want a long-term, exclusive relationship with employment protections.
+          - heading "4. The W-8BEN Form" [level=2] [ref=f5e106]
+          - paragraph [ref=f5e107]:
+            - strong [ref=f5e108]: Form W-8BEN
+            - text: "(Certificate of Foreign Status of Beneficial Owner for United States Tax Withholding and Reporting) is the single most important document when hiring a non-US developer as a contractor. It is a one-page IRS form that:"
+          - list [ref=f5e109]:
+            - listitem [ref=f5e110]:
+              - text: Confirms the contractor is
+              - strong [ref=f5e112]: not a US person
+            - listitem [ref=f5e113]: Verifies their country of citizenship and tax residency
+            - listitem [ref=f5e115]:
+              - text: Establishes that services are performed
+              - strong [ref=f5e117]: outside the United States
+              - text: (making the income foreign-source, not US-source)
+            - listitem [ref=f5e118]: May claim benefits under a tax treaty between the contractor’s country and the US (though most non-US contractors working abroad don’t need a treaty — the foreign-source income rule already exempts them)
+          - heading "4.1 W-8BEN vs. W-8BEN-E" [level=3] [ref=f5e120]
+          - list [ref=f5e121]:
+            - listitem [ref=f5e122]:
+              - strong [ref=f5e124]: W-8BEN
+              - text: — for foreign
+              - strong [ref=f5e125]: individuals
+              - text: (sole proprietors, freelancers)
+            - listitem [ref=f5e126]:
+              - strong [ref=f5e128]: W-8BEN-E
+              - text: — for foreign
+              - strong [ref=f5e129]: entities
+              - text: (LLCs, corporations, limited companies). Use this when the developer operates through a registered business.
+          - heading "4.2 Validity & Retention" [level=3] [ref=f5e130]
+          - list [ref=f5e131]:
+            - listitem [ref=f5e132]:
+              - text: The form is valid until
+              - strong [ref=f5e134]: December 31 of the third year
+              - text: after signing (e.g., a form signed in March 2026 is valid through December 31, 2029)
+            - listitem [ref=f5e135]:
+              - text: You do
+              - strong [ref=f5e137]: not
+              - text: send the form to the IRS — keep it in your records
+            - listitem [ref=f5e138]:
+              - text: Retain the form for at least
+              - strong [ref=f5e140]: four years
+              - text: after the last tax year you relied on it
+            - listitem [ref=f5e141]: Request a new form when the old one expires or when the contractor’s circumstances change (new country, new entity type)
+          - heading "5. 0% US Withholding Tax" [level=2] [ref=f5e143]
+          - paragraph [ref=f5e144]:
+            - text: "This is the key insight that makes international B2B hiring attractive:"
+            - strong [ref=f5e145]: when a foreign contractor performs all their work outside the United States, the income is foreign-source and you are not required to withhold US income tax.
+          - paragraph [ref=f5e146]: "Specifically:"
+          - list [ref=f5e147]:
+            - listitem [ref=f5e148]:
+              - text: You are
+              - strong [ref=f5e150]: not required
+              - text: to withhold US income tax from payments to a foreign contractor working entirely abroad
+            - listitem [ref=f5e151]:
+              - text: You are
+              - strong [ref=f5e153]: not required
+              - text: to file Form 1099-NEC for foreign contractors working abroad (unlike US contractors, where 1099-NEC is required for payments over $600/year)
+            - listitem [ref=f5e154]: The contractor handles their own tax obligations in their home country
+            - listitem [ref=f5e156]:
+              - text: If you
+              - strong [ref=f5e158]: fail to collect
+              - text: a W-8BEN before paying, the IRS requires you to withhold
+              - strong [ref=f5e159]: 30%
+              - text: of the payment as backup withholding — so always collect the form first
+          - generic [ref=f5e160]:
+            - generic [ref=f5e161]:
+              - generic [ref=f5e162]: "!"
+              - text: The critical exception
+            - generic [ref=f5e163]:
+              - text: If the contractor is a
+              - strong [ref=f5e164]: US citizen or green card holder
+              - text: living abroad, they are still subject to US tax law regardless of where they live. In that case, collect a W-9 and file a 1099-NEC if payments exceed $600/year. If a foreign contractor performs work
+              - strong [ref=f5e165]: while physically present in the US
+              - text: for 90+ days and earns $3,000+, different rules apply — consult a tax professional.
+          - heading "6. Payment Methods" [level=2] [ref=f5e166]
+          - paragraph [ref=f5e167]: "Once the compliance paperwork is in place, getting money to an international contractor is straightforward. Common methods:"
+          - list [ref=f5e168]:
+            - listitem [ref=f5e169]:
+              - strong [ref=f5e171]: Deel / Remote / Multiplier
+              - text: — global payroll platforms designed for international contractors. Handle currency conversion, compliance documentation, and payment delivery. Add a small fee per contractor but eliminate administrative overhead. Best for teams hiring multiple international contractors.
+            - listitem [ref=f5e172]:
+              - strong [ref=f5e174]: Wise (formerly TransferWise)
+              - text: — low-cost international transfers with mid-market exchange rates. The contractor receives funds in their local currency with minimal fees. Best for direct, one-off contractor relationships.
+            - listitem [ref=f5e175]:
+              - strong [ref=f5e177]: Direct wire transfer (SWIFT)
+              - text: — reliable but may carry fees on both ends and unfavorable exchange rate spreads. Best for larger, less frequent payments.
+            - listitem [ref=f5e178]:
+              - strong [ref=f5e180]: Payoneer
+              - text: — popular with international freelancers, offers receiving accounts in multiple currencies.
+          - paragraph [ref=f5e181]:
+            - text: Always pay in the
+            - strong [ref=f5e182]: agreed currency
+            - text: and document the exchange rate at the time of payment for your accounting records. The contractor should invoice you in their preferred currency (commonly EUR or USD for international engagements).
+          - heading "7. Procurement Alignment" [level=2] [ref=f5e183]
+          - paragraph [ref=f5e184]: "One of the biggest barriers to hiring international contractors is internal procurement approval. Framing the engagement in standard corporate procurement terms makes it easy for finance and legal teams to say yes:"
+          - heading "7.1 Frame It as a Vendor Relationship" [level=3] [ref=f5e185]
+          - list [ref=f5e186]:
+            - listitem [ref=f5e187]:
+              - text: The developer is a
+              - strong [ref=f5e189]: software services vendor
+              - text: ", not an employee — the same category as a design agency or consulting firm"
+            - listitem [ref=f5e190]: They invoice monthly like any other vendor
+            - listitem [ref=f5e192]:
+              - text: The engagement is governed by a
+              - strong [ref=f5e194]: Statement of Work (SOW)
+              - text: or Master Services Agreement (MSA), not an employment contract
+            - listitem [ref=f5e195]: No onboarding into HR systems, no benefits enrollment, no payroll setup
+          - heading "7.2 What Procurement Needs" [level=3] [ref=f5e197]
+          - list [ref=f5e198]:
+            - listitem [ref=f5e199]:
+              - text: Signed contractor agreement (MSA or SOW) with a
+              - strong [ref=f5e201]: permanent establishment disclaimer clause
+              - text: stating no PE is created in the contractor’s country
+            - listitem [ref=f5e202]: Completed W-8BEN or W-8BEN-E form (for US companies) or equivalent tax residency documentation
+            - listitem [ref=f5e204]: The contractor’s business registration or sole proprietorship documentation from their home country
+            - listitem [ref=f5e206]: Invoices with the contractor’s business name, address, tax ID, and payment terms
+            - listitem [ref=f5e208]: Evidence that services are performed outside the US (the W-8BEN form itself serves as this documentation)
+          - heading "8. Hiring Checklist" [level=2] [ref=f5e210]
+          - paragraph [ref=f5e211]: "A step-by-step checklist for engaging an international developer as a B2B contractor:"
+          - list [ref=f5e212]:
+            - listitem [ref=f5e213]:
+              - strong [ref=f5e215]: 1. Verify contractor classification
+              - text: — confirm the developer works with multiple clients, controls their own schedule, and uses their own tools (see Section 9)
+            - listitem [ref=f5e216]:
+              - strong [ref=f5e218]: 2. Sign a contractor agreement
+              - text: — MSA or SOW with a permanent establishment disclaimer clause
+            - listitem [ref=f5e219]:
+              - strong [ref=f5e221]: 3. Collect a W-8BEN (individual) or W-8BEN-E (entity)
+              - text: — before making the first payment
+            - listitem [ref=f5e222]:
+              - strong [ref=f5e224]: 4. Set up payment
+              - text: — via Deel, Wise, wire transfer, or Payoneer. Agree on currency and invoicing schedule.
+            - listitem [ref=f5e225]:
+              - strong [ref=f5e227]: 5. Agree on deliverables and milestones
+              - text: — define what success looks like and how progress is measured
+            - listitem [ref=f5e228]:
+              - strong [ref=f5e230]: 6. Maintain records
+              - text: — keep the signed agreement, W-8BEN, invoices, and payment records for at least 4 years
+            - listitem [ref=f5e231]:
+              - strong [ref=f5e233]: 7. Renew the W-8BEN
+              - text: every 3 years or when circumstances change
+          - heading "9. Contractor vs. Employee Classification" [level=2] [ref=f5e234]
+          - paragraph [ref=f5e235]:
+            - text: The IRS and foreign tax authorities distinguish contractors from employees based on
+            - strong [ref=f5e236]: behavioral control, financial control, and the nature of the relationship
+            - text: . Getting this wrong can trigger misclassification penalties, back taxes, and benefits obligations.
+          - heading "9.1 Signs of a Legitimate Contractor Relationship" [level=3] [ref=f5e237]
+          - list [ref=f5e238]:
+            - listitem [ref=f5e239]:
+              - text: They work for
+              - strong [ref=f5e241]: multiple clients
+              - text: ", not just you"
+            - listitem [ref=f5e242]:
+              - text: They control their own
+              - strong [ref=f5e244]: schedule and methods
+            - listitem [ref=f5e245]:
+              - text: They supply their own
+              - strong [ref=f5e247]: tools and equipment
+              - text: (laptop, software licenses, development environment)
+            - listitem [ref=f5e248]:
+              - text: The relationship is
+              - strong [ref=f5e250]: project-based or fixed-term
+              - text: ", not indefinite"
+            - listitem [ref=f5e251]: They don’t receive employee benefits from you
+            - listitem [ref=f5e253]:
+              - text: They send
+              - strong [ref=f5e255]: invoices
+              - text: rather than receiving a salary
+          - heading "9.2 Permanent Establishment Risk" [level=3] [ref=f5e256]
+          - paragraph [ref=f5e257]: "If your contractor’s activities in their home country rise to a certain level, that country’s tax authorities may treat you as having a taxable presence there (“permanent establishment”). To mitigate this risk:"
+          - list [ref=f5e258]:
+            - listitem [ref=f5e259]:
+              - text: Ensure the contract explicitly states that" "
+              - strong [ref=f5e261]: no permanent establishment is created
+            - listitem [ref=f5e262]:
+              - text: Don’t grant the contractor authority to" "
+              - strong [ref=f5e264]: sign contracts
+              - text: on your behalf
+            - listitem [ref=f5e265]:
+              - text: Don’t let the contractor work" "
+              - strong [ref=f5e267]: exclusively
+              - text: for you over extended periods
+            - listitem [ref=f5e268]: Use separate agreements for each project rather than one open-ended arrangement
+            - listitem [ref=f5e270]: For long-term engagements, consult a local tax advisor in the contractor’s country
+          - heading "10. Legal Disclaimer" [level=2] [ref=f5e272]
+          - generic [ref=f5e273]:
+            - generic [ref=f5e274]:
+              - generic [ref=f5e275]: "!"
+              - text: Informational only — not legal or tax advice
+            - generic [ref=f5e276]:
+              - paragraph [ref=f5e277]:
+                - text: This guide provides general information about international contractor engagement models. It is
+                - strong [ref=f5e278]: not
+                - text: "\" \" legal, tax, or accounting advice. Tax laws vary by jurisdiction and change frequently. Always consult a qualified tax professional or international employment attorney before engaging a contractor in a specific country."
+              - paragraph [ref=f5e279]:
+                - text: VectorMatch is not responsible for any tax liabilities, legal disputes, compliance failures, or misclassification penalties arising from your use of this information. The" "
+                - link "Terms of Service" [ref=f5e280] [cursor=pointer]:
+                  - /url: /terms
+                - text: govern your use of the Platform, including this compliance resource.
+          - paragraph [ref=f5e281]:
+            - text: For questions about this guide, contact" "
+            - link "hello@vectormatch.dev" [ref=f5e282] [cursor=pointer]:
+              - /url: mailto:hello@vectormatch.dev
+            - text: .
+    - contentinfo [ref=f5e283]:
+      - generic [ref=f5e284]:
+        - generic [ref=f5e285]:
+          - generic [ref=f5e286]:
+            - link "Vector••Match" [ref=f5e287] [cursor=pointer]:
+              - /url: /
+              - img [ref=f5e289]
+              - generic [ref=f5e294]: Vector••Match
+            - paragraph [ref=f5e295]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+          - generic [ref=f5e296]:
+            - generic [ref=f5e297]:
+              - heading "Product" [level=2] [ref=f5e298]
+              - link "How it works" [ref=f5e299] [cursor=pointer]:
+                - /url: "#how"
+              - link "For Developers" [ref=f5e300] [cursor=pointer]:
+                - /url: /#pitch
+              - link "VectorMatch" [ref=f5e301] [cursor=pointer]:
+                - /url: /#top
+            - generic [ref=f5e302]:
+              - heading "Company" [level=2] [ref=f5e303]
+              - link "Blog" [ref=f5e304] [cursor=pointer]:
+                - /url: /blog
+              - link "About" [ref=f5e305] [cursor=pointer]:
+                - /url: /about
+              - link "Contact" [ref=f5e306] [cursor=pointer]:
+                - /url: /contact
+            - generic [ref=f5e307]:
+              - heading "Legal" [level=2] [ref=f5e308]
+              - link "Privacy" [ref=f5e309] [cursor=pointer]:
+                - /url: /privacy
+              - link "Terms" [ref=f5e310] [cursor=pointer]:
+                - /url: /terms
+              - link "B2B Compliance" [ref=f5e311] [cursor=pointer]:
+                - /url: /compliance
+        - generic [ref=f5e312]:
+          - generic [ref=f5e313]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+          - generic [ref=f5e314]: Built for developers, by developers.
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=f5e320] [cursor=pointer]:
+    - img [ref=f5e321]
+  - alert [ref=f5e324]

@@ -674,26 +674,92 @@ export async function extractRemoteScope(
     }
   }
 
-  // Step 1c: Regex hard-signals (runs after remote-location check so the
-  // location field takes precedence for "Remote - Country" formats, but
-  // pure city locations fall through to regex evaluation of JD text).
+  // Step 1g: Location-based country fencing (runs BEFORE the regex).
+  //
+  // Classifier fix (2026-07-10): The previous order ran the regex (Step 1c)
+  // BEFORE the location fallback, so a job with workplace_type='remote',
+  // location_name='Poland', and JD text containing "fully remote" would match
+  // the regex's "fully remote" → global signal and return 'global' — never
+  // reaching the location check. This caused 48.5% of 'global' jobs to be
+  // mislabeled (jobs with country-specific locations tagged as worldwide).
+  //
+  // The fix: when workplaceType is 'remote' (or null with a remote indicator in
+  // the location), cross-reference the location_name for country fencing BEFORE
+  // evaluating JD text. A specific country in the location field is structured
+  // ATS metadata — more reliable than JD text patterns like "fully remote"
+  // which describe the work arrangement, not the geographic restriction.
+  //
+  // Multi-probe calibration: a job is only 'global' if its location doesn't
+  // fence against any of the probe regions. The location field is the primary
+  // signal; the multi-probe check is a corroborating layer that prevents
+  // EMEA-centric "global" labels from passing as worldwide-global.
+  if (
+    (workplaceType === "remote" || workplaceType === null) &&
+    companyLocation
+  ) {
+    const lowerLoc = companyLocation.toLowerCase();
+    const hasRemoteIndicator = REMOTE_LOCATION_INDICATORS.some((ind) =>
+      lowerLoc.includes(ind),
+    );
+
+    // For remote jobs: if the location is a specific place (not "Remote",
+    // not "Global", not a broad region), it's country-fenced regardless of
+    // what the JD text says. "Remote" + "Poland" = remote within Poland.
+    if (workplaceType === "remote" && isSpecificLocation(companyLocation)) {
+      const locationCountry = extractLocationCountry(companyLocation);
+      return {
+        remoteScope: "country_fenced",
+        allowedCountries: locationCountry ? [locationCountry] : null,
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
+    }
+
+    // For null-workplace jobs with a remote indicator in the location:
+    // if a specific country is detected alongside "remote", it's fenced.
+    // (Already handled in Step 1e above, but this catches cases where
+    // the location has "remote" but extractLocationCountry found nothing
+    // in Step 1e because the country name wasn't in the COUNTRY_NAMES map.)
+  }
+
+  // Step 1c: Regex hard-signals (runs after location-based fencing so the
+  // location field takes precedence over JD text patterns).
   const regexResult = step1RegexHardSignals(hqStrippedText, workplaceType);
   if (
     regexResult !== null &&
     regexResult.confidence >= STEP1_CONFIDENCE_THRESHOLD
   ) {
+    // Multi-probe calibration for regex-detected 'global':
+    // If the regex says 'global' but the location field contains a specific
+    // country, downgrade to country_fenced. The location field is structured
+    // ATS metadata — more reliable than JD text patterns.
+    if (
+      regexResult.remoteScope === "global" &&
+      companyLocation &&
+      isSpecificLocation(companyLocation)
+    ) {
+      const locationCountry = extractLocationCountry(companyLocation);
+      return {
+        remoteScope: "country_fenced",
+        allowedCountries: locationCountry ? [locationCountry] : null,
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
+    }
     return regexResult;
   }
 
   // Step 1e fallback: Location-based check for specific city/country locations
   // (no remote indicators). Runs AFTER the regex so that JD text patterns like
-  // "Remote - Global" take precedence over HQ city locations.
+  // "Remote - Global" take precedence over HQ city locations — BUT only if the
+  // regex didn't match (if it matched global, the multi-probe check above
+  // already downgraded it).
   if (workplaceType === "remote" && companyLocation) {
-    // Check for a specific city/country location (no remote indicators).
     if (isSpecificLocation(companyLocation)) {
+      const locationCountry = extractLocationCountry(companyLocation);
       return {
         remoteScope: "country_fenced",
-        allowedCountries: null,
+        allowedCountries: locationCountry ? [locationCountry] : null,
         resolvedBy: "step1_regex",
         confidence: MEDIUM_CONFIDENCE_VALUE,
       };

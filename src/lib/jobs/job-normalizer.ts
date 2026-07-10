@@ -916,9 +916,12 @@ function extractSmartRecruitersMetadata(
   const locationName =
     [city, region, country].filter(Boolean).join(", ") || null;
 
-  // Workplace type — SmartRecruiters uses location.remote (boolean)
+  // Workplace type — SmartRecruiters uses location.remote and location.hybrid
+  // (booleans). Check hybrid first so "Remote + Hybrid" jobs classify as hybrid.
   let workplaceType: JobMetadata["workplaceType"] = null;
-  if (loc.remote === true) {
+  if (loc.hybrid === true) {
+    workplaceType = "hybrid";
+  } else if (loc.remote === true) {
     workplaceType = "remote";
   }
 
