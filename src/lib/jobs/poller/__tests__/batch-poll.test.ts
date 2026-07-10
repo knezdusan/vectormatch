@@ -35,6 +35,10 @@ describe("cronToTier", () => {
     expect(cronToTier("0 */2 * * *")).toBe("active_hot");
   });
 
+  it("maps the 6h cron to probation (B2 fix)", () => {
+    expect(cronToTier("0 */6 * * *")).toBe("probation");
+  });
+
   it("maps the 12h cron to active", () => {
     expect(cronToTier("0 */12 * * *")).toBe("active");
   });

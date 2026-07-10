@@ -152,6 +152,10 @@ export const ashbyJobSchema = z
     department: z.string().nullable().optional(),
     team: z.string().nullable().optional(),
     publishedAt: z.string().nullable().optional(),
+    // Ashby exposes whether a posting is currently listed on the public board.
+    // Unlisted postings should not appear in the feed. Defaults to true for
+    // backwards compatibility with older API snapshots that omit the field.
+    isListed: z.boolean().optional().default(true),
     shouldDisplayCompensationOnJobPostings: z.boolean().optional(),
   })
   .passthrough();

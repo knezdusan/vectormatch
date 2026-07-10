@@ -109,6 +109,26 @@ function formatDate(date: Date | null): string {
 }
 
 /**
+ * Format the location + workplace type into a compact, human-readable label.
+ * Examples: "Remote · San Francisco", "Hybrid · Warsaw", "Remote".
+ */
+function formatLocationLine(
+  workplaceType: string | null,
+  locationName: string | null,
+): string | null {
+  const parts: string[] = [];
+  if (workplaceType && workplaceType.trim().length > 0) {
+    parts.push(
+      workplaceType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    );
+  }
+  if (locationName && locationName.trim().length > 0) {
+    parts.push(locationName.trim());
+  }
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/**
  * Choose the best description excerpt for the card.
  *
  * Prefer the AI-generated plain-text shortDescription. normalizedText is
@@ -191,6 +211,17 @@ function MatchCard({ match }: { match: MatchRow }) {
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {match.jobAtsSource} · {match.jobAtsSlug}
               </p>
+              {(() => {
+                const locationLine = formatLocationLine(
+                  match.jobWorkplaceType,
+                  match.jobLocationName,
+                );
+                return locationLine ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground/80">
+                    {locationLine}
+                  </p>
+                ) : null;
+              })()}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <StarRating score={match.matchScore} />

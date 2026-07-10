@@ -201,6 +201,140 @@ describe("fetchJobsFromAts — Ashby", () => {
       expect(result.kind).toBe("validation");
     }
   });
+
+  it("deduplicates Ashby multi-location postings of the same role", async () => {
+    const sharedPrefix =
+      "CreatorIQ is the operating system for creator-led growth. ".repeat(50);
+    const response = {
+      jobs: [
+        {
+          id: "ontario-remote",
+          title: "Staff Search Engineer",
+          department: "Product",
+          team: "Product",
+          location: "Ontario",
+          workplaceType: "Remote",
+          isRemote: true,
+          secondaryLocations: [{ location: "British Columbia" }],
+          publishedAt: "2026-06-16T20:32:48.533+00:00",
+          descriptionPlain: `${sharedPrefix} Staff Search Engineer - Ontario remote.`,
+        },
+        {
+          id: "warsaw-hybrid",
+          title: "Staff Search Engineer",
+          department: "Product",
+          team: "Product",
+          location: "Warsaw",
+          workplaceType: "Hybrid",
+          isRemote: false,
+          secondaryLocations: [],
+          publishedAt: "2026-05-05T16:37:30.583+00:00",
+          descriptionPlain: `${sharedPrefix} Staff Search Engineer - Warsaw hybrid.`,
+        },
+        {
+          id: "sf-remote",
+          title: "Staff Search Engineer",
+          department: "Product",
+          team: "Product",
+          location: "San Francisco",
+          workplaceType: "Remote",
+          isRemote: true,
+          secondaryLocations: [
+            { location: "New York" },
+            { location: "Colorado" },
+          ],
+          publishedAt: "2026-06-16T20:32:17.634+00:00",
+          descriptionPlain: `${sharedPrefix} Staff Search Engineer - San Francisco remote.`,
+        },
+      ],
+    };
+
+    const result = await fetchJobsFromAts(
+      "ashby",
+      "creatoriq",
+      mockFetch(jsonResponse(response)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(1);
+      // The San Francisco posting wins because it is remote and has the most
+      // secondary locations.
+      expect(result.jobs[0].externalJobId).toBe("sf-remote");
+      expect(result.jobs[0].title).toBe("Staff Search Engineer");
+    }
+  });
+
+  it("keeps genuinely different Ashby roles separate", async () => {
+    const response = {
+      jobs: [
+        {
+          id: "search-1",
+          title: "Staff Search Engineer",
+          department: "Product",
+          location: "Remote",
+          workplaceType: "Remote",
+          descriptionPlain: "We are hiring a Staff Search Engineer.",
+        },
+        {
+          id: "fe-1",
+          title: "Senior Frontend Engineer",
+          department: "Engineering",
+          location: "Remote",
+          workplaceType: "Remote",
+          descriptionPlain: "We are hiring a Senior Frontend Engineer.",
+        },
+      ],
+    };
+
+    const result = await fetchJobsFromAts(
+      "ashby",
+      "acme",
+      mockFetch(jsonResponse(response)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(2);
+      const ids = result.jobs.map((j) => j.externalJobId).sort();
+      expect(ids).toEqual(["fe-1", "search-1"]);
+    }
+  });
+
+  it("skips Ashby postings where isListed is false", async () => {
+    const response = {
+      jobs: [
+        {
+          id: "listed-1",
+          title: "Frontend Engineer",
+          location: "Remote",
+          workplaceType: "Remote",
+          isListed: true,
+          descriptionPlain: "Hiring a frontend engineer.",
+        },
+        {
+          id: "unlisted-1",
+          title: "Archived Frontend Engineer",
+          location: "Remote",
+          workplaceType: "Remote",
+          isListed: false,
+          descriptionPlain: "This posting is no longer listed.",
+        },
+      ],
+    };
+
+    const result = await fetchJobsFromAts(
+      "ashby",
+      "acme",
+      mockFetch(jsonResponse(response)),
+    );
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.jobs).toHaveLength(1);
+      expect(result.jobs[0].externalJobId).toBe("listed-1");
+    }
+  });
 });
 
 // ── Network errors ───────────────────────────────────────────────────────────

@@ -21,9 +21,11 @@
 //
 // See TDD §4.2 (ATS endpoint registry) and §4.4 (Phalanx Poller).
 
+import type { z } from "zod";
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
 import { getAtsEndpoint } from "@/lib/jobs/ats-endpoints";
 import {
+  type ashbyJobSchema,
   ashbyJobsResponseSchema,
   greenhouseJobsResponseSchema,
   leverJobsResponseSchema,
@@ -188,11 +190,19 @@ function normalizeAshby(json: unknown): AtsFetchResult {
     };
   }
 
-  // Ashby schema uses .passthrough() so parsed.data preserves extra fields,
-  // but we use the original JSON for consistency with Greenhouse/Lever.
+  // Ashby exposes the same underlying role as multiple public postings when
+  // it is open in several locations (e.g. Ontario remote, Warsaw hybrid,
+  // San Francisco remote). The postings share a long identical description
+  // prefix and differ only in location metadata. Without deduplication the
+  // dashboard shows what users perceive as duplicate cards for the same
+  // opportunity. We keep one representative posting per "role family" and
+  // prefer the broadest location scope.
   const rawJobs = (json as { jobs: unknown[] }).jobs;
-  const jobs: NormalizedJob[] = parsed.data.jobs.map((job, i) => {
-    const rawJsonStr = JSON.stringify(rawJobs[i]);
+  const deduped = deduplicateAshbyJobs(parsed.data.jobs);
+
+  const jobs: NormalizedJob[] = deduped.map((job) => {
+    const rawIndex = parsed.data.jobs.findIndex((j) => j.id === job.id);
+    const rawJsonStr = JSON.stringify(rawJobs[rawIndex]);
     return {
       externalJobId: job.id,
       title: job.title,
@@ -203,6 +213,115 @@ function normalizeAshby(json: unknown): AtsFetchResult {
   });
 
   return { success: true, jobs };
+}
+
+// ── Ashby multi-location deduplication ─────────────────────────────────────
+
+type AshbyJob = z.infer<typeof ashbyJobSchema>;
+
+/** Number of normalized description characters to use for the dedup signature. */
+const ASHBY_DEDUP_PREFIX_LEN = 2000;
+
+/**
+ * Collapse Ashby multi-location postings of the same role into a single
+ * representative job. Ashby creates separate public postings per location for
+ * the same underlying requisition; the postings share a long identical
+ * description prefix and differ only in location metadata. Keeping them all
+ * produces duplicate-looking cards in the dashboard.
+ *
+ * Process:
+ *   1. Drop postings where isListed === false (unlisted/archived).
+ *   2. Group by (title, department, description prefix).
+ *   3. Within each group keep the posting with the broadest location scope
+ *      (remote preferred, more secondary locations preferred, then most recent).
+ */
+function deduplicateAshbyJobs(jobs: AshbyJob[]): AshbyJob[] {
+  const listed = jobs.filter((job) => job.isListed !== false);
+
+  const groups = new Map<string, AshbyJob[]>();
+  for (const job of listed) {
+    const signature = ashbyContentSignature(job);
+    const bucket = groups.get(signature) ?? [];
+    bucket.push(job);
+    groups.set(signature, bucket);
+  }
+
+  const result: AshbyJob[] = [];
+  for (const bucket of groups.values()) {
+    result.push(selectBestAshbyJob(bucket));
+  }
+  return result;
+}
+
+/**
+ * Build a content signature that is stable across location variants of the
+ * same Ashby role. Uses the job title + department + the first N normalized
+ * characters of the description. The prefix length is long enough to span
+ * Ashby's company boilerplate and role overview, which are identical across
+ * multi-location postings.
+ */
+function ashbyContentSignature(job: AshbyJob): string {
+  const description = normalizeAshbyDescription(job);
+  const prefix = description.slice(0, ASHBY_DEDUP_PREFIX_LEN);
+  return `${job.title}|${job.department ?? ""}|${job.team ?? ""}|${prefix}`;
+}
+
+/** Normalize an Ashby description for comparison: strip HTML and collapse whitespace. */
+function normalizeAshbyDescription(job: AshbyJob): string {
+  const plain =
+    typeof job.descriptionPlain === "string" && job.descriptionPlain.length > 0
+      ? job.descriptionPlain
+      : null;
+  const html =
+    typeof job.descriptionHtml === "string" && job.descriptionHtml.length > 0
+      ? job.descriptionHtml
+      : "";
+  const raw = plain ?? html;
+  const text = plain ? raw : raw.replace(/<[^>]+>/g, " ");
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** Pick the single best posting from a group of near-duplicate Ashby jobs. */
+function selectBestAshbyJob(jobs: AshbyJob[]): AshbyJob {
+  return jobs.reduce((best, current) => {
+    const scoreDiff = ashbyJobScore(current) - ashbyJobScore(best);
+    if (scoreDiff > 0) return current;
+    if (scoreDiff < 0) return best;
+
+    // Tie-break by most recent publishedAt.
+    const currentDate = current.publishedAt
+      ? new Date(current.publishedAt).getTime()
+      : 0;
+    const bestDate = best.publishedAt
+      ? new Date(best.publishedAt).getTime()
+      : 0;
+    return currentDate >= bestDate ? current : best;
+  });
+}
+
+/**
+ * Score an Ashby posting for "representativeness". Higher is better.
+ *   - Remote postings score higher than hybrid/on-site.
+ *   - Postings with more secondary locations score higher (broader scope).
+ */
+function ashbyJobScore(job: AshbyJob): number {
+  let score = 0;
+  const workplaceType = job.workplaceType?.toLowerCase();
+  const isRemoteFlag =
+    job.isRemote === true ||
+    (typeof job.isRemote === "string" && job.isRemote.toLowerCase() === "true");
+
+  if (workplaceType === "remote" || isRemoteFlag) {
+    score += 100;
+  } else if (workplaceType === "hybrid") {
+    score += 50;
+  }
+
+  if (Array.isArray(job.secondaryLocations)) {
+    score += job.secondaryLocations.length * 10;
+  }
+
+  return score;
 }
 
 // ── SmartRecruiters (F2) ─────────────────────────────────────────────────────

@@ -251,10 +251,19 @@ export const bigQuerySeeder = inngest.createFunction(
  * fallow reports it as unused because it is used in the same module and tests.
  */
 // fallow-ignore-next-line unused-export
-export function cronToTier(cron: string): "active_hot" | "active" | "dormant" {
+export function cronToTier(
+  cron: string,
+): "active_hot" | "active" | "probation" | "dormant" {
   switch (cron) {
     case "0 */2 * * *":
       return "active_hot"; // every 2h — hot tier (G1)
+    case "0 */6 * * *":
+      return "probation"; // every 6h — probation tier (B2 fix: probation
+    // companies must be polled regularly to prove themselves. Without this
+    // cron, probation companies get polled exactly once by the backlog
+    // sweeper and then become zombies — never polled again, never promoted,
+    // never demoted. This was the bug the pre-L2 QA report caught: 5,442
+    // companies parked in probation indefinitely, invisible by default.)
     case "0 */12 * * *":
       return "active"; // every 12h — standard tier
     case "0 3 * * 1":
@@ -298,6 +307,7 @@ const POLL_CHUNK_SIZE = 10;
  *
  * Three cron triggers map to three tiers via cronToTier():
  *   - every 2h cron   → active_hot  (G1 tier, companies with recent approved matches)
+ *   - every 6h cron   → probation   (B2 fix: new/never-yielded companies proving themselves)
  *   - every 12h cron  → active      (standard tier, companies with recent job posts)
  *   - weekly Mon 3am  → dormant     (dormant tier, companies with no recent activity)
  *
@@ -339,6 +349,7 @@ export const batchPollTier = inngest.createFunction(
     name: "Batch Poll Tier",
     triggers: [
       { cron: "0 */2 * * *" }, // every 2h — hot tier
+      { cron: "0 */6 * * *" }, // every 6h — probation tier (B2 fix)
       { cron: "0 */12 * * *" }, // every 12h — standard tier
       { cron: "0 3 * * 1" }, // weekly Monday 3am — dormant tier
     ],
@@ -447,6 +458,9 @@ export const batchPollTier = inngest.createFunction(
         const { pollCompany } = await import(
           "@/lib/jobs/poller/phalanx-poller"
         );
+        const { updateCompanyState } = await import(
+          "@/lib/jobs/poller/company-state"
+        );
         const results: typeof pollResults = [];
         for (const c of chunk) {
           try {
@@ -463,13 +477,25 @@ export const batchPollTier = inngest.createFunction(
               newJobIds: result.newJobIds,
             });
           } catch (e) {
-            // Log failure, continue with next company (error isolation)
+            // B2 fix: pollCompany threw before calling updateCompanyState.
+            // Without this, last_polled_at is never set and the company
+            // blocks the tier queue (same bug as the sweeper).
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            try {
+              await updateCompanyState(c.id, {
+                health: "error",
+                lastErrorMessage: errorMsg,
+                success: false,
+              });
+            } catch {
+              // If updateCompanyState also fails, nothing more we can do.
+            }
             results.push({
               companyId: c.id,
               atsSource: c.atsSource,
               atsSlug: c.atsSlug,
               newJobIds: [],
-              error: e instanceof Error ? e.message : String(e),
+              error: errorMsg,
             });
           }
         }
@@ -697,6 +723,9 @@ export const pollBacklogSweeper = inngest.createFunction(
         const { pollCompany } = await import(
           "@/lib/jobs/poller/phalanx-poller"
         );
+        const { updateCompanyState } = await import(
+          "@/lib/jobs/poller/company-state"
+        );
         const results: typeof pollResults = [];
         for (const c of chunk) {
           try {
@@ -713,12 +742,31 @@ export const pollBacklogSweeper = inngest.createFunction(
               newJobIds: result.newJobIds,
             });
           } catch (e) {
+            // B2 fix: pollCompany threw before calling updateCompanyState
+            // (e.g., the ATS adapter threw during fetch setup). Without this
+            // catch, last_polled_at is never set, and the same companies block
+            // the sweeper queue forever — the remaining never-polled companies
+            // never get a turn. This was the root cause of the 4,056
+            // never-polled backlog: the same 500 oldest companies kept being
+            // re-queried every hour, all throwing, none advancing.
+            const errorMsg = e instanceof Error ? e.message : String(e);
+            try {
+              await updateCompanyState(c.id, {
+                health: "error",
+                lastErrorMessage: errorMsg,
+                success: false,
+              });
+            } catch {
+              // If updateCompanyState also fails, there's nothing more we
+              // can do. The company stays in the queue — but this should
+              // be rare (only if the DB is down).
+            }
             results.push({
               companyId: c.id,
               atsSource: c.atsSource,
               atsSlug: c.atsSlug,
               newJobIds: [],
-              error: e instanceof Error ? e.message : String(e),
+              error: errorMsg,
             });
           }
         }
