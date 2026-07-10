@@ -24,6 +24,7 @@ vi.mock("@/lib/jobs/storage-check", () => ({
 
 import { db } from "@/db/db";
 import {
+  deleteAncientJobs,
   deleteExhaustedSluggerRetries,
   deleteGoneJobs,
   deleteNormalizationFailedJobs,
@@ -132,7 +133,52 @@ describe("G8 — Aggressive Job Cleanup + Retention Policies", () => {
     });
   });
 
-  // ── Step 1c — Normalization-failed jobs ───────────────────────────────────
+  // ── Step 1c — Ancient jobs (published_at older than retention window) ──────
+  describe("deleteAncientJobs", () => {
+    it("issues a DELETE using COALESCE(published_at, detected_at) for null-safe fallback", async () => {
+      const { db } = await import("@/db/db");
+      const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+      executeMock.mockResolvedValueOnce({ rowCount: 500 });
+
+      const result = await deleteAncientJobs(90);
+
+      expect(executeMock).toHaveBeenCalledTimes(1);
+      // Use JSON.stringify to robustly search the SQL AST for key strings,
+      // since sql.raw() and column refs produce nested objects that getSqlText
+      // may not fully flatten.
+      const sqlJson = JSON.stringify(executeMock.mock.calls[0][0]);
+      expect(sqlJson).toContain("DELETE FROM job");
+      expect(sqlJson).toContain("COALESCE");
+      expect(sqlJson).toContain("published_at");
+      expect(sqlJson).toContain("detected_at");
+      expect(sqlJson).toContain("90");
+      expect(result).toEqual({ deletedCount: 500 });
+    });
+
+    it("uses default 90-day retention when no argument is provided", async () => {
+      const { db } = await import("@/db/db");
+      const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+      executeMock.mockResolvedValueOnce({ rowCount: 10 });
+
+      await deleteAncientJobs();
+
+      const sqlJson = JSON.stringify(executeMock.mock.calls[0][0]);
+      expect(sqlJson).toContain("90");
+    });
+
+    it("supports a custom retention window", async () => {
+      const { db } = await import("@/db/db");
+      const executeMock = db.execute as unknown as ReturnType<typeof vi.fn>;
+      executeMock.mockResolvedValueOnce({ rowCount: 5 });
+
+      await deleteAncientJobs(120);
+
+      const sqlJson = JSON.stringify(executeMock.mock.calls[0][0]);
+      expect(sqlJson).toContain("120");
+    });
+  });
+
+  // ── Step 1d — Normalization-failed jobs ───────────────────────────────────
   describe("deleteNormalizationFailedJobs", () => {
     it("issues a DELETE against normalization_failed jobs older than 7 days using detected_at (bugfix)", async () => {
       const { db } = await import("@/db/db");

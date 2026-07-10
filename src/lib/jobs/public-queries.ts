@@ -191,6 +191,40 @@ function addCondition(conditions: SQL[], condition: SQL | undefined) {
   }
 }
 
+/**
+ * Default freshness window for the public /jobs page. Jobs older than this are
+ * excluded from listings even if their status is still "active" — the daily
+ * stale sweep may not have caught them yet, or the ATS keeps returning an
+ * ancient posting that the company never took down.
+ *
+ * Set to 60 days to match MAX_JOB_AGE_DAYS. Override per-request via the
+ * `postedWithin` filter (which can be narrower, e.g. 7/30 days).
+ */
+const DEFAULT_PUBLIC_FRESHNESS_DAYS = 60;
+
+/**
+ * Build the default age-filter condition. Uses publishedAt with a detectedAt
+ * fallback for jobs where the ATS didn't provide a publish date.
+ *
+ * If the caller provides a `postedWithin` filter that is narrower than the
+ * default, the narrower filter takes precedence (the caller's filter replaces
+ * the default — we don't AND them, since that would be redundant).
+ */
+function buildDefaultAgeCondition(postedWithin?: number): SQL {
+  const days =
+    postedWithin && postedWithin > 0
+      ? postedWithin
+      : DEFAULT_PUBLIC_FRESHNESS_DAYS;
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  return (
+    or(
+      gte(job.publishedAt, cutoffDate),
+      and(sql`${job.publishedAt} IS NULL`, gte(job.detectedAt, cutoffDate)),
+    ) ?? sql`TRUE`
+  );
+}
+
 // =============================================================================
 // QUERIES
 // =============================================================================
@@ -220,6 +254,11 @@ export async function getPublicJobs(
         ),
       );
     }
+
+    // Default freshness gate — exclude jobs older than 60 days (or the
+    // user-specified postedWithin, whichever is narrower). This is a
+    // defense-in-depth layer on top of the daily stale sweep.
+    addCondition(conditions, buildDefaultAgeCondition(filters.postedWithin));
 
     // Unified workplace filter (remote scope + workplace type). Takes precedence
     // over legacy individual filters for backward-compatible URL handling.
@@ -314,19 +353,9 @@ export async function getPublicJobs(
       );
     }
 
-    // Posted within X days filter ("posted" = publishedAt; fall back to detectedAt
-    // if the ATS didn't expose a published date).
-    if (filters.postedWithin !== undefined && filters.postedWithin > 0) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - filters.postedWithin);
-      addCondition(
-        conditions,
-        or(
-          gte(job.publishedAt, cutoffDate),
-          and(sql`${job.publishedAt} IS NULL`, gte(job.detectedAt, cutoffDate)),
-        ),
-      );
-    }
+    // Note: postedWithin is handled by buildDefaultAgeCondition above (added
+    // near the top of the conditions list). When postedWithin is provided, it
+    // replaces the 60-day default; when absent, the 60-day default applies.
 
     // Sort order clause
     let orderByClause: SQL[];
@@ -491,6 +520,9 @@ export async function getPublicJobsCount(
       );
     }
 
+    // Default freshness gate — same as getPublicJobs
+    addCondition(conditions, buildDefaultAgeCondition(filters.postedWithin));
+
     // Unified workplace filter (remote scope + workplace type). Takes precedence
     // over legacy individual filters for backward-compatible URL handling.
     const effectiveWorkplace =
@@ -582,19 +614,7 @@ export async function getPublicJobsCount(
       );
     }
 
-    // Posted within X days filter ("posted" = publishedAt; fall back to detectedAt
-    // if the ATS didn't expose a published date).
-    if (filters.postedWithin !== undefined && filters.postedWithin > 0) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - filters.postedWithin);
-      addCondition(
-        conditions,
-        or(
-          gte(job.publishedAt, cutoffDate),
-          and(sql`${job.publishedAt} IS NULL`, gte(job.detectedAt, cutoffDate)),
-        ),
-      );
-    }
+    // Note: postedWithin is handled by buildDefaultAgeCondition above.
 
     const result = await db
       .select({ count: count() })
@@ -614,13 +634,26 @@ export async function getPublicJobsCount(
  */
 export async function getPublicJobsStats() {
   try {
+    // Default freshness gate applied to all stats — only count jobs ≤60 days
+    // old, matching the /jobs listing page behavior.
+    const freshnessCondition = buildDefaultAgeCondition();
+
     const [totalJobs, globalRemote, countryFenced, newThisWeek] =
       await Promise.all([
-        db.select({ count: count() }).from(job).where(eq(job.status, "active")),
         db
           .select({ count: count() })
           .from(job)
-          .where(and(eq(job.status, "active"), eq(job.remoteScope, "global"))),
+          .where(and(eq(job.status, "active"), freshnessCondition)),
+        db
+          .select({ count: count() })
+          .from(job)
+          .where(
+            and(
+              eq(job.status, "active"),
+              eq(job.remoteScope, "global"),
+              freshnessCondition,
+            ),
+          ),
         db
           .select({ count: count() })
           .from(job)
@@ -628,6 +661,7 @@ export async function getPublicJobsStats() {
             and(
               eq(job.status, "active"),
               eq(job.remoteScope, "country_fenced"),
+              freshnessCondition,
             ),
           ),
         db
@@ -673,7 +707,7 @@ export async function getTrendingSkills(
       count: count(),
     })
     .from(job)
-    .where(eq(job.status, "active"))
+    .where(and(eq(job.status, "active"), buildDefaultAgeCondition()))
     .groupBy(sql`unnest(${job.extractedTags})`)
     .orderBy(desc(count()))
     .limit(limit);

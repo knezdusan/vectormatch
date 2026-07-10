@@ -20,6 +20,7 @@
 import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
+import { isJobFreshForInjection } from "@/lib/jobs/poller/phalanx-poller";
 import type { DirectBoardSource, DirectIngestionJob } from "./types";
 
 export interface DirectUpsertResult {
@@ -28,6 +29,8 @@ export interface DirectUpsertResult {
   updatedCount: number;
   embeddedCount: number;
   embeddingErrors: number;
+  /** Jobs rejected by the injection freshness gate (publishedAt too old). */
+  rejectedTooOld: number;
 }
 
 /**
@@ -61,11 +64,33 @@ export async function upsertDirectJobs(
       updatedCount: 0,
       embeddedCount: 0,
       embeddingErrors: 0,
+      rejectedTooOld: 0,
     };
   }
 
+  // Injection freshness gate — reject jobs with publishedAt older than
+  // MAX_JOB_INJECTION_AGE_DAYS (default 60). This mirrors the ATS poller's
+  // gate and prevents stale legacy postings from entering the corpus via
+  // direct boards.
+  const freshJobs = jobs.filter((j) => isJobFreshForInjection(j.publishedAt));
+  const rejectedTooOld = jobs.length - freshJobs.length;
+
+  if (freshJobs.length === 0) {
+    return {
+      totalUpserted: 0,
+      newJobIds: [],
+      updatedCount: 0,
+      embeddedCount: 0,
+      embeddingErrors: 0,
+      rejectedTooOld,
+    };
+  }
+
+  // Use the filtered list for all subsequent operations
+  const jobsToProcess = freshJobs;
+
   // Check which externalJobIds already exist (to detect new jobs)
-  const externalJobIds = jobs.map((j) => j.externalJobId);
+  const externalJobIds = jobsToProcess.map((j) => j.externalJobId);
   const existingRows = await db
     .select({ externalJobId: job.externalJobId, id: job.id })
     .from(job)
@@ -81,7 +106,7 @@ export async function upsertDirectJobs(
   let embeddingErrors = 0;
 
   if (embedFn) {
-    for (const j of jobs) {
+    for (const j of jobsToProcess) {
       try {
         const embedding = await embedFn(j.normalizedText);
         embeddings.push(embedding);
@@ -97,14 +122,14 @@ export async function upsertDirectJobs(
     }
   } else {
     // No embedFn provided — jobs will be upserted without embeddings
-    embeddings.fill(null, 0, jobs.length);
+    embeddings.fill(null, 0, jobsToProcess.length);
   }
 
   const now = new Date();
   const upsertedRows = await db
     .insert(job)
     .values(
-      jobs.map((j, i) => ({
+      jobsToProcess.map((j, i) => ({
         atsSource: source,
         atsSlug: slug,
         externalJobId: j.externalJobId,
@@ -181,5 +206,6 @@ export async function upsertDirectJobs(
     updatedCount: upsertedRows.length - newJobIds.length,
     embeddedCount,
     embeddingErrors,
+    rejectedTooOld,
   };
 }

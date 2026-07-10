@@ -177,6 +177,35 @@ describe("pollCompany — successful poll", () => {
     expect(callArg[2][0].title).toBe("Backend Developer");
   });
 
+  it("accepts jobs published 45 days ago (within the 60-day injection cap)", async () => {
+    // The injection cap was raised from 30→60 days. A 45-day-old job should
+    // now be accepted (it would have been rejected under the old 30-day cap).
+    const recentDate = new Date();
+    recentDate.setDate(recentDate.getDate() - 45);
+
+    const response = {
+      jobs: [
+        {
+          id: 10,
+          title: "Staff Engineer",
+          absolute_url: "https://boards.greenhouse.io/acme/jobs/10",
+          first_published: recentDate.toISOString(),
+        },
+      ],
+    };
+
+    const result = await pollCompany(
+      "company-uuid-1",
+      "greenhouse",
+      "acme",
+      mockFetch(jsonResponse(response)),
+    );
+
+    expect(result.jobsFetched).toBe(1);
+    expect(result.jobsTooOld).toBe(0);
+    expect(result.jobsUpserted).toBe(2); // mock returns 2 upserted
+  });
+
   it("skips jobs explicitly marked inactive by the source and reports them as jobsInactive", async () => {
     const response = {
       content: [

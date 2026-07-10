@@ -41,9 +41,12 @@ import { countActiveJobs, upsertJobs } from "./job-repository";
  * than this are rejected outright and never enter the database. This is the
  * hard freshness gate at ingestion time.
  *
- * Default: 30 days. Override with MAX_JOB_INJECTION_AGE_DAYS env var.
+ * Default: 60 days. Override with MAX_JOB_INJECTION_AGE_DAYS env var.
+ * Raised from 30→60 to align with the user-facing freshness window (the /jobs
+ * page only shows jobs ≤60 days old). The 90-day cleanup sweep provides a
+ * 30-day buffer beyond this for analytics.
  */
-const DEFAULT_MAX_JOB_INJECTION_AGE_DAYS = 30;
+const DEFAULT_MAX_JOB_INJECTION_AGE_DAYS = 60;
 
 function getMaxJobInjectionAgeDays(): number {
   const envValue = process.env.MAX_JOB_INJECTION_AGE_DAYS;
@@ -71,7 +74,7 @@ function getMaxJobAgeDays(): number {
     : parsed;
 }
 
-function isJobFreshForInjection(publishedAt: Date | null): boolean {
+export function isJobFreshForInjection(publishedAt: Date | null): boolean {
   // Jobs without a publish date cannot be freshness-gated at ingestion time.
   // All supported ATS sources currently provide a publish date, so treat a
   // missing date as unverified/stale and reject it from the corpus.

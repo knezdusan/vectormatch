@@ -239,9 +239,17 @@ export async function markUnseenJobsStale(
 // ── Stale cleanup (Phase 2 — daily) ──────────────────────────────────────────
 
 /**
- * Mark jobs as stale (not seen in 7 days) or gone (not seen in 30 days).
- * This is Phase 2 of stale detection (TDD §4.4.4), run as a daily Inngest
- * scheduled function.
+ * Mark jobs as stale (not seen in 7 days, OR published >60 days ago) or gone
+ * (not seen in 30 days). This is Phase 2 of stale detection (TDD §4.4.4), run
+ * as a daily Inngest scheduled function.
+ *
+ * Two stale triggers:
+ *   1. lastSeenAt-based: job hasn't been seen in the ATS feed for 7+ days
+ *      (company stopped returning it, or the poller hasn't run).
+ *   2. publishedAt-based: job's publish date is older than 60 days, even if
+ *      the ATS still returns it. This catches long-tail postings that the
+ *      company never takes down — they keep refreshing lastSeenAt on every
+ *      poll, but the role is effectively closed.
  *
  * @returns  { staleMarked, goneMarked } — counts for ingestionLog metrics
  */
@@ -249,12 +257,17 @@ export async function markStaleJobs(): Promise<{
   staleMarked: number;
   goneMarked: number;
 }> {
-  // Mark active jobs not seen in 7 days as stale
+  // Mark active jobs as stale if EITHER:
+  //   - not seen in 7 days (lastSeenAt-based), OR
+  //   - published more than 60 days ago (publishedAt-based age gate)
   const staleResult = await db
     .update(job)
     .set({ status: "stale" })
     .where(
-      sql`${job.status} = 'active' AND ${job.lastSeenAt} < NOW() - INTERVAL '7 days'`,
+      sql`${job.status} = 'active' AND (
+        ${job.lastSeenAt} < NOW() - INTERVAL '7 days'
+        OR ${job.publishedAt} < NOW() - INTERVAL '60 days'
+      )`,
     )
     .returning({ id: job.id });
 

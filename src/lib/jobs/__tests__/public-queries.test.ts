@@ -372,3 +372,86 @@ describe("getPublicJobsCount — unified workplace filter", () => {
     expect(params).toContain("remote");
   });
 });
+
+// =============================================================================
+// TESTS — default 60-day freshness gate
+// =============================================================================
+
+describe("getPublicJobs — default 60-day freshness gate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedWhereArgs.length = 0;
+  });
+
+  it("applies a default age filter even when postedWithin is not specified", async () => {
+    await getPublicJobs({});
+
+    expect(capturedWhereArgs.length).toBeGreaterThan(0);
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+
+    // The freshness condition adds a Date cutoff parameter
+    const dateParams = params.filter((p) => p instanceof Date);
+    expect(dateParams.length).toBeGreaterThan(0);
+  });
+
+  it("uses postedWithin when provided (narrower than default)", async () => {
+    await getPublicJobs({ postedWithin: 7 });
+
+    expect(capturedWhereArgs.length).toBeGreaterThan(0);
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+
+    // The cutoff date should be a Date param — verify a Date object is in params
+    const dateParams = params.filter((p) => p instanceof Date);
+    expect(dateParams.length).toBeGreaterThan(0);
+
+    // The most recent date param should be ~7 days ago, not ~60 days ago
+    const now = Date.now();
+    const cutoff = dateParams[0].getTime();
+    const ageDays = (now - cutoff) / (1000 * 60 * 60 * 24);
+    expect(ageDays).toBeLessThan(10); // ~7 days, not 60
+    expect(ageDays).toBeGreaterThan(5);
+  });
+
+  it("applies the 60-day default when postedWithin is absent", async () => {
+    await getPublicJobs({});
+
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+
+    const dateParams = params.filter((p) => p instanceof Date);
+    expect(dateParams.length).toBeGreaterThan(0);
+
+    const now = Date.now();
+    const cutoff = dateParams[0].getTime();
+    const ageDays = (now - cutoff) / (1000 * 60 * 60 * 24);
+    // Should be ~60 days, not 7 or 365
+    expect(ageDays).toBeGreaterThan(55);
+    expect(ageDays).toBeLessThan(65);
+  });
+});
+
+describe("getPublicJobsCount — default 60-day freshness gate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedWhereArgs.length = 0;
+  });
+
+  it("applies the default age filter to count queries", async () => {
+    await getPublicJobsCount({});
+
+    expect(capturedWhereArgs.length).toBeGreaterThan(0);
+    const whereExpr = capturedWhereArgs[0];
+    const { params } = extractRawSqlAndParams(whereExpr);
+
+    // Verify the cutoff is ~60 days
+    const dateParams = params.filter((p) => p instanceof Date);
+    expect(dateParams.length).toBeGreaterThan(0);
+    const now = Date.now();
+    const cutoff = dateParams[0].getTime();
+    const ageDays = (now - cutoff) / (1000 * 60 * 60 * 24);
+    expect(ageDays).toBeGreaterThan(55);
+    expect(ageDays).toBeLessThan(65);
+  });
+});

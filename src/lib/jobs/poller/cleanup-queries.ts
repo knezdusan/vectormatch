@@ -73,16 +73,19 @@ export async function deleteGoneJobs(): Promise<CleanupStepResult> {
 // ── Step 1c — Ancient jobs (published_at older than retention window) ───────
 
 /**
- * Delete `job` rows whose published_at is older than the configured retention
- * window. After the 60-day active/stale boundary, any job older than 90 days
- * is considered historical noise and is permanently removed. Cascades to
- * match_queue rows.
+ * Delete `job` rows older than the configured retention window. After the
+ * 60-day active/stale boundary, any job older than 90 days is considered
+ * historical noise and is permanently removed. Cascades to match_queue rows.
+ *
+ * Uses published_at as the primary age indicator, falling back to detected_at
+ * for jobs where the ATS didn't provide a publish date. This ensures jobs
+ * with NULL published_at don't slip through the cleanup net.
  */
 export async function deleteAncientJobs(
   retentionDays = 90,
 ): Promise<CleanupStepResult> {
   const result = await db.execute(
-    sql`DELETE FROM job WHERE published_at < NOW() - INTERVAL '${sql.raw(String(retentionDays))} days'`,
+    sql`DELETE FROM job WHERE COALESCE(published_at, detected_at) < NOW() - INTERVAL '${sql.raw(String(retentionDays))} days'`,
   );
   return { deletedCount: toDeletedCount(result) };
 }
