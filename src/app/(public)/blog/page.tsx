@@ -1,6 +1,8 @@
 import { Calendar, Clock, Tag } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { CoverImage } from "@/components/blog/CoverImage";
+import { JsonLd } from "@/components/blog/JsonLd";
 import { ArticleCard } from "@/components/mdx/ArticleCard";
 import {
   getAllCategories,
@@ -9,11 +11,28 @@ import {
   getFeaturedPosts,
   slugify,
 } from "@/lib/blog/posts";
+import { SITE_URL } from "@/lib/site";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "VectorMatch Blog",
   description:
     "Insights, guides, and deep dives for web developers navigating the hidden job market. Learn how to pitch directly, master ATS systems, and land better opportunities.",
+  alternates: {
+    canonical: `${SITE_URL}/blog`,
+  },
+  openGraph: {
+    title: "VectorMatch Blog",
+    description:
+      "Insights, guides, and deep dives for web developers navigating the hidden job market. Learn how to pitch directly, master ATS systems, and land better opportunities.",
+    type: "website",
+    url: `${SITE_URL}/blog`,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VectorMatch Blog",
+    description:
+      "Insights, guides, and deep dives for web developers navigating the hidden job market.",
+  },
 };
 
 function formatDate(date: Date): string {
@@ -43,8 +62,36 @@ export default async function BlogIndexPage() {
       ? posts.filter((p) => !featured.some((f) => f.slug === p.slug))
       : posts;
 
+  const blogSchema = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: "VectorMatch Blog",
+    url: `${SITE_URL}/blog`,
+    description:
+      "Insights, guides, and deep dives for web developers navigating the hidden job market.",
+    publisher: {
+      "@type": "Organization",
+      name: "VectorMatch",
+      url: SITE_URL,
+    },
+    blogPost: posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.frontmatter.title,
+      url: `${SITE_URL}/blog/${post.slug}`,
+      datePublished: post.frontmatter.publishedAt.toISOString(),
+      dateModified:
+        post.frontmatter.updatedAt?.toISOString() ??
+        post.frontmatter.publishedAt.toISOString(),
+      author: {
+        "@type": "Person",
+        name: post.frontmatter.author,
+      },
+    })),
+  };
+
   return (
     <main className="min-h-screen">
+      <JsonLd data={blogSchema} />
       <section className="border-b border-border bg-card/50">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
           <h1 className="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl">

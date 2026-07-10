@@ -137,3 +137,54 @@ describe("upsertDirectJobs — injection freshness gate", () => {
     expect(result.totalUpserted).toBe(0);
   });
 });
+
+describe("upsertDirectJobs — A2 fence-skip embedding", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("skips embedding for country_fenced/region_fenced jobs, embeds only global/unknown", async () => {
+    const embedFn = vi.fn().mockResolvedValue([0.1, 0.2, 0.3]);
+
+    const globalJob = makeJob({ externalJobId: "global-1" });
+    const fencedJob = makeJob({
+      externalJobId: "fenced-1",
+      remoteScope: "country_fenced",
+    });
+    const regionFencedJob = makeJob({
+      externalJobId: "region-1",
+      remoteScope: "region_fenced",
+    });
+
+    const result = await upsertDirectJobs(
+      "remotive",
+      "remotive",
+      [globalJob, fencedJob, regionFencedJob],
+      embedFn,
+    );
+
+    // embedFn called only for the global job — fenced jobs skipped
+    expect(embedFn).toHaveBeenCalledTimes(1);
+    expect(embedFn).toHaveBeenCalledWith(globalJob.normalizedText);
+    expect(result.embeddedCount).toBe(1);
+  });
+
+  it("embeds unknown-scope jobs (Gate 3 adjudicates scope, needs a vector)", async () => {
+    const embedFn = vi.fn().mockResolvedValue([0.1, 0.2, 0.3]);
+
+    const unknownJob = makeJob({
+      externalJobId: "unknown-1",
+      remoteScope: "unknown",
+    });
+
+    const result = await upsertDirectJobs(
+      "himalayas_direct",
+      "himalayas_direct",
+      [unknownJob],
+      embedFn,
+    );
+
+    expect(embedFn).toHaveBeenCalledTimes(1);
+    expect(result.embeddedCount).toBe(1);
+  });
+});

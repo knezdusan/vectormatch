@@ -26,6 +26,7 @@ import {
 export const metadata = {
   title: "Matched Jobs | VectorMatch",
   description: "Review jobs matched to your personas by the 3-Gate funnel",
+  robots: { index: false, follow: false },
 };
 
 const PAGE_SIZE = 10;

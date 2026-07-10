@@ -34,6 +34,7 @@ export const metadata = {
   title: "Profile Management | VectorMatch",
   description:
     "Upload your CV, review your extracted profile, and manage your personas",
+  robots: { index: false, follow: false },
 };
 
 export default async function ProfileManagementPage() {

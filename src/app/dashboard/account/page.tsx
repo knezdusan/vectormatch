@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import { DeleteAccountCard } from "@/components/account/DeleteAccountCard";
 import { ProfileCard } from "@/components/account/ProfileCard";
 import { SecurityCard } from "@/components/account/SecurityCard";
 import { getAuthSession, hasCredentialAccount } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "Account Settings | VectorMatch",
+  description: "Manage your account profile and security settings",
+  robots: { index: false, follow: false },
+};
 
 export default async function AccountPage() {
   const session = await getAuthSession();

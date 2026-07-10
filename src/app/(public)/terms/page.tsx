@@ -24,6 +24,12 @@ export const metadata: Metadata = {
       "The terms governing your use of VectorMatch, including our role as a user-driven job intelligence tool, acceptable use, indemnification, and limitation of liability.",
     url: `${SITE_URL}/terms`,
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Service — VectorMatch",
+    description:
+      "The terms governing your use of VectorMatch, including our role as a user-driven job intelligence tool, acceptable use, indemnification, and limitation of liability.",
+  },
 };
 
 const SECTIONS = [

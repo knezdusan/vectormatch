@@ -12,6 +12,7 @@ import { getUnreadBadgeCount } from "@/lib/jobs/dashboard-queries";
 export const metadata: Metadata = {
   title: "Dashboard | VectorMatch",
   description: "Manage your job matching preferences and profile",
+  robots: { index: false, follow: false },
 };
 
 async function DashboardLayoutInner({

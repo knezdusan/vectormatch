@@ -323,6 +323,29 @@ export const REGION_CODE_MAP: Record<string, string[]> = {
 // HIGH-CONFIDENCE GLOBAL SIGNALS
 // =============================================================================
 
+/**
+ * Always-global override patterns — the STRONGEST global signals that override
+ * a specific location conflict. When these fire, the job is global regardless
+ * of what the location field says — the JD text explicitly says "anywhere" or
+ * "no location restrictions", which cannot be contradicted by a location field
+ * that lists a city out of ATS habit.
+ *
+ * Used by extractRemoteScope to short-circuit the location-vs-JD conflict
+ * resolution (Step 1c) — instead of routing to LLM adjudication (which can
+ * incorrectly fence these), return global directly.
+ *
+ * A1 recall check (2026-07-10): 4 justjoin jobs with "work from anywhere in
+ * the world" in the JD but location "Warszawa, PL" were false-negatively
+ * fenced to Poland by the LLM. These patterns prevent that.
+ */
+export const ALWAYS_GLOBAL_OVERRIDE: readonly RegExp[] = [
+  /\bwork\s+from\s+anywhere\b/i,
+  /\banywhere\s+in\s+the\s+world\b/i,
+  /\bwork\s+from\s+any\s+location\b/i,
+  /\bany\s+country\b/i,
+  /\bno\s+location\s+restrictions?\b/i,
+];
+
 export const GLOBAL_HIGH: readonly ScopeSignal[] = [
   // Explicit "anywhere" / "worldwide" phrasing
   {

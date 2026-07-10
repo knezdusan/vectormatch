@@ -23,6 +23,7 @@ import { sanitizeJobDescription } from "@/lib/jobs/sanitize-html";
 export const metadata = {
   title: "Match Detail | VectorMatch",
   description: "Detailed view of a job match",
+  robots: { index: false, follow: false },
 };
 
 function confidenceColor(confidence: number | null): string {

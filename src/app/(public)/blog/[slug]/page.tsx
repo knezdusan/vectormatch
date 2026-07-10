@@ -38,6 +38,9 @@ export async function generateMetadata({
   return {
     title: post.frontmatter.title,
     description: post.frontmatter.description,
+    alternates: {
+      canonical: url,
+    },
     openGraph: {
       title: post.frontmatter.title,
       description: post.frontmatter.description,

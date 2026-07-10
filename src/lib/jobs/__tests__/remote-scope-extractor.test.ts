@@ -1035,3 +1035,135 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     expect(mockLlm).not.toHaveBeenCalled();
   });
 });
+
+// =============================================================================
+// A4 — False-negative regression tests (2026-07-10)
+// =============================================================================
+
+describe("A4 Fix 1 — always-global override (work from anywhere + specific location)", () => {
+  it("'work from anywhere in the world' + location 'Warszawa, PL' → global (not LLM-fenced)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "country_fenced",
+      allowedCountries: ["PL"],
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Frontend React Engineer. Remote-first, work from anywhere in the world (workation). Flexible hours.",
+      "remote",
+      "justjoin",
+      "Warszawa, PL",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("'anywhere in the world' + location 'Warszawa, PL' → global (not LLM-fenced)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "country_fenced",
+      allowedCountries: ["PL"],
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "We are hiring. You can work from anywhere in the world. Join our team.",
+      "remote",
+      "justjoin",
+      "Warszawa, PL",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("'work from anywhere' without 'in the world' still overrides location conflict", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "country_fenced",
+      allowedCountries: ["PL"],
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Benefits: Work from anywhere. Competitive salary. Flexible hours.",
+      "remote",
+      "justjoin",
+      "Warszawa, PL",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+});
+
+describe("A4 Fix 2 — multi-continent location → global", () => {
+  it("'Americas, Europe, Asia, Oceania' → global (4 macro-regions)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "country_fenced",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Senior Product Manager. Remote job. Connects you with hand-picked startups.",
+      "remote",
+      "remotive",
+      "Americas, Europe, Asia, Oceania",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("'Northern America, LATAM, Europe, APAC' → global (3 macro-regions)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "country_fenced",
+      allowedCountries: null,
+      confidence: 0.9,
+    });
+    const result = await extractRemoteScope(
+      "Senior AI Engineer looking for a remote job. Lemon.io marketplace.",
+      "remote",
+      "remotive",
+      "Northern America, LATAM, Europe, APAC",
+      mockLlm,
+    );
+    expect(result.remoteScope).toBe("global");
+    expect(result.resolvedBy).toBe("step1_regex");
+    expect(mockLlm).not.toHaveBeenCalled();
+  });
+
+  it("'European Union' → NOT global (single macro-region, no false positive)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "undetermined",
+      allowedCountries: null,
+      confidence: 0.5,
+    });
+    const result = await extractRemoteScope(
+      "Software engineer. Join our team.",
+      "remote",
+      "greenhouse",
+      "European Union",
+      mockLlm,
+    );
+    // European Union is a single macro-region (Europe) — should NOT trigger
+    // the ≥3 macro-region threshold. Falls through to LLM.
+    expect(result.remoteScope).not.toBe("global");
+  });
+
+  it("'Americas, Europe' → NOT global (only 2 macro-regions)", async () => {
+    const mockLlm = makeMockLlm({
+      remoteScope: "undetermined",
+      allowedCountries: null,
+      confidence: 0.5,
+    });
+    const result = await extractRemoteScope(
+      "Software engineer. Join our team.",
+      "remote",
+      "greenhouse",
+      "Americas, Europe",
+      mockLlm,
+    );
+    expect(result.remoteScope).not.toBe("global");
+  });
+});

@@ -1,4 +1,5 @@
 import { ArrowLeft, Users } from "lucide-react";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { AdminUsersTable } from "@/components/admin/AdminUsersTable";
@@ -10,6 +11,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { auth, requireRole } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "User Management | VectorMatch Admin",
+  description: "Manage registered users and their roles",
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminUsersPage() {
   const session = await requireRole("admin", "/dashboard");

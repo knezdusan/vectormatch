@@ -40,6 +40,7 @@ import {
   REMOTE_LOCATION_INDICATORS,
 } from "@/lib/jobs/location-utils";
 import {
+  ALWAYS_GLOBAL_OVERRIDE,
   deterministicMultiProbe,
   extractCountryCodesFromText,
   extractCountryFromCapture,
@@ -634,6 +635,42 @@ export async function extractRemoteScope(
     companyLocation
   ) {
     const lowerLoc = companyLocation.toLowerCase();
+
+    // A4 Fix 2: Multi-continent location → global. A location listing ≥3
+    // disjoint macro-regions (e.g., "Americas, Europe, Asia, Oceania") covers
+    // most of the world — treat as global, not country_fenced. (A1 recall
+    // check: 3 remotive/Lemon.io jobs with "Americas, Europe, Asia, Oceania"
+    // / "Northern America, LATAM, Europe, APAC" were FN-fenced to
+    // country_fenced by the LLM. This deterministic check prevents that.)
+    //
+    // Uses disjoint macro-region groups with word-boundary matching to avoid
+    // false positives from overlapping BROAD_REGION_NAMES entries (e.g.,
+    // "European Union" containing "eu" + "europe" + "european union" = 3 hits
+    // for a single region).
+    const macroRegionGroups = [
+      ["americas", "north america", "south america", "latam", "latin america"],
+      ["europe", "european", "emea"],
+      ["asia", "apac", "asia-pacific"],
+      ["africa"],
+      ["middle east"],
+      ["oceania", "australasia"],
+    ];
+    const macroRegionHits = macroRegionGroups.filter((aliases) =>
+      aliases.some((alias) =>
+        new RegExp(
+          `(^|[^a-z])${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?=$|[^a-z])`,
+        ).test(lowerLoc),
+      ),
+    );
+    if (macroRegionHits.length >= 3) {
+      return {
+        remoteScope: "global",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: MEDIUM_CONFIDENCE_VALUE,
+      };
+    }
+
     const hasRemoteIndicator = REMOTE_LOCATION_INDICATORS.some((ind) =>
       lowerLoc.includes(ind),
     );
@@ -699,6 +736,23 @@ export async function extractRemoteScope(
     // onsite), return it — the JD text has an explicit fencing signal.
     if (regexResult.remoteScope !== "global") {
       return regexResult;
+    }
+
+    // A4 Fix 1: Always-global override. If the JD text contains one of the
+    // ALWAYS_GLOBAL_OVERRIDE patterns ("work from anywhere", "anywhere in the
+    // world", etc.), return global directly — do NOT route to LLM even when
+    // the location is specific. These signals are the strongest possible
+    // global intent and cannot be contradicted by a location field that lists
+    // a city out of ATS habit. (A1 recall check: 4 justjoin jobs with "work
+    // from anywhere in the world" but location "Warszawa, PL" were FN-fenced
+    // to Poland by the LLM. This override prevents that.)
+    if (ALWAYS_GLOBAL_OVERRIDE.some((p) => p.test(hqStrippedText))) {
+      return {
+        remoteScope: "global",
+        allowedCountries: null,
+        resolvedBy: "step1_regex",
+        confidence: 1.0,
+      };
     }
 
     // The regex found 'global'. Check for location-vs-JD conflict:

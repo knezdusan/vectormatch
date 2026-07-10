@@ -13,7 +13,7 @@ export function CTA({
   title = "Find ATS jobs matching your exact skillset.",
   description = "Upload your CV and let our AI match engine rank your relevance score instantly.",
   buttonText = "Start Matching Free",
-  href = "/signup?ref=blog-cta",
+  href = "/auth?tab=signup&ref=blog-cta",
 }: CTAProps) {
   return (
     <div className="my-10 rounded-2xl border border-primary/30 bg-linear-to-br from-primary/10 to-accent/5 p-6 sm:p-8">

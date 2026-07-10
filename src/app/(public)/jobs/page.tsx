@@ -4,12 +4,29 @@
 // Server Component that renders the public job listings page with
 // Suspense boundary for non-blocking data fetching.
 
+import type { Metadata } from "next";
 import { Suspense } from "react";
+import { JsonLd } from "@/components/blog/JsonLd";
 import { JobListContent } from "@/components/jobs/JobListContent";
+import { SITE_URL } from "@/lib/site";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Jobs | VectorMatch",
   description: "Find your next remote role at top tech companies",
+  alternates: {
+    canonical: `${SITE_URL}/jobs`,
+  },
+  openGraph: {
+    title: "Jobs | VectorMatch",
+    description: "Find your next remote role at top tech companies",
+    type: "website",
+    url: `${SITE_URL}/jobs`,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Jobs | VectorMatch",
+    description: "Find your next remote role at top tech companies",
+  },
 };
 
 export default function JobsPage({
@@ -37,6 +54,15 @@ export default function JobsPage({
 }) {
   return (
     <div className="min-h-screen bg-background">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "VectorMatch Job Listings",
+          url: `${SITE_URL}/jobs`,
+          description: "Remote tech jobs matched by AI",
+        }}
+      />
       <Suspense
         fallback={
           <div className="container mx-auto px-4 py-8">Loading jobs...</div>

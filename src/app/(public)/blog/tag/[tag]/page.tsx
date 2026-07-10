@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { CoverImage } from "@/components/blog/CoverImage";
 import { getAllTags, getPostsByTag, slugify } from "@/lib/blog/posts";
 import { estimateReadTime, formatDate } from "@/lib/blog/utils";
+import { SITE_URL } from "@/lib/site";
 
 interface PageProps {
   params: Promise<{ tag: string }>;
@@ -22,12 +23,29 @@ export async function generateMetadata({
   const tags = await getAllTags();
   const displayName = tags.find((t) => slugify(t) === tag) ?? tag;
 
+  const url = `${SITE_URL}/blog/tag/${tag}`;
+
   return {
     title: `${displayName} — VectorMatch Blog`,
     description:
       'Browse all VectorMatch blog posts tagged with "' +
       displayName +
       '". Insights for web developers navigating the hidden job market.',
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${displayName} — VectorMatch Blog`,
+      description:
+        'Browse all VectorMatch blog posts tagged with "' +
+        displayName +
+        '". Insights for web developers navigating the hidden job market.',
+      type: "website",
+      url,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${displayName} — VectorMatch Blog`,
+      description: `Browse all VectorMatch blog posts tagged with "${displayName}".`,
+    },
   };
 }
 

@@ -24,6 +24,12 @@ export const metadata: Metadata = {
       "How VectorMatch collects, processes, and protects your personal data, including CV information, AI-powered job matching, and your GDPR rights.",
     url: `${SITE_URL}/privacy`,
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy — VectorMatch",
+    description:
+      "How VectorMatch collects, processes, and protects your personal data, including CV information, AI-powered job matching, and your GDPR rights.",
+  },
 };
 
 const SECTIONS = [

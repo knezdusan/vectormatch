@@ -106,7 +106,20 @@ export async function upsertDirectJobs(
   let embeddingErrors = 0;
 
   if (embedFn) {
+    // Fenced/onsite jobs are not addressable for global-remote matching — skip
+    // embedding to save OpenAI calls + HNSW vector storage (A2 reorder). Only
+    // global/unknown/undetermined jobs need a vector (Gate 2 / Gate 3 scope
+    // adjudication). Consistent with the jobIngestedHandler fence-skip.
+    const FENCED_SCOPES = new Set([
+      "country_fenced",
+      "region_fenced",
+      "onsite",
+    ]);
     for (const j of jobsToProcess) {
+      if (FENCED_SCOPES.has(j.remoteScope ?? "unknown")) {
+        embeddings.push(null);
+        continue;
+      }
       try {
         const embedding = await embedFn(j.normalizedText);
         embeddings.push(embedding);

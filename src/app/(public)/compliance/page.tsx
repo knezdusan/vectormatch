@@ -25,6 +25,12 @@ export const metadata: Metadata = {
       "A practical guide to hiring international developers as independent contractors: W-8BEN forms, 0% US withholding tax, B2B invoicing, and procurement-aligned engagement models.",
     url: `${SITE_URL}/compliance`,
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "B2B Compliance — VectorMatch",
+    description:
+      "A practical guide to hiring international developers as independent contractors: W-8BEN forms, 0% US withholding tax, B2B invoicing, and procurement-aligned engagement models.",
+  },
 };
 
 const SECTIONS = [

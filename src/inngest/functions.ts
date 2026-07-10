@@ -1016,7 +1016,8 @@ export const probationEmbeddingBackfill = inngest.createFunction(
               AND ${job.status} = 'active'
               AND ${job.normalizedText} IS NOT NULL
               AND ${company.tier} != 'probation'::company_tier
-              AND ${company.tier} != 'dead'::company_tier`,
+              AND ${company.tier} != 'dead'::company_tier
+              AND ${job.remoteScope}::text NOT IN ('country_fenced', 'region_fenced', 'onsite')`,
         )
         .limit(200);
 

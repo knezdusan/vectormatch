@@ -1,4 +1,5 @@
 import { ArrowLeft, Users } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { AdminDashboardTabs } from "@/components/admin/AdminDashboardTabs";
@@ -34,6 +35,12 @@ import {
 import { TabsContent } from "@/components/ui/tabs";
 import { requireRole } from "@/lib/auth";
 import { getExcludedCountryRecords } from "@/lib/jobs/excluded-countries";
+
+export const metadata: Metadata = {
+  title: "Admin Dashboard | VectorMatch",
+  description: "Administrative overview and pipeline monitoring",
+  robots: { index: false, follow: false },
+};
 
 interface AdminPageProps {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

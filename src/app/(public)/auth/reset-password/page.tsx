@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { ResetPasswordForm } from "./ResetPasswordForm";
+
+export const metadata: Metadata = {
+  title: "Reset Password — VectorMatch",
+  description: "Reset your VectorMatch account password",
+  robots: { index: false, follow: false },
+};
 
 type ResetPasswordProps = {
   searchParams: Promise<{ token?: string }>;

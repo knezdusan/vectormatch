@@ -288,6 +288,19 @@ export const normalizeProvisionalJob = inngest.createFunction(
       return { remoteScope: result.remoteScope };
     });
 
+    // A2 reorder: if the classified scope is fenced/onsite, drop the embedding.
+    // Fenced jobs are not addressable for global-remote matching — keeping their
+    // vector wastes HNSW storage (the #1 Neon consumer). The embed above ran
+    // before scope was known (drift re-normalization), so null it post-hoc.
+    if (
+      embedding !== null &&
+      ["country_fenced", "region_fenced", "onsite"].includes(
+        scopeResult.remoteScope,
+      )
+    ) {
+      embedding = null;
+    }
+
     // ── Step 5: Persist normalized job ────────────────────────────────────────
     // Fencing check: reject zombie writes (generation ≤ clearedGeneration).
     await step.run("persist-normalized-job", async () => {

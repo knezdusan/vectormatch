@@ -1,7 +1,14 @@
 import { ArrowLeft, Mail } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { VMMailClient } from "@/components/mail/VMMailClient";
 import { requireRole } from "@/lib/auth";
+
+export const metadata: Metadata = {
+  title: "VM Mail | VectorMatch Admin",
+  description: "Manage inbound VM Mail messages",
+  robots: { index: false, follow: false },
+};
 
 export default async function VMMailPage() {
   await requireRole("admin", "/dashboard");

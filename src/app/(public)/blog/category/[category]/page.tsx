@@ -9,6 +9,7 @@ import {
   slugify,
 } from "@/lib/blog/posts";
 import { estimateReadTime, formatDate } from "@/lib/blog/utils";
+import { SITE_URL } from "@/lib/site";
 
 interface PageProps {
   params: Promise<{ category: string }>;
@@ -27,12 +28,29 @@ export async function generateMetadata({
   const displayName =
     categories.find((c) => slugify(c) === category) ?? category;
 
+  const url = `${SITE_URL}/blog/category/${category}`;
+
   return {
     title: `${displayName} — VectorMatch Blog`,
     description:
       "Browse all VectorMatch blog posts in the " +
       displayName +
       " category. Insights for web developers navigating the hidden job market.",
+    alternates: { canonical: url },
+    openGraph: {
+      title: `${displayName} — VectorMatch Blog`,
+      description:
+        "Browse all VectorMatch blog posts in the " +
+        displayName +
+        " category. Insights for web developers navigating the hidden job market.",
+      type: "website",
+      url,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${displayName} — VectorMatch Blog`,
+      description: `Browse all VectorMatch blog posts in the ${displayName} category.`,
+    },
   };
 }
 

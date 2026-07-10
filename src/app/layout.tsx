@@ -27,7 +27,22 @@ export const metadata: Metadata = {
   title: "VectorMatch — The AI Agent for Web Developers",
   description:
     "VectorMatch finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner.",
+  openGraph: {
+    title: "VectorMatch — The AI Agent for Web Developers",
+    description:
+      "VectorMatch finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner.",
+    type: "website",
+    url: SITE_URL,
+    siteName: "VectorMatch",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VectorMatch — The AI Agent for Web Developers",
+    description:
+      "VectorMatch finds hidden tech opportunities, matches them with your unique developer profile, and helps you pitch directly to decision makers as a valued partner.",
+  },
   alternates: {
+    canonical: SITE_URL,
     types: {
       "application/rss+xml": [{ url: "/rss.xml", title: "VectorMatch Blog" }],
     },
