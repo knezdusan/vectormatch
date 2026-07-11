@@ -8,8 +8,9 @@
 //   - Recent run history
 //   - Top non-success errors
 
-import { AlertTriangle, Info, Layers } from "lucide-react";
+import { AlertTriangle, Layers } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { CsvExportButton } from "@/components/admin/CsvExportButton";
 import { IngestionTrendsChart } from "@/components/admin/IngestionTrendsChart";
 import { JobStalenessDistribution } from "@/components/admin/JobStalenessDistribution";
@@ -34,12 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   getHighOldJobRateAlerts,
   getIngestionSummary,
@@ -106,21 +101,6 @@ function formatPercent(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
 }
 
-function HelpTooltip({ text }: { text: string }) {
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info className="size-3.5 text-muted-foreground cursor-help shrink-0" />
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <p className="text-xs leading-relaxed">{text}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-}
-
 function SummaryCard({
   label,
   value,
@@ -141,7 +121,7 @@ function SummaryCard({
           <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {label}
           </CardTitle>
-          <HelpTooltip text={tooltip} />
+          <AdminMetricTooltip text={tooltip} />
         </div>
       </CardHeader>
       <CardContent>
@@ -323,7 +303,7 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
         <CardHeader>
           <div className="flex items-center gap-2">
             <CardTitle>Daily Ingestion Trends</CardTitle>
-            <HelpTooltip text="Grouped daily view of processed, inserted, rejected, and skipped items across all sources. Rejected + skipped explain why processed items did not become corpus jobs." />
+            <AdminMetricTooltip text="Grouped daily view of processed, inserted, rejected, and skipped items across all sources. Rejected + skipped explain why processed items did not become corpus jobs." />
           </div>
           <CardDescription>
             Volume and disposition per day (last {rangeLabel})
@@ -340,7 +320,7 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle>Source Performance</CardTitle>
-              <HelpTooltip text="Per-source breakdown of throughput, success rate, and efficiency. Status is pulled from the circuit-breaker source_health table." />
+              <AdminMetricTooltip text="Per-source breakdown of throughput, success rate, and efficiency. Status is pulled from the circuit-breaker source_health table." />
             </div>
             <CsvExportButton data={sources} rangeLabel={rangeLabel} />
           </div>
@@ -361,61 +341,61 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
                     <TableHead>
                       <div className="flex items-center gap-1.5">
                         Source
-                        <HelpTooltip text="The ingestion source identifier, matching the source column in ingestion_log." />
+                        <AdminMetricTooltip text="The ingestion source identifier, matching the source column in ingestion_log." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Status
-                        <HelpTooltip text="Circuit-breaker status from source_health. Active sources are running normally; degraded/disabled/banned sources are stopped or throttled." />
+                        <AdminMetricTooltip text="Circuit-breaker status from source_health. Active sources are running normally; degraded/disabled/banned sources are stopped or throttled." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Runs
-                        <HelpTooltip text="Number of completed runs for this source in the selected window." />
+                        <AdminMetricTooltip text="Number of completed runs for this source in the selected window." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Processed
-                        <HelpTooltip text="Total items discovered by this source." />
+                        <AdminMetricTooltip text="Total items discovered by this source." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Inserted
-                        <HelpTooltip text="Items that became new corpus jobs." />
+                        <AdminMetricTooltip text="Items that became new corpus jobs." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Yield
-                        <HelpTooltip text="Inserted / processed. Higher is better." />
+                        <AdminMetricTooltip text="Inserted / processed. Higher is better." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Reject %
-                        <HelpTooltip text="Rejected / processed. High values indicate schema changes or low-quality source output." />
+                        <AdminMetricTooltip text="Rejected / processed. High values indicate schema changes or low-quality source output." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Skip %
-                        <HelpTooltip text="Skipped / processed. Skips are mostly duplicates." />
+                        <AdminMetricTooltip text="Skipped / processed. Skips are mostly duplicates." />
                       </div>
                     </TableHead>
                     <TableHead className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         Avg Duration
-                        <HelpTooltip text="Average run duration for this source." />
+                        <AdminMetricTooltip text="Average run duration for this source." />
                       </div>
                     </TableHead>
                     <TableHead>
                       <div className="flex items-center gap-1.5">
                         Last Run
-                        <HelpTooltip text="Timestamp of the most recent run for this source." />
+                        <AdminMetricTooltip text="Timestamp of the most recent run for this source." />
                       </div>
                     </TableHead>
                   </TableRow>
@@ -479,7 +459,7 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle>Recent Runs</CardTitle>
-              <HelpTooltip text="Latest individual ingestion runs ordered by timestamp. Useful for spotting a specific source failure." />
+              <AdminMetricTooltip text="Latest individual ingestion runs ordered by timestamp. Useful for spotting a specific source failure." />
             </div>
             <CardDescription>Last {recentRuns.length} runs</CardDescription>
           </CardHeader>
@@ -534,7 +514,7 @@ export async function IngestionAnalytics({ range }: IngestionAnalyticsProps) {
             <div className="flex items-center gap-2">
               <CardTitle>Top Errors</CardTitle>
               <AlertTriangle className="size-5 text-muted-foreground" />
-              <HelpTooltip text="Most frequent non-success error messages grouped by source. Click the source-health table to disable noisy or broken sources." />
+              <AdminMetricTooltip text="Most frequent non-success error messages grouped by source. Click the source-health table to disable noisy or broken sources." />
             </div>
             <CardDescription>
               Grouped failures (last {rangeLabel})

@@ -29,6 +29,9 @@ function healthyMetrics(): PipelineHealthMetrics {
     gate3ApprovalRate7d: 0.03,
     unmatchedEmbeddedJobs: 50,
     avgGate3Confidence: 0.75,
+    nullCountryFencedJobs: 0,
+    staleCronFunctions: 0,
+    staleCronFunctionNames: [],
   };
 }
 
@@ -177,5 +180,33 @@ describe("Pipeline Health — evaluateAlerts", () => {
       unmatchedEmbeddedJobs: ALERT_THRESHOLDS.UNMATCHED_EMBEDDED_JOBS,
     });
     expect(alerts.some((a) => a.startsWith("UNMATCHED_EMBEDDED"))).toBe(false);
+  });
+
+  // ── H2: Generalized cron-firing receipt guard tests ───────────────────────
+
+  it("alerts when stale cron functions > 0 (silent cron failure)", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      staleCronFunctions: 2,
+      staleCronFunctionNames: [
+        "probation_embedding_backfill",
+        "direct_job_boards",
+      ],
+    });
+    expect(alerts.some((a) => a.startsWith("STALE_CRON_FUNCTIONS"))).toBe(true);
+    expect(alerts.some((a) => a.includes("probation_embedding_backfill"))).toBe(
+      true,
+    );
+  });
+
+  it("does not alert when all critical cron functions are firing", () => {
+    const alerts = evaluateAlerts({
+      ...healthyMetrics(),
+      staleCronFunctions: 0,
+      staleCronFunctionNames: [],
+    });
+    expect(alerts.some((a) => a.startsWith("STALE_CRON_FUNCTIONS"))).toBe(
+      false,
+    );
   });
 });

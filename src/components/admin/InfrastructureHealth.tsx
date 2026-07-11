@@ -16,6 +16,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { EmergencyPurgeButton } from "@/components/admin/EmergencyPurgeButton";
 import { NeonStorageTooltip } from "@/components/admin/NeonStorageTooltip";
 import { SourceToggleButton } from "@/components/admin/SourceToggleButton";
@@ -148,6 +149,7 @@ export async function InfrastructureHealth() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Database className="size-4" />
               <span>Neon Storage</span>
+              <AdminMetricTooltip text="Database storage usage against the Neon plan limit. Warning at 80%; ingestion automatically pauses at 88%." />
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -176,6 +178,7 @@ export async function InfrastructureHealth() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle className="size-4" />
               <span>Gate 2 Threshold</span>
+              <AdminMetricTooltip text="Maximum cosine distance for HNSW vector-similarity candidates. Lower values are stricter." />
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -191,6 +194,7 @@ export async function InfrastructureHealth() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertTriangle className="size-4" />
               <span>Circuit Breakers</span>
+              <AdminMetricTooltip text="Sources currently disabled or banned by the circuit breaker due to repeated failures." />
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -223,6 +227,7 @@ export async function InfrastructureHealth() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <AlertTriangle className="size-4" />
               <span>Normalizer Backlog</span>
+              <AdminMetricTooltip text="Active jobs waiting to be normalized. Ingestion pauses when this reaches the configured cap." />
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -260,13 +265,48 @@ export async function InfrastructureHealth() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Failures</TableHead>
-                    <TableHead className="text-right">Total Runs</TableHead>
-                    <TableHead>Last Success</TableHead>
-                    <TableHead>Last Error</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        Source
+                        <AdminMetricTooltip text="Ingestion source identifier, matching the source column in ingestion_log." />
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        Status
+                        <AdminMetricTooltip text="Circuit-breaker state: active, degraded, disabled, or banned." />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        Failures
+                        <AdminMetricTooltip text="Consecutive failures since the last successful run." />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        Total Runs
+                        <AdminMetricTooltip text="Total runs recorded for this source in source_health." />
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        Last Success
+                        <AdminMetricTooltip text="Timestamp of the most recent successful run." />
+                      </div>
+                    </TableHead>
+                    <TableHead>
+                      <div className="flex items-center gap-1.5">
+                        Last Error
+                        <AdminMetricTooltip text="Most recent error message captured for this source." />
+                      </div>
+                    </TableHead>
+                    <TableHead className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        Actions
+                        <AdminMetricTooltip text="Manually disable, enable, or reset the source circuit breaker." />
+                      </div>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -328,19 +368,28 @@ export async function InfrastructureHealth() {
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Global Remote</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Global Remote
+                  <AdminMetricTooltip text="Active jobs with remote_scope = global and a known location country." />
+                </p>
                 <p className="text-2xl font-bold">
                   {corpusMetrics.globalCount}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Country Fenced</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Country Fenced
+                  <AdminMetricTooltip text="Active jobs scoped to specific countries (country_fenced)." />
+                </p>
                 <p className="text-2xl font-bold">
                   {corpusMetrics.countryFencedCount}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Unknown</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Unknown
+                  <AdminMetricTooltip text="Active jobs whose remote_scope could not be classified." />
+                </p>
                 <p
                   className={`text-2xl font-bold ${
                     corpusMetrics.unknownSubFloorRatio >= 0.3
@@ -356,7 +405,10 @@ export async function InfrastructureHealth() {
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Global Ratio</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Global Ratio
+                  <AdminMetricTooltip text="Share of scoped jobs with a known global or country-fenced classification. Breaker halts ingestion below 50%." />
+                </p>
                 <p
                   className={`text-2xl font-bold ${
                     corpusMetrics.knownScopeRatio < 0.5
@@ -391,7 +443,10 @@ export async function InfrastructureHealth() {
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Retry Success</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Retry Success
+                  <AdminMetricTooltip text="Single-test retry success ratio over the last 7 days. >80% means the breaker is catching transient blips correctly; <50% means sources are genuinely broken." />
+                </p>
                 <p
                   className={`text-3xl font-bold ${
                     retryMetrics.retrySuccessRatio >= 0.8
@@ -409,14 +464,20 @@ export async function InfrastructureHealth() {
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Escalations</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Escalations
+                  <AdminMetricTooltip text="Sources that failed retry and were escalated to a Tier 5 ban." />
+                </p>
                 <p className="text-3xl font-bold">{retryMetrics.escalations}</p>
                 <p className="text-xs text-muted-foreground">
                   Tier 5 bans from retry failure
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Active Alerts</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Active Alerts
+                  <AdminMetricTooltip text="Circuit-breaker alerts that have not yet been resolved automatically or by an admin." />
+                </p>
                 <p
                   className={`text-3xl font-bold ${
                     retryMetrics.activeAlerts > 0
@@ -431,7 +492,10 @@ export async function InfrastructureHealth() {
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Active Bans</p>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  Active Bans
+                  <AdminMetricTooltip text="Sources currently in a 24-hour cooldown ban." />
+                </p>
                 <p
                   className={`text-3xl font-bold ${
                     retryMetrics.activeBans > 0

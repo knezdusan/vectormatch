@@ -48,6 +48,10 @@ export interface PipelineHealthMetrics {
   avgGate3Confidence: number;
   /** F1 guard: country_fenced jobs with NULL location_countries (over-fencing signal). */
   nullCountryFencedJobs: number;
+  /** G1 guard: critical cron functions that haven't logged a run in their cadence window (silent cron failure). */
+  staleCronFunctions: number;
+  /** H2 guard: names of stale cron functions (for alert message detail). */
+  staleCronFunctionNames: string[];
 }
 
 // ── Thresholds ───────────────────────────────────────────────────────────────
@@ -66,7 +70,49 @@ export const ALERT_THRESHOLDS = {
   UNMATCHED_EMBEDDED_JOBS: 100, // alert if > 100 embedded jobs have no match_queue entry
   // ── F1: Fencing recall guard ──────────────────────────────────────────────
   NULL_COUNTRY_FENCED: 100, // alert if > 100 country_fenced jobs with NULL location_countries
+  // ── G1: Cron-firing receipt guard ─────────────────────────────────────────
+  // Critical cron functions that must produce an ingestion_log entry per run.
+  // If any haven't logged in 36h, the Inngest cron scheduler is silently wedged.
+  STALE_CRON_FUNCTIONS: 0, // alert if ANY critical cron function is stale
 } as const;
+
+/**
+ * H2 guard: Mission-critical cron functions that must produce an ingestion_log
+ * entry per run. Each entry maps the ingestion_log source to the expected max
+ * gap (in hours) between runs. If no log entry exists within that window, the
+ * cron is silently not firing — the Inngest cron scheduler is wedged.
+ *
+ * This is the "fired-run receipt" discipline: registered ≠ firing. The only
+ * proof that a cron function is working is a real log entry proving it ran.
+ * The wedge can hit ANY of the 41 cron functions, not just the 2 that failed
+ * first — so this guard covers all mission-critical crons by cadence.
+ *
+ * Cadence is set to 1.5× the expected interval (e.g., a 2h cron gets 6h grace,
+ * a daily cron gets 36h grace) to allow for execution latency without false
+ * positives.
+ */
+const CRITICAL_CRON_FUNCTIONS: Record<string, number> = {
+  // ── Pollers (most critical — silent failure = no new jobs) ───────────────
+  batch_poll_active_hot: 6, // every 2h — 6h grace
+  backlog_sweeper: 12, // every 6h — 12h grace
+  // ── Embedding & ingestion (the 2 that were silently dead) ───────────────
+  probation_embedding_backfill: 36, // daily at 4:15 UTC — 36h grace
+  direct_job_boards: 36, // daily at 5:00 UTC — 36h grace
+  // ── Sweeps & safety nets ────────────────────────────────────────────────
+  quality_flywheel: 36, // daily at 4:30 UTC
+  aggressive_cleanup: 36, // daily at 2:00 UTC
+  normalization_retry: 36, // every 12h — 36h grace
+  nightly_resurrection_sweep: 36, // daily at 3:00 UTC
+  match_retry_sweep: 36, // daily at 5:00 UTC
+  revival_sweep: 36, // daily at 3:00 UTC
+  layoff_signal_checker: 36, // daily at 5:00 UTC
+  // ── Daily seeders (company discovery pipeline) ──────────────────────────
+  wwr_rss: 36, // daily at 4:00 UTC
+  remote_job_boards: 36, // daily at 3:00 UTC
+  // ── Circuit breakers ────────────────────────────────────────────────────
+  breaker_check_v2: 12, // every 6h — 12h grace
+  source_ban_recovery_v2: 36, // daily at 6:00 UTC
+};
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -89,6 +135,7 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     unmatchedEmbeddedJobs,
     avgGate3Confidence,
     nullCountryFencedJobs,
+    staleCronResult,
   ] = await Promise.all([
     countUnnormalizedJobs(),
     countUnembeddedJobs(),
@@ -103,7 +150,11 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     countUnmatchedEmbeddedJobs(),
     calcAvgGate3Confidence7d(),
     countNullCountryFencedJobs(),
+    checkStaleCronFunctions(),
   ]);
+
+  const staleCronFunctions = staleCronResult.count;
+  const staleCronFunctionNames = staleCronResult.names;
 
   return {
     unnormalizedJobs,
@@ -119,6 +170,8 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     unmatchedEmbeddedJobs,
     avgGate3Confidence,
     nullCountryFencedJobs,
+    staleCronFunctions,
+    staleCronFunctionNames,
   };
 }
 
@@ -178,6 +231,21 @@ export function evaluateAlerts(metrics: PipelineHealthMetrics): string[] {
   if (metrics.nullCountryFencedJobs > ALERT_THRESHOLDS.NULL_COUNTRY_FENCED) {
     alerts.push(
       `NULL_COUNTRY_FENCED: ${metrics.nullCountryFencedJobs} country_fenced jobs with NULL location_countries (possible over-fencing or metadata gap)`,
+    );
+  }
+  // G1/H2: Cron-firing receipt guard — detect silently non-firing cron functions
+  //
+  // H3 recurrence watch: The Inngest cron scheduler wedge is a recurring
+  // pattern (not a one-time incident). The restart (H1) is PROVISIONAL — it
+  // clears the current wedge but doesn't prevent recurrence. This guard is
+  // the tripwire: if it fires after a restart, the wedge has returned and
+  // escalation is needed (scheduled preventive Inngest restart, or migration
+  // off self-hosted Inngest). The "#3549" attribution is unverified — the
+  // recurrence pattern, not the issue number, tells us what this is.
+  if (metrics.staleCronFunctions > ALERT_THRESHOLDS.STALE_CRON_FUNCTIONS) {
+    const names = metrics.staleCronFunctionNames.join(", ");
+    alerts.push(
+      `STALE_CRON_FUNCTIONS: ${metrics.staleCronFunctions} critical cron function(s) haven't logged a run in their cadence window — Inngest cron scheduler may be wedged (registered ≠ firing). Stale: ${names}. If this recurs after restart, escalate to scheduled preventive restart or migration off self-hosted Inngest.`,
     );
   }
 
@@ -326,4 +394,34 @@ async function countNullCountryFencedJobs(): Promise<number> {
       AND status = 'active'
   `);
   return Number(result.rows[0]?.cnt ?? 0);
+}
+
+/**
+ * H2 guard: Check all mission-critical cron functions for fired-run receipts.
+ *
+ * The "registered ≠ firing" wedge causes cron functions to be present in the
+ * serve endpoint but never actually scheduled by the Inngest cron scheduler.
+ * The only reliable signal is a fired-run receipt — an actual ingestion_log
+ * entry proving the function executed.
+ *
+ * Each function in CRITICAL_CRON_FUNCTIONS has a max gap (in hours). If no
+ * ingestion_log entry exists for that source within the gap, it's stale.
+ * Returns both the count and the names of stale functions for alert detail.
+ */
+async function checkStaleCronFunctions(): Promise<{
+  count: number;
+  names: string[];
+}> {
+  const staleNames: string[] = [];
+  for (const [source, maxGapHours] of Object.entries(CRITICAL_CRON_FUNCTIONS)) {
+    const result = await db.execute(sql`
+      SELECT count(*)::int AS cnt FROM ingestion_log
+      WHERE source = ${source} AND created_at > NOW() - ${maxGapHours} * INTERVAL '1 hour'
+    `);
+    const recentRuns = Number(result.rows[0]?.cnt ?? 0);
+    if (recentRuns === 0) {
+      staleNames.push(source);
+    }
+  }
+  return { count: staleNames.length, names: staleNames };
 }

@@ -5,8 +5,9 @@
 // Two tables: overall and per-source. Buckets 8-30d, 30-60d, and >60d are
 // highlighted with warning/danger colors to surface stale inventory.
 
-import { AlertTriangle, CalendarClock, Info } from "lucide-react";
+import { AlertTriangle, CalendarClock } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { StalenessDistributionChart } from "@/components/admin/StalenessDistributionChart";
 import {
   Card,
@@ -23,12 +24,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   getJobStalenessDistribution,
   type StalenessBucket,
@@ -60,21 +55,6 @@ function bucketClass(bucket: StalenessBucket): string {
 
 function formatPercent(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
-}
-
-function HelpTooltip({ text }: { text: string }) {
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info className="size-3.5 text-muted-foreground cursor-help shrink-0" />
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <p className="text-xs leading-relaxed">{text}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
 }
 
 function OverallTable({ rows }: { rows: StalenessDistributionRow[] }) {
@@ -190,7 +170,7 @@ export async function JobStalenessDistribution() {
             <CalendarClock className="size-5 text-muted-foreground" />
             <CardTitle>Active Job Staleness</CardTitle>
           </div>
-          <HelpTooltip text="Age of active jobs based on their publishedAt timestamp. Jobs older than 30 days are flagged because many ATS boards keep legacy postings open indefinitely." />
+          <AdminMetricTooltip text="Age of active jobs based on their publishedAt timestamp. Jobs older than 30 days are flagged because many ATS boards keep legacy postings open indefinitely." />
         </div>
         <CardDescription>
           Current distribution of active job listings by age since publication.

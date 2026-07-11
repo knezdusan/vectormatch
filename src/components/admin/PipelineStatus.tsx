@@ -1,6 +1,7 @@
 // Pipeline Status — job lifecycle + match queue status distributions.
 // Server Component that fetches status counts from admin-queries.ts.
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { StatusDistributionBars } from "@/components/admin/StatusDistributionBars";
 import {
   Card,
@@ -15,28 +16,67 @@ import {
   type StatusDistribution,
 } from "@/lib/jobs/admin-queries";
 
-const jobStatusConfig: Record<string, { label: string; color: string }> = {
-  active: { label: "Active", color: "bg-emerald-500" },
-  stale: { label: "Stale", color: "bg-amber-500" },
-  gone: { label: "Gone", color: "bg-slate-500" },
-  rejected: { label: "Rejected", color: "bg-red-500" },
+const jobStatusConfig: Record<
+  string,
+  { label: string; color: string; tooltip: string }
+> = {
+  active: {
+    label: "Active",
+    color: "bg-emerald-500",
+    tooltip: "Jobs currently eligible for the matching pipeline.",
+  },
+  stale: {
+    label: "Stale",
+    color: "bg-amber-500",
+    tooltip:
+      "Jobs no longer seen by the poller for the configured stale threshold period.",
+  },
+  gone: {
+    label: "Gone",
+    color: "bg-slate-500",
+    tooltip: "Jobs confirmed removed from the ATS source.",
+  },
+  rejected: {
+    label: "Rejected",
+    color: "bg-red-500",
+    tooltip: "Jobs rejected during Gate 0 normalization or quality checks.",
+  },
   normalization_failed: {
     label: "Normalization Failed",
     color: "bg-orange-500",
+    tooltip: "Jobs that failed normalization and may be retried.",
   },
 };
 
-const matchQueueStatusConfig: Record<string, { label: string; color: string }> =
-  {
-    pending: { label: "Pending", color: "bg-amber-500" },
-    approved: { label: "Approved", color: "bg-emerald-500" },
-    rejected: { label: "Rejected", color: "bg-red-500" },
-    error: { label: "Error", color: "bg-orange-500" },
-  };
+const matchQueueStatusConfig: Record<
+  string,
+  { label: string; color: string; tooltip: string }
+> = {
+  pending: {
+    label: "Pending",
+    color: "bg-amber-500",
+    tooltip: "Matches awaiting Gate 3 LLM evaluation.",
+  },
+  approved: {
+    label: "Approved",
+    color: "bg-emerald-500",
+    tooltip: "Matches approved by the LLM and visible to applicants.",
+  },
+  rejected: {
+    label: "Rejected",
+    color: "bg-red-500",
+    tooltip: "Matches rejected by the LLM because of explicit blockers.",
+  },
+  error: {
+    label: "Error",
+    color: "bg-orange-500",
+    tooltip: "Matches that encountered an error during evaluation.",
+  },
+};
 
 function normalizeDistribution(
   rows: StatusDistribution[],
-  config: Record<string, { label: string; color: string }>,
+  config: Record<string, { label: string; color: string; tooltip: string }>,
 ) {
   return rows
     .map((row) => ({
@@ -44,6 +84,7 @@ function normalizeDistribution(
       count: row.count,
       label: config[row.status]?.label ?? row.status,
       color: config[row.status]?.color ?? "bg-primary",
+      tooltip: config[row.status]?.tooltip,
     }))
     .sort((a, b) => b.count - a.count);
 }
@@ -85,7 +126,10 @@ export async function PipelineStatus() {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Job Pipeline</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Job Pipeline</CardTitle>
+            <AdminMetricTooltip text="Current lifecycle distribution of all ingested jobs. Active jobs are eligible for matching; stale/gone/rejected/failed jobs have dropped out of the pipeline." />
+          </div>
           <CardDescription>
             Lifecycle distribution across all ingested jobs (
             {jobTotal.toLocaleString()})
@@ -102,7 +146,10 @@ export async function PipelineStatus() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Match Queue</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle>Match Queue</CardTitle>
+            <AdminMetricTooltip text="Current Gate 3 verdict distribution across all match queue rows. Pending rows still need LLM arbitration; approved rows are visible to applicants." />
+          </div>
           <CardDescription>
             Gate 3 verdict distribution across all matches (
             {matchTotal.toLocaleString()})

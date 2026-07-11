@@ -7,6 +7,7 @@
 
 import { Activity, AlertTriangle, CheckCircle } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import {
   Card,
   CardContent,
@@ -77,6 +78,7 @@ interface MetricCardProps {
   unit?: string;
   status: Status;
   description: string;
+  tooltip: string;
 }
 
 function MetricCard({
@@ -85,12 +87,16 @@ function MetricCard({
   unit,
   status,
   description,
+  tooltip,
 }: MetricCardProps) {
   return (
     <Card className={`border ${statusBg(status)}`}>
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium">{label}</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-1.5">
+            {label}
+            <AdminMetricTooltip text={tooltip} />
+          </CardTitle>
           <StatusIcon status={status} />
         </div>
       </CardHeader>
@@ -213,42 +219,49 @@ export async function PipelineHealthMonitor() {
             value={metrics.unnormalizedJobs}
             status={unnormalizedStatus}
             description="Active jobs >1h old without normalization"
+            tooltip="Active jobs detected more than 1 hour ago that still have not been normalized."
           />
           <MetricCard
             label="Unembedded Jobs"
             value={metrics.unembeddedJobs}
             status={unembeddedStatus}
             description="Normalized but missing embeddings"
+            tooltip="Normalized active jobs that are missing a vector embedding, blocking them from Gate 2 matching."
           />
           <MetricCard
             label="Companies Polled (4h)"
             value={metrics.companiesPolled4h}
             status={pollerStatus}
             description="Poller liveness signal"
+            tooltip="Unique ATS companies successfully polled by the ingestion poller in the last 4 hours."
           />
           <MetricCard
             label="Matches (24h)"
             value={metrics.matches24h}
             status={matchStatus}
             description="Match generation rate"
+            tooltip="Match queue entries created in the last 24 hours."
           />
           <MetricCard
             label="Source Health Rows"
             value={metrics.sourceHealthRows}
             status={sourceHealthStatus}
             description="Circuit breaker coverage"
+            tooltip="Total rows in the source_health circuit-breaker table. Zero means no sources are being monitored."
           />
           <MetricCard
             label="Normalization Failed"
             value={metrics.normalizationFailed}
             status={failedStatus}
             description="Retryable normalization failures"
+            tooltip="Jobs with status 'normalization_failed' that can be retried once the underlying issue is fixed."
           />
           <MetricCard
             label="Stale Pending Matches"
             value={metrics.pendingMatchesStale}
             status={pendingStatus}
             description="Pending matches >30min old"
+            tooltip="Match queue rows still in 'pending' status older than 30 minutes, signaling a Gate 3 backlog or failure."
           />
           <MetricCard
             label="DB Storage"
@@ -256,6 +269,7 @@ export async function PipelineHealthMonitor() {
             unit="/ 512 MB"
             status={dbStatus}
             description="Neon storage usage"
+            tooltip="Current database size against the 512 MB Neon storage limit."
           />
           {/* Sprint 8: Match-specific metrics */}
           <MetricCard
@@ -263,6 +277,7 @@ export async function PipelineHealthMonitor() {
             value={metrics.approvedMatches24h}
             status={approvedStatus}
             description="Target: 5-10 approved per day"
+            tooltip="Matches approved by Gate 3 LLM arbitration in the last 24 hours. Target range is 5-10 per day."
           />
           <MetricCard
             label="Gate 3 Approval Rate (7d)"
@@ -270,12 +285,14 @@ export async function PipelineHealthMonitor() {
             unit="%"
             status={gate3RateStatus}
             description="Target: 2-4% approval rate"
+            tooltip="Approved / total Gate 3 evaluated over the last 7 days. Target range is 2-4%."
           />
           <MetricCard
             label="Unmatched Embedded Jobs"
             value={metrics.unmatchedEmbeddedJobs}
             status={unmatchedStatus}
             description="Embedded jobs missed by matching"
+            tooltip="Embedded jobs that have no match queue entry, signaling a matching coverage gap."
           />
           <MetricCard
             label="Avg Gate 3 Confidence (7d)"
@@ -283,6 +300,7 @@ export async function PipelineHealthMonitor() {
             unit="%"
             status={metrics.avgGate3Confidence > 0.5 ? "healthy" : "warning"}
             description="LLM certainty for recent evaluations"
+            tooltip="Average LLM confidence score for Gate 3 evaluations over the last 7 days."
           />
         </div>
       </CardContent>

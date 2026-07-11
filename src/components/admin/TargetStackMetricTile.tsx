@@ -8,6 +8,7 @@
 
 import { Globe, Target } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import {
   Card,
   CardContent,
@@ -69,6 +70,7 @@ export async function TargetStackMetricTile() {
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Globe className="size-3" />
               Global Jobs
+              <AdminMetricTooltip text="Active jobs marked as globally remote (remote_scope = global)." />
             </div>
             <p className="text-2xl font-bold tabular-nums">
               {safe.totalGlobalJobs.toLocaleString()}
@@ -78,8 +80,9 @@ export async function TargetStackMetricTile() {
             </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               With Target Tags
+              <AdminMetricTooltip text="Global-remote jobs tagged with the target stack (react, typescript, nextjs, nodejs, graphql, tailwindcss, frontend)." />
             </div>
             <p className="text-2xl font-bold tabular-nums">
               {safe.globalJobsWithTargetStackTags.toLocaleString()}
@@ -89,8 +92,9 @@ export async function TargetStackMetricTile() {
             </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               Addressable Pool
+              <AdminMetricTooltip text="Global-remote jobs that either carry target-stack tags or have a frontend-leaning title. This is the leading North Star indicator." />
             </div>
             <p className="text-2xl font-bold tabular-nums text-primary">
               {safe.addressablePool.toLocaleString()}
@@ -100,7 +104,10 @@ export async function TargetStackMetricTile() {
             </p>
           </div>
           <div className="space-y-1">
-            <div className="text-xs text-muted-foreground">Approved (7d)</div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              Approved (7d)
+              <AdminMetricTooltip text="Approved matches in the last 7 days. This is the lagging indicator tied to actual applicant value." />
+            </div>
             <p className="text-2xl font-bold tabular-nums">
               {safe.approvedMatches7d.toLocaleString()}
             </p>

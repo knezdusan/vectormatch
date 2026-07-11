@@ -7,8 +7,9 @@
 
 "use client";
 
-import { AlertTriangle, Info } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import {
   Card,
   CardContent,
@@ -16,12 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import type { OldJobRateAlert } from "@/lib/jobs/ingestion-analytics";
 
 interface OldJobRateAlertPanelProps {
@@ -30,21 +25,6 @@ interface OldJobRateAlertPanelProps {
 
 function formatPercent(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
-}
-
-function HelpTooltip({ text }: { text: string }) {
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Info className="size-3.5 text-muted-foreground cursor-help shrink-0" />
-        </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-xs">
-          <p className="text-xs leading-relaxed">{text}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
 }
 
 export function OldJobRateAlertPanel({ alerts }: OldJobRateAlertPanelProps) {
@@ -58,7 +38,7 @@ export function OldJobRateAlertPanel({ alerts }: OldJobRateAlertPanelProps) {
             <AlertTriangle className="size-5 text-yellow-600 dark:text-yellow-400" />
             <CardTitle>High Old-Job Rate Detected</CardTitle>
           </div>
-          <HelpTooltip text="Sources where &gt;30% of fetched jobs were rejected because they are older than the 30-day injection cap. This usually means the ATS slug is returning archived or all-time postings." />
+          <AdminMetricTooltip text="Sources where &gt;30% of fetched jobs were rejected because they are older than the 30-day injection cap. This usually means the ATS slug is returning archived or all-time postings." />
         </div>
         <CardDescription>
           Recent ingestion runs are skipping a large share of stale listings.

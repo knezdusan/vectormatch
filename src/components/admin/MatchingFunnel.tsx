@@ -8,6 +8,7 @@
 
 import { Award, Filter, Info, TrendingUp, Users } from "lucide-react";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { DistributionCharts } from "@/components/admin/DistributionCharts";
 import { FunnelChart } from "@/components/admin/FunnelChart";
 import {
@@ -268,6 +269,7 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <TrendingUp className="size-3" />
               <span>Total Jobs ({rangeLabel})</span>
+              <AdminMetricTooltip text="All jobs ingested in the selected time window." />
             </div>
           </CardHeader>
           <CardContent>
@@ -304,9 +306,10 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">
-              Gate 1+2 Candidates
-            </CardDescription>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Gate 1+2 Candidates</span>
+              <AdminMetricTooltip text="Jobs that passed GIN tag filtering (Gate 1) and HNSW vector similarity (Gate 2) and were promoted to LLM arbitration." />
+            </div>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums">
@@ -316,9 +319,10 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">
-              Gate 3 Approved
-            </CardDescription>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Gate 3 Approved</span>
+              <AdminMetricTooltip text="Match queue rows that the LLM arbitration step approved as relevant and visible to applicants." />
+            </div>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums text-emerald-500">
@@ -328,9 +332,10 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">
-              Gate 3 Rejected
-            </CardDescription>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Gate 3 Rejected</span>
+              <AdminMetricTooltip text="Match queue rows that the LLM arbitration step rejected because of explicit blockers." />
+            </div>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums text-red-500">
@@ -340,7 +345,10 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription className="text-xs">Approval Rate</CardDescription>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Approval Rate</span>
+              <AdminMetricTooltip text="Gate 3 approved / total Gate 3 evaluated in the selected time window." />
+            </div>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums">{approvalPct}%</p>
@@ -414,6 +422,7 @@ export async function MatchingFunnel({ range }: MatchingFunnelProps) {
             <div className="flex items-center gap-2">
               <Users className="size-5 text-muted-foreground" />
               <CardTitle>Purge Candidates</CardTitle>
+              <AdminMetricTooltip text="Active-tier companies whose quality score (approved matches / total jobs processed) has fallen below 10. Candidates for tier demotion or removal." />
             </div>
             <CardDescription>
               Active tier companies with quality score &lt; 10

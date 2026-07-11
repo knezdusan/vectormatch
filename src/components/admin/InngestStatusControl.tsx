@@ -18,6 +18,7 @@ import {
   restartInngestAction,
   resumeInngestAction,
 } from "@/actions/inngest-control";
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -161,7 +162,10 @@ export function InngestStatusControl() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-base">Inngest Server</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">Inngest Server</CardTitle>
+              <AdminMetricTooltip text="The Inngest durable execution engine that runs background jobs such as ingestion, normalization, embedding, and matching." />
+            </div>
             <CardDescription>
               Background job engine status and controls
             </CardDescription>
@@ -176,13 +180,17 @@ export function InngestStatusControl() {
         {/* Status details */}
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
               Container status
+              <AdminMetricTooltip text="Container state reported by the Coolify API or Inngest health endpoint." />
             </span>
             <span className="font-medium">{status?.coolifyStatus ?? "—"}</span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">Health check</span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              Health check
+              <AdminMetricTooltip text="Result of the Inngest HTTP health endpoint probe. Reachable means the engine is accepting requests." />
+            </span>
             <span className="font-medium">
               {healthCheck
                 ? `${healthCheck.reachable ? "Reachable" : "Unreachable"}${healthCheck.statusCode ? ` (${healthCheck.statusCode})` : ""}`
@@ -190,7 +198,10 @@ export function InngestStatusControl() {
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">Response time</span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              Response time
+              <AdminMetricTooltip text="Round-trip time of the last Inngest health check request." />
+            </span>
             <span className="font-medium">
               {healthCheck?.responseTimeMs != null
                 ? `${healthCheck.responseTimeMs}ms`
@@ -198,7 +209,10 @@ export function InngestStatusControl() {
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-muted-foreground">Last checked</span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+              Last checked
+              <AdminMetricTooltip text="Timestamp of the most recent status refresh. Auto-refreshes every 30 seconds." />
+            </span>
             <span className="font-medium">
               {status?.checkedAt
                 ? new Date(status.checkedAt).toLocaleTimeString()

@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminMetricTooltip } from "@/components/admin/AdminMetricTooltip";
 import { cn } from "@/lib/utils";
 
 interface StatusDistributionBarsProps {
@@ -8,6 +9,7 @@ interface StatusDistributionBarsProps {
     count: number;
     color: string;
     label: string;
+    tooltip?: string;
   }[];
   total: number;
   emptyMessage: string;
@@ -33,7 +35,12 @@ export function StatusDistributionBars({
         return (
           <div key={item.status} className="space-y-1">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium flex items-center gap-1.5">
+                {item.label}
+                {item.tooltip ? (
+                  <AdminMetricTooltip text={item.tooltip} />
+                ) : null}
+              </span>
               <span className="text-muted-foreground">
                 {item.count.toLocaleString()} ({percentage.toFixed(1)}%)
               </span>
