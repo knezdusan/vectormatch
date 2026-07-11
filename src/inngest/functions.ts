@@ -255,14 +255,12 @@ export function cronToTier(
   cron: string,
 ): "active_hot" | "active" | "probation" | "dormant" {
   switch (cron) {
-    case "0 */4 * * *":
-      return "active_hot"; // every 4h — hot tier (N1: was 2h, widened to cut CU burn)
+    case "0 */2 * * *":
+      return "active_hot"; // every 2h — hot tier (yielding tier, promptness front line)
     case "0 */12 * * *":
-      return "probation"; // every 12h — probation tier (N1: was 6h, widened — probation
-    // companies haven't yielded jobs yet, 12h is sufficient for proving)
+      return "probation"; // every 12h — probation tier (D1: PAUSED — cron commented out above)
     case "0 */24 * * *":
-      return "active"; // every 24h — standard tier (N1: was 12h, widened — 4.7K companies
-    // is the biggest CU burner, 24h cuts active polling burn in half)
+      return "active"; // every 24h — standard tier (4.7K companies, biggest burn)
     case "0 3 * * 1":
       return "dormant"; // weekly Monday 3am — dormant tier
     default:
@@ -345,9 +343,12 @@ export const batchPollTier = inngest.createFunction(
     id: "poller-batch-poll-tier",
     name: "Batch Poll Tier",
     triggers: [
-      { cron: "0 */4 * * *" }, // every 4h — hot tier (N1: was 2h, widened to cut CU burn)
-      { cron: "0 */12 * * *" }, // every 12h — probation tier (N1: was 6h, widened — probation companies haven't yielded yet)
-      { cron: "0 */24 * * *" }, // every 24h — standard tier (N1: was 12h, widened — 4.7K companies is the biggest burn)
+      { cron: "0 */2 * * *" }, // every 2h — hot tier (yielding tier, promptness front line)
+      // D1: Probation polling PAUSED for rest of current compute cycle.
+      // 3,985 companies, ~0.89 CU-hrs/day, zero yielded — pausing loses no measurable supply.
+      // Re-enable after cycle reset by uncommenting the line below:
+      // { cron: "0 */12 * * *" }, // every 12h — probation tier
+      { cron: "0 */24 * * *" }, // every 24h — standard tier (4.7K companies, biggest burn)
       { cron: "0 3 * * 1" }, // weekly Monday 3am — dormant tier
     ],
     concurrency: { limit: 5 },
@@ -632,7 +633,10 @@ export const pollBacklogSweeper = inngest.createFunction(
   {
     id: "poller-backlog-sweeper",
     name: "Poll Backlog Sweeper",
-    triggers: [{ cron: "0 */4 * * *" }], // every 4h (N1: was hourly, backlog doesn't grow that fast)
+    // D1: PAUSED for rest of current compute cycle. No new companies being enrolled
+    // (probation paused, Getro companies on paused probation tier). Re-enable after reset:
+    // triggers: [{ cron: "0 */4 * * *" }],
+    triggers: [],
     concurrency: { limit: 1 },
   },
   async ({ step }) => {
@@ -3174,7 +3178,7 @@ export const jobSummaryBackfill = inngest.createFunction(
   {
     id: "job-summary-backfill",
     name: "Job Summary Backfill Sweep",
-    triggers: [{ cron: "0 */6 * * *" }],
+    triggers: [{ cron: "0 4 * * *" }], // daily (D1: was 6h, widened for compute cycle)
   },
   async ({ step }) => {
     const jobs = await step.run("find-jobs-without-summary", async () => {
@@ -3566,9 +3570,9 @@ export const pendingQueueSweep = inngest.createFunction(
     name: "Pending Queue Sweep",
     // Sprint 3 Task 9: reduced from every 15 min (2,880 runs/month) to every
     // 30 min (1,440 runs/month) — halves Inngest execution cost. Users check
-    // daily, not hourly; a 2h feedback delay is acceptable.
-    // N1: was every 30 min, widened to every 2h to reduce CU burn.
-    triggers: [{ cron: "0 */2 * * *" }],
+    // daily, not hourly; a 6h feedback delay is acceptable.
+    // D1: was every 2h, widened to every 6h for compute cycle.
+    triggers: [{ cron: "0 */6 * * *" }],
   },
   async ({ step }) => {
     const result = await step.run("find-pending", async () => {
@@ -4131,7 +4135,8 @@ export const matchRetrySweep = inngest.createFunction(
     // Every 6 hours — the daily schedule (0 7 * * *) was too infrequent to
     // catch jobs missed by the matching pipeline. With 4 runs/day, the
     // bulk reprocess can process up to 4000 unmatched jobs/day (4 × 1000).
-    triggers: [{ cron: "0 */6 * * *" }],
+    // D1: widened to daily for compute cycle. Re-enable 6h after reset.
+    triggers: [{ cron: "0 7 * * *" }],
   },
   async ({ step }) => {
     // Step 1: Find unmatched active+embedded jobs that pass Gate 1 (tag
@@ -5080,7 +5085,7 @@ export const v2FrontendJobScanner = inngest.createFunction(
   {
     id: "v2-frontend-job-scanner",
     name: "v2 Frontend Job Scanner",
-    triggers: [{ cron: "0 */6 * * *" }],
+    triggers: [{ cron: "0 14 * * *" }], // daily (D1: was 6h, widened for compute cycle)
   },
   async ({ step }) => {
     const { runFrontendJobScannerDaily } = await import(
@@ -5606,7 +5611,7 @@ export const pipelineHealthMonitor = inngest.createFunction(
   {
     id: "pipeline-health-monitor",
     name: "Pipeline Health Monitor",
-    triggers: [{ cron: "0 */2 * * *" }], // every 2h (N1: was 30 min, pipeline health doesn't change in 30 min)
+    triggers: [{ cron: "0 */6 * * *" }], // every 6h (D1: was 2h, widened for compute cycle)
   },
   async ({ step, logger }) => {
     // Step 1: Collect all pipeline health metrics
@@ -5693,7 +5698,7 @@ export const emergencyStoragePurge = inngest.createFunction(
     name: "Emergency Storage Purge — Tiered Job Deletion",
     triggers: [
       { event: "purge/emergency-storage" },
-      { cron: "0 */2 * * *" }, // check every 2h if purge is needed (N1: was 15 min, storage doesn't spike that fast)
+      { cron: "0 */6 * * *" }, // check every 6h if purge is needed (D1: was 2h, storage doesn't spike that fast)
     ],
   },
   async ({ event, step, logger }) => {
@@ -5854,7 +5859,7 @@ export const inngestHealthMonitor = inngest.createFunction(
   {
     id: "inngest-health-monitor",
     name: "Inngest Health Monitor",
-    triggers: [{ cron: "*/30 * * * *" }], // every 30 min (N1: was 5 min, widened to let Neon scale to zero)
+    triggers: [{ cron: "0 */2 * * *" }], // every 2h (D1: was 30 min, widened for compute cycle)
   },
   async ({ step, logger }) => {
     // Step 1: Get Coolify container status

@@ -31,8 +31,8 @@ import {
 // =============================================================================
 
 describe("cronToTier", () => {
-  it("maps the 4h cron to active_hot", () => {
-    expect(cronToTier("0 */4 * * *")).toBe("active_hot");
+  it("maps the 2h cron to active_hot", () => {
+    expect(cronToTier("0 */2 * * *")).toBe("active_hot");
   });
 
   it("maps the 12h cron to probation", () => {
