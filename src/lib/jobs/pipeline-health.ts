@@ -46,6 +46,8 @@ export interface PipelineHealthMetrics {
   unmatchedEmbeddedJobs: number;
   /** Average Gate 3 LLM confidence for recent evaluations (last 7 days). */
   avgGate3Confidence: number;
+  /** F1 guard: country_fenced jobs with NULL location_countries (over-fencing signal). */
+  nullCountryFencedJobs: number;
 }
 
 // ── Thresholds ───────────────────────────────────────────────────────────────
@@ -62,6 +64,8 @@ export const ALERT_THRESHOLDS = {
   APPROVED_MATCHES_24H: 3, // alert if < 3 approved matches in 24h
   GATE3_APPROVAL_RATE_7D: 0.01, // alert if < 1% approval rate over 7 days
   UNMATCHED_EMBEDDED_JOBS: 100, // alert if > 100 embedded jobs have no match_queue entry
+  // ── F1: Fencing recall guard ──────────────────────────────────────────────
+  NULL_COUNTRY_FENCED: 100, // alert if > 100 country_fenced jobs with NULL location_countries
 } as const;
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -84,6 +88,7 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     gate3ApprovalRate7d,
     unmatchedEmbeddedJobs,
     avgGate3Confidence,
+    nullCountryFencedJobs,
   ] = await Promise.all([
     countUnnormalizedJobs(),
     countUnembeddedJobs(),
@@ -97,6 +102,7 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     calcGate3ApprovalRate7d(),
     countUnmatchedEmbeddedJobs(),
     calcAvgGate3Confidence7d(),
+    countNullCountryFencedJobs(),
   ]);
 
   return {
@@ -112,6 +118,7 @@ export async function getPipelineHealthMetrics(): Promise<PipelineHealthMetrics>
     gate3ApprovalRate7d,
     unmatchedEmbeddedJobs,
     avgGate3Confidence,
+    nullCountryFencedJobs,
   };
 }
 
@@ -165,6 +172,12 @@ export function evaluateAlerts(metrics: PipelineHealthMetrics): string[] {
   ) {
     alerts.push(
       `UNMATCHED_EMBEDDED: ${metrics.unmatchedEmbeddedJobs} embedded jobs with no match_queue entry`,
+    );
+  }
+  // F1: Fencing recall guard — detect over-fencing recurrence
+  if (metrics.nullCountryFencedJobs > ALERT_THRESHOLDS.NULL_COUNTRY_FENCED) {
+    alerts.push(
+      `NULL_COUNTRY_FENCED: ${metrics.nullCountryFencedJobs} country_fenced jobs with NULL location_countries (possible over-fencing or metadata gap)`,
     );
   }
 
@@ -291,4 +304,26 @@ async function calcAvgGate3Confidence7d(): Promise<number> {
       AND llm_confidence IS NOT NULL
   `);
   return Number(result.rows[0]?.avg_conf ?? 0);
+}
+
+/**
+ * F1 fencing recall guard: Count country_fenced jobs with NULL location_countries.
+ *
+ * A high count indicates either:
+ *   1. A metadata gap (ATS normalizers not extracting country codes from
+ *      location strings — the F1 fix addresses this)
+ *   2. Over-fencing by the LLM (classifying jobs as country_fenced without
+ *      providing a country code)
+ *
+ * Threshold: > 100 jobs triggers an alert.
+ */
+async function countNullCountryFencedJobs(): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT COUNT(*)::int AS cnt
+    FROM job
+    WHERE remote_scope = 'country_fenced'
+      AND location_countries IS NULL
+      AND status = 'active'
+  `);
+  return Number(result.rows[0]?.cnt ?? 0);
 }

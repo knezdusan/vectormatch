@@ -234,7 +234,9 @@ export const matchScoreExpr = sql<number>`
  * — the index returns rows in sorted order without an in-memory sort.
  *
  * @param userId   The authenticated user's ID (applicant.userId)
- * @param status   Filter by status: 'approved', 'rejected', 'pending', or 'all'
+ * @param status   Filter by status: 'approved' (unread), 'viewed' (read),
+ *                 'rejected', 'pending', 'mark_read', 'mismatch', 'applied',
+ *                 'stale', or 'all'
  * @param limit    Page size (default 20)
  * @param offset   Pagination offset (default 0)
  * @param sort     Sort order: 'best_match', 'newest', or 'oldest' (default 'best_match')
@@ -257,7 +259,17 @@ export async function getMatches(
         ? inArray(matchQueue.status, ["pending", "error"])
         : status === "stale"
           ? sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${staleCutoff}`
-          : eq(matchQueue.status, status);
+          : status === "approved"
+            ? and(
+                eq(matchQueue.status, "approved"),
+                eq(matchQueue.isRead, false),
+              )
+            : status === "viewed"
+              ? and(
+                  eq(matchQueue.status, "approved"),
+                  eq(matchQueue.isRead, true),
+                )
+              : eq(matchQueue.status, status);
 
   const rows = await db
     .select({
@@ -338,7 +350,9 @@ export async function getApprovedMatches(
  * Get the total count of matches for pagination (applicant-scoped, status-filtered).
  *
  * @param userId  The authenticated user's ID
- * @param status  Filter by status: 'approved', 'rejected', 'pending', or 'all'
+ * @param status  Filter by status: 'approved' (unread), 'viewed' (read),
+ *                'rejected', 'pending', 'mark_read', 'mismatch', 'applied',
+ *                'stale', or 'all'
  * @returns        Total count of matching rows
  */
 export async function getMatchesCount(
@@ -355,7 +369,17 @@ export async function getMatchesCount(
         ? inArray(matchQueue.status, ["pending", "error"])
         : status === "stale"
           ? sql`${matchQueue.status} = 'stale' AND ${matchQueue.staleAt} >= ${staleCutoff}`
-          : eq(matchQueue.status, status);
+          : status === "approved"
+            ? and(
+                eq(matchQueue.status, "approved"),
+                eq(matchQueue.isRead, false),
+              )
+            : status === "viewed"
+              ? and(
+                  eq(matchQueue.status, "approved"),
+                  eq(matchQueue.isRead, true),
+                )
+              : eq(matchQueue.status, status);
 
   const rows = await db
     .select({ cnt: count() })

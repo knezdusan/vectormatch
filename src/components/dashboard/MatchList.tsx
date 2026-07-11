@@ -12,7 +12,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { markAllMatchesRead, updateMatchStatus } from "@/actions/matches";
+import {
+  markAllMatchesRead,
+  markMatchRead,
+  updateMatchStatus,
+} from "@/actions/matches";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -68,6 +72,7 @@ function statusBadgeVariant(
 
 const STATUS_OPTIONS: { value: MatchStatusFilter; label: string }[] = [
   { value: "approved", label: "Approved" },
+  { value: "viewed", label: "Viewed" },
   { value: "rejected", label: "Rejected" },
   { value: "stale", label: "Closed" },
   { value: "pending", label: "Pending" },
@@ -79,6 +84,8 @@ const STATUS_OPTIONS: { value: MatchStatusFilter; label: string }[] = [
 
 function statusLabel(status: string): string {
   switch (status) {
+    case "viewed":
+      return "Viewed";
     case "mark_read":
       return "Read";
     case "mismatch":
@@ -173,7 +180,7 @@ function MatchCard({ match }: { match: MatchRow }) {
     setPendingAction(action);
     const result =
       action === "read"
-        ? await updateMatchStatus(match.matchQueueId, "mark_read")
+        ? await markMatchRead(match.matchQueueId)
         : await updateMatchStatus(
             match.matchQueueId,
             action === "mismatch" ? "mismatch" : "applied",

@@ -108,9 +108,12 @@ export const matchQueue = pgTable(
       table.personaId,
     ),
     // §2.3 #1 — Dashboard list query:
-    //   WHERE applicant_id = ? AND status = 'approved' ORDER BY created_at DESC
+    //   WHERE applicant_id = ? AND status = 'approved' AND is_read = false
+    //   ORDER BY created_at DESC
     // The createdAt DESC in the index lets Postgres return rows in sorted
-    // order without an in-memory sort.
+    // order without an in-memory sort. A filter on is_read is applied after
+    // the index scan; if viewed-job volumes grow, consider adding is_read to
+    // this index.
     applicantStatusIdx: index("match_queue_applicant_status_idx").on(
       table.applicantId,
       table.status,

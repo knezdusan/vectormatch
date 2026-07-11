@@ -575,6 +575,26 @@ export function extractJobMetadata(
   }
 }
 
+/**
+ * Extract country codes from a location string for the locationCountries field.
+ *
+ * F1 fix (July 2026): ATS APIs (Greenhouse, Lever, Ashby) don't provide
+ * structured country lists — they provide free-text location_name like
+ * "Remote - USA" or "United States". The remote scope extractor classifies
+ * these as country_fenced but nobody populated location_countries, leaving
+ * 780 jobs with country_fenced + NULL location_countries. This helper
+ * extracts the ISO code from the location string so the metadata is complete.
+ *
+ * @returns Array of ISO 3166-1 alpha-2 codes, or null if no country found.
+ */
+function extractCountriesFromLocation(
+  locationName: string | null,
+): string[] | null {
+  if (!locationName) return null;
+  const country = extractLocationCountry(locationName);
+  return country ? [country] : null;
+}
+
 function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
   // Location — nested object { name: string }
   const locationObj = obj.location;
@@ -723,7 +743,7 @@ function extractGreenhouseMetadata(obj: Record<string, unknown>): JobMetadata {
     isActive: true,
     companyName,
     titleRegionTag,
-    locationCountries: null, // Greenhouse doesn't provide structured country lists
+    locationCountries: extractCountriesFromLocation(locationName), // F1: extract from location string
     experienceMinYears: experienceRange?.min ?? null,
     experienceMaxYears: experienceRange?.max ?? null,
     compensationMin: null, // Greenhouse public API doesn't provide compensation
@@ -804,7 +824,7 @@ function extractLeverMetadata(obj: Record<string, unknown>): JobMetadata {
     isActive: true,
     companyName: null, // Lever v0 doesn't include company name in the job object
     titleRegionTag,
-    locationCountries: null, // Lever doesn't provide structured country lists
+    locationCountries: extractCountriesFromLocation(locationName), // F1: extract from location string
     experienceMinYears: experienceRange?.min ?? null,
     experienceMaxYears: experienceRange?.max ?? null,
     compensationMin: compensation.min,
@@ -885,7 +905,7 @@ function extractAshbyMetadata(obj: Record<string, unknown>): JobMetadata {
     isActive: true,
     companyName: null, // Ashby Public API doesn't include company name
     titleRegionTag,
-    locationCountries: null, // Ashby Public API location is a string, not a structured list
+    locationCountries: extractCountriesFromLocation(locationName), // F1: extract from location string
     experienceMinYears: experienceRange?.min ?? null,
     experienceMaxYears: experienceRange?.max ?? null,
     compensationMin: compensation.min,
@@ -971,7 +991,7 @@ function extractSmartRecruitersMetadata(
     isActive: parseIsActiveStatus("smartrecruiters", obj),
     companyName,
     titleRegionTag,
-    locationCountries: null,
+    locationCountries: extractCountriesFromLocation(locationName), // F1: extract from location string
     experienceMinYears: experienceRange?.min ?? null,
     experienceMaxYears: experienceRange?.max ?? null,
     compensationMin: null,
@@ -1052,7 +1072,7 @@ function extractWorkableMetadata(obj: Record<string, unknown>): JobMetadata {
     isActive: true,
     companyName,
     titleRegionTag,
-    locationCountries: null,
+    locationCountries: extractCountriesFromLocation(locationName), // F1: extract from location string
     experienceMinYears: experienceRange?.min ?? null,
     experienceMaxYears: experienceRange?.max ?? null,
     compensationMin: null,
@@ -1129,7 +1149,7 @@ function extractRecruiteeMetadata(obj: Record<string, unknown>): JobMetadata {
     isActive: parseIsActiveStatus("recruitee", obj),
     companyName,
     titleRegionTag,
-    locationCountries: null,
+    locationCountries: extractCountriesFromLocation(locationName), // F1: extract from location string
     experienceMinYears: experienceRange?.min ?? null,
     experienceMaxYears: experienceRange?.max ?? null,
     compensationMin: null,

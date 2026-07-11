@@ -99,8 +99,9 @@ export async function updateMatchStatus(
 /**
  * Mark a single match as read.
  *
- * Convenience wrapper around updateMatchStatus that stores the read state as
- * the "mark_read" status and clears the unread badge.
+ * Sets isRead = true for the match without changing its status, so the job
+ * moves from the default "Approved" listing (unread approved matches) to the
+ * "Viewed" filter and the sidebar unread badge is cleared.
  *
  * @param matchQueueId  The match queue row ID to mark as read
  * @returns             { success: true } or { success: false, error: "..." }
@@ -108,7 +109,30 @@ export async function updateMatchStatus(
 export async function markMatchRead(
   matchQueueId: string,
 ): Promise<MatchActionState> {
-  return updateMatchStatus(matchQueueId, "mark_read");
+  const session = await getAuthSession();
+  if (!session) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  const result = await db
+    .update(matchQueue)
+    .set({ isRead: true })
+    .where(
+      and(
+        eq(matchQueue.id, matchQueueId),
+        eq(matchQueue.applicantId, session.user.id),
+      ),
+    )
+    .returning({ id: matchQueue.id });
+
+  if (result.length === 0) {
+    return { success: false, error: "Match not found or not owned by user" };
+  }
+
+  revalidatePath("/dashboard/jobs");
+  revalidatePath("/dashboard");
+
+  return { success: true };
 }
 
 /**

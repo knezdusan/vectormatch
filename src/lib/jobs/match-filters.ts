@@ -2,6 +2,7 @@
 
 export const MATCH_STATUS_FILTERS = [
   "approved",
+  "viewed",
   "rejected",
   "stale",
   "pending",

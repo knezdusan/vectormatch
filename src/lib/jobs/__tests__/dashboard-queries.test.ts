@@ -165,6 +165,12 @@ describe("getMatches", () => {
     expect(db.select).toHaveBeenCalled();
   });
 
+  it("accepts 'viewed' status filter", async () => {
+    await getMatches("user-123", "viewed");
+
+    expect(db.select).toHaveBeenCalled();
+  });
+
   it("accepts 'mismatch' status filter", async () => {
     await getMatches("user-123", "mismatch");
 
@@ -257,6 +263,19 @@ describe("getMatchesCount", () => {
     const result = await getMatchesCount("user-123", "approved");
 
     expect(result).toBe(42);
+  });
+
+  it("returns count for viewed matches", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        where: vi.fn(() => [{ cnt: 7 }]),
+      })),
+    });
+
+    const result = await getMatchesCount("user-123", "viewed");
+
+    expect(result).toBe(7);
   });
 
   it("returns count for all matches", async () => {
