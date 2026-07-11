@@ -255,17 +255,14 @@ export function cronToTier(
   cron: string,
 ): "active_hot" | "active" | "probation" | "dormant" {
   switch (cron) {
-    case "0 */2 * * *":
-      return "active_hot"; // every 2h — hot tier (G1)
-    case "0 */6 * * *":
-      return "probation"; // every 6h — probation tier (B2 fix: probation
-    // companies must be polled regularly to prove themselves. Without this
-    // cron, probation companies get polled exactly once by the backlog
-    // sweeper and then become zombies — never polled again, never promoted,
-    // never demoted. This was the bug the pre-L2 QA report caught: 5,442
-    // companies parked in probation indefinitely, invisible by default.)
+    case "0 */4 * * *":
+      return "active_hot"; // every 4h — hot tier (N1: was 2h, widened to cut CU burn)
     case "0 */12 * * *":
-      return "active"; // every 12h — standard tier
+      return "probation"; // every 12h — probation tier (N1: was 6h, widened — probation
+    // companies haven't yielded jobs yet, 12h is sufficient for proving)
+    case "0 */24 * * *":
+      return "active"; // every 24h — standard tier (N1: was 12h, widened — 4.7K companies
+    // is the biggest CU burner, 24h cuts active polling burn in half)
     case "0 3 * * 1":
       return "dormant"; // weekly Monday 3am — dormant tier
     default:
@@ -348,9 +345,9 @@ export const batchPollTier = inngest.createFunction(
     id: "poller-batch-poll-tier",
     name: "Batch Poll Tier",
     triggers: [
-      { cron: "0 */2 * * *" }, // every 2h — hot tier
-      { cron: "0 */6 * * *" }, // every 6h — probation tier (B2 fix)
-      { cron: "0 */12 * * *" }, // every 12h — standard tier
+      { cron: "0 */4 * * *" }, // every 4h — hot tier (N1: was 2h, widened to cut CU burn)
+      { cron: "0 */12 * * *" }, // every 12h — probation tier (N1: was 6h, widened — probation companies haven't yielded yet)
+      { cron: "0 */24 * * *" }, // every 24h — standard tier (N1: was 12h, widened — 4.7K companies is the biggest burn)
       { cron: "0 3 * * 1" }, // weekly Monday 3am — dormant tier
     ],
     concurrency: { limit: 5 },
@@ -635,7 +632,7 @@ export const pollBacklogSweeper = inngest.createFunction(
   {
     id: "poller-backlog-sweeper",
     name: "Poll Backlog Sweeper",
-    triggers: [{ cron: "0 * * * *" }], // every hour
+    triggers: [{ cron: "0 */4 * * *" }], // every 4h (N1: was hourly, backlog doesn't grow that fast)
     concurrency: { limit: 1 },
   },
   async ({ step }) => {
@@ -1580,9 +1577,10 @@ export const normalizationRetrySweep = inngest.createFunction(
     name: "Normalization Retry Sweep",
     // Every 4 hours — the daily schedule (0 6 * * *) was too slow to clear
     // normalization backlogs. With a 2000-job limit per run and 4h cadence,
-    // throughput is 12000/day (6 runs × 2000), enough to keep up with peak
+    // throughput is 4000/day (2 runs × 2000), enough to keep up with peak
     // ingestion bursts (e.g. 3634 jobs from a single Greenhouse poll).
-    triggers: [{ cron: "0 */4 * * *" }],
+    // N1: was every 4h (6 runs/day), widened to every 12h to reduce CU burn.
+    triggers: [{ cron: "0 */12 * * *" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1751,9 +1749,6 @@ export const directJobBoardIngestion = inngest.createFunction(
     const { fetchRemoteOKJobs } = await import(
       "@/lib/jobs/direct-ingestion/remoteok"
     );
-    const { fetchNoFluffJobs } = await import(
-      "@/lib/jobs/direct-ingestion/nofluffjobs"
-    );
     const { fetchArbeitnowJobs } = await import(
       "@/lib/jobs/direct-ingestion/arbeitnow"
     );
@@ -1763,9 +1758,10 @@ export const directJobBoardIngestion = inngest.createFunction(
     const { fetchWeWorkRemotelyJobs } = await import(
       "@/lib/jobs/direct-ingestion/weworkremotely"
     );
-    const { fetchJustJoinJobs } = await import(
-      "@/lib/jobs/direct-ingestion/justjoin"
-    );
+    // NoFluffJobs & JustJoin disabled (LOCK 1) — Poland-fenced at application layer.
+    // LaraJobs not wired (C1) — 1 addressable job doesn't justify a bespoke adapter.
+    // Both decisions follow the adapter-vs-company-discovery rule (C2):
+    // small/niche boards feed company-discovery, not direct-ingestion adapters.
     const { upsertDirectJobs } = await import(
       "@/lib/jobs/direct-ingestion/upsert"
     );
@@ -1926,111 +1922,25 @@ export const directJobBoardIngestion = inngest.createFunction(
       });
     }
 
-    // ── Board 3: NoFluffJobs ────────────────────────────────────────────────
-    // Demoted from 1000→100: NoFluffJobs is overwhelmingly Poland-locked
-    // (~95%+ of remote listings). With the country_fenced fix, these are
-    // blocked at Gate 0.5 before reaching the LLM, but the embedding cost
-    // (~$0.01/run at 1000 jobs) and transient DB rows are wasted. A low
-    // volume still catches the rare multi-country CEE listings (5Blue-style)
-    // that are worth routing to Gate 3.
-    const nofluffResult = await step.run("fetch-nofluffjobs", async () => {
-      const result = await fetchNoFluffJobs(100, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
+    // ── Board 3: NoFluffJobs — DISABLED (LOCK 1, July 2026) ──────────────────
+    // Dux confirmed: NoFluffJobs is Poland-fenced at the application-form stage
+    // even on listings that read as genuinely remote. Contributes zero
+    // addressable (global-remote) supply. Adapter disabled; existing jobs
+    // expired from the pool. See vectormatch_L2_discovery_census_directive.md.
+    // To re-enable: uncomment the fetch/upsert block below and re-run the
+    // nightly ingestion.
+    // const nofluffResult = await step.run("fetch-nofluffjobs", async () => {
+    //   const result = await fetchNoFluffJobs(100, techFilter);
+    //   ...
+    // });
 
-    if (nofluffResult.success && nofluffResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        nofluffResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-nofluffjobs", async () => {
-        return upsertDirectJobs(
-          "nofluffjobs",
-          "nofluffjobs",
-          jobsForUpsert,
-          embedFn,
-        );
-      });
-      boardResults.push({
-        board: "NoFluffJobs",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!nofluffResult.success) {
-      boardResults.push({
-        board: "NoFluffJobs",
-        success: false,
-        ingested: 0,
-        error: nofluffResult.error,
-      });
-    }
-
-    // ── Board 4: JustJoin ───────────────────────────────────────────────────
-    // JustJoin uses a two-step fetch (list + per-offer detail), so it is slower
-    // than the single-call boards. The pre-filter bounds detail calls to only
-    // jobs matching the persona's tech stack by title/skills.
-    const justjoinResult = await step.run("fetch-justjoin", async () => {
-      const result = await fetchJustJoinJobs(500, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
-
-    if (justjoinResult.success && justjoinResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        justjoinResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-justjoin", async () => {
-        return upsertDirectJobs("justjoin", "justjoin", jobsForUpsert, embedFn);
-      });
-      boardResults.push({
-        board: "JustJoin",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!justjoinResult.success) {
-      boardResults.push({
-        board: "JustJoin",
-        success: false,
-        ingested: 0,
-        error: justjoinResult.error,
-      });
-    }
+    // ── Board 4: JustJoin — DISABLED (LOCK 1, July 2026) ─────────────────────
+    // Dux confirmed: JustJoin is Poland-fenced at the application-form stage.
+    // Same rationale as NoFluffJobs. Adapter disabled; existing jobs expired.
+    // const justjoinResult = await step.run("fetch-justjoin", async () => {
+    //   const result = await fetchJustJoinJobs(500, techFilter);
+    //   ...
+    // });
 
     // ── Board 5: Arbeitnow ──────────────────────────────────────────────────
     const arbeitnowResult = await step.run("fetch-arbeitnow", async () => {
@@ -3656,8 +3566,9 @@ export const pendingQueueSweep = inngest.createFunction(
     name: "Pending Queue Sweep",
     // Sprint 3 Task 9: reduced from every 15 min (2,880 runs/month) to every
     // 30 min (1,440 runs/month) — halves Inngest execution cost. Users check
-    // daily, not hourly; a 30-min feedback delay is acceptable.
-    triggers: [{ cron: "0,30 * * * *" }],
+    // daily, not hourly; a 2h feedback delay is acceptable.
+    // N1: was every 30 min, widened to every 2h to reduce CU burn.
+    triggers: [{ cron: "0 */2 * * *" }],
   },
   async ({ step }) => {
     const result = await step.run("find-pending", async () => {
@@ -5640,8 +5551,8 @@ export const dailyHealthCheck = inngest.createFunction(
 export const storageMonitor = inngest.createFunction(
   {
     id: "storage-monitor",
-    name: "Hourly Storage Monitor",
-    triggers: [{ cron: "0 * * * *" }],
+    name: "Storage Monitor",
+    triggers: [{ cron: "0 */6 * * *" }], // every 6h (N1: was hourly, storage doesn't spike that fast)
   },
   async ({ step, logger }) => {
     const status = await step.run("check-storage-alerts", async () => {
@@ -5695,7 +5606,7 @@ export const pipelineHealthMonitor = inngest.createFunction(
   {
     id: "pipeline-health-monitor",
     name: "Pipeline Health Monitor",
-    triggers: [{ cron: "*/30 * * * *" }], // every 30 min
+    triggers: [{ cron: "0 */2 * * *" }], // every 2h (N1: was 30 min, pipeline health doesn't change in 30 min)
   },
   async ({ step, logger }) => {
     // Step 1: Collect all pipeline health metrics
@@ -5782,7 +5693,7 @@ export const emergencyStoragePurge = inngest.createFunction(
     name: "Emergency Storage Purge — Tiered Job Deletion",
     triggers: [
       { event: "purge/emergency-storage" },
-      { cron: "*/15 * * * *" }, // check every 15 min if purge is needed
+      { cron: "0 */2 * * *" }, // check every 2h if purge is needed (N1: was 15 min, storage doesn't spike that fast)
     ],
   },
   async ({ event, step, logger }) => {
@@ -5943,7 +5854,7 @@ export const inngestHealthMonitor = inngest.createFunction(
   {
     id: "inngest-health-monitor",
     name: "Inngest Health Monitor",
-    triggers: [{ cron: "*/5 * * * *" }], // every 5 min
+    triggers: [{ cron: "*/30 * * * *" }], // every 30 min (N1: was 5 min, widened to let Neon scale to zero)
   },
   async ({ step, logger }) => {
     // Step 1: Get Coolify container status

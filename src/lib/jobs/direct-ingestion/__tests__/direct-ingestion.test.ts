@@ -255,6 +255,74 @@ describe("fetchHimalayasJobs", () => {
     if (!result.success) return;
     expect(result.jobs).toHaveLength(3);
   });
+
+  // ── D1 Audit: no-data default behavior ──────────────────────────────────
+
+  it("defaults to global when location is null and no fencing signal in title/text", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      jobs: [
+        {
+          jobSlug: "test-global-1",
+          title: "Senior Software Engineer",
+          companyName: "TestCo",
+          excerpt: "We are a global team building great products.",
+          tags: ["react", "typescript"],
+        },
+      ],
+    };
+    const fetchFn = mockFetchResponse(mockResponse);
+    const result = await fetchHimalayasJobs(1, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(result.jobs[0].locationCountries).toBeNull();
+  });
+
+  it("fences to region_fenced when title contains 'Latin America'", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      jobs: [
+        {
+          jobSlug: "test-latam-1",
+          title: "Fullstack Developer - Remote, Latin America",
+          companyName: "Bluelight",
+          excerpt: "A software consultancy.",
+          tags: ["react", "python"],
+        },
+      ],
+    };
+    const fetchFn = mockFetchResponse(mockResponse);
+    const result = await fetchHimalayasJobs(1, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("region_fenced");
+  });
+
+  it("fences to country_fenced (US) when text contains 'United States'", async () => {
+    const mockResponse = {
+      totalCount: 1,
+      jobs: [
+        {
+          jobSlug: "test-us-1",
+          title: "Product Manager",
+          companyName: "BCD",
+          excerpt:
+            "Remote Full time, United States. Senior Product Delivery Manager.",
+          tags: ["product"],
+        },
+      ],
+    };
+    const fetchFn = mockFetchResponse(mockResponse);
+    const result = await fetchHimalayasJobs(1, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["US"]);
+  });
 });
 
 // ── remoteok.ts tests ────────────────────────────────────────────────────────
@@ -395,6 +463,70 @@ describe("fetchRemoteOKJobs", () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.error).toBe("Connection refused");
+  });
+
+  // ── D1 Audit: no-data default behavior ──────────────────────────────────
+
+  it("defaults to global when location is empty string", async () => {
+    const mockData = [
+      { legal: "notice" },
+      {
+        id: "1",
+        position: "Senior Engineer",
+        company: "TestCo",
+        tags: ["react"],
+        description: "<p>Great job</p>",
+        location: "",
+      },
+    ];
+    const fetchFn = mockFetchResponse(mockData);
+    const result = await fetchRemoteOKJobs(1, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(result.jobs[0].locationCountries).toBeNull();
+  });
+
+  it("fences to country_fenced when location contains a country name", async () => {
+    const mockData = [
+      { legal: "notice" },
+      {
+        id: "2",
+        position: "Developer",
+        company: "TestCo",
+        tags: ["react"],
+        description: "<p>Great job</p>",
+        location: "Lisboa, Portugal",
+      },
+    ];
+    const fetchFn = mockFetchResponse(mockData);
+    const result = await fetchRemoteOKJobs(1, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(result.jobs[0].locationCountries).toEqual(["PT"]);
+  });
+
+  it("defaults to global when location is null", async () => {
+    const mockData = [
+      { legal: "notice" },
+      {
+        id: "3",
+        position: "Engineer",
+        company: "TestCo",
+        tags: ["react"],
+        description: "<p>Great job</p>",
+        location: null,
+      },
+    ];
+    const fetchFn = mockFetchResponse(mockData);
+    const result = await fetchRemoteOKJobs(1, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
   });
 });
 
@@ -1236,6 +1368,50 @@ describe("fetchRemotiveJobs", () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.error).toBe("Connection refused");
+  });
+
+  // ── D1 Audit: no-data default behavior ──────────────────────────────────
+
+  it("defaults to global when candidate_required_location is undefined", async () => {
+    const mockResponse = {
+      "job-count": 1,
+      jobs: [
+        {
+          id: 1,
+          title: "React Dev",
+          tags: ["react"],
+          description: "",
+          // candidate_required_location omitted
+        },
+      ],
+    };
+    const fetchFn = mockRemotiveFetch(mockResponse);
+    const result = await fetchRemotiveJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
+  });
+
+  it("defaults to global when candidate_required_location is 'Anywhere'", async () => {
+    const mockResponse = {
+      "job-count": 1,
+      jobs: [
+        {
+          id: 2,
+          title: "React Dev",
+          tags: ["react"],
+          description: "",
+          candidate_required_location: "Anywhere",
+        },
+      ],
+    };
+    const fetchFn = mockRemotiveFetch(mockResponse);
+    const result = await fetchRemotiveJobs(100, allPassFilter, fetchFn);
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.jobs[0].remoteScope).toBe("global");
   });
 });
 

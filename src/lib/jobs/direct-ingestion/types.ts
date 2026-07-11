@@ -54,6 +54,85 @@
 //
 //   5. The stale-classification sweep (C4) targets BOTH paths — it re-checks
 //      global jobs with specific locations regardless of source.
+//
+// ── E3 Policy: Structured Country-Code vs ALWAYS_GLOBAL_OVERRIDE (July 2026) ─
+//
+// The ATS/text path (extractRemoteScope) and the direct-ingestion path
+// (per-adapter scope logic) have contradictory rules for identical JD text:
+//
+//   - ATS path: ALWAYS_GLOBAL_OVERRIDE patterns ("work from anywhere", etc.)
+//     in JD text → global, EVEN when location is specific. Rationale: these
+//     are the strongest possible global intent signals and cannot be
+//     contradicted by a location field that lists a city out of ATS habit.
+//
+//   - Direct-ingestion path (JustJoin, NoFluffJobs): structured countryCode
+//     from the board's API → country_fenced, EVEN when JD text contains
+//     "work from anywhere". Rationale: platform boards that supply structured
+//     country codes (JustJoin countryCode, NoFluffJobs places[].country.code)
+//     are authoritative — the board has already determined the hiring region.
+//     JD text like "work from anywhere" is marketing boilerplate, not a
+//     hiring policy. This is consistent with the established "NoFluffJobs =
+//     Poland-locked" screening heuristic.
+//
+// POLICY (single source of truth, referenced by both paths):
+//
+//   1. On platform boards that supply a structured country-code from their
+//      own API (JustJoin, NoFluffJobs), the structured code BEATS JD
+//      global-language boilerplate. The job is country_fenced.
+//
+//   2. On the ATS/text path (Greenhouse, Ashby, Lever, SmartRecruiters) where
+//      no structured country-code exists, ALWAYS_GLOBAL_OVERRIDE continues
+//      to apply — JD text is the only signal, and "work from anywhere" is
+//      the strongest available global intent.
+//
+//   3. On direct-ingestion boards WITHOUT structured country data (Himalayas,
+//      RemoteOK, Remotive, WWR, Arbeitnow), the adapter's own scope inference
+//      logic applies. These boards don't supply country codes, so they use
+//      location strings, title signals, and text signals instead.
+//
+//   4. The divergence is INTENTIONAL and DOCUMENTED. It reflects the
+//      reliability hierarchy: structured API data > JD text regex > location
+//      string heuristics.
+//
+// Status: Recommended default, pending Dux confirmation. Implemented as
+// described above — JustJoin's inferScopeFromCountryCode fences on
+// countryCode regardless of JD text; extractRemoteScope's
+// ALWAYS_GLOBAL_OVERRIDE applies only on the ATS path.
+//
+// ── C2 Policy: Adapter vs Company-Discovery Routing (July 2026, durable) ────
+//
+// ARCHITECTURAL RULE: Not every job board gets a bespoke direct-ingestion
+// adapter. The routing decision is:
+//
+//   DIRECT-INGESTION ADAPTER (this file's path):
+//   Justified ONLY for high-volume, genuinely-global, reliable native boards
+//   that self-certify worldwide remote work (WeWorkRemotely-class). The board
+//   must produce enough addressable jobs to justify the permanent maintenance
+//   liability of a hand-rolled adapter (RSS drift, scope logic, tag mapping,
+//   salary parsing — the exact class the D1 audit hunted).
+//
+//   COMPANY-DISCOVERY → ATS-RESOLUTION → PROBATION-POLL path:
+//   ALL other boards — niche/stack-specific (GoRails, LaraJobs, Symfony Jobs),
+//   VC/aggregator portfolios (Getro-class), and any source whose value is the
+//   companies it surfaces rather than the jobs it hosts. These sources feed
+//   company names into the existing ATS slug resolver, which probes
+//   Greenhouse/Ashby/Lever/SmartRecruiters. Net-new companies enroll to
+//   probation and are polled by the hardened ATS poller — no new adapter code.
+//
+// RATIONLE: The highest aggregate supply on this project lives in the
+// ATS-company layer (our reference set is Ashby/Greenhouse/Lever companies,
+// not native boards). The census's job is to find aggregators that unlock
+// hundreds of genuinely-global companies whose ATSs we already poll well.
+// Building a bespoke adapter for every 5-job niche board is adapter
+// proliferation — the problem that caused the entire D1 audit.
+//
+// EXAMPLES:
+//   - WeWorkRemotely → direct-ingestion adapter (high volume, genuinely global)
+//   - Himalayas, RemoteOK, Arbeitnow, Remotive → direct-ingestion adapters
+//   - LaraJobs (10 jobs, 1 addressable) → company-discovery (NOT an adapter)
+//   - GoRails (5 jobs, 4 addressable) → company-discovery (NOT an adapter)
+//   - Getro networks → company-discovery (aggregator → ATS resolution)
+//   - 4 Day Week → REJECTED (1.3% global yield, not worth either path)
 
 /** A job normalized from a direct job board API response. */
 export interface DirectIngestionJob {

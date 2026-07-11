@@ -31,16 +31,16 @@ import {
 // =============================================================================
 
 describe("cronToTier", () => {
-  it("maps the 2h cron to active_hot", () => {
-    expect(cronToTier("0 */2 * * *")).toBe("active_hot");
+  it("maps the 4h cron to active_hot", () => {
+    expect(cronToTier("0 */4 * * *")).toBe("active_hot");
   });
 
-  it("maps the 6h cron to probation (B2 fix)", () => {
-    expect(cronToTier("0 */6 * * *")).toBe("probation");
+  it("maps the 12h cron to probation", () => {
+    expect(cronToTier("0 */12 * * *")).toBe("probation");
   });
 
-  it("maps the 12h cron to active", () => {
-    expect(cronToTier("0 */12 * * *")).toBe("active");
+  it("maps the 24h cron to active", () => {
+    expect(cronToTier("0 */24 * * *")).toBe("active");
   });
 
   it("maps the weekly Monday 3am cron to dormant", () => {

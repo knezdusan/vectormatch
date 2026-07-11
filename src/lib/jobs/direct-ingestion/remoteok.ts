@@ -12,7 +12,15 @@
 //     apply_url, url, date }
 //
 // Note: The description field contains HTML — we strip it for normalizedText.
+//
+// ── D1 Audit (July 2026) ────────────────────────────────────────────────────
+// The adapter previously hardcoded remoteScope="global" and ignored the
+// location field for scope inference. This caused FNs: jobs with
+// location="Christ Church" (Barbados) or "Lisboa, Portugal" were classified
+// as global. The fix: infer scope from the location string using the same
+// extractLocationCountry utility as the other adapters.
 
+import { extractLocationCountry } from "@/lib/jobs/location-utils";
 import type { DirectFetchResult, DirectIngestionJob } from "./types";
 
 /** RemoteOK API response — array with first element as legal notice. */
@@ -102,7 +110,7 @@ export async function fetchRemoteOKJobs(
         locationName: rj.location ?? null,
         workplaceType: "remote", // RemoteOK is remote-first
         employmentType: null, // RemoteOK doesn't provide structured employment type
-        remoteScope: "global", // Remote-first board
+        ...inferRemoteOKScope(rj.location),
         compensationMin:
           rj.salary_min && rj.salary_min > 0 ? rj.salary_min : null,
         compensationMax:
@@ -153,4 +161,53 @@ function stripHtml(html: string): string {
 function safeParseDate(s: string): Date | null {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Infer remoteScope from the RemoteOK location field.
+ *
+ * RemoteOK doesn't expose structured country codes. The location field is
+ * free-text (e.g. "Christ Church", "Lisboa, Portugal", or empty). When
+ * location is empty/null, default to global (RemoteOK is remote-first).
+ * When location is present, try to extract a country code.
+ */
+function inferRemoteOKScope(location: string | undefined): {
+  remoteScope: "global" | "country_fenced" | "region_fenced";
+  locationCountries: string[] | null;
+} {
+  if (!location || location.trim() === "") {
+    return { remoteScope: "global", locationCountries: null };
+  }
+
+  const lower = location.toLowerCase();
+  if (
+    lower.includes("worldwide") ||
+    lower.includes("anywhere") ||
+    lower.includes("global")
+  ) {
+    return { remoteScope: "global", locationCountries: null };
+  }
+
+  // Check for broad regions
+  if (
+    lower.includes("emea") ||
+    lower.includes("apac") ||
+    lower.includes("latam") ||
+    lower.includes("americas") ||
+    lower.includes("europe") ||
+    lower.includes("africa") ||
+    lower.includes("north america") ||
+    lower.includes("asia")
+  ) {
+    return { remoteScope: "region_fenced", locationCountries: null };
+  }
+
+  // Try to extract a country code
+  const country = extractLocationCountry(location);
+  if (country) {
+    return { remoteScope: "country_fenced", locationCountries: [country] };
+  }
+
+  // Location string present but no country could be extracted — default to global
+  return { remoteScope: "global", locationCountries: null };
 }

@@ -11,7 +11,15 @@
 //
 // The API returns 100K+ jobs. We paginate through pages, applying the persona
 // tech-stack filter to only ingest frontend/PHP/Laravel jobs.
+//
+// ── D1 Audit (July 2026) ────────────────────────────────────────────────────
+// The adapter previously hardcoded remoteScope="global" and ignored the
+// location field for scope inference. This caused FNs: jobs with
+// location="Remote, Latin America" or null location but US-only text were
+// classified as global. The fix: infer scope from the location string, and
+// when location is null, check the excerpt for region-fencing signals.
 
+import { extractLocationCountry } from "@/lib/jobs/location-utils";
 import type { DirectFetchResult, DirectIngestionJob } from "./types";
 
 /** Himalayas API response shape (partial — only fields we use). */
@@ -116,7 +124,7 @@ export async function fetchHimalayasJobs(
           locationName: hj.location ?? null,
           workplaceType: "remote", // Himalayas is remote-first
           employmentType: normalizeEmploymentType(hj.employmentType),
-          remoteScope: "global", // Remote-first board
+          ...inferHimalayasScope(hj.location, title, description),
           compensationMin: hj.minSalary ?? null,
           compensationMax: hj.maxSalary ?? null,
           compensationCurrency: hj.salaryCurrency ?? "USD",
@@ -159,4 +167,74 @@ function normalizeEmploymentType(raw: string | undefined): string | null {
 function safeParseDate(s: string): Date | null {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Infer remoteScope from the Himalayas location field, title, and excerpt text.
+ *
+ * Himalayas doesn't expose structured country codes. The location field is
+ * free-text (e.g. "Remote, Latin America", "United States", or null). When
+ * location is null, we check the title and excerpt for region-fencing signals
+ * (e.g. "Remote, Latin America" in the title, "United States" in the text).
+ *
+ * Default: global (Himalayas is a remote-first board with worldwide listings).
+ * Fencing only when there's a clear signal.
+ */
+function inferHimalayasScope(
+  location: string | undefined,
+  title: string,
+  excerpt: string,
+): {
+  remoteScope: "global" | "country_fenced" | "region_fenced";
+  locationCountries: string[] | null;
+} {
+  const combined = `${location ?? ""} ${title} ${excerpt}`.toLowerCase();
+
+  // Check for explicit global signals first
+  if (
+    combined.includes("worldwide") ||
+    combined.includes("anywhere in the world") ||
+    combined.includes("work from anywhere")
+  ) {
+    return { remoteScope: "global", locationCountries: null };
+  }
+
+  // Check for broad regions (in location or title)
+  if (
+    combined.includes("latin america") ||
+    combined.includes("latam") ||
+    combined.includes("emea") ||
+    combined.includes("apac") ||
+    combined.includes("north america") ||
+    combined.includes("noam") ||
+    combined.includes("americas") ||
+    combined.includes("europe") ||
+    combined.includes("africa") ||
+    combined.includes("asia")
+  ) {
+    return { remoteScope: "region_fenced", locationCountries: null };
+  }
+
+  // Check for US-only signals in text
+  if (
+    combined.includes("us only") ||
+    combined.includes("usa only") ||
+    combined.includes("united states") ||
+    combined.includes("must be in the us") ||
+    combined.includes("must be based in the us") ||
+    combined.includes("must reside in")
+  ) {
+    return { remoteScope: "country_fenced", locationCountries: ["US"] };
+  }
+
+  // Try to extract a country from the location string
+  if (location) {
+    const country = extractLocationCountry(location);
+    if (country) {
+      return { remoteScope: "country_fenced", locationCountries: [country] };
+    }
+  }
+
+  // No fencing signal found — default to global
+  return { remoteScope: "global", locationCountries: null };
 }
