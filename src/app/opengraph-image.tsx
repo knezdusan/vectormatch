@@ -1,10 +1,17 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const alt = "VectorMatch — The AI Agent for Web Developers";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function Image() {
+export default async function Image() {
+  const logoBuffer = await readFile(
+    join(process.cwd(), "public", "web-app-manifest-512x512.png"),
+  );
+  const logoSrc = `data:image/png;base64,${logoBuffer.toString("base64")}`;
+
   return new ImageResponse(
     <div
       style={{
@@ -28,22 +35,14 @@ export default function Image() {
           marginBottom: 32,
         }}
       >
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 14,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "linear-gradient(135deg, #a855f7, #c026d3)",
-            fontSize: 32,
-            fontWeight: 800,
-            color: "#ffffff",
-          }}
-        >
-          V
-        </div>
+        {/* biome-ignore lint/performance/noImgElement: <img> is required inside Next.js ImageResponse to embed a local icon. */}
+        <img
+          src={logoSrc}
+          width={56}
+          height={56}
+          alt=""
+          style={{ borderRadius: 14 }}
+        />
         <span
           style={{
             fontSize: 28,

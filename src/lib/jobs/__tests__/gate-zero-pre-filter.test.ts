@@ -2054,4 +2054,145 @@ describe("Gate 0.5 — Check 8: Work-authorization fencing (Rule 5 revised)", ()
     expect(result.passes).toBe(true);
     expect(result.patternDetected).not.toBe("work_auth_fencing");
   });
+
+  // Fix 6 (July 2026 mismatch): non-US country-fenced jobs are hard-blocked
+  // even without fencing language in the JD. The absence of fencing language
+  // doesn't mean the job is open to non-residents — most country-fenced jobs
+  // require residency/work auth by default. w8ben/ic_global only covers US.
+  it("Fix 6: blocks country_fenced [CA] + no fencing language + RS applicant (non-US)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Design Engineer, Canada",
+          locationName: "Remote, Canada",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["CA"],
+          normalizedText:
+            "We are hiring a design engineer to build beautiful interfaces with React and TypeScript.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    // CA-only restriction, RS applicant not in list, no fencing language in JD
+    // → hard block (w8ben does not cover Canada-only restrictions)
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("country_fenced_non_us");
+  });
+
+  it("Fix 6: blocks country_fenced [PL] + no fencing language + RS applicant", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Fullstack Developer (Java + React)",
+          locationName: "Remote, Poland",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["PL"],
+          normalizedText:
+            "We are hiring a fullstack developer to work on our Java + React platform.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("country_fenced_non_us");
+  });
+
+  it("Fix 6: blocks country_fenced [PT] + no fencing language + RS applicant", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Design Engineer, EU",
+          locationName: "Remote, Portugal",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["PT"],
+          normalizedText:
+            "We are hiring a design engineer for our European team. React and TypeScript required.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("country_fenced_non_us");
+  });
+
+  it("Fix 6: passes through country_fenced [US] + no fencing language (US soft-fail-open)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["US"],
+          normalizedText:
+            "We are hiring a senior software engineer to build scalable systems with React and Node.js.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    // US-only restriction with no fencing language → soft-fail-open to Gate 3
+    // (w8ben/ic_global compliance may cover US contractor arrangements)
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 6: passes through country_fenced [US,CA] + no fencing language (US present)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - US/Canada",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["US", "CA"],
+          normalizedText:
+            "We are hiring a senior software engineer for our North American team.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    // US+CA restriction → soft-fail-open (US is present, w8ben covers US)
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 6: passes through country_fenced [US,CA,MX] + no fencing language (US present)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - North America",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["US", "CA", "MX"],
+          normalizedText:
+            "We are hiring across North America. React and TypeScript required.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    // US+CA+MX → US is present, so applicant is covered via w8ben → soft-fail-open
+    expect(result.passes).toBe(true);
+  });
+
+  it("Fix 6: blocks country_fenced [CA,MX] + no fencing language (no US)", () => {
+    const result = runHardBlockerPreFilter(
+      makeInput({
+        job: {
+          title: "Senior Software Engineer",
+          locationName: "Remote - Canada/Mexico",
+          workplaceType: "remote",
+          remoteScope: "country_fenced",
+          locationCountries: ["CA", "MX"],
+          normalizedText:
+            "We are hiring across Canada and Mexico. React and TypeScript required.",
+        },
+        applicant: { preferredCompliance: ["w8ben"] },
+      }),
+    );
+    // CA+MX without US → hard-block (w8ben only covers US)
+    expect(result.passes).toBe(false);
+    expect(result.patternDetected).toBe("country_fenced_non_us");
+  });
 });

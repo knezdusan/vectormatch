@@ -359,15 +359,28 @@ describe("buildGate3Prompt", () => {
   it("compliance directive clarifies non-US country restrictions are always hard blockers", () => {
     const prompt = buildGate3Prompt(mockContext);
 
-    expect(prompt).toContain("Colombia");
-    expect(prompt).toContain("Japan");
-    expect(prompt).toContain("ALWAYS HARD BLOCKER");
+    // Fix 3 (July 2026): The directive now leads with a STEP 1 country check
+    // that hard-blocks non-US country-fenced jobs before considering compliance.
+    expect(prompt).toContain("STEP 1: CHECK COUNTRY RESTRICTIONS FIRST");
+    expect(prompt).toContain("HARD BLOCKER — REJECT IMMEDIATELY");
+    expect(prompt).toContain("w8ben/ic_global compliance only covers US");
+    // The specific country examples (Colombia, Japan, etc.) are now in the
+    // Gate 0.5 Check 8 hard-block logic, not the Gate 3 prompt. The prompt
+    // uses a general rule instead.
   });
 
   it("evaluation section references compliance directive", () => {
     const prompt = buildGate3Prompt(mockContext);
 
     expect(prompt).toContain("COMPLIANCE DIRECTIVE above");
+  });
+
+  it("includes management/PM role detection as a hard blocker (Fix 4)", () => {
+    const prompt = buildGate3Prompt(mockContext);
+
+    // The management/PM rule is criterion 8 in the system prompt, referenced
+    // in the user prompt's evaluation section.
+    expect(prompt.toLowerCase()).toContain("management/pm role detection");
   });
 });
 

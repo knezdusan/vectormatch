@@ -1,6 +1,6 @@
 // Inngest Functions — Module B: Seeding & Ingestion Engine
 // src/inngest/functions.ts
-//
+//  
 // All background jobs for the VectorMatch job-matching pipeline live here.
 // These are wired into the serve handler at app/api/inngest/route.ts.
 //
@@ -2416,8 +2416,6 @@ export const nightlyStaleClassificationSweep = inngest.createFunction(
 
     for (const batchIds of batches) {
       const result = await step.run("reclassify-batch", async () => {
-        const { inArray } = await import("drizzle-orm");
-
         // Region-fenced: broad regions + multi-country locations
         const regionResult = await db
           .update(job)
@@ -2840,7 +2838,16 @@ export const jobIngestedHandler = inngest.createFunction(
             .update(job)
             .set({
               remoteScope: scopeResult.remoteScope,
-              locationCountries: scopeResult.allowedCountries,
+              // Fix 5 (July 2026 mismatch): When scope is "global", force
+              // locationCountries to null — a global-remote job has no country
+              // restrictions. The extractor/LLM may return allowedCountries
+              // alongside "global" (e.g., ["US"]) which is a contradiction
+              // that causes Gate 0.5 Check 8 to skip the job (it skips global)
+              // while Gate 3 sees a US-only restriction.
+              locationCountries:
+                scopeResult.remoteScope === "global"
+                  ? null
+                  : scopeResult.allowedCountries,
               // Null the embedding for fenced jobs to reclaim storage.
               ...(isFenced ? { jobEmbedding: null } : {}),
             })
@@ -3111,7 +3118,13 @@ export const jobIngestedHandler = inngest.createFunction(
           .update(job)
           .set({
             remoteScope: scopeResult.remoteScope,
-            locationCountries: scopeResult.allowedCountries,
+            // Fix 5 (July 2026 mismatch): When scope is "global", force
+            // locationCountries to null — a global-remote job has no country
+            // restrictions. Prevents the global+US-only contradiction.
+            locationCountries:
+              scopeResult.remoteScope === "global"
+                ? null
+                : scopeResult.allowedCountries,
           })
           .where(eq(job.id, jobId));
 
@@ -6117,6 +6130,12 @@ export const inngestHealthMonitor = inngest.createFunction(
       coolifyStatus: coolifyStatus.label,
       healthCheck: healthReport.healthCheck,
       functionFailures: healthReport.functionFailures,
+      pipelineStall: healthReport.pipelineStall,
+      overallHealthy: healthReport.overallHealthy,
+      alertReason,
+    };
+  },
+);
       pipelineStall: healthReport.pipelineStall,
       overallHealthy: healthReport.overallHealthy,
       alertReason,

@@ -1290,8 +1290,39 @@ function checkWorkAuthFencing(input: PreFilterInput): {
     };
   }
 
-  // Applicant absent from list, no fencing language → pass through to Gate 3
-  // (the LLM evaluates — this is the "ambiguous" case from v4 lock §2)
+  // Fix 6 (July 2026 mismatch): If the locationCountries list does NOT contain
+  // the US, hard-block — w8ben/ic_global compliance only covers US contractor
+  // arrangements. It does NOT cover Canada-only, Mexico-only, EU-only, or any
+  // other non-US country restriction. The absence of fencing language in the JD
+  // doesn't mean the job is open to non-residents; it means the requirement
+  // is implicit (most country-fenced jobs require residency/work auth by
+  // default). Previously these jobs passed through to Gate 3, where the
+  // compliance directive's "DEFAULT TO APPROVING" language caused the LLM
+  // to approve them despite the country mismatch.
+  //
+  // Only restrictions that INCLUDE the US get soft-fail-open treatment,
+  // because w8ben/ic_global compliance covers US contractor arrangements.
+  // This means:
+  //   ["US"] → soft-fail-open (w8ben covers US)
+  //   ["US", "CA"] → soft-fail-open (US is present)
+  //   ["US", "CA", "MX"] → soft-fail-open (US is present)
+  //   ["CA"] → hard-block (w8ben does NOT cover Canada-only)
+  //   ["CA", "MX"] → hard-block (no US, w8ben doesn't cover CA or MX)
+  //   ["PL"], ["PT"], ["IN"], etc. → hard-block
+  const hasUS = job.locationCountries.some((c) => c.toUpperCase() === "US");
+
+  if (!hasUS) {
+    // The list does not contain US and the applicant is not in the
+    // list → hard block (regardless of fencing language in the JD).
+    return {
+      blocker: `Job restricted to ${job.locationCountries.join(", ")} — applicant's country ${country} is not in the list and w8ben/ic_global compliance only covers US contractor arrangements`,
+      pattern: "country_fenced_non_us",
+    };
+  }
+
+  // US is in the list, no fencing language → pass through to Gate 3
+  // (the LLM evaluates — this is the "ambiguous" case from v4 lock §2,
+  // and w8ben/ic_global compliance may cover US contractor arrangements)
   return { blocker: null, pattern: null };
 }
 
