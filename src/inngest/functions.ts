@@ -1,6 +1,6 @@
 // Inngest Functions — Module B: Seeding & Ingestion Engine
 // src/inngest/functions.ts
-//  
+//
 // All background jobs for the VectorMatch job-matching pipeline live here.
 // These are wired into the serve handler at app/api/inngest/route.ts.
 //
@@ -6130,12 +6130,6 @@ export const inngestHealthMonitor = inngest.createFunction(
       coolifyStatus: coolifyStatus.label,
       healthCheck: healthReport.healthCheck,
       functionFailures: healthReport.functionFailures,
-      pipelineStall: healthReport.pipelineStall,
-      overallHealthy: healthReport.overallHealthy,
-      alertReason,
-    };
-  },
-);
       pipelineStall: healthReport.pipelineStall,
       overallHealthy: healthReport.overallHealthy,
       alertReason,

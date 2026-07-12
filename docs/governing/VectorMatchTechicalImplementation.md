@@ -14,7 +14,7 @@
 *   **AI/ML:** Vercel AI SDK 6.0.208 (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings, OpenAI SDK 6.45.0)
 *   **Frontend UI:** Tailwind CSS v4, React 19.2.4, React Hook Form, Zod 4.4.3, `@dnd-kit` (for drag-and-drop), Shadcn/ui 4.8.0
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
-*   **Testing:** Vitest 4.1.8 (111 test files, 2,346 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
+*   **Testing:** Vitest 4.1.8 (119 test files, 2,640 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
 *   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`).
 *   **Migrations:** 46 SQL migrations (0000–0045) managed via Drizzle Kit 0.31.10. 
@@ -2133,6 +2133,8 @@ A parallel ingestion path that bypasses the ATS poller entirely, fetching jobs d
 - **C11** — Circuit breaker (5-tier): `src/lib/jobs/circuit-breaker.ts` — per-source early-warning, provisional backlog throttle, unknown sub-floor guard, corpus-ratio breaker, daily source ban. Severity stack: `hard_pause` > `rate_reduction` > `normal`. Added July 7 2026.
 - **C12** — Gate 0.5 + Gate 3 prompt hardening: `gate-zero-pre-filter.ts` hybrid foreign country hard-block + null workplaceType specific city hard-block. Gate 3 prompt full-time/W-2 vs contractor/B2B work-auth distinction, hybrid foreign country as hard blocker, null workplaceType = on-site inference. 30s LLM timeout + 8K char input truncation. Added July 2026.
 - **C13** — Direct job board ingestion: `src/lib/jobs/direct-ingestion/` module with 6 board adapters (Himalayas, NoFluffJobs, RemoteOK, Arbeitnow, Remotive, WeWorkRemotely) + `directJobBoardIngestion` Inngest function. Bypasses ATS poller, normalization, and Gate 0.5 — upserts directly with structured fields + embeddings. Added July 2026.
+- **C14** — Mismatch analysis + 6-fix cascade: Comprehensive analysis of 50 user-marked mismatches revealed a 5-root-cause cascade. 6 fixes applied in 2 stages: (1) empty embedding returns `[]` instead of `runGate1Only` fallback (44/50 mismatches), (2) `GATE1_MIN_OVERLAP = 2` threshold (16/50), (3) Gate 3 compliance directive restructured into 2-step country check (15/50), (4) management/PM role detection as hard blocker for IC personas (6/50), (5) global+country-list contradiction fixed (2/50), (6) Gate 0.5 Check 8 hard-block for non-US country-fenced jobs (15/50). Combined: all 50 mismatches addressed, 48/50 before LLM cost. Added July 2026.
+- **C15** — Generalized recurrence guard: `staleCronFunctions` metric in `pipeline-health.ts` extended to cover ALL mission-critical cron functions with their expected cadences. Detects silent Inngest cron failures (the selectively-wedged scheduler bug from Inngest #3549). Recurrence-watch process + escalation path documented in code comments. Added July 2026.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -2187,6 +2189,21 @@ Checks 4 and 5 are **soft-fail-open**: they only fire when both job and applican
 
 Both fixes are in `src/lib/jobs/gate-zero-pre-filter.ts` and are covered by 5 new tests in `src/lib/jobs/__tests__/gate-zero-pre-filter.test.ts`.
 
+**Gate 0.5 Check 8 hard-block for non-US country-fenced jobs (July 2026 mismatch fix — Sprint 14):**
+Check 8 (work-authorization fencing) was soft-fail-opening for country-fenced jobs when the JD was silent on work authorization — passing them through to Gate 3, where the compliance directive's "DEFAULT TO APPROVING" language caused the LLM to approve them despite the country mismatch. The fix adds a hard-block when the `locationCountries` list does NOT include the US:
+
+- **`["US"]`** → soft-fail-open (w8ben covers US contractor arrangements)
+- **`["US", "CA"]`** → soft-fail-open (US is present)
+- **`["US", "CA", "MX"]`** → soft-fail-open (US is present)
+- **`["CA"]`** → hard-block (w8ben does NOT cover Canada-only)
+- **`["CA", "MX"]`** → hard-block (no US)
+- **`["PL"]`, `["PT"]`, `["IN"]`, `["CL"]`, `["CR"]`, etc.** → hard-block
+
+The new pattern is `country_fenced_non_us`. This eliminates 15 of 50 user-marked mismatches at the Gate 0.5 level (before LLM cost), and serves as defense-in-depth alongside Fix 3 (the Gate 3 compliance directive restructure). The absence of fencing language in the JD doesn't mean the job is open to non-residents — most country-fenced jobs require residency/work auth by default. Only restrictions that include the US get soft-fail-open treatment, because w8ben/ic_global compliance covers US contractor arrangements.
+
+**Global+country-list contradiction fix (July 2026 mismatch fix — Sprint 14):**
+When `remoteScope = 'global'`, `locationCountries` is now forced to `null` in all 3 handler paths in `src/inngest/functions.ts` (deterministic remote-scope upgrade, LLM remote-scope upgrade, resurrection sweep). Previously, the extractor/LLM could return `remoteScope: 'global'` alongside `allowedCountries: ['US']` — a contradiction that caused Gate 0.5 Check 8 to skip the job (Check 8 skips global) while Gate 3 saw a US-only restriction. This eliminates 2 of 50 user-marked mismatches.
+
 ### 5.2 Step 2: Gate 1 & 2 (The SQL Router) `[Status: Implemented]`
 Run a single SQL query (`src/lib/jobs/gate-1-2.ts`, `runGateSQLRouter`) to narrow all personas down to ~8 candidates in under 20ms.
 
@@ -2210,9 +2227,10 @@ await db.execute(sql`
     WHERE t.tag = ANY(${tagsArraySql})
   ) ov
   WHERE
-    -- GATE 1: GIN Index Array Overlap (≥1 must-have tag hit, zero blocklist hits)
+    -- GATE 1: GIN Index Array Overlap (≥GATE1_MIN_OVERLAP must-have tag hits, zero blocklist hits)
     p.must_have_tags && ${tagsArraySql}
     AND NOT (p.blocklist_tags && ${tagsArraySql})
+    AND ov.overlap_score >= ${GATE1_MIN_OVERLAP}::int  -- July 2026: min overlap threshold (default 2)
     -- GATE 2: HNSW Vector Similarity (cosine distance threshold)
     AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
     AND p.persona_embedding IS NOT NULL
@@ -2232,6 +2250,7 @@ await db.execute(sql`
 | Constant | Value | Calibration Status |
 |---|---|---|
 | `GATE2_MAX_COSINE_DISTANCE` | `0.50` (env-configurable) | Calibrated against real data. Tightened from 0.55 to 0.48 (June 28 2026 yield analysis) to cut LLM costs. Loosened back to 0.50 (Sprint 3, June 30 2026) and made env-configurable via `GATE2_MAX_COSINE_DISTANCE` env var — tunable without redeploy. At 0.55, the funnel produced 160 candidates (85% were weak matches that Gate 3 rejected). At 0.48, the funnel produces 24 candidates — an 85% reduction in LLM calls with no loss of true positives. Sprint 8 (July 1 2026) uses 0.50 as the default to slightly widen the funnel after removing the workplace pre-filter. Previous values: 0.50 (Sprint 3+), 0.48 (June 28 2026), 0.55 (June 25 2026), 0.35 (blocked all real matches). |
+| `GATE1_MIN_OVERLAP` | `2` (env-configurable) | **Calibrated against real mismatch data (July 2026).** Added after mismatch analysis: 16 of 50 user-marked mismatches had `overlap_score = 1` — a single shared tag (e.g., "javascript" for a PHP/Laravel persona matching a JS/Python job) that Gate 3 then approved because "missing tags are a soft signal." A minimum of 2 filters these out at the SQL level before the LLM ever sees them. Env-configurable via `GATE1_MIN_OVERLAP` so the threshold can be tuned in production without a code redeploy. Applied to the main Gate 1+2 query, the `runGate1Only` fallback, and the `explainGateRouter` EXPLAIN query. Skipped when `jobTags` is empty (Gate 2 only mode). |
 | `GATE_ROUTER_LIMIT` | `8` | Uncalibrated — doing all filtering on synthetic data. |
 | `GATE1_WEIGHT` | `0.6` | Uncalibrated guess. |
 | `GATE2_WEIGHT` | `0.4` | Uncalibrated guess. `GATE1_WEIGHT + GATE2_WEIGHT = 1.0`. |
@@ -2242,7 +2261,7 @@ await db.execute(sql`
 - Empty `jobTags`: Skip Gate 1, rely on Gate 2 alone. Log warning.
 - No personas pass: Return empty array. No Gate 3 fan-out.
 - All candidates blocklisted: Filtered by `NOT (p.blocklist_tags && ...)`.
-- Null `jobEmbedding`: Defensive fallback to Gate 1 only with `LIMIT 8`.
+- Null `jobEmbedding`: **Return empty array (July 2026 mismatch fix).** Previously, a `runGate1Only` fallback ran Gate 1 only (no semantic similarity) with `LIMIT 8`. This was the root cause of 44 of 50 user-marked mismatches — unembedded jobs (probation companies whose backfill hadn't run, or intentionally-fenced jobs whose embedding was skipped to save OpenAI calls) bypassed Gate 2 entirely and were matched on tag overlap alone. The `runGate1Only` function is retained in the source but no longer called from `runGateSQLRouter`. Jobs with empty embeddings now wait for the embedding backfill (probation jobs) or are not matched at all (intentionally-fenced jobs, which are not addressable for global remote personas).
 - **Cross-posting duplicates** (added June 25 2026, RELAXED July 1 2026): ATS APIs list the same job multiple times with different `external_job_id` values (e.g. for different locations/teams). The `NOT EXISTS` subquery checks if a match already exists for the same `(ats_slug, title, persona_id)` before inserting — prevents duplicate matches and saves Gate 3 LLM calls. Discovered when 19% of active jobs were duplicates (449 out of 2,348). **Sprint 8 relaxation (July 1 2026):** The dedup now blocks only `approved` matches (not rejected/pending). Previously, it blocked ALL matches including rejected ones — meaning a job rejected for Persona A was never evaluated for Persona B. This was blocking 12 valid candidate pairs. The relaxed dedup allows re-evaluation of jobs previously rejected for a different persona, while still preventing duplicate approved matches.
 
 **Performance:** `EXPLAIN ANALYZE` (verified by `scripts/verify-gate-explain.mts`) confirms both GIN and HNSW indexes are used. At MVP scale (~1,000 personas), the composite ORDER BY may cause an in-memory sort (HNSW index is optimized for pure KNN, not composite expressions) — this is <5ms at 1k rows. At 100k+ scale, a two-phase query (KNN + re-rank) may be needed (post-MVP).
@@ -2275,8 +2294,15 @@ SELECT prompt_variant, COUNT(*) FILTER (WHERE status='approved') AS approved,
 FROM match_queue WHERE prompt_variant IS NOT NULL GROUP BY prompt_variant;
 ```
 
-**Country-specific remote restrictions (added June 28 2026, updated July 4 2026):**
-All three prompt variants now explicitly instruct the LLM to scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's country doesn't match, this is a HARD BLOCKER. This addresses the yield analysis finding that location mismatch was the #1 rejection reason — many remote jobs restrict applications to specific countries/regions. **Dynamic compliance directive (added July 4 2026):** When the applicant has `w8ben` or `ic_global` compliance, a dynamic directive is injected into the prompt that distinguishes contractor-friendly postings (approve — mentions "contractor", "1099", "B2B") from W-2-only postings (hard blocker — mentions "W-2", "employee", "visa sponsorship", "green card"). This prevents false rejections of US-only remote jobs that accept international contractors.
+**Country-specific remote restrictions (added June 28 2026, updated July 4 2026, restructured July 2026):**
+All three prompt variants now explicitly instruct the LLM to scan the job description for geographic limitations like "remote (US only)", "must be located in [country]", "must reside in [country]". If the applicant's country doesn't match, this is a HARD BLOCKER. This addresses the yield analysis finding that location mismatch was the #1 rejection reason — many remote jobs restrict applications to specific countries/regions. **Dynamic compliance directive (added July 4 2026, restructured July 2026):** When the applicant has `w8ben` or `ic_global` compliance, a dynamic directive is injected into the prompt. **July 2026 restructure:** The directive was restructured from a single "OVERRIDE — DEFAULT TO APPROVING" block into a 2-step check:
+- **Step 1: CHECK COUNTRY RESTRICTIONS FIRST** — if the job is country-fenced with a `locationCountries` list that does NOT include the US, this is a HARD BLOCKER — REJECT IMMEDIATELY. w8ben/ic_global compliance only covers US contractor arrangements. It does NOT cover Canada-only, Mexico-only, EU-only, or any other non-US country restriction. The applicant cannot legally work in those jurisdictions.
+- **Step 2: US COMPLIANCE RULES** — only if Step 1 passed (the list includes the US), apply the "default to approving" rule. Distinguishes contractor-friendly postings (approve — mentions "contractor", "1099", "B2B") from W-2-only postings (hard blocker — mentions "W-2", "employee", "visa sponsorship", "green card").
+
+The restructure was driven by mismatch analysis: 15 of 50 user-marked mismatches were non-US country-fenced jobs (CA, PL, PT, MX, IN, CL, CR) that the LLM approved because the old "OVERRIDE — DEFAULT TO APPROVING" label was so prominent that the LLM applied the w8ben rule to ALL countries, ignoring the "Other countries are ALWAYS HARD BLOCKERS" rule that came later in the prompt. The 2-step structure makes the country check the first thing the LLM evaluates, before any compliance reasoning.
+
+**Management/PM role detection (added July 2026 mismatch fix):**
+All 3 prompt variants now include criterion 8 — if the job TITLE contains management or product management keywords ("Manager", "Engineering Manager", "Engineering Director", "Head of", "VP of", "Chief", "Director of Engineering", "Product Manager", "Program Manager", "PM", "Tech Lead", "Team Lead") AND the persona's seniority levels are IC-only (e.g., "mid", "junior", "senior" — without "lead", "staff", "principal", "manager"), this is a HARD BLOCKER — the persona is an individual contributor, not a management track. A "Senior Engineer" is not the same as a "Senior Engineering Manager" — the former codes, the latter manages coders. Only allow management roles if the persona's seniority levels explicitly include "lead", "manager", "staff", or "principal". This addresses 6+ of 50 user-marked mismatches where management/PM roles (Engineering Manager, Product Manager, Strategic Solutions Engineer, GTM DevOps Engineer) were approved for IC developer personas.
 
 **Work authorization filtering + risk flagging (added July 4 2026):**
 Gate 3 now supports work authorization permit checking. The `Gate3Context.applicant.workAuthorizations` field passes the applicant's permits to the LLM. Supported permits: `eu_citizen`, `rwr_card_plus`, `blue_card_eu`, `uk_settled`, `uk_pre_settled`, `us_green_card`, `us_citizen`, `canadian_pr`, `swiss_permit_c`, `other_permit`. The LLM checks job work-auth requirements against the applicant's permits — if the job requires a specific permit the applicant doesn't have, it's a HARD BLOCKER. A dynamic **Work Authorization Directive** is injected into the prompt when the applicant has permits set, explaining permit coverage (e.g., "eu_citizen: right to work in ALL EU/EEA member states").
@@ -2598,4 +2624,37 @@ Currently applied to:
 
 Port 8000 (Coolify's default admin port) is **not** opened — the Coolify dashboard is accessed via `https://admin.vectormatch.dev` (Cloudflare-proxied on 443), and GitHub App webhooks are delivered to the same Cloudflare-proxied URL. Blocking 8000 entirely is more secure than restricting it to a single IP, and it does not break any functionality.
 
-Apply the firewall to the CX33 server. The implicit deny at the end blocks all other inbound traffic. 
+Apply the firewall to the CX33 server. The implicit deny at the end blocks all other inbound traffic.
+
+## 8. PUBLIC SITE SEO & BRAND ASSETS `[Status: Implemented]`
+
+The marketing site uses Next.js App Router metadata conventions for SEO, social sharing, and PWA assets.
+
+### 8.1 Favicon & touch icons
+
+| Asset | Location | Purpose |
+|---|---|---|
+| `favicon.ico` | `src/app/favicon.ico` | Multi-resolution ICO favicon, auto-detected by Next.js |
+| `apple-icon.png` | `src/app/apple-icon.png` | 180×180 Apple touch icon, auto-detected by Next.js |
+| `favicon-96x96.png` | `public/favicon-96x96.png` | 96×96 PNG favicon fallback, referenced in root metadata |
+
+### 8.2 PWA manifest
+
+`src/app/manifest.ts` is served at `/manifest.webmanifest` and references the 192×192 and 512×512 PWA icons in `public/`. Theme color is brand purple (`#a855f7`); background color is dark (`#16161e`).
+
+### 8.3 Social sharing images
+
+| Asset | Location | Purpose |
+|---|---|---|
+| OpenGraph card | `src/app/opengraph-image.tsx` | 1200×630 Facebook/LinkedIn/OG image |
+| Twitter/X card | `src/app/twitter-image.tsx` | 1200×630 Twitter/X image |
+
+Both cards load the real `web-app-manifest-512x512.png` logo as a base64 data URL and render it in the header instead of the previous generated "V" glyph.
+
+### 8.4 Root metadata
+
+`src/app/layout.tsx` exports `metadata` with `metadataBase`, `title`, `description`, `openGraph`, `twitter`, `icons`, `manifest`, `alternates` (canonical + RSS), and `robots`.
+
+### 8.5 Brand asset cleanup
+
+Misspelled `VectroMatchLogoDark.jpg` and `VectroMatchLogoDarkTransparent.png` were removed from `public/assets/Logos/`. The remaining logo assets are `VectorMatchLogo.png`, `VectorMatchLogoLight.jpg`, and `VectorMatchLogoTransparent.png`. 
