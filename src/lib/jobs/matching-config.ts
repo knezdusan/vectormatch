@@ -48,6 +48,26 @@ export const GATE2_MAX_COSINE_DISTANCE = Number(
 );
 
 /**
+ * Minimum number of must-have tag overlaps required for a job to pass Gate 1.
+ *
+ * A persona with must_have_tags = [typescript, nextjs, react, nodejs, prompt-engineering]
+ * should not match a job whose only overlapping tag is "javascript" (overlap=1).
+ * Without a minimum, any single shared tag (e.g., "react" appearing in a Java+React
+ * backend role) passes Gate 1, and if Gate 2 is skipped (null embedding), the job
+ * goes straight to Gate 3 with a weak signal.
+ *
+ * Set to 2 based on mismatch analysis (July 2026): 16 of 50 user-marked mismatches
+ * had overlap_score = 1 — a single tag overlap that Gate 3 then approved because the
+ * "missing tags are a soft signal" prompt rule is too permissive. A minimum of 2
+ * filters these out at the SQL level before the LLM ever sees them.
+ *
+ * Calibration status: CALIBRATED AGAINST REAL MISMATCH DATA (July 2026).
+ * Env-configurable via `GATE1_MIN_OVERLAP` so the threshold can be tuned in
+ * production without a code redeploy.
+ */
+export const GATE1_MIN_OVERLAP = Number(process.env.GATE1_MIN_OVERLAP ?? 2);
+
+/**
  * Maximum number of candidates Gate 1+2 inserts into matchQueue per job
  * (the `LIMIT` in the SQL router query).
  *

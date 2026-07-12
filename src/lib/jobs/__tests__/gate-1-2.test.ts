@@ -222,6 +222,30 @@ describe("Gate 1+2 SQL shape validation", () => {
       expect(cteMatch[1]).not.toContain("workplace_type");
     }
   });
+
+  // ── Mismatch fix (July 2026): GATE1_MIN_OVERLAP threshold ────────────────
+
+  it("includes minimum overlap threshold in WHERE clause (GATE1_MIN_OVERLAP)", async () => {
+    mockExecuteReturns([]);
+    await runGateSQLRouter("job-1", ["react", "python"], [0.1, 0.2, 0.3]);
+
+    const sqlText = getLastQuerySQL().toLowerCase();
+    // The query must filter on overlap_score >= GATE1_MIN_OVERLAP (default 2)
+    expect(sqlText).toContain("overlap_score");
+    expect(sqlText).toMatch(/>=\s*\d/);
+  });
+
+  it("does not apply min overlap when jobTags is empty (Gate 2 only)", async () => {
+    mockExecuteReturns([]);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await runGateSQLRouter("job-1", [], [0.1, 0.2, 0.3]);
+    warnSpy.mockRestore();
+
+    const sqlText = getLastQuerySQL().toLowerCase();
+    // When jobTags is empty, Gate 1 is skipped and min overlap should NOT
+    // appear as a filter (the query relies on Gate 2 alone)
+    expect(sqlText).not.toContain("overlap_score >=");
+  });
 });
 
 // =============================================================================
@@ -335,7 +359,10 @@ describe("Gate 1+2 edge cases", () => {
     warnSpy.mockRestore();
   });
 
-  it("handles empty embedding — falls back to Gate 1 only", async () => {
+  it("handles empty embedding — returns empty array (no Gate 1 fallback)", async () => {
+    // Mismatch fix (July 2026): empty embedding now returns [] instead of
+    // falling back to runGate1Only. The previous fallback let unembedded jobs
+    // bypass Gate 2 (semantic similarity), producing 44 of 50 mismatches.
     mockExecuteReturns([
       {
         id: "mq-1",
@@ -345,17 +372,16 @@ describe("Gate 1+2 edge cases", () => {
       },
     ]);
 
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const candidates = await runGateSQLRouter("job-1", ["react"], []);
 
-    expect(candidates).toHaveLength(1);
-    expect(candidates[0].overlapScore).toBe(3);
-    // cosineDistance is 0 (unknown — Gate 2 was skipped)
-    expect(candidates[0].cosineDistance).toBe(0);
-    expect(errorSpy).toHaveBeenCalledWith(
+    expect(candidates).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining("empty embedding"),
     );
-    errorSpy.mockRestore();
+    // Verify db.execute was NOT called (no Gate 1 fallback query)
+    expect(db.execute).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   it("returns empty array when both tags and embedding are empty", async () => {

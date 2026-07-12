@@ -33,6 +33,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import {
   GATE_ROUTER_LIMIT,
+  GATE1_MIN_OVERLAP,
   GATE1_WEIGHT,
   GATE2_MAX_COSINE_DISTANCE,
   GATE2_WEIGHT,
@@ -106,16 +107,26 @@ export async function runGateSQLRouter(
     );
   }
 
-  // Edge case (§5.4): null/empty embedding — should not happen (normalization
-  // sets normalization_failed before reaching gates). Defensive: if empty,
-  // skip Gate 2, run Gate 1 only.
+  // Edge case (§5.4): null/empty embedding — the job was not embedded (either
+  // a probation company whose backfill hasn't run, or an intentionally-fenced
+  // job whose embedding was skipped to save OpenAI calls).
+  //
+  // Mismatch analysis (July 2026): The previous fallback (runGate1Only) was
+  // letting unembedded jobs through Gate 1 with as few as 1 tag overlap and
+  // NO semantic similarity check. This produced 44 of 50 user-marked mismatches
+  // — 88% of all mismatches had NULL embeddings and bypassed Gate 2 entirely.
+  //
+  // Fix: return empty array. The job will be matched when the embedding backfill
+  // runs (for probation jobs) or not at all (for intentionally-fenced jobs,
+  // which are not addressable for global remote personas). The caller handles
+  // candidates.length === 0 gracefully (no Gate 3 fan-out).
   if (jobEmbedding.length === 0) {
-    console.error(
+    console.warn(
       `Gate 1+2 router called with empty embedding for job ${jobId} — ` +
-        "this should not happen (normalization should have set normalization_failed). " +
-        "Running Gate 1 only as a defensive fallback.",
+        "skipping matching. Job will be matched when embedding backfill runs " +
+        "(probation jobs) or not at all (intentionally-fenced jobs).",
     );
-    return runGate1Only(jobId, jobTags);
+    return [];
   }
 
   const embeddingStr = serializeVector(jobEmbedding);
@@ -128,14 +139,28 @@ export async function runGateSQLRouter(
       : `ARRAY[]::text[]`;
 
   // Gate 1 WHERE clause: if jobTags is empty, skip the overlap filter (rely
-  // on Gate 2 alone per §5.4). Otherwise, require ≥1 must-have tag overlap
-  // AND zero blocklist hits.
+  // on Gate 2 alone per §5.4). Otherwise, require ≥GATE1_MIN_OVERLAP must-have
+  // tag overlap AND zero blocklist hits.
+  //
+  // Mismatch analysis (July 2026): The previous threshold was ≥1, which let
+  // single-tag overlaps (e.g., a PHP/Laravel persona matching a JavaScript/
+  // Python job on "javascript" alone) pass Gate 1. With Gate 2 skipped (null
+  // embedding), these 1-tag matches went straight to Gate 3 and were approved.
+  // Raising to ≥2 filters these out at the SQL level.
   const gate1Clause =
     jobTags.length > 0
       ? sql.raw(
           `p.must_have_tags && ${tagsArraySql} AND NOT (p.blocklist_tags && ${tagsArraySql})`,
         )
       : sql`true`;
+
+  // Minimum overlap filter: ov.overlap_score >= GATE1_MIN_OVERLAP.
+  // Applied after the LATERAL subquery computes the overlap count.
+  // Skipped when jobTags is empty (Gate 1 is skipped, rely on Gate 2 alone).
+  const minOverlapClause =
+    jobTags.length > 0
+      ? sql`AND ov.overlap_score >= ${GATE1_MIN_OVERLAP}::int`
+      : sql``;
 
   // ── Cross-posting dedup (Phase 5, Sprint 8 relaxed) ──────────────────────
   // Blocks a job from matching a persona if another job with the same
@@ -177,6 +202,7 @@ export async function runGateSQLRouter(
     ) ov
     WHERE
       ${gate1Clause}
+      ${minOverlapClause}
       AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
       AND NOT EXISTS (
@@ -219,8 +245,15 @@ export async function runGateSQLRouter(
 }
 
 /**
- * Defensive fallback: Gate 1 only (no embedding). Used when jobEmbedding is
- * empty/null — should not happen in normal flow. (§5.4)
+ * Defensive fallback: Gate 1 only (no embedding).
+ *
+ * NOTE (July 2026 mismatch fix): This function is NO LONGER CALLED from
+ * runGateSQLRouter — empty embeddings now return [] instead of falling back
+ * to Gate 1 only. This was the root cause of 44 of 50 user-marked mismatches:
+ * unembedded jobs bypassed Gate 2 (semantic similarity) entirely and were
+ * matched on tag overlap alone, which let through 1-tag-overlap jobs that
+ * Gate 3 then approved. Kept here for reference and in case a future use case
+ * needs Gate 1 only with a minimum overlap threshold.
  */
 async function runGate1Only(
   jobId: string,
@@ -249,6 +282,7 @@ async function runGate1Only(
     WHERE
       p.must_have_tags && ${sql.raw(tagsArray)}
       AND NOT (p.blocklist_tags && ${sql.raw(tagsArray)})
+      AND ov.overlap_score >= ${GATE1_MIN_OVERLAP}::int
     ORDER BY ov.overlap_score DESC
     LIMIT ${GATE_ROUTER_LIMIT}
     ON CONFLICT (job_id, persona_id) DO UPDATE SET
@@ -316,6 +350,7 @@ export async function explainGateRouter(
     WHERE
       p.must_have_tags && ${sql.raw(tagsArray)}
       AND NOT (p.blocklist_tags && ${sql.raw(tagsArray)})
+      AND ov.overlap_score >= ${GATE1_MIN_OVERLAP}::int
       AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
     ORDER BY

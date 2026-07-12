@@ -31,15 +31,7 @@ import { persona } from "@/db/schemas/jobs/persona";
 // TYPES
 // =============================================================================
 
-import {
-  MATCH_SORT_OPTIONS,
-  MATCH_STATUS_FILTERS,
-  type MatchSortOption,
-  type MatchStatusFilter,
-} from "./match-filters";
-
-export { MATCH_SORT_OPTIONS, MATCH_STATUS_FILTERS };
-export type { MatchSortOption, MatchStatusFilter };
+import type { MatchSortOption, MatchStatusFilter } from "./match-filters";
 
 /** A match row joined with job + persona data for the dashboard list. */
 export type MatchRow = {
