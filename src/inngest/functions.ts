@@ -996,6 +996,28 @@ export const probationEmbeddingBackfill = inngest.createFunction(
 
     const startedAt = new Date();
 
+    // Fired-run receipt: write a "started" log entry as the FIRST step so the
+    // stale-cron guard can distinguish "cron never fired" (no log at all) from
+    // "cron fired but function threw before the work-log" (started log exists,
+    // no final log). Without this, a pre-log throw is indistinguishable from a
+    // scheduler wedge — which caused misdiagnosis of the Inngest wedge as
+    // "global scheduler" when it was actually function-specific.
+    await step.run("write-started-log", async () => {
+      return writeIngestionLog({
+        type: "backfill",
+        status: "partial",
+        source: "probation_embedding_backfill",
+        itemsProcessed: 0,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        errorMessage: "STARTED — function began execution, awaiting completion",
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
+
     // Step 1: Find jobs with NULL embeddings where the company is no longer
     // on probation. This is the promotion-triggered backfill — the company
     // was promoted by the tier recalc at 04:00, and now its jobs need embeddings.
@@ -1713,6 +1735,28 @@ export const directJobBoardIngestion = inngest.createFunction(
       "@/lib/jobs/poller/ingestion-log"
     );
     const startedAt = new Date();
+
+    // Fired-run receipt: write a "started" log entry as the FIRST step so the
+    // stale-cron guard can distinguish "cron never fired" (no log at all) from
+    // "cron fired but function threw before the work-log" (started log exists,
+    // no final log). Without this, a pre-log throw is indistinguishable from a
+    // scheduler wedge. Critical for this function because concurrency:{limit:1}
+    // means a stuck execution blocks all future cron triggers silently.
+    await step.run("write-started-log", async () => {
+      return writeIngestionLog({
+        type: "backfill",
+        status: "partial",
+        source: "direct_job_boards",
+        itemsProcessed: 0,
+        itemsInserted: 0,
+        itemsUpdated: 0,
+        itemsRejected: 0,
+        itemsSkipped: 0,
+        errorMessage: "STARTED — function began execution, awaiting completion",
+        startedAt,
+        finishedAt: new Date(),
+      });
+    });
 
     // Storage guard — skip if DB is near Neon limit.
     const storage = await step.run("check-storage", async () => {

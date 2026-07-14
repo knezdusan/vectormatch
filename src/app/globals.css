@@ -415,8 +415,7 @@
       700px 400px at 85% 12%,
       oklch(0.79 0.17 165 / 0.08),
       transparent 60%
-    ),
-    linear-gradient(180deg, oklch(0.14 0.018 274), oklch(0.12 0.016 273));
+    ), linear-gradient(180deg, oklch(0.14 0.018 274), oklch(0.12 0.016 273));
 }
 
 /* Legal content prose styling */
@@ -506,3 +505,9 @@
     transform: translateX(0);
   }
 }
+
+/* ============================================================
+   Blog article prose is now served by WordPress + Elementor.
+   The MDX-specific prose/Shiki/heading-anchor styles have been
+   removed along with the @tailwindcss/typography plugin.
+   ============================================================ */

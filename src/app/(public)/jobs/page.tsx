@@ -6,8 +6,8 @@
 
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { JsonLd } from "@/components/blog/JsonLd";
 import { JobListContent } from "@/components/jobs/JobListContent";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
