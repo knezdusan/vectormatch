@@ -1801,12 +1801,19 @@ export const directJobBoardIngestion = inngest.createFunction(
     // embedding cost, DB writes, and all downstream gate processing.
     // Inngest runs outside the Next.js request lifecycle, so we use the
     // uncached read (Cache Components "use cache" doesn't apply here).
-    const excludedSet = (await step.run("load-excluded-countries", async () => {
-      const { getExcludedCountriesRaw } = await import(
-        "@/lib/jobs/excluded-countries"
-      );
-      return getExcludedCountriesRaw();
-    })) as unknown as Set<string>;
+    // Return a plain array from the step; Inngest cannot serialize a Set, so
+    // we rebuild the Set from the deserialized array in the function body.
+    const excludedCountryCodes = (await step.run(
+      "load-excluded-countries",
+      async () => {
+        const { getExcludedCountriesRaw } = await import(
+          "@/lib/jobs/excluded-countries"
+        );
+        return Array.from(await getExcludedCountriesRaw());
+      },
+    )) as unknown as string[];
+
+    const excludedSet = new Set(excludedCountryCodes);
 
     /** Filter out jobs located in excluded countries. */
     const filterExcluded = (
