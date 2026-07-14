@@ -1010,7 +1010,7 @@ export const probationEmbeddingBackfill = inngest.createFunction(
         .from(job)
         .innerJoin(
           company,
-          sql`${company.atsSource} = ${job.atsSource} AND ${company.atsSlug} = ${job.atsSlug}`,
+          sql`${company.atsSource}::text = ${job.atsSource} AND ${company.atsSlug} = ${job.atsSlug}`,
         )
         .where(
           sql`${job.jobEmbedding} IS NULL
@@ -2648,7 +2648,7 @@ export const jobIngestedHandler = inngest.createFunction(
           .select({ tier: company.tier })
           .from(company)
           .where(
-            sql`${company.atsSource} = ${decision.job.atsSource} AND ${company.atsSlug} = ${decision.job.atsSlug}`,
+            sql`${company.atsSource}::text = ${decision.job.atsSource}::text AND ${company.atsSlug} = ${decision.job.atsSlug}`,
           )
           .limit(1);
         return rows[0]?.tier ?? "active";
