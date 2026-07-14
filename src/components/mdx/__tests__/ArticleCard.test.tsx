@@ -14,7 +14,8 @@ const post: Post = {
     tags: ["ATS"],
     featured: false,
     coverImage: "/assets/blog/greenhouse.jpg",
-    category: "ATS Guides",
+    category: "ATS & Hiring Systems",
+    draft: false,
   },
 };
 

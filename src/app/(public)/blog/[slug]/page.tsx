@@ -1,8 +1,12 @@
+import rehypeShiki from "@shikijs/rehype";
 import { ArrowLeft, Calendar, Clock, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import rehypeAutolinkHeadings from "rehype-autolink-headings";
+import rehypeSlug from "rehype-slug";
+import remarkGfm from "remark-gfm";
 import { CoverImage } from "@/components/blog/CoverImage";
 import { Giscus } from "@/components/blog/Giscus";
 import { JsonLd } from "@/components/blog/JsonLd";
@@ -49,21 +53,14 @@ export async function generateMetadata({
       modifiedTime: post.frontmatter.updatedAt?.toISOString(),
       authors: [post.frontmatter.author],
       tags: post.frontmatter.tags,
-      images: [
-        {
-          url: post.frontmatter.coverImage,
-          width: 1200,
-          height: 630,
-          alt: post.frontmatter.title,
-        },
-      ],
       url,
+      // images is auto-populated by the opengraph-image.tsx route segment.
     },
     twitter: {
       card: "summary_large_image",
       title: post.frontmatter.title,
       description: post.frontmatter.description,
-      images: [post.frontmatter.coverImage],
+      // images is auto-populated by the opengraph-image.tsx route segment.
     },
   };
 }
@@ -114,7 +111,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     "@type": "BlogPosting",
     headline: post.frontmatter.title,
     description: post.frontmatter.description,
-    image: post.frontmatter.coverImage,
+    image: `${canonicalUrl}/opengraph-image`,
     datePublished: post.frontmatter.publishedAt.toISOString(),
     dateModified:
       post.frontmatter.updatedAt?.toISOString() ??
@@ -243,7 +240,17 @@ export default async function BlogPostPage({ params }: PageProps) {
             <MDXRemote
               source={post.rawSource}
               components={components}
-              options={{ blockJS: false }}
+              options={{
+                blockJS: false,
+                mdxOptions: {
+                  remarkPlugins: [remarkGfm],
+                  rehypePlugins: [
+                    rehypeSlug,
+                    [rehypeAutolinkHeadings, { behavior: "wrap" }],
+                    [rehypeShiki, { theme: "github-dark" }],
+                  ],
+                },
+              }}
             />
           </div>
         </article>

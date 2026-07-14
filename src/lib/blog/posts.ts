@@ -24,6 +24,8 @@ export function slugify(input: string): string {
 
 async function getAllPostsRaw(): Promise<Post[]> {
   const files = fs.readdirSync(POSTS_DIR).filter((f) => f.endsWith(".mdx"));
+  const isDev = process.env.NODE_ENV === "development";
+  const now = Date.now();
 
   const posts: Post[] = [];
 
@@ -39,6 +41,13 @@ async function getAllPostsRaw(): Promise<Post[]> {
         `Skipping ${file}: invalid frontmatter - ${result.error.message}`,
       );
       continue;
+    }
+
+    // Hide drafts and future-dated posts in production builds.
+    // In development they are visible for previewing.
+    if (!isDev) {
+      if (result.data.draft) continue;
+      if (new Date(result.data.publishedAt).getTime() > now) continue;
     }
 
     posts.push({
