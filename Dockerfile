@@ -51,13 +51,6 @@ ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
-# Next.js standalone file tracing does NOT track fs.readdirSync directory reads.
-# The blog (src/lib/blog/posts.ts) lists src/app/(public)/blog/_posts/ at
-# runtime via readdirSync, so the directory is missing from .next/standalone.
-# Copy it to a safe path here; the runner stage copies it to the correct
-# location (parentheses in COPY destination are literal, not glob).
-RUN cp -r "src/app/(public)/blog/_posts" /tmp/blog-posts
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3: Runner (minimal production image)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -87,10 +80,6 @@ RUN mkdir -p .next && chown node:node .next
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 # Static chunks (CSS, JS) served from .next/static.
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
-
-# Blog MDX posts — required at runtime by fs.readdirSync in posts.ts.
-# Destination path with parentheses is literal in Docker COPY.
-COPY --from=builder --chown=node:node /tmp/blog-posts ./src/app/(public)/blog/_posts
 
 # Switch to non-root user only after all root-requiring filesystem steps.
 USER node
