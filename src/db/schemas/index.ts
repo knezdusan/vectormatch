@@ -1,11 +1,10 @@
 // ============================================================================
-// BLOG SCHEMAS
-// ⚠️ DEPRECATED — RETAINED HISTORICALLY (see vectormatch-blueprint.md)
-// The blog is now static MDX (src/app/(public)/blog/_posts/*.mdx). These
-// tables are kept ONLY to preserve migration history. DO NOT import or
-// reference categoriesTable, tagsTable, postsTable, postTagsTable, or
-// commentsTable in any new application code. Comments are fully superseded
-// by Giscus.
+// BLOG SCHEMAS — REMOVED
+// The blog has migrated from MDX to WordPress + Elementor (see
+// feat/wordpress-blog-migration branch). The deprecated blog_* tables
+// (categories, tags, posts, post_tags, comments) have been dropped via
+// Drizzle migration. This section is intentionally left empty as a
+// placeholder for future non-blog schema additions.
 // ============================================================================
 
 import { relations } from "drizzle-orm";
@@ -20,11 +19,6 @@ export * from "./auth/session";
 export * from "./auth/user";
 export { user as usersTable } from "./auth/user";
 export * from "./auth/verification";
-// BLOG
-export * from "./blog/categories";
-export * from "./blog/comments";
-export * from "./blog/posts";
-export * from "./blog/tags";
 // JOBS
 export * from "./jobs/alerts";
 export * from "./jobs/applicant";
@@ -49,10 +43,6 @@ export * from "./jobs/workingHistory";
 import { account } from "./auth/account";
 import { session } from "./auth/session";
 import { user as usersTable } from "./auth/user";
-import { categoriesTable } from "./blog/categories";
-import { commentsTable } from "./blog/comments";
-import { postsTable, postTagsTable } from "./blog/posts";
-import { tagsTable } from "./blog/tags";
 import { applicant } from "./jobs/applicant";
 import { company } from "./jobs/company";
 import { cvUpload } from "./jobs/cvUpload";
@@ -68,8 +58,6 @@ import { workingHistory } from "./jobs/workingHistory";
 export const userRelations = relations(usersTable, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
-  // posts: many(postsTable),
-  // comments: many(commentsTable),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -160,55 +148,4 @@ export const tagsExperienceRelations = relations(tagsExperience, ({ one }) => ({
     fields: [tagsExperience.applicantId],
     references: [applicant.userId],
   }),
-}));
-
-// RELATIONS - BLOG
-
-export const categoryRelations = relations(categoriesTable, ({ many }) => ({
-  posts: many(postsTable),
-}));
-
-export const tagRelations = relations(tagsTable, ({ many }) => ({
-  postTags: many(postTagsTable),
-}));
-
-export const postRelations = relations(postsTable, ({ one, many }) => ({
-  user: one(usersTable, {
-    fields: [postsTable.userId],
-    references: [usersTable.id],
-  }),
-  category: one(categoriesTable, {
-    fields: [postsTable.categoryId],
-    references: [categoriesTable.id],
-  }),
-  postTags: many(postTagsTable),
-  comments: many(commentsTable),
-}));
-
-export const postTagRelations = relations(postTagsTable, ({ one }) => ({
-  post: one(postsTable, {
-    fields: [postTagsTable.postId],
-    references: [postsTable.id],
-  }),
-  tag: one(tagsTable, {
-    fields: [postTagsTable.tagId],
-    references: [tagsTable.id],
-  }),
-}));
-
-export const commentRelations = relations(commentsTable, ({ one, many }) => ({
-  user: one(usersTable, {
-    fields: [commentsTable.userId],
-    references: [usersTable.id],
-  }),
-  post: one(postsTable, {
-    fields: [commentsTable.postId],
-    references: [postsTable.id],
-  }),
-  parent: one(commentsTable, {
-    fields: [commentsTable.parentId],
-    references: [commentsTable.id],
-    relationName: "comment_replies",
-  }),
-  replies: many(commentsTable, { relationName: "comment_replies" }),
 }));

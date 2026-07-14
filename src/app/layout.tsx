@@ -47,9 +47,6 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   alternates: {
     canonical: SITE_URL,
-    types: {
-      "application/rss+xml": [{ url: "/rss.xml", title: "VectorMatch Blog" }],
-    },
   },
 };
 

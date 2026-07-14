@@ -1,7 +1,7 @@
-import { JsonLd } from "@/components/blog/JsonLd";
 import { Hero } from "@/components/public/home/Hero";
 import { HowItWorks } from "@/components/public/home/HowItWorks";
 import { Pitch } from "@/components/public/home/Pitch";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { SITE_URL } from "@/lib/site";
 
 export const metadata = {
