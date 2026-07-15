@@ -301,7 +301,7 @@ describe("fetchHimalayasJobs", () => {
     expect(result.jobs[0].remoteScope).toBe("region_fenced");
   });
 
-  it("fences to country_fenced (US) when text contains 'United States'", async () => {
+  it("fences to country_fenced (US) when locationRestrictions contains 'United States'", async () => {
     const mockResponse = {
       totalCount: 1,
       jobs: [
@@ -312,6 +312,7 @@ describe("fetchHimalayasJobs", () => {
           excerpt:
             "Remote Full time, United States. Senior Product Delivery Manager.",
           tags: ["product"],
+          locationRestrictions: ["United States"],
         },
       ],
     };

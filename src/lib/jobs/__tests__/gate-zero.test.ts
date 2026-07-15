@@ -19,7 +19,11 @@
  *   - Case insensitivity works
  */
 
-import { GATE_ZERO_REGEX, passesGateZero } from "@/lib/jobs/gate-zero";
+import {
+  GATE_ZERO_REGEX,
+  passesGateZero,
+  passesGateZeroWebDev,
+} from "@/lib/jobs/gate-zero";
 
 // ── Core engineering titles (should pass) ────────────────────────────────────
 
@@ -286,5 +290,115 @@ describe("GATE_ZERO_REGEX", () => {
 
   it("does not have global flag (boolean test only)", () => {
     expect(GATE_ZERO_REGEX.flags).not.toContain("g");
+  });
+});
+
+// ── Gate 0 Web-Dev (D7 — Role-Scoped Ingestion) ──────────────────────────────
+
+describe("Gate 0 Web-Dev — role-scoped title filter", () => {
+  // Web-dev titles that should pass
+  const webDevTitles = [
+    "Frontend Engineer",
+    "Senior Frontend Engineer",
+    "Front-End Developer",
+    "Back-End Engineer",
+    "Fullstack Developer",
+    "Full-Stack Engineer",
+    "Full Stack Developer",
+    "Web Developer",
+    "Web Engineer",
+    "React Engineer",
+    "Senior React Developer",
+    "Next.js Developer",
+    "Node.js Engineer",
+    "Vue.js Developer",
+    "Angular Developer",
+    "Svelte Engineer",
+    "PHP Developer",
+    "Laravel Developer",
+    "WordPress Developer",
+    "Symfony Developer",
+    "JavaScript Developer",
+    "TypeScript Engineer",
+    "UI Engineer",
+    "UX Engineer",
+    "UI Developer",
+    "Shopify Developer",
+    "Webflow Developer",
+    "HTML/CSS Developer",
+    "Tailwind Developer",
+  ];
+
+  for (const title of webDevTitles) {
+    it(`passes: "${title}"`, () => {
+      expect(passesGateZeroWebDev(title)).toBe(true);
+    });
+  }
+
+  // Non-web-dev engineering titles that should be REJECTED by web-dev gate
+  // (but would pass the broad Gate 0)
+  const nonWebDevEngineeringTitles = [
+    "Data Engineer",
+    "Senior Data Engineer",
+    "ML Engineer",
+    "Machine Learning Engineer",
+    "Data Scientist",
+    "DevOps Engineer",
+    "SRE",
+    "Site Reliability Engineer",
+    "Platform Engineer",
+    "Security Engineer",
+    "Infrastructure Engineer",
+    "iOS Developer",
+    "Android Developer",
+    "Mobile Developer",
+    "QA Engineer",
+    "Test Engineer",
+    "Automation Engineer",
+    "Quality Engineer",
+    "Architect",
+    "Engineering Manager",
+    "CTO",
+    "VP of Engineering",
+    "Head of Engineering",
+    "Tech Lead",
+  ];
+
+  for (const title of nonWebDevEngineeringTitles) {
+    it(`rejects non-web-dev engineering: "${title}"`, () => {
+      expect(passesGateZeroWebDev(title)).toBe(false);
+    });
+  }
+
+  // Non-engineering titles that should also be rejected
+  const nonEngineeringTitles = [
+    "Account Executive",
+    "HR Manager",
+    "Sales Representative",
+    "Marketing Manager",
+    "Product Manager",
+    "Customer Support",
+    "Data Entry Clerk",
+    "Project Manager",
+  ];
+
+  for (const title of nonEngineeringTitles) {
+    it(`rejects non-engineering: "${title}"`, () => {
+      expect(passesGateZeroWebDev(title)).toBe(false);
+    });
+  }
+
+  it("is case-insensitive", () => {
+    expect(passesGateZeroWebDev("FRONTEND ENGINEER")).toBe(true);
+    expect(passesGateZeroWebDev("php developer")).toBe(true);
+    expect(passesGateZeroWebDev("ReAcT DeVeLoPeR")).toBe(true);
+  });
+
+  it("handles titles with extra context", () => {
+    expect(passesGateZeroWebDev("Senior Frontend Engineer (Remote)")).toBe(
+      true,
+    );
+    expect(passesGateZeroWebDev("PHP Developer - Laravel Team")).toBe(true);
+    expect(passesGateZeroWebDev("Full-Stack Engineer | Platform")).toBe(true);
   });
 });

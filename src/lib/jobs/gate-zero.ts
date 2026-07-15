@@ -136,3 +136,111 @@ export const GATE_ZERO_REGEX = buildGateZeroRegex();
 export function passesGateZero(title: string): boolean {
   return GATE_ZERO_REGEX.test(title);
 }
+
+// ── Gate 0 Web-Dev Scope (D7 — Role-Scoped Ingestion) ────────────────────────
+//
+// The broad Gate 0 passes ANY engineering title — Data Engineer, ML Engineer,
+// DevOps, iOS, Android, Security Engineer, etc. These roles will never match
+// the web-dev personas (React/Next.js, PHP/Laravel, Vue/JavaScript) and waste
+// storage + embedding cost.
+//
+// Gate 0 Web-Dev narrows the filter to web-dev-specific titles. It's used in
+// the poller path to prevent non-web-dev engineering jobs from entering the
+// database at all — the cheapest filter is the one that runs before the INSERT.
+//
+// Design: optimize for RECALL within the web-dev domain. The regex is broad
+// within web-dev (catches "frontend", "fullstack", "web developer", "PHP
+// developer", "React engineer") but excludes non-web engineering ("data
+// engineer", "ml engineer", "ios developer", "devops", "sre").
+
+const WEBDEV_GATE_TERMS: readonly string[] = [
+  // Core web-dev roles
+  "frontend",
+  "front-end",
+  "front end",
+  "backend",
+  "back-end",
+  "back end",
+  "fullstack",
+  "full-stack",
+  "full stack",
+  "web developer",
+  "web engineer",
+  "web development",
+
+  // JS/TS ecosystem (title-level signals)
+  "javascript",
+  "typescript",
+  "react",
+  "next.js",
+  "nextjs",
+  "next js",
+  "node",
+  "node.js",
+  "nodejs",
+  "vue",
+  "vue.js",
+  "vuejs",
+  "angular",
+  "svelte",
+  "sveltekit",
+  "ember",
+  "gatsby",
+  "remix",
+  "astro",
+
+  // PHP ecosystem
+  "php",
+  "laravel",
+  "symfony",
+  "wordpress",
+  "wp developer",
+  "drupal",
+  "joomla",
+  "magento",
+
+  // Other web stacks
+  "shopify",
+  "liquid",
+  "webflow",
+  "html",
+  "css",
+  "scss",
+  "sass",
+  "tailwind",
+
+  // UI/UX engineering (web-dev adjacent)
+  "ui engineer",
+  "ui developer",
+  "ux engineer",
+  "ux developer",
+];
+
+const WEBDEV_GATE_REGEX = new RegExp(
+  WEBDEV_GATE_TERMS.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(
+    "|",
+  ),
+  "i",
+);
+
+/**
+ * Gate 0 Web-Dev — fast synchronous title filter for web-dev roles only.
+ *
+ * Returns `true` if the title contains a web-dev-specific term. This is a
+ * NARROWER filter than `passesGateZero` — it excludes Data Engineer, ML
+ * Engineer, DevOps, SRE, iOS/Android, Security Engineer, etc.
+ *
+ * Used in the poller path (D7 role-scoped ingestion) to prevent non-web-dev
+ * engineering jobs from entering the database.
+ *
+ * @example
+ * passesGateZeroWebDev("Senior Frontend Engineer")   // true
+ * passesGateZeroWebDev("PHP Developer")               // true
+ * passesGateZeroWebDev("Data Engineer")               // false (not web-dev)
+ * passesGateZeroWebDev("iOS Developer")               // false (not web-dev)
+ * passesGateZeroWebDev("DevOps Engineer")             // false (not web-dev)
+ * passesGateZeroWebDev("Account Executive")           // false (not engineering)
+ */
+export function passesGateZeroWebDev(title: string): boolean {
+  return WEBDEV_GATE_REGEX.test(title);
+}

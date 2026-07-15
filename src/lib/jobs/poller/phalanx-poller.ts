@@ -21,7 +21,7 @@
 //
 // See TDD §4.4 for the full specification.
 
-import { passesGateZero } from "@/lib/jobs/gate-zero";
+import { passesGateZero, passesGateZeroWebDev } from "@/lib/jobs/gate-zero";
 import type { FetchFn } from "@/lib/jobs/types";
 import { fetchJobsFromAts } from "./ats-adapters";
 import type { CompanyHealth } from "./company-state";
@@ -199,8 +199,17 @@ export async function pollCompany(
   }
 
   // Step 2: Apply Gate 0 title filter (fast synchronous regex).
+  // D7: Role-scoped ingestion — use the web-dev-specific Gate 0 to prevent
+  // non-web-dev engineering jobs (Data Engineer, ML Engineer, DevOps, iOS,
+  // Android, Security) from entering the database. This is the cheapest
+  // filter: it runs before DB insertion, embedding, and all downstream gates.
+  // The broad Gate 0 (passesGateZero) is kept for backward compatibility.
   const allJobs = fetchResult.jobs;
-  const filteredJobs = allJobs.filter((job) => passesGateZero(job.title));
+  const gateFilter =
+    process.env.ROLE_SCOPED_INGESTION === "true"
+      ? passesGateZeroWebDev
+      : passesGateZero;
+  const filteredJobs = allJobs.filter((job) => gateFilter(job.title));
   const rejectedCount = allJobs.length - filteredJobs.length;
 
   // Step 2a: Selective Tier 2 detail fetch for ATS sources that need it.

@@ -43,13 +43,33 @@ interface HimalayasJob {
   location?: string;
   timezone?: string;
   pubDate?: string;
+  // D7 Audit: These fields are the actual location data. `location` is always
+  // null. `locationRestrictions` is an array of country names (empty = global).
+  // `timezoneRestrictions` is an array of UTC offsets.
+  locationRestrictions?: string[];
+  timezoneRestrictions?: number[];
+  categories?: string[];
+  parentCategories?: string[];
 }
 
-/** Page size for Himalayas API pagination. */
-const PAGE_SIZE = 50;
+/** Page size for Himalayas API pagination.
+ *
+ * D7 Audit (July 2026): The API silently caps at 20 jobs/page regardless of
+ * the `limit` parameter. Previously PAGE_SIZE=50, which caused the offset
+ * to jump by 50 while only 20 jobs were returned — silently skipping 60%
+ * of the corpus (jobs 20-49, 70-99, etc.). Combined with MAX_PAGES=20,
+ * the adapter only saw 400 of 102k jobs.
+ */
+const PAGE_SIZE = 20;
 
-/** Maximum pages to fetch per ingestion run (safety cap). */
-const MAX_PAGES = 20;
+/** Maximum pages to fetch per ingestion run (safety cap).
+ *
+ * At PAGE_SIZE=20, 500 pages = 10,000 jobs sampled (~10% of corpus).
+ * The full corpus (102k) would need 5,123 pages — too slow for a single
+ * cron run. Role-scoped ingestion (D7 Item 2) will reduce the fetch volume
+ * by filtering at the title/category level before upsert.
+ */
+const MAX_PAGES = 500;
 
 /**
  * Fetch and normalize jobs from the Himalayas API.
@@ -72,6 +92,7 @@ export async function fetchHimalayasJobs(
     const allJobs: DirectIngestionJob[] = [];
     let totalAvailable = 0;
     let offset = 0;
+    let consecutive429 = 0;
 
     for (let page = 0; page < MAX_PAGES; page++) {
       const response = await fetchFn(
@@ -81,6 +102,22 @@ export async function fetchHimalayasJobs(
           signal: AbortSignal.timeout(30000),
         },
       );
+
+      // D7: Rate limit handling — back off on 429 and retry once.
+      if (response.status === 429) {
+        consecutive429++;
+        if (consecutive429 >= 3) {
+          return {
+            success: false,
+            error: `Himalayas API rate-limited (3 consecutive 429s at page ${page}, offset ${offset})`,
+            totalAvailable,
+          };
+        }
+        await new Promise((r) => setTimeout(r, 2000 * consecutive429));
+        page--; // Retry same page
+        continue;
+      }
+      consecutive429 = 0;
 
       if (!response.ok) {
         return {
@@ -121,10 +158,10 @@ export async function fetchHimalayasJobs(
           jobUrl: hj.jobSlug
             ? `https://himalayas.app/jobs/${hj.jobSlug}`
             : null,
-          locationName: hj.location ?? null,
+          locationName: hj.locationRestrictions?.join(", ") ?? null,
           workplaceType: "remote", // Himalayas is remote-first
           employmentType: normalizeEmploymentType(hj.employmentType),
-          ...inferHimalayasScope(hj.location, title, description),
+          ...inferHimalayasScope(hj.locationRestrictions, title, description),
           compensationMin: hj.minSalary ?? null,
           compensationMax: hj.maxSalary ?? null,
           compensationCurrency: hj.salaryCurrency ?? "USD",
@@ -141,6 +178,12 @@ export async function fetchHimalayasJobs(
       }
 
       offset += PAGE_SIZE;
+
+      // D7: Rate limit — 250ms delay between pages (~4 req/s).
+      // The API doesn't document a rate limit but 429s start at ~5 req/s.
+      if (page < MAX_PAGES - 1) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
     }
 
     return { success: true, jobs: allJobs, totalAvailable };
@@ -170,27 +213,77 @@ function safeParseDate(s: string): Date | null {
 }
 
 /**
- * Infer remoteScope from the Himalayas location field, title, and excerpt text.
+ * Infer remoteScope from the Himalayas locationRestrictions field.
  *
- * Himalayas doesn't expose structured country codes. The location field is
- * free-text (e.g. "Remote, Latin America", "United States", or null). When
- * location is null, we check the title and excerpt for region-fencing signals
- * (e.g. "Remote, Latin America" in the title, "United States" in the text).
+ * D7 Audit (July 2026): The API provides `locationRestrictions` as an array
+ * of country names (e.g. ["United States"], or multiple countries). The
+ * `location` field is always null. Previously the adapter read `location`
+ * (null) and defaulted everything to "global" — a massive false positive
+ * that let country-fenced jobs through as global.
  *
- * Default: global (Himalayas is a remote-first board with worldwide listings).
- * Fencing only when there's a clear signal.
+ * Classification logic:
+ * - Empty/null locationRestrictions → global (no restrictions = worldwide)
+ * - 1 country → country_fenced
+ * - 2+ countries → region_fenced (multi-country restriction)
+ * - "Worldwide" / "Anywhere" in the array → global
+ *
+ * Title and excerpt are still checked for region-fencing signals as a
+ * fallback (some jobs have empty locationRestrictions but fence in text).
  */
 function inferHimalayasScope(
-  location: string | undefined,
+  locationRestrictions: string[] | undefined,
   title: string,
   excerpt: string,
 ): {
   remoteScope: "global" | "country_fenced" | "region_fenced";
   locationCountries: string[] | null;
 } {
-  const combined = `${location ?? ""} ${title} ${excerpt}`.toLowerCase();
+  // ── Primary signal: locationRestrictions array ──────────────────────────
+  if (locationRestrictions && locationRestrictions.length > 0) {
+    // Check for explicit global signals in the restrictions
+    const lowerRestrictions = locationRestrictions.map((r) => r.toLowerCase());
+    if (
+      lowerRestrictions.some(
+        (r) =>
+          r.includes("worldwide") ||
+          r.includes("anywhere") ||
+          r.includes("global") ||
+          r.includes("world"),
+      )
+    ) {
+      return { remoteScope: "global", locationCountries: null };
+    }
 
-  // Check for explicit global signals first
+    // Extract country codes from the restrictions
+    const countries: string[] = [];
+    for (const r of locationRestrictions) {
+      const code = extractLocationCountry(r);
+      if (code) countries.push(code);
+    }
+
+    if (countries.length === 1) {
+      return { remoteScope: "country_fenced", locationCountries: countries };
+    }
+    if (countries.length >= 2) {
+      return { remoteScope: "region_fenced", locationCountries: countries };
+    }
+
+    // Country names present but couldn't extract codes — still fenced
+    if (locationRestrictions.length === 1) {
+      return {
+        remoteScope: "country_fenced",
+        locationCountries: locationRestrictions,
+      };
+    }
+    return {
+      remoteScope: "region_fenced",
+      locationCountries: locationRestrictions,
+    };
+  }
+
+  // ── Fallback: check title and excerpt for fencing signals ───────────────
+  const combined = `${title} ${excerpt}`.toLowerCase();
+
   if (
     combined.includes("worldwide") ||
     combined.includes("anywhere in the world") ||
@@ -199,14 +292,11 @@ function inferHimalayasScope(
     return { remoteScope: "global", locationCountries: null };
   }
 
-  // Check for broad regions (in location or title)
   if (
     combined.includes("latin america") ||
     combined.includes("latam") ||
     combined.includes("emea") ||
     combined.includes("apac") ||
-    combined.includes("north america") ||
-    combined.includes("noam") ||
     combined.includes("americas") ||
     combined.includes("europe") ||
     combined.includes("africa") ||
@@ -215,26 +305,6 @@ function inferHimalayasScope(
     return { remoteScope: "region_fenced", locationCountries: null };
   }
 
-  // Check for US-only signals in text
-  if (
-    combined.includes("us only") ||
-    combined.includes("usa only") ||
-    combined.includes("united states") ||
-    combined.includes("must be in the us") ||
-    combined.includes("must be based in the us") ||
-    combined.includes("must reside in")
-  ) {
-    return { remoteScope: "country_fenced", locationCountries: ["US"] };
-  }
-
-  // Try to extract a country from the location string
-  if (location) {
-    const country = extractLocationCountry(location);
-    if (country) {
-      return { remoteScope: "country_fenced", locationCountries: [country] };
-    }
-  }
-
-  // No fencing signal found — default to global
+  // No fencing signal found and no locationRestrictions → genuinely global
   return { remoteScope: "global", locationCountries: null };
 }

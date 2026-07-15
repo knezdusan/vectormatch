@@ -1819,12 +1819,21 @@ export const directJobBoardIngestion = inngest.createFunction(
     type DirectIngestionJob =
       import("@/lib/jobs/direct-ingestion/types").DirectIngestionJob;
 
-    // Tech filter function — shared across all boards
+    // Tech filter function — shared across all boards.
+    // D7: Role-scoped ingestion — add title-level Gate 0 Web-Dev pre-filter
+    // before the tech-stack overlap check. This prevents non-web-dev engineering
+    // jobs from passing the filter even if they mention a web-dev keyword in
+    // their description (e.g. "Data Engineer" with "JavaScript" in the desc).
+    const { passesGateZeroWebDev } = await import("@/lib/jobs/gate-zero");
+    const roleScoped = process.env.ROLE_SCOPED_INGESTION === "true";
     const techFilter = (j: {
       tags: string[];
       title: string;
       description: string;
-    }) => hasPersonaTechOverlap(j.tags, j.title, j.description);
+    }) => {
+      if (roleScoped && !passesGateZeroWebDev(j.title)) return false;
+      return hasPersonaTechOverlap(j.tags, j.title, j.description);
+    };
 
     // Embedding function — imported lazily to avoid loading OpenAI at module level
     const embedFn = async (text: string): Promise<number[]> => {
