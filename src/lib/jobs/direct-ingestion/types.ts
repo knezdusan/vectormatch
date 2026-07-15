@@ -187,7 +187,7 @@ export interface DirectIngestionJob {
 /** Result of fetching jobs from a direct job board API. */
 export type DirectFetchResult =
   | { success: true; jobs: DirectIngestionJob[]; totalAvailable: number }
-  | { success: false; error: string; totalAvailable: 0 };
+  | { success: false; error: string; totalAvailable: number };
 
 /** The direct job board sources (WI3 Phase 1). */
 export type DirectBoardSource =

@@ -180,9 +180,20 @@ export async function runGateSQLRouter(
   // is remote-only). Hybrid jobs are treated as a soft concern, not a hard
   // blocker, since some hybrid roles offer remote options for the right
   // candidate.
+  //
+  // ── Remote scope pre-filter (Directive 09, Part A.1) ──────────────────────
+  // The Gate 1+2 router now filters at the SQL level: only jobs with
+  // remote_scope = 'global' are eligible for matching. This prevents
+  // country_fenced, region_fenced, onsite, and undetermined jobs from
+  // reaching Gate 3 (the LLM), saving API calls and eliminating the scope
+  // inversion where fenced jobs were approved for global-remote applicants.
+  // The job_meta CTE now fetches remote_scope alongside ats_slug/title, and
+  // the main WHERE clause includes jm.remote_scope = 'global'.
+  // Gate 3 still reads the job text as a secondary check (catches classifier
+  // false-globals), but the cheap SQL filter eliminates the bulk of waste.
   const query = sql`
     WITH job_meta AS (
-      SELECT ats_slug, title
+      SELECT ats_slug, title, remote_scope
       FROM job WHERE id = ${jobId}::uuid
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
@@ -205,6 +216,7 @@ export async function runGateSQLRouter(
       ${minOverlapClause}
       AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
+      AND jm.remote_scope = 'global'
       AND NOT EXISTS (
         SELECT 1 FROM match_queue mq
         JOIN job j2 ON mq.job_id = j2.id

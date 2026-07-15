@@ -15,6 +15,27 @@ import { shouldSkipEmergencyPurge } from "@/lib/jobs/storage-check";
 import { inngest } from "./client";
 import { runSourceFunction } from "./source-helpers";
 
+/**
+ * Build a batch of `job/ingested` events for unnormalized jobs.
+ * Used by batchPollTier, pollBacklogSweeper, and normalizationRetrySweep
+ * to emit events that trigger normalization + embedding + Gate 1+2 + Gate 3.
+ */
+function buildJobIngestedEvents(
+  jobs: { id: string; atsSource: string; atsSlug: string }[],
+  idPrefix: string,
+) {
+  return jobs.map((j) => ({
+    id: `${idPrefix}-${j.id}-${Date.now()}`,
+    name: "job/ingested" as const,
+    data: {
+      jobId: j.id,
+      atsSource: j.atsSource,
+      atsSlug: j.atsSlug,
+      isNew: false,
+    },
+  }));
+}
+
 // ── Seeder Functions ──────────────────────────────────────────────────────────
 
 /**
@@ -556,16 +577,7 @@ export const batchPollTier = inngest.createFunction(
     if (unnormalizedJobs.length > 0) {
       await step.sendEvent(
         "emit-job-ingested",
-        unnormalizedJobs.map((j) => ({
-          id: `job-ingested-batch-${j.id}-${Date.now()}`,
-          name: "job/ingested",
-          data: {
-            jobId: j.id,
-            atsSource: j.atsSource,
-            atsSlug: j.atsSlug,
-            isNew: false,
-          },
-        })),
+        buildJobIngestedEvents(unnormalizedJobs, "job-ingested-batch"),
       );
     }
 
@@ -813,16 +825,7 @@ export const pollBacklogSweeper = inngest.createFunction(
     if (unnormalizedJobs.length > 0) {
       await step.sendEvent(
         "emit-job-ingested",
-        unnormalizedJobs.map((j) => ({
-          id: `job-ingested-backlog-${j.id}-${Date.now()}`,
-          name: "job/ingested",
-          data: {
-            jobId: j.id,
-            atsSource: j.atsSource,
-            atsSlug: j.atsSlug,
-            isNew: false,
-          },
-        })),
+        buildJobIngestedEvents(unnormalizedJobs, "job-ingested-backlog"),
       );
     }
 
@@ -1652,16 +1655,7 @@ export const normalizationRetrySweep = inngest.createFunction(
     if (stuckJobs.length > 0) {
       await step.sendEvent(
         "retry-normalization",
-        stuckJobs.map((j) => ({
-          id: `job-ingested-retry-${j.id}-${Date.now()}`,
-          name: "job/ingested",
-          data: {
-            jobId: j.id,
-            atsSource: j.atsSource,
-            atsSlug: j.atsSlug,
-            isNew: false,
-          },
-        })),
+        buildJobIngestedEvents(stuckJobs, "job-ingested-retry"),
       );
     }
 
@@ -1818,6 +1812,10 @@ export const directJobBoardIngestion = inngest.createFunction(
     );
     type DirectIngestionJob =
       import("@/lib/jobs/direct-ingestion/types").DirectIngestionJob;
+    type DirectFetchResult =
+      import("@/lib/jobs/direct-ingestion/types").DirectFetchResult;
+    type DirectBoardSource =
+      import("@/lib/jobs/direct-ingestion/types").DirectBoardSource;
 
     // Tech filter function — shared across all boards.
     // D7: Role-scoped ingestion — add title-level Gate 0 Web-Dev pre-filter
@@ -1883,108 +1881,63 @@ export const directJobBoardIngestion = inngest.createFunction(
       );
     };
 
-    // ── Board 1: Himalayas ──────────────────────────────────────────────────
-    const himalayasResult = await step.run("fetch-himalayas", async () => {
-      const result = await fetchHimalayasJobs(500, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
-
-    if (himalayasResult.success && himalayasResult.jobs.length > 0) {
-      // step.run() may serialize Date → string. Rebuild with proper Date types.
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        himalayasResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-himalayas", async () => {
-        return upsertDirectJobs(
-          "himalayas_direct",
-          "himalayas_direct",
-          jobsForUpsert,
-          embedFn,
+    /**
+     * Fetch + upsert + record result for a single direct-ingestion board.
+     * Eliminates the 49-line fetch→map→filter→upsert→push duplication across
+     * Himalayas, RemoteOK, Arbeitnow, Remotive, and WeWorkRemotely.
+     */
+    const ingestBoard = async (
+      boardName: string,
+      stepIdPrefix: string,
+      boardSource: DirectBoardSource,
+      fetchFn: () => Promise<DirectFetchResult>,
+    ): Promise<void> => {
+      const result = await step.run(`fetch-${stepIdPrefix}`, fetchFn);
+      if (result.success && result.jobs.length > 0) {
+        const jobsForUpsert = filterExcluded(
+          result.jobs.map((j) => ({
+            ...j,
+            publishedAt: j.publishedAt
+              ? new Date(j.publishedAt as unknown as string)
+              : null,
+          })),
         );
-      });
-      boardResults.push({
-        board: "Himalayas",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!himalayasResult.success) {
-      boardResults.push({
-        board: "Himalayas",
-        success: false,
-        ingested: 0,
-        error: himalayasResult.error,
-      });
-    }
+        const upsertResult = await step.run(
+          `upsert-${stepIdPrefix}`,
+          async () => {
+            return upsertDirectJobs(
+              boardSource,
+              boardSource,
+              jobsForUpsert,
+              embedFn,
+            );
+          },
+        );
+        boardResults.push({
+          board: boardName,
+          success: true,
+          ingested: upsertResult.totalUpserted,
+          error: null,
+        });
+      } else if (!result.success) {
+        boardResults.push({
+          board: boardName,
+          success: false,
+          ingested: 0,
+          error: result.error,
+        });
+      }
+    };
+
+    // ── Board 1: Himalayas ──────────────────────────────────────────────────
+    await ingestBoard("Himalayas", "himalayas", "himalayas_direct", () =>
+      fetchHimalayasJobs(500, techFilter),
+    );
 
     // ── Board 2: RemoteOK ───────────────────────────────────────────────────
-    const remoteokResult = await step.run("fetch-remoteok", async () => {
-      const result = await fetchRemoteOKJobs(500, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
-
-    if (remoteokResult.success && remoteokResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        remoteokResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-remoteok", async () => {
-        return upsertDirectJobs(
-          "remoteok_direct",
-          "remoteok_direct",
-          jobsForUpsert,
-          embedFn,
-        );
-      });
-      boardResults.push({
-        board: "RemoteOK",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!remoteokResult.success) {
-      boardResults.push({
-        board: "RemoteOK",
-        success: false,
-        ingested: 0,
-        error: remoteokResult.error,
-      });
-    }
+    await ingestBoard("RemoteOK", "remoteok", "remoteok_direct", () =>
+      fetchRemoteOKJobs(500, techFilter),
+    );
 
     // ── Board 3: NoFluffJobs — DISABLED (LOCK 1, July 2026) ──────────────────
     // Dux confirmed: NoFluffJobs is Poland-fenced at the application-form stage
@@ -2007,152 +1960,22 @@ export const directJobBoardIngestion = inngest.createFunction(
     // });
 
     // ── Board 5: Arbeitnow ──────────────────────────────────────────────────
-    const arbeitnowResult = await step.run("fetch-arbeitnow", async () => {
-      const result = await fetchArbeitnowJobs(500, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
-
-    if (arbeitnowResult.success && arbeitnowResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        arbeitnowResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-arbeitnow", async () => {
-        return upsertDirectJobs(
-          "arbeitnow",
-          "arbeitnow",
-          jobsForUpsert,
-          embedFn,
-        );
-      });
-      boardResults.push({
-        board: "Arbeitnow",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!arbeitnowResult.success) {
-      boardResults.push({
-        board: "Arbeitnow",
-        success: false,
-        ingested: 0,
-        error: arbeitnowResult.error,
-      });
-    }
+    await ingestBoard("Arbeitnow", "arbeitnow", "arbeitnow", () =>
+      fetchArbeitnowJobs(500, techFilter),
+    );
 
     // ── Board 6: Remotive ───────────────────────────────────────────────────
-    const remotiveResult = await step.run("fetch-remotive", async () => {
-      const result = await fetchRemotiveJobs(500, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
-
-    if (remotiveResult.success && remotiveResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        remotiveResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-remotive", async () => {
-        return upsertDirectJobs("remotive", "remotive", jobsForUpsert, embedFn);
-      });
-      boardResults.push({
-        board: "Remotive",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!remotiveResult.success) {
-      boardResults.push({
-        board: "Remotive",
-        success: false,
-        ingested: 0,
-        error: remotiveResult.error,
-      });
-    }
+    await ingestBoard("Remotive", "remotive", "remotive", () =>
+      fetchRemotiveJobs(500, techFilter),
+    );
 
     // ── Board 7: WeWorkRemotely ─────────────────────────────────────────────
-    const wwrResult = await step.run("fetch-weworkremotely", async () => {
-      const result = await fetchWeWorkRemotelyJobs(200, techFilter);
-      if (!result.success) {
-        return {
-          success: false as const,
-          jobs: [],
-          error: result.error,
-          totalAvailable: 0,
-        };
-      }
-      return {
-        success: true as const,
-        jobs: result.jobs,
-        error: null,
-        totalAvailable: result.totalAvailable,
-      };
-    });
-
-    if (wwrResult.success && wwrResult.jobs.length > 0) {
-      const jobsForUpsert: DirectIngestionJob[] = filterExcluded(
-        wwrResult.jobs.map((j) => ({
-          ...j,
-          publishedAt: j.publishedAt
-            ? new Date(j.publishedAt as unknown as string)
-            : null,
-        })),
-      );
-      const upsertResult = await step.run("upsert-weworkremotely", async () => {
-        return upsertDirectJobs(
-          "weworkremotely",
-          "weworkremotely",
-          jobsForUpsert,
-          embedFn,
-        );
-      });
-      boardResults.push({
-        board: "WeWorkRemotely",
-        success: true,
-        ingested: upsertResult.totalUpserted,
-        error: null,
-      });
-    } else if (!wwrResult.success) {
-      boardResults.push({
-        board: "WeWorkRemotely",
-        success: false,
-        ingested: 0,
-        error: wwrResult.error,
-      });
-    }
+    await ingestBoard(
+      "WeWorkRemotely",
+      "weworkremotely",
+      "weworkremotely",
+      () => fetchWeWorkRemotelyJobs(200, techFilter),
+    );
 
     // ── Write ingestion log ─────────────────────────────────────────────────
     const totalIngested = boardResults.reduce((sum, r) => sum + r.ingested, 0);
