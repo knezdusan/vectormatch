@@ -361,9 +361,20 @@ export function looksLikeValidAtsResponse(
       if (source === "greenhouse" || source === "ashby") {
         return "jobs" in json;
       }
-      // SmartRecruiters: { "content": [...] }
+      // SmartRecruiters: { "content": [...], "totalFound": N }
+      // CRITICAL: SR returns HTTP 200 with { "totalFound": 0, "content": [] }
+      // for ANY slug — real, empty, or completely nonexistent. The "content" key
+      // is always present, so checking only for its existence produces phantom
+      // resolutions for every garbage slug. We must require totalFound > 0 to
+      // count a slug as valid (proven by the decisive garbage-slug test in
+      // Directive 04: 10/10 fake slugs returned 200/empty).
+      // Zero-job SR slugs are parked as "unverified" — they may be real-but-
+      // empty accounts with option value (poll for future postings), but they
+      // must NOT count as resolved or inflate the resolution rate.
       if (source === "smartrecruiters") {
-        return "content" in json;
+        if (!("content" in json)) return false;
+        const srData = json as { totalFound?: number };
+        return (srData.totalFound ?? 0) > 0;
       }
       // Recruitee: { "offers": [...] }
       if (source === "recruitee") {

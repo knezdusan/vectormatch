@@ -170,11 +170,6 @@
   --color-bg-2: var(--bg-2);
   --color-bg-3: var(--bg-3);
 
-  /* ATS platform badge accents (used by the MDX <Badge variant> component) */
-  --color-greenhouse: oklch(0.74 0.15 150);
-  --color-lever: oklch(0.7 0.16 264);
-  --color-workday: oklch(0.78 0.15 60);
-
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);

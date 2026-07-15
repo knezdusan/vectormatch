@@ -183,6 +183,7 @@ describe("countGateZeroJobs — SmartRecruiters", () => {
             { id: "3", name: "ML Engineer" },
             { id: "4", name: "DevOps Engineer" },
           ],
+          totalFound: 4,
         }),
       },
     ]);

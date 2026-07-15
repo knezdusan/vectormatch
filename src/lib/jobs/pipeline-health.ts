@@ -94,8 +94,9 @@ export const ALERT_THRESHOLDS = {
 const CRITICAL_CRON_FUNCTIONS: Record<string, number> = {
   // ── Pollers (most critical — silent failure = no new jobs) ───────────────
   batch_poll_active_hot: 6, // every 2h — 6h grace
-  backlog_sweeper: 12, // every 6h — 12h grace
-  batch_poll_probation: 72, // every 2h (probation tier) — 72h grace (lower priority tier)
+  // D1: backlog_sweeper and batch_poll_probation removed — their crons are
+  // paused (triggers: []). Including them in the guard would produce false
+  // alerts every cycle. Re-add when the crons are re-enabled.
   // ── Embedding & ingestion (the 2 that were silently dead) ───────────────
   probation_embedding_backfill: 36, // daily at 4:15 UTC — 36h grace
   direct_job_boards: 36, // daily at 5:00 UTC — 36h grace

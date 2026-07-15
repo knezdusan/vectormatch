@@ -323,7 +323,10 @@ describe("resolveSlugger — Stage 2: Slug probe", () => {
       {
         urlPattern: "api.smartrecruiters.com/v1/companies/",
         status: 200,
-        body: JSON.stringify({ content: [{ id: "1", name: "Engineer" }] }),
+        body: JSON.stringify({
+          content: [{ id: "1", name: "Engineer" }],
+          totalFound: 1,
+        }),
       },
     ]);
 
