@@ -139,7 +139,6 @@ const ALL_TECHS = [
  * @param crawlDates  One or more monthly crawl dates (e.g. ["2026-06-01"])
  * @param limit       Optional row limit (for testing)
  */
-// fallow-ignore-next-line unused-export
 export function buildBigQuerySql(
   crawlDates: string | string[],
   limit?: number,
@@ -280,7 +279,6 @@ export async function runBigQuerySeeder(
  * through the slug probe resolver. The ats_source is passed as a hint to the
  * resolver so it only probes the detected ATS (3x fewer API calls).
  */
-// fallow-ignore-next-line unused-export
 export async function processBigQueryRows(
   rows: BigQueryRow[],
   resolveCname?: ResolveCnameFn,

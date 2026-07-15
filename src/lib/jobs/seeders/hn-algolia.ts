@@ -218,7 +218,6 @@ async function findLatestHiringStory(fetchFn: FetchFn): Promise<string | null> {
  * tuples, and insert them into the company table. This is the core domain
  * logic, separated from the fetch for testability.
  */
-// fallow-ignore-next-line unused-export
 export async function processHnHits(
   hits: HnAlgoliaHit[],
 ): Promise<HnSeederResult> {

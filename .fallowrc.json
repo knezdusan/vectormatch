@@ -11,11 +11,14 @@
     "src/lib/jobs/seeders/batch-sources/remoteintech.ts",
     "src/lib/jobs/seeders/fingerprint-v2.ts",
     "src/lib/jobs/seeders/fingerprint-v3.ts",
+    "src/lib/jobs/direct-ingestion/justjoin.ts",
+    "src/lib/jobs/direct-ingestion/nofluffjobs.ts",
     "scripts/**",
     "vitest.config.mts",
     "vitest.setup.ts",
     "playwright.config.ts"
   ],
+  "ignoreExportsUsedInFile": true,
   "ignoreDependencies": ["class-variance-authority", "radix-ui", "dotenv"],
   "ignoreExports": [
     {
@@ -139,6 +142,10 @@
         "stripCompanyHq",
         "isHardFailRetryable"
       ]
+    },
+    {
+      "file": "src/lib/jobs/direct-ingestion/types.ts",
+      "exports": ["DirectBoardConfig"]
     }
   ],
   "duplicates": {

@@ -271,7 +271,6 @@ export const bigQuerySeeder = inngest.createFunction(
  * Used at line 340 and tested in src/lib/jobs/poller/__tests__/batch-poll.test.ts.
  * fallow reports it as unused because it is used in the same module and tests.
  */
-// fallow-ignore-next-line unused-export
 export function cronToTier(
   cron: string,
 ): "active_hot" | "active" | "probation" | "dormant" {
@@ -3994,7 +3993,6 @@ export const matchBulkReprocess = inngest.createFunction(
  * Exported for unit tests (src/inngest/__tests__/parse-vector.test.ts).
  * fallow sees it as unused because it is only imported by tests.
  */
-// fallow-ignore-next-line unused-export
 export function parseVectorString(str: string | null | undefined): number[] {
   if (!str || typeof str !== "string") return [];
   // pgvector format: [0.1,0.2,...]

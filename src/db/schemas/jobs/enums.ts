@@ -198,6 +198,9 @@ export const ingestionLogStatusEnum = pgEnum("ingestion_log_status", [
 export const rejectionReasonEnum = pgEnum("rejection_reason", [
   "geo_country_fenced", // Job restricted to specific countries excluding applicant
   "geo_region_fenced", // Job restricted to a broad region (APAC, EMEA) excluding applicant
+  "scope_text_restriction", // Geographic restriction found in JD text that the classifier missed
+  "non_development_role", // Role is not a software development position
+  "management_role", // Management/PM role, not IC development
   "stack_mismatch", // Tech stack doesn't align with persona's must-have tags
   "seniority_mismatch", // Seniority level doesn't match persona
   "contract_compliance", // Work authorization / contractor arrangement issues
