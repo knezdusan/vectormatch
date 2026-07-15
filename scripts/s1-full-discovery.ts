@@ -24,18 +24,26 @@ import {
   parseRemoteInTechRepo,
   type RemoteInTechCompany,
 } from "@/lib/jobs/seeders/batch-sources/remoteintech";
-import { canonicalizeCompanyName, resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import { probeStackProfile } from "@/lib/jobs/seeders/fingerprint-v2";
+import {
+  canonicalizeCompanyName,
+  resolveSlugger,
+} from "@/lib/jobs/seeders/slugger";
 
 const sql = neon(process.env.DATABASE_URL!);
 
 /** Extract a clean domain from a website URL. */
 function extractDomain(website: string): string {
   try {
-    const url = new URL(website.startsWith("http") ? website : `https://${website}`);
+    const url = new URL(
+      website.startsWith("http") ? website : `https://${website}`,
+    );
     return url.hostname.replace(/^www\./, "");
   } catch {
-    return website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    return website
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0];
   }
 }
 
@@ -53,7 +61,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`  Parsed: ${parseResult.totalFiles} → pre-filtered: ${parseResult.passedPreFilter}`);
+  console.log(
+    `  Parsed: ${parseResult.totalFiles} → pre-filtered: ${parseResult.passedPreFilter}`,
+  );
   console.log();
 
   // ── Step 2: Dedup against existing corpus ──────────────────────────────────
@@ -83,7 +93,9 @@ async function main() {
     }
   }
 
-  console.log(`  Already in corpus: ${alreadyInCorpus} | Net-new: ${netNew.length}`);
+  console.log(
+    `  Already in corpus: ${alreadyInCorpus} | Net-new: ${netNew.length}`,
+  );
   console.log();
 
   // ── Step 3: Slugger resolution on net-new companies ────────────────────────
@@ -110,7 +122,9 @@ async function main() {
     const company = netNew[i];
 
     if ((i + 1) % 25 === 0) {
-      console.log(`  Progress: ${i + 1}/${netNew.length} (resolved: ${resolved.length}, unresolved: ${unresolved.length})`);
+      console.log(
+        `  Progress: ${i + 1}/${netNew.length} (resolved: ${resolved.length}, unresolved: ${unresolved.length})`,
+      );
     }
 
     try {
@@ -129,7 +143,8 @@ async function main() {
           atsSlug: result.atsSlug,
           resolvedBy: result.resolvedBy,
         });
-        resolutionByAts[result.atsSource] = (resolutionByAts[result.atsSource] ?? 0) + 1;
+        resolutionByAts[result.atsSource] =
+          (resolutionByAts[result.atsSource] ?? 0) + 1;
       } else {
         unresolved.push({ name: company.name, website: company.website });
       }
@@ -151,12 +166,16 @@ async function main() {
   console.log("─".repeat(80));
   console.log();
   console.log(`  Net-new companies:    ${netNew.length}`);
-  console.log(`  Resolved to ATS:      ${resolved.length} (${resolutionRate}%)`);
+  console.log(
+    `  Resolved to ATS:      ${resolved.length} (${resolutionRate}%)`,
+  );
   console.log(`  Unresolved:           ${unresolved.length}`);
   console.log();
 
   console.log("  Resolution by ATS:");
-  for (const [ats, count] of Object.entries(resolutionByAts).sort((a, b) => b[1] - a[1])) {
+  for (const [ats, count] of Object.entries(resolutionByAts).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`    ${ats.padEnd(20)} ${count}`);
   }
   console.log();
@@ -166,13 +185,17 @@ async function main() {
   for (const r of resolved) {
     byMethod[r.resolvedBy] = (byMethod[r.resolvedBy] ?? 0) + 1;
   }
-  for (const [method, count] of Object.entries(byMethod).sort((a, b) => b[1] - a[1])) {
+  for (const [method, count] of Object.entries(byMethod).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`    ${method.padEnd(20)} ${count}`);
   }
   console.log();
 
   // ── Step 4: Fingerprint v2 stack-profile probe on resolved companies ───────
-  console.log("Step 4: Fingerprint v2 stack-profile probe on resolved companies...");
+  console.log(
+    "Step 4: Fingerprint v2 stack-profile probe on resolved companies...",
+  );
   console.log(`  Probing ${resolved.length} ATS feeds...`);
   console.log();
 
@@ -193,12 +216,20 @@ async function main() {
     const company = resolved[i];
 
     if ((i + 1) % 10 === 0) {
-      console.log(`  Progress: ${i + 1}/${resolved.length} (passed: ${passed.length}, parked: ${parked.length})`);
+      console.log(
+        `  Progress: ${i + 1}/${resolved.length} (passed: ${passed.length}, parked: ${parked.length})`,
+      );
     }
 
     try {
       const profile = await probeStackProfile(
-        company.atsSource as "greenhouse" | "lever" | "ashby" | "smartrecruiters" | "workable" | "recruitee",
+        company.atsSource as
+          | "greenhouse"
+          | "lever"
+          | "ashby"
+          | "smartrecruiters"
+          | "workable"
+          | "recruitee",
         company.atsSlug,
       );
 
@@ -243,8 +274,12 @@ async function main() {
   console.log(`  Pre-filtered:              ${parseResult.passedPreFilter}`);
   console.log(`  Already in corpus:         ${alreadyInCorpus}`);
   console.log(`  Net-new:                   ${netNew.length}`);
-  console.log(`  ATS-resolved (Slugger):    ${resolved.length} (${resolutionRate}%)`);
-  console.log(`  Fingerprint v2 PASS:       ${passed.length} (${resolved.length > 0 ? ((passed.length / resolved.length) * 100).toFixed(1) : 0}%)`);
+  console.log(
+    `  ATS-resolved (Slugger):    ${resolved.length} (${resolutionRate}%)`,
+  );
+  console.log(
+    `  Fingerprint v2 PASS:       ${passed.length} (${resolved.length > 0 ? ((passed.length / resolved.length) * 100).toFixed(1) : 0}%)`,
+  );
   console.log(`  Fingerprint v2 PARKED:     ${parked.length}`);
   console.log(`  Probe errors (no jobs):    ${probeErrors.length}`);
   console.log();
@@ -257,14 +292,22 @@ async function main() {
   const rate = resolved.length / netNew.length;
   if (rate >= 0.5) {
     console.log("  ✓ THESIS VALIDATED (≥50% resolve to ATS)");
-    console.log("    → Build out S2/S3/S4. The company→ATS→poll mechanism works.");
+    console.log(
+      "    → Build out S2/S3/S4. The company→ATS→poll mechanism works.",
+    );
   } else if (rate >= 0.25) {
     console.log("  ~ MARGINAL (25-50% resolve)");
-    console.log("    → Mixed signal. Consider ATS coverage gaps + discovery source quality.");
+    console.log(
+      "    → Mixed signal. Consider ATS coverage gaps + discovery source quality.",
+    );
   } else {
     console.log("  ✗ BOTTLENECK IS ATS COVERAGE (<25% resolve)");
-    console.log("    → Next build is additional pollers, NOT more discovery sources.");
-    console.log("    → Unresolved companies' ATS distribution tells us which pollers to add.");
+    console.log(
+      "    → Next build is additional pollers, NOT more discovery sources.",
+    );
+    console.log(
+      "    → Unresolved companies' ATS distribution tells us which pollers to add.",
+    );
   }
   console.log();
 
@@ -296,10 +339,14 @@ async function main() {
   // ── Passed companies (the first tranche candidates) ────────────────────────
   if (passed.length > 0) {
     console.log("─".repeat(80));
-    console.log("  FINGERPRINT V2 PASS — First tranche candidates (top 30 by fraction)");
+    console.log(
+      "  FINGERPRINT V2 PASS — First tranche candidates (top 30 by fraction)",
+    );
     console.log("─".repeat(80));
     console.log();
-    const sorted = [...passed].sort((a, b) => b.webDevFraction - a.webDevFraction);
+    const sorted = [...passed].sort(
+      (a, b) => b.webDevFraction - a.webDevFraction,
+    );
     for (const p of sorted.slice(0, 30)) {
       console.log(
         `  ${p.name.padEnd(28)} ${p.atsSource.padEnd(16)} ${p.totalJobs} jobs, ${p.webDevJobs} web-dev (${(p.webDevFraction * 100).toFixed(0)}%)`,
@@ -316,15 +363,27 @@ async function main() {
     const totalAllJobs = passed.reduce((s, p) => s + p.totalJobs, 0);
     console.log(`  Total web-dev jobs to embed:     ${totalWebDevJobs}`);
     console.log(`  Total all jobs (if full feed):   ${totalAllJobs}`);
-    console.log(`  Embed API cost:                  ~$0 (OpenAI text-embedding-3-small)`);
+    console.log(
+      `  Embed API cost:                  ~$0 (OpenAI text-embedding-3-small)`,
+    );
     console.log(`  Neon compute per embed:          ~10ms CPU per job`);
-    console.log(`  Total embed CPU:                 ${(totalWebDevJobs * 0.01).toFixed(1)} sec = ${(totalWebDevJobs * 0.01 / 3600).toFixed(4)} CU-hrs`);
-    console.log(`  Full-feed embed CPU:             ${(totalAllJobs * 0.01).toFixed(1)} sec = ${(totalAllJobs * 0.01 / 3600).toFixed(4)} CU-hrs`);
+    console.log(
+      `  Total embed CPU:                 ${(totalWebDevJobs * 0.01).toFixed(1)} sec = ${((totalWebDevJobs * 0.01) / 3600).toFixed(4)} CU-hrs`,
+    );
+    console.log(
+      `  Full-feed embed CPU:             ${(totalAllJobs * 0.01).toFixed(1)} sec = ${((totalAllJobs * 0.01) / 3600).toFixed(4)} CU-hrs`,
+    );
     console.log(`  Remaining budget:                ~12.74 CU-hrs`);
     console.log();
-    console.log(`  → Role-scoped ingestion (web-dev only): ${(totalWebDevJobs * 0.01 / 3600).toFixed(4)} CU-hrs`);
-    console.log(`  → Full-feed ingestion:                     ${(totalAllJobs * 0.01 / 3600).toFixed(4)} CU-hrs`);
-    console.log(`  → Saving from role-scoped:                 ${((totalAllJobs - totalWebDevJobs) * 0.01 / 3600).toFixed(4)} CU-hrs (${totalAllJobs - totalWebDevJobs} jobs skipped)`);
+    console.log(
+      `  → Role-scoped ingestion (web-dev only): ${((totalWebDevJobs * 0.01) / 3600).toFixed(4)} CU-hrs`,
+    );
+    console.log(
+      `  → Full-feed ingestion:                     ${((totalAllJobs * 0.01) / 3600).toFixed(4)} CU-hrs`,
+    );
+    console.log(
+      `  → Saving from role-scoped:                 ${(((totalAllJobs - totalWebDevJobs) * 0.01) / 3600).toFixed(4)} CU-hrs (${totalAllJobs - totalWebDevJobs} jobs skipped)`,
+    );
     console.log();
   }
 

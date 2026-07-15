@@ -1245,6 +1245,12 @@ const COUNTRY_FENCED_REMOTE_PATTERNS: RegExp[] = [
   /\bmust\s+(?:be\s+)?(?:located|reside)\s+in\b/i,
   /\b(?:us|uk|eu)\s+only\b/i,
   /\bnorth\s+america\s+only\b/i,
+  // Directive 09 Part A.3 — false-global classifier audit patterns:
+  /\bauthorized\s+to\s+work\s+in\s+(?:the\s+)?(?:united\s+states|us|u\.s\.|india|canada|philippines|uk|australia|germany|france)\b/i,
+  /\bmust\s+be\s+based\s+in\s+(?:the\s+)?(?:united\s+states|us|u\.s\.|india|canada|uk|australia)\b/i,
+  /\beligible\s+to\s+work\s+in\s+(?:the\s+)?(?:united\s+states|us|canada|uk|australia|germany|france)\b/i,
+  /\bmust\s+be\s+a\s+(?:united\s+states|us|u\.s\.)\s+citizen\b/i,
+  /\bremote\s+within\s+(?:the\s+)?(?:united\s+states|colombia|india|canada|uk|australia)\b/i,
 ];
 
 /**
@@ -1333,7 +1339,13 @@ export function inferRemoteScope(
   // specific — it detects a country name even when "Remote" is also present.
   // A genuinely global remote job whose JD says "work from anywhere" is already
   // caught by GLOBAL_REMOTE_PATTERNS above.
-  if (workplaceType === "remote" && locationText) {
+  //
+  // Directive 09 Part A.3: Removed the `workplaceType === "remote"` guard —
+  // when workplaceType is null (Greenhouse, many ATSs), the location-country
+  // check was skipped entirely, causing jobs with specific country locations
+  // to fall through to "unknown" → LLM Step 2 → "global" (false-global). This
+  // was the primary classifier failure pattern (248 false-globals found).
+  if (locationText) {
     const locationCountry = extractLocationCountry(locationText);
     if (locationCountry !== null) {
       return "country_fenced";
@@ -1354,11 +1366,12 @@ export function inferRemoteScope(
   // location doesn't contain "Remote - Global", "Remote - US Only", etc.). A
   // genuinely global remote job whose JD says "work from anywhere" is already
   // caught by GLOBAL_REMOTE_PATTERNS above.
-  if (
-    workplaceType === "remote" &&
-    locationText &&
-    isSpecificLocation(locationText)
-  ) {
+  //
+  // Directive 09 Part A.3: Removed the `workplaceType === "remote"` guard —
+  // same rationale as Fix 3 above. When workplaceType is null, specific city
+  // locations (e.g., "Redmond, WA", "Bastrop, TX" for SpaceX) were not caught,
+  // producing 60+ false-globals for SpaceX alone.
+  if (locationText && isSpecificLocation(locationText)) {
     return "country_fenced";
   }
 

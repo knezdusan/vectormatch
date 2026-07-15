@@ -21,7 +21,13 @@
 // extractLocationCountry utility as the other adapters.
 
 import { extractLocationCountry } from "@/lib/jobs/location-utils";
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  fetchJsonWithTimeout,
+  safeParseDate,
+  stripHtmlToText,
+} from "./types";
 
 /** RemoteOK API response — array with first element as legal notice. */
 type RemoteOKResponse = Array<RemoteOKLegalNotice | RemoteOKJob>;
@@ -65,20 +71,15 @@ export async function fetchRemoteOKJobs(
   fetchFn: typeof fetch = fetch,
 ): Promise<DirectFetchResult> {
   try {
-    const response = await fetchFn("https://remoteok.com/api", {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: `RemoteOK API HTTP ${response.status} ${response.statusText}`,
-        totalAvailable: 0,
-      };
+    const fetchResult = await fetchJsonWithTimeout<RemoteOKResponse>(
+      "https://remoteok.com/api",
+      fetchFn,
+      "RemoteOK",
+    );
+    if (!fetchResult.success) {
+      return fetchResult;
     }
-
-    const data = (await response.json()) as RemoteOKResponse;
+    const data = fetchResult.data;
 
     // Filter out the legal notice (first element with `legal` field, no `position`)
     const rawJobs = data.filter(
@@ -92,7 +93,7 @@ export async function fetchRemoteOKJobs(
     for (const rj of rawJobs) {
       const tags = (rj.tags ?? []).map((t) => t.toLowerCase());
       const title = rj.position ?? "";
-      const description = stripHtml(rj.description ?? "");
+      const description = stripHtmlToText(rj.description ?? "");
 
       // Apply persona tech filter
       if (!techFilter({ tags, title, description })) {
@@ -136,31 +137,6 @@ export async function fetchRemoteOKJobs(
       totalAvailable: 0,
     };
   }
-}
-
-/**
- * Strip HTML tags from a string, preserving text content.
- * RemoteOK descriptions contain HTML (p, ul, li, strong, br).
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "") // Strip all remaining tags
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, "\n\n") // Collapse excessive newlines
-    .trim();
-}
-
-function safeParseDate(s: string): Date | null {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /**

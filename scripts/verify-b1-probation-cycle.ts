@@ -39,7 +39,9 @@ async function main() {
   }
 
   // ── Step 1: Poll the company ────────────────────────────────────────────
-  console.log("\nStep 1: Polling company (fetching jobs from greenhouse API)...");
+  console.log(
+    "\nStep 1: Polling company (fetching jobs from greenhouse API)...",
+  );
   const greenhouseUrl = `https://boards-api.greenhouse.io/v1/boards/${atsSlug}/jobs?content=true`;
   console.log(`  URL: ${greenhouseUrl}`);
 
@@ -53,7 +55,7 @@ async function main() {
     process.exit(1);
   }
 
-  const data = await fetchResult.json() as any;
+  const data = (await fetchResult.json()) as any;
   const jobs = data.jobs || [];
   console.log(`  Jobs found: ${jobs.length}`);
 
@@ -65,7 +67,8 @@ async function main() {
   // Insert jobs into the DB (same as phalanx-poller would)
   // Use a test marker in the title so we can identify these jobs later
   let inserted = 0;
-  for (const j of jobs.slice(0, 5)) { // Only insert first 5 to keep it manageable
+  for (const j of jobs.slice(0, 5)) {
+    // Only insert first 5 to keep it manageable
     const jobId = crypto.randomUUID();
     const title = j.title || "Untitled";
     const location = j.location ? j.location.name : null;
@@ -82,7 +85,9 @@ async function main() {
       // Job may already exist — that's fine
     }
   }
-  console.log(`  Jobs inserted: ${inserted} (of ${Math.min(5, jobs.length)} attempted)`);
+  console.log(
+    `  Jobs inserted: ${inserted} (of ${Math.min(5, jobs.length)} attempted)`,
+  );
 
   // Update company state (same as updateCompanyState on success)
   await sql`
@@ -97,7 +102,9 @@ async function main() {
   console.log("  Company state updated (last_polled_at set)");
 
   // ── Step 2: Verify jobs have NULL embeddings (probation deferral) ───────
-  console.log("\nStep 2: Checking if jobs have NULL embeddings (probation deferral)...");
+  console.log(
+    "\nStep 2: Checking if jobs have NULL embeddings (probation deferral)...",
+  );
   const nullEmbedJobs = await sql`
     SELECT id, title, status, normalized_text IS NOT NULL as has_norm_text,
            job_embedding IS NULL as embedding_is_null
@@ -116,11 +123,15 @@ async function main() {
   // and leaving job_embedding NULL.
 
   // ── Step 3: Simulate normalization (set normalized_text, leave embedding NULL) ──
-  console.log("\nStep 3: Simulating normalization (setting normalized_text, deferring embedding)...");
+  console.log(
+    "\nStep 3: Simulating normalization (setting normalized_text, deferring embedding)...",
+  );
   for (const j of nullEmbedJobs) {
     // Use the job title as a simple normalized text (real normalizer would
     // extract full content, but for the cycle test the title is sufficient)
-    const normText = j.title + " - Software engineering role requiring TypeScript, React, and Node.js experience.";
+    const normText =
+      j.title +
+      " - Software engineering role requiring TypeScript, React, and Node.js experience.";
     await sql`
       UPDATE job SET
         normalized_text = ${normText},
@@ -129,7 +140,9 @@ async function main() {
       WHERE id = ${j.id}::uuid
     `;
   }
-  console.log("  Normalized text set, embeddings deferred (company is on probation)");
+  console.log(
+    "  Normalized text set, embeddings deferred (company is on probation)",
+  );
 
   // Verify
   const afterNorm = await sql`
@@ -166,14 +179,19 @@ async function main() {
   console.table(afterRecalc[0]);
 
   if (afterRecalc[0].tier === "probation") {
-    console.log("  NOTE: Company stayed on probation (last_job_posted_at just set, but recalc may have already run). Forcing promotion to active for test purposes.");
+    console.log(
+      "  NOTE: Company stayed on probation (last_job_posted_at just set, but recalc may have already run). Forcing promotion to active for test purposes.",
+    );
     await sql`UPDATE company SET tier = 'active'::company_tier WHERE id = ${companyId}`;
-    const afterForce = await sql`SELECT tier::text as tier FROM company WHERE id = ${companyId}`;
+    const afterForce =
+      await sql`SELECT tier::text as tier FROM company WHERE id = ${companyId}`;
     console.log("  After forced promotion:", afterForce[0].tier);
   }
 
   // ── Step 5: Run backfill → embed jobs ───────────────────────────────────
-  console.log("\nStep 5: Running embedding backfill (embedding deferred jobs)...");
+  console.log(
+    "\nStep 5: Running embedding backfill (embedding deferred jobs)...",
+  );
   const pendingJobs = await sql`
     SELECT j.id, j.title, j.normalized_text
     FROM job j
@@ -189,31 +207,38 @@ async function main() {
   console.log(`  Pending jobs for backfill: ${pendingJobs.length}`);
 
   if (pendingJobs.length === 0) {
-    console.log("  No pending jobs — backfill is a no-op (expected if all jobs already embedded)");
+    console.log(
+      "  No pending jobs — backfill is a no-op (expected if all jobs already embedded)",
+    );
   }
 
   // Embed each job using OpenAI
   let embedded = 0;
   for (const j of pendingJobs) {
     try {
-      const embeddingResponse = await fetch("https://api.openai.com/v1/embeddings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      const embeddingResponse = await fetch(
+        "https://api.openai.com/v1/embeddings",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "text-embedding-3-small",
+            input: j.normalized_text,
+          }),
         },
-        body: JSON.stringify({
-          model: "text-embedding-3-small",
-          input: j.normalized_text,
-        }),
-      });
+      );
 
       if (!embeddingResponse.ok) {
-        console.log(`  Embedding failed for job ${j.id.substring(0, 8)}: ${embeddingResponse.status}`);
+        console.log(
+          `  Embedding failed for job ${j.id.substring(0, 8)}: ${embeddingResponse.status}`,
+        );
         continue;
       }
 
-      const embeddingData = await embeddingResponse.json() as any;
+      const embeddingData = (await embeddingResponse.json()) as any;
       const embedding = embeddingData.data[0].embedding;
 
       // Store as a string for the SQL query (pgvector format)
@@ -225,7 +250,9 @@ async function main() {
       embedded++;
       console.log(`  Embedded job ${j.id.substring(0, 8)}: ${j.title}`);
     } catch (e) {
-      console.log(`  Embedding error for job ${j.id.substring(0, 8)}: ${e instanceof Error ? e.message : String(e)}`);
+      console.log(
+        `  Embedding error for job ${j.id.substring(0, 8)}: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
   console.log(`  Embedded: ${embedded} jobs`);
@@ -243,12 +270,19 @@ async function main() {
   `;
   console.table(afterBackfill);
 
-  const embeddedCount = afterBackfill.filter((j: any) => j.has_embedding).length;
-  console.log(`  Jobs with embeddings: ${embeddedCount}/${afterBackfill.length}`);
+  const embeddedCount = afterBackfill.filter(
+    (j: any) => j.has_embedding,
+  ).length;
+  console.log(
+    `  Jobs with embeddings: ${embeddedCount}/${afterBackfill.length}`,
+  );
 
   // ── Step 7: Run Gate 2 HNSW query ───────────────────────────────────────
-  console.log("\nStep 7: Running Gate 2 HNSW query (verifying jobs appear in search)...");
-  const persona = await sql`SELECT persona_embedding::text as embedding FROM persona LIMIT 1`;
+  console.log(
+    "\nStep 7: Running Gate 2 HNSW query (verifying jobs appear in search)...",
+  );
+  const persona =
+    await sql`SELECT persona_embedding::text as embedding FROM persona LIMIT 1`;
   if (persona.length === 0 || !persona[0].embedding) {
     console.log("  No persona embedding found — cannot test Gate 2");
   } else {
@@ -270,7 +304,9 @@ async function main() {
       console.log("  No results — jobs not visible in Gate 2 (FAIL)");
     } else {
       console.table(gate2Results);
-      console.log(`  ✓ ${gate2Results.length} jobs visible in Gate 2 HNSW search`);
+      console.log(
+        `  ✓ ${gate2Results.length} jobs visible in Gate 2 HNSW search`,
+      );
     }
   }
 
@@ -281,11 +317,15 @@ async function main() {
     WHERE job_embedding IS NULL AND status = 'active' AND normalized_text IS NOT NULL
       AND ats_source::text = ${atsSource} AND ats_slug = ${atsSlug}
   `;
-  console.log(`  Pending jobs after second backfill: ${pendingAfterBackfill[0].cnt}`);
+  console.log(
+    `  Pending jobs after second backfill: ${pendingAfterBackfill[0].cnt}`,
+  );
   if (pendingAfterBackfill[0].cnt === "0") {
     console.log("  ✓ Idempotency verified — no jobs re-embedded");
   } else {
-    console.log("  FAIL: Jobs still pending after backfill — idempotency issue");
+    console.log(
+      "  FAIL: Jobs still pending after backfill — idempotency issue",
+    );
   }
 
   // ── Summary ─────────────────────────────────────────────────────────────
@@ -295,7 +335,9 @@ async function main() {
   console.log("  3. Embedding deferred (probation): ✓");
   console.log("  4. Company promoted: ✓");
   console.log(`  5. Jobs embedded by backfill: ${embedded}`);
-  console.log(`  6. Jobs visible in Gate 2: ${embedded > 0 ? "✓" : "N/A (no embedding)"}`);
+  console.log(
+    `  6. Jobs visible in Gate 2: ${embedded > 0 ? "✓" : "N/A (no embedding)"}`,
+  );
   console.log("  7. Idempotency: ✓");
 
   process.exit(0);

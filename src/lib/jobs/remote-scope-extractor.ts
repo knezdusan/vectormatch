@@ -887,6 +887,24 @@ export async function extractRemoteScope(
   // Step 2: LLM extraction (sync path).
   try {
     const llmResult = await llmExtractor(hqStrippedText);
+    // Directive 09 Part A.3 — Post-classification guard: if the LLM returns
+    // "global" but also returns allowedCountries (non-empty), it contradicted
+    // itself. Override to "country_fenced" — the presence of allowed countries
+    // means the job IS geographically restricted, regardless of the scope label.
+    // This was Pattern A of the false-global audit (13 jobs with
+    // location_countries=["US"] but remote_scope="global").
+    if (
+      llmResult.remoteScope === "global" &&
+      llmResult.allowedCountries &&
+      llmResult.allowedCountries.length > 0
+    ) {
+      return {
+        remoteScope: "country_fenced",
+        allowedCountries: llmResult.allowedCountries,
+        resolvedBy: "step2_llm",
+        confidence: llmResult.confidence,
+      };
+    }
     return {
       remoteScope: llmResult.remoteScope,
       allowedCountries: llmResult.allowedCountries,

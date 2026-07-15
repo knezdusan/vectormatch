@@ -17,7 +17,10 @@
  * Usage: npx tsx scripts/recall-check-ashby-fenced.ts
  */
 import { neon } from "@neondatabase/serverless";
-import { isSpecificLocation, extractLocationCountry } from "../src/lib/jobs/location-utils.ts";
+import {
+  extractLocationCountry,
+  isSpecificLocation,
+} from "../src/lib/jobs/location-utils.ts";
 
 const sql = neon(process.env.DATABASE_URL!);
 
@@ -109,7 +112,7 @@ function checkJdForSignals(text: string): {
 
   return {
     hasHighGlobal: highSignals.length > 0,
-    hasMediumGlobal: GLOBAL_MEDIUM_SIGNALS.some(s => s.test(text)),
+    hasMediumGlobal: GLOBAL_MEDIUM_SIGNALS.some((s) => s.test(text)),
     hasNegative: negativeSignals.length > 0,
     hasRegionFencing: regionSignals.length > 0,
     highSignals,
@@ -155,7 +158,9 @@ async function main() {
 
   console.log(`Would be reclassified (fenced/onsite): ${wouldFence.length}`);
   console.log(`Would stay 'global': ${wouldStayGlobal.length}`);
-  console.log(`Reclassification rate: ${((wouldFence.length / globalJobs.length) * 100).toFixed(1)}%\n`);
+  console.log(
+    `Reclassification rate: ${((wouldFence.length / globalJobs.length) * 100).toFixed(1)}%\n`,
+  );
 
   // 3. For each newly-fenced job, check JD text for global signals
   let falseNegatives = 0;
@@ -169,7 +174,8 @@ async function main() {
     if (!jdText && job.raw_json) {
       try {
         const raw = JSON.parse(job.raw_json);
-        jdText = raw.descriptionPlain || raw.descriptionHtml || raw.description || "";
+        jdText =
+          raw.descriptionPlain || raw.descriptionHtml || raw.description || "";
       } catch {
         jdText = "";
       }
@@ -215,46 +221,56 @@ async function main() {
   console.log(`True negatives (correctly fenced): ${trueNegatives}`);
   console.log(`False negatives (wrongly fenced):  ${falseNegatives}`);
   console.log(`Ambiguous (needs LLM adjudication): ${ambiguous}`);
-  console.log(`\nFalse-negative rate: ${((falseNegatives / wouldFence.length) * 100).toFixed(1)}%`);
-  console.log(`Ambiguous rate: ${((ambiguous / wouldFence.length) * 100).toFixed(1)}%`);
+  console.log(
+    `\nFalse-negative rate: ${((falseNegatives / wouldFence.length) * 100).toFixed(1)}%`,
+  );
+  console.log(
+    `Ambiguous rate: ${((ambiguous / wouldFence.length) * 100).toFixed(1)}%`,
+  );
 
   // 5. Show false negatives (the recall failures)
-  const fns = results.filter(r => r.verdict === "false_negative");
+  const fns = results.filter((r) => r.verdict === "false_negative");
   if (fns.length > 0) {
     console.log("\n=== FALSE NEGATIVES (wrongly fenced global jobs) ===");
-    console.table(fns.map(r => ({
-      id: r.id,
-      title: r.title,
-      location: r.location,
-      country: r.country,
-      reason: r.reason,
-    })));
+    console.table(
+      fns.map((r) => ({
+        id: r.id,
+        title: r.title,
+        location: r.location,
+        country: r.country,
+        reason: r.reason,
+      })),
+    );
   } else {
     console.log("\n=== No false negatives found ===");
   }
 
   // 6. Show ambiguous cases
-  const ambs = results.filter(r => r.verdict === "ambiguous");
+  const ambs = results.filter((r) => r.verdict === "ambiguous");
   if (ambs.length > 0) {
     console.log("\n=== AMBIGUOUS CASES (need LLM adjudication) ===");
-    console.table(ambs.map(r => ({
-      id: r.id,
-      title: r.title,
-      location: r.location,
-      reason: r.reason,
-    })));
+    console.table(
+      ambs.map((r) => ({
+        id: r.id,
+        title: r.title,
+        location: r.location,
+        reason: r.reason,
+      })),
+    );
   }
 
   // 7. Show sample of true negatives
-  const tns = results.filter(r => r.verdict === "true_negative");
+  const tns = results.filter((r) => r.verdict === "true_negative");
   console.log("\n=== Sample TRUE NEGATIVES (correctly fenced) ===");
-  console.table(tns.slice(0, 15).map(r => ({
-    id: r.id,
-    title: r.title,
-    location: r.location,
-    country: r.country,
-    region_fencing: r.has_region_fencing ? r.region_signals : "",
-  })));
+  console.table(
+    tns.slice(0, 15).map((r) => ({
+      id: r.id,
+      title: r.title,
+      location: r.location,
+      country: r.country,
+      region_fencing: r.has_region_fencing ? r.region_signals : "",
+    })),
+  );
 
   // 8. Also check the "would stay global" set for region-fencing-behind-Remote
   console.log("\n=== Region-Fencing Check on 'Would Stay Global' Jobs ===");
@@ -265,7 +281,8 @@ async function main() {
     if (!jdText && job.raw_json) {
       try {
         const raw = JSON.parse(job.raw_json);
-        jdText = raw.descriptionPlain || raw.descriptionHtml || raw.description || "";
+        jdText =
+          raw.descriptionPlain || raw.descriptionHtml || raw.description || "";
       } catch {
         jdText = "";
       }
@@ -281,7 +298,9 @@ async function main() {
       });
     }
   }
-  console.log(`Jobs that would stay 'global' but have region-fencing signals: ${regionFenced} / ${wouldStayGlobal.length}`);
+  console.log(
+    `Jobs that would stay 'global' but have region-fencing signals: ${regionFenced} / ${wouldStayGlobal.length}`,
+  );
   if (regionFencedResults.length > 0) {
     console.table(regionFencedResults.slice(0, 20));
   }
@@ -289,28 +308,42 @@ async function main() {
   // 9. Summary
   console.log("\n=== SUMMARY ===");
   console.log(`Ashby global jobs: ${globalJobs.length}`);
-  console.log(`  Would be reclassified: ${wouldFence.length} (${((wouldFence.length / globalJobs.length) * 100).toFixed(1)}%)`);
+  console.log(
+    `  Would be reclassified: ${wouldFence.length} (${((wouldFence.length / globalJobs.length) * 100).toFixed(1)}%)`,
+  );
   console.log(`    True negatives (correctly fenced): ${trueNegatives}`);
-  console.log(`    False negatives (wrongly fenced): ${falseNegatives} (${((falseNegatives / wouldFence.length) * 100).toFixed(1)}% of fenced)`);
+  console.log(
+    `    False negatives (wrongly fenced): ${falseNegatives} (${((falseNegatives / wouldFence.length) * 100).toFixed(1)}% of fenced)`,
+  );
   console.log(`    Ambiguous (need adjudication): ${ambiguous}`);
   console.log(`  Would stay global: ${wouldStayGlobal.length}`);
-  console.log(`    With region-fencing signals: ${regionFenced} (${((regionFenced / wouldStayGlobal.length) * 100).toFixed(1)}% of stay-global)`);
+  console.log(
+    `    With region-fencing signals: ${regionFenced} (${((regionFenced / wouldStayGlobal.length) * 100).toFixed(1)}% of stay-global)`,
+  );
   console.log("");
   console.log("VERDICT:");
   if (falseNegatives === 0) {
-    console.log("  No false negatives — the fix did not wrongly fence any genuine global jobs.");
+    console.log(
+      "  No false negatives — the fix did not wrongly fence any genuine global jobs.",
+    );
   } else {
-    console.log(`  ${falseNegatives} false negatives found — the fix wrongly fenced ${((falseNegatives / wouldFence.length) * 100).toFixed(1)}% of jobs.`);
-    console.log("  RECOMMENDATION: Refine rule to route location-vs-JD conflicts to LLM adjudication.");
+    console.log(
+      `  ${falseNegatives} false negatives found — the fix wrongly fenced ${((falseNegatives / wouldFence.length) * 100).toFixed(1)}% of jobs.`,
+    );
+    console.log(
+      "  RECOMMENDATION: Refine rule to route location-vs-JD conflicts to LLM adjudication.",
+    );
   }
   if (regionFenced > 0) {
-    console.log(`  ${regionFenced} stay-global jobs have region-fencing signals — multi-probe needed.`);
+    console.log(
+      `  ${regionFenced} stay-global jobs have region-fencing signals — multi-probe needed.`,
+    );
   }
 
   process.exit(0);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Recall check failed:", err);
   process.exit(1);
 });

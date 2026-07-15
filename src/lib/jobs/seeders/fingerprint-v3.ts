@@ -26,22 +26,26 @@
 
 import type { AtsSource } from "@/lib/jobs/ats-endpoints";
 import { getAtsEndpoint } from "@/lib/jobs/ats-endpoints";
-import { looksLikeValidAtsResponse } from "@/lib/jobs/seeders/resolve-custom-url";
-import {
-  isWebDevTitle,
-  matchWebDevTitle,
-  MIN_WEBDEV_ROLES,
-} from "@/lib/jobs/seeders/fingerprint-v2";
-import type { FetchFn } from "@/lib/jobs/types";
 import {
   extractLocationCountry,
   isSpecificLocation,
   REMOTE_LOCATION_INDICATORS,
 } from "@/lib/jobs/location-utils";
+import {
+  isWebDevTitle,
+  MIN_WEBDEV_ROLES,
+  matchWebDevTitle,
+} from "@/lib/jobs/seeders/fingerprint-v2";
+import { looksLikeValidAtsResponse } from "@/lib/jobs/seeders/resolve-custom-url";
+import type { FetchFn } from "@/lib/jobs/types";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type RemoteScope = "global" | "country_fenced" | "onsite" | "undetermined";
+export type RemoteScope =
+  | "global"
+  | "country_fenced"
+  | "onsite"
+  | "undetermined";
 
 export interface JobWithScope {
   title: string;
@@ -192,10 +196,7 @@ interface RawJobDetail {
  * response. This extends Fingerprint v2's extractJobTitles to also pull
  * location and workplaceType fields.
  */
-function extractJobDetails(
-  text: string,
-  atsSource: AtsSource,
-): RawJobDetail[] {
+function extractJobDetails(text: string, atsSource: AtsSource): RawJobDetail[] {
   try {
     const json: unknown = JSON.parse(text);
 
@@ -412,8 +413,7 @@ export async function probeStackProfileV3(
 
   // Addressable yield = global + 0.5 × undetermined (conservative estimate)
   const addressableYield = globalWebDevJobs + 0.5 * undeterminedWebDevJobs;
-  const globalFraction =
-    webDevJobs > 0 ? addressableYield / webDevJobs : 0;
+  const globalFraction = webDevJobs > 0 ? addressableYield / webDevJobs : 0;
 
   const passed = webDevJobs >= MIN_WEBDEV_ROLES;
 

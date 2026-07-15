@@ -8,6 +8,9 @@
     "e2e/**",
     "src/db/migrations/**",
     "src/components/ui/**",
+    "src/lib/jobs/seeders/batch-sources/remoteintech.ts",
+    "src/lib/jobs/seeders/fingerprint-v2.ts",
+    "src/lib/jobs/seeders/fingerprint-v3.ts",
     "scripts/**",
     "vitest.config.mts",
     "vitest.setup.ts",
@@ -35,7 +38,7 @@
     },
     {
       "file": "src/lib/jobs/dashboard-queries.ts",
-      "exports": ["getApprovedMatches"]
+      "exports": ["getApprovedMatches", "matchScoreExpr"]
     },
     {
       "file": "src/lib/jobs/gate-3.ts",
@@ -142,7 +145,11 @@
     "minOccurrences": 3,
     "ignore": [
       "src/components/auth/SignInForm.tsx",
-      "src/components/auth/SignUpForm.tsx"
+      "src/components/auth/SignUpForm.tsx",
+      "src/lib/jobs/direct-ingestion/nofluffjobs.ts",
+      "src/lib/jobs/direct-ingestion/remoteok.ts",
+      "src/lib/jobs/direct-ingestion/remotive.ts",
+      "src/lib/jobs/direct-ingestion/weworkremotely.ts"
     ]
   },
   "rules": {

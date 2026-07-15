@@ -50,7 +50,11 @@ OUTPUT: Return a JSON object with:
 function normalizeArray(val: any): string[] {
   if (Array.isArray(val)) return val;
   if (typeof val === "string") {
-    return val.replace(/^\{|\}$/g, "").split(",").map((s) => s.trim()).filter(Boolean);
+    return val
+      .replace(/^\{|\}$/g, "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
   return [];
 }
@@ -106,10 +110,12 @@ Evaluate whether this job is a strong match for this persona. Return your verdic
 
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`OpenAI API error ${response.status}: ${err.substring(0, 200)}`);
+    throw new Error(
+      `OpenAI API error ${response.status}: ${err.substring(0, 200)}`,
+    );
   }
 
-  const data = await response.json() as any;
+  const data = (await response.json()) as any;
   const content = data.choices[0]?.message?.content;
   return JSON.parse(content);
 }
@@ -129,8 +135,12 @@ async function main() {
     ORDER BY mq.status, mq.evaluated_at DESC
   `;
   console.log(`Total user-rejected cases: ${userRejected.length}`);
-  const mismatches = userRejected.filter((r: any) => r.user_status === "mismatch");
-  const markRead = userRejected.filter((r: any) => r.user_status === "mark_read");
+  const mismatches = userRejected.filter(
+    (r: any) => r.user_status === "mismatch",
+  );
+  const markRead = userRejected.filter(
+    (r: any) => r.user_status === "mark_read",
+  );
   console.log(`  mismatch (strong signal): ${mismatches.length}`);
   console.log(`  mark_read (weak signal): ${markRead.length}\n`);
 
@@ -232,7 +242,8 @@ async function main() {
       console.log(`${outcome} (confidence: ${verdict.matchConfidence})`);
     } catch (e) {
       errors++;
-      const errMsg = e instanceof Error ? e.message.substring(0, 80) : String(e);
+      const errMsg =
+        e instanceof Error ? e.message.substring(0, 80) : String(e);
       results.push({
         mq_id: r.mq_id?.substring(0, 8),
         user_status: r.user_status,
@@ -251,7 +262,9 @@ async function main() {
   console.log(`  Total replayed: ${userRejected.length}`);
   console.log(`  CAUGHT (was approved, now rejected): ${nowRejected}`);
   console.log(`  PERSISTS (was approved, still approved): ${stillApproved}`);
-  console.log(`  WAS_REJECTED (not a false positive): ${userRejected.length - nowRejected - stillApproved - errors}`);
+  console.log(
+    `  WAS_REJECTED (not a false positive): ${userRejected.length - nowRejected - stillApproved - errors}`,
+  );
   console.log(`  Errors: ${errors}`);
 
   // 5. Detailed results table
@@ -281,17 +294,23 @@ async function main() {
     console.log(`\nCAUGHT cases (${caught.length}) — what blocked them now:`);
     for (const c of caught) {
       console.log(`  ${c.mq_id}: ${c.title?.substring(0, 40)}`);
-      console.log(`    remote_scope=${c.remote_scope}, countries=${c.countries}`);
+      console.log(
+        `    remote_scope=${c.remote_scope}, countries=${c.countries}`,
+      );
       console.log(`    new blockers: ${c.new_blockers}`);
     }
   }
 
   // What still passes?
   if (persists.length > 0) {
-    console.log(`\nPERSISTS cases (${persists.length}) — false positives still not caught:`);
+    console.log(
+      `\nPERSISTS cases (${persists.length}) — false positives still not caught:`,
+    );
     for (const p of persists) {
       console.log(`  ${p.mq_id}: ${p.title?.substring(0, 40)}`);
-      console.log(`    location=${p.location}, remote_scope=${p.remote_scope}, countries=${p.countries}`);
+      console.log(
+        `    location=${p.location}, remote_scope=${p.remote_scope}, countries=${p.countries}`,
+      );
       console.log(`    confidence: ${p.confidence}`);
     }
   }
@@ -301,20 +320,37 @@ async function main() {
   const mismatchResults = results.filter((r) => r.user_status === "mismatch");
   const markReadResults = results.filter((r) => r.user_status === "mark_read");
 
-  const mismatchCaught = mismatchResults.filter((r) => r.outcome === "CAUGHT").length;
-  const mismatchPersists = mismatchResults.filter((r) => r.outcome === "PERSISTS").length;
-  const markReadCaught = markReadResults.filter((r) => r.outcome === "CAUGHT").length;
-  const markReadPersists = markReadResults.filter((r) => r.outcome === "PERSISTS").length;
+  const mismatchCaught = mismatchResults.filter(
+    (r) => r.outcome === "CAUGHT",
+  ).length;
+  const mismatchPersists = mismatchResults.filter(
+    (r) => r.outcome === "PERSISTS",
+  ).length;
+  const markReadCaught = markReadResults.filter(
+    (r) => r.outcome === "CAUGHT",
+  ).length;
+  const markReadPersists = markReadResults.filter(
+    (r) => r.outcome === "PERSISTS",
+  ).length;
 
-  console.log(`  mismatch (strong signal): ${mismatchCaught} caught / ${mismatchPersists} persists / ${mismatchResults.length} total`);
-  console.log(`  mark_read (weak signal):  ${markReadCaught} caught / ${markReadPersists} persists / ${markReadResults.length} total`);
+  console.log(
+    `  mismatch (strong signal): ${mismatchCaught} caught / ${mismatchPersists} persists / ${mismatchResults.length} total`,
+  );
+  console.log(
+    `  mark_read (weak signal):  ${markReadCaught} caught / ${markReadPersists} persists / ${markReadResults.length} total`,
+  );
 
   // 8. Final verdict
   console.log("\n=== G3 Final Verdict ===");
   const totalFalsePositives = nowRejected + stillApproved;
-  const catchRate = totalFalsePositives > 0 ? (nowRejected / totalFalsePositives) * 100 : 0;
-  console.log(`  False-positive catch rate: ${catchRate.toFixed(1)}% (${nowRejected}/${totalFalsePositives})`);
-  console.log(`  ${catchRate >= 80 ? "✓ LARGE MAJORITY caught — precision fix is working" : catchRate >= 50 ? "~ PARTIAL — some false positives still escape" : "✗ INSUFFICIENT — most false positives still escape"}`);
+  const catchRate =
+    totalFalsePositives > 0 ? (nowRejected / totalFalsePositives) * 100 : 0;
+  console.log(
+    `  False-positive catch rate: ${catchRate.toFixed(1)}% (${nowRejected}/${totalFalsePositives})`,
+  );
+  console.log(
+    `  ${catchRate >= 80 ? "✓ LARGE MAJORITY caught — precision fix is working" : catchRate >= 50 ? "~ PARTIAL — some false positives still escape" : "✗ INSUFFICIENT — most false positives still escape"}`,
+  );
 
   process.exit(0);
 }

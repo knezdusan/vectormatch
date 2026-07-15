@@ -13,24 +13,34 @@
  * Usage: npx tsx scripts/s1-probe-error-analysis.ts
  */
 import { neon } from "@neondatabase/serverless";
-import { parseRemoteInTechRepo } from "@/lib/jobs/seeders/batch-sources/remoteintech";
-import { canonicalizeCompanyName, resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import { getAtsEndpoint } from "@/lib/jobs/ats-endpoints";
+import { parseRemoteInTechRepo } from "@/lib/jobs/seeders/batch-sources/remoteintech";
+import {
+  canonicalizeCompanyName,
+  resolveSlugger,
+} from "@/lib/jobs/seeders/slugger";
 
 const sql = neon(process.env.DATABASE_URL!);
 
 function extractDomain(website: string): string {
   try {
-    const url = new URL(website.startsWith("http") ? website : `https://${website}`);
+    const url = new URL(
+      website.startsWith("http") ? website : `https://${website}`,
+    );
     return url.hostname.replace(/^www\./, "");
   } catch {
-    return website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+    return website
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0];
   }
 }
 
 async function main() {
   console.log("═".repeat(80));
-  console.log("  S1 PROBE ERROR ANALYSIS — investigating 236 'no jobs' companies");
+  console.log(
+    "  S1 PROBE ERROR ANALYSIS — investigating 236 'no jobs' companies",
+  );
   console.log("═".repeat(80));
   console.log();
 
@@ -91,7 +101,9 @@ async function main() {
       // skip
     }
     if ((i + 1) % 50 === 0) {
-      console.log(`  Slugger progress: ${i + 1}/${netNew.length} (resolved: ${resolved.length})`);
+      console.log(
+        `  Slugger progress: ${i + 1}/${netNew.length} (resolved: ${resolved.length})`,
+      );
     }
   }
 
@@ -102,14 +114,18 @@ async function main() {
   }
   console.log();
   console.log("Resolved by ATS:");
-  for (const [ats, count] of Object.entries(byAts).sort((a, b) => b[1] - a[1])) {
+  for (const [ats, count] of Object.entries(byAts).sort(
+    (a, b) => b[1] - a[1],
+  )) {
     console.log(`  ${ats.padEnd(20)} ${count}`);
   }
   console.log();
 
   // ── Sample 10 SmartRecruiters companies and probe their feeds directly ─────
   const srCompanies = resolved.filter((r) => r.atsSource === "smartrecruiters");
-  console.log(`Sampling 10 SmartRecruiters companies out of ${srCompanies.length}...`);
+  console.log(
+    `Sampling 10 SmartRecruiters companies out of ${srCompanies.length}...`,
+  );
   console.log();
 
   const srSample = srCompanies.slice(0, 10);
@@ -138,18 +154,23 @@ async function main() {
         console.log(`    Response: ${text.length} bytes, jobs=${jobCount}`);
 
         // Show first few job titles if available
-        const titles = data.content?.slice(0, 3).map((j: { name?: string }) => j.name) ?? [];
+        const titles =
+          data.content?.slice(0, 3).map((j: { name?: string }) => j.name) ?? [];
         if (titles.length > 0) {
           console.log(`    Sample titles: ${titles.join(", ")}`);
         } else {
-          console.log(`    No 'content' array found. Keys: ${Object.keys(data).join(", ")}`);
+          console.log(
+            `    No 'content' array found. Keys: ${Object.keys(data).join(", ")}`,
+          );
         }
       } else {
         const text = await resp.text();
         console.log(`    Error body: ${text.slice(0, 200)}`);
       }
     } catch (err) {
-      console.log(`    FETCH ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      console.log(
+        `    FETCH ERROR: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
     console.log();
 
@@ -162,7 +183,9 @@ async function main() {
     if (atsCompanies.length === 0) continue;
 
     console.log(`─`.repeat(80));
-    console.log(`  Sampling 5 ${ats} companies out of ${atsCompanies.length}...`);
+    console.log(
+      `  Sampling 5 ${ats} companies out of ${atsCompanies.length}...`,
+    );
     console.log(`─`.repeat(80));
     console.log();
 
@@ -176,7 +199,10 @@ async function main() {
 
       try {
         const resp = await fetch(url, {
-          headers: { Accept: "application/json", "User-Agent": "VectorMatch-Probe/1.0" },
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "VectorMatch-Probe/1.0",
+          },
           signal: AbortSignal.timeout(15000),
         });
 
@@ -188,8 +214,10 @@ async function main() {
           try {
             const data = JSON.parse(text);
             if (ats === "greenhouse") jobCount = data.jobs?.length ?? "unknown";
-            else if (ats === "ashby") jobCount = data.postedJobs?.length ?? "unknown";
-            else if (ats === "lever") jobCount = data.postings?.length ?? "unknown";
+            else if (ats === "ashby")
+              jobCount = data.postedJobs?.length ?? "unknown";
+            else if (ats === "lever")
+              jobCount = data.postings?.length ?? "unknown";
           } catch {
             // not JSON
           }
@@ -199,7 +227,9 @@ async function main() {
           console.log(`    Error body: ${text.slice(0, 200)}`);
         }
       } catch (err) {
-        console.log(`    FETCH ERROR: ${err instanceof Error ? err.message : String(err)}`);
+        console.log(
+          `    FETCH ERROR: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
       console.log();
 

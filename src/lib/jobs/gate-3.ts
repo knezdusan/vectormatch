@@ -422,6 +422,9 @@ export function mapVerdict(verdict: Gate3Verdict): LlmVerdictString {
 export type RejectionReason =
   | "geo_country_fenced"
   | "geo_region_fenced"
+  | "scope_text_restriction"
+  | "non_development_role"
+  | "management_role"
   | "stack_mismatch"
   | "seniority_mismatch"
   | "contract_compliance"
@@ -442,6 +445,27 @@ export function classifyRejectionReason(blockers: string[]): RejectionReason {
   if (!blockers || blockers.length === 0) return "other";
 
   const text = blockers.join(" ").toLowerCase();
+
+  // Directive 09 Part B.1 — Scope text restriction (classifier false-global audit)
+  // Check before geo_country_fenced — this is the specific pattern of the LLM
+  // finding geographic restrictions in the JD text that the classifier missed.
+  if (/scope_text_restriction/.test(text)) {
+    return "scope_text_restriction";
+  }
+
+  // Directive 09 Part A.2 — Non-development role detection
+  if (
+    /\b(non-development|non-development role|not a software development|bookkeeper|account executive|sales role|accountant|financial analyst|marketing manager|operations manager|chief of staff|it support|help desk)\b/.test(
+      text,
+    )
+  ) {
+    return "non_development_role";
+  }
+
+  // Directive 09 Part A.2 — Management/PM role detection (separate from non-development)
+  if (/management\/pm role|management role|pm role/.test(text)) {
+    return "management_role";
+  }
 
   // Geo-region fenced (check before country — "APAC", "EMEA", "Latam")
   if (

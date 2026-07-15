@@ -46,7 +46,12 @@
 //   (string[]), niceToHaveSkills (string[]), workplaceType {label,value},
 //   experienceLevel {label,value}, workingTime {label,value} }
 
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  safeParseDate,
+  stripHtmlToText,
+} from "./types";
 
 /** Base URL for the JustJoin API gateway. */
 const API_BASE = "https://api.justjoin.it";
@@ -193,7 +198,7 @@ export async function fetchJustJoinJobs(
           continue;
         }
 
-        const description = stripHtml(detail.body ?? "");
+        const description = stripHtmlToText(detail.body ?? "");
         const tags = mergeSkills(
           normalizeSkills(detail.requiredSkills),
           listSkills,
@@ -463,31 +468,4 @@ function inferScopeFromCountryCode(countryCode: string | undefined): {
   }
   const code = countryCode.toUpperCase();
   return { remoteScope: "country_fenced", locationCountries: [code] };
-}
-
-/**
- * Strip HTML tags from a string, preserving text content.
- * JustJoin description bodies contain HTML (p, strong, ul, li, br).
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<\/h[1-6]>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-/** Parse an ISO date string into a Date, returning null on invalid input. */
-function safeParseDate(s: string): Date | null {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
 }

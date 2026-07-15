@@ -20,7 +20,12 @@
 // when location is null, check the excerpt for region-fencing signals.
 
 import { extractLocationCountry } from "@/lib/jobs/location-utils";
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  normalizeEmploymentType,
+  safeParseDate,
+} from "./types";
 
 /** Himalayas API response shape (partial — only fields we use). */
 interface HimalayasResponse {
@@ -194,22 +199,6 @@ export async function fetchHimalayasJobs(
       totalAvailable: 0,
     };
   }
-}
-
-function normalizeEmploymentType(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const lower = raw.toLowerCase();
-  if (lower.includes("full")) return "full-time";
-  if (lower.includes("part")) return "part-time";
-  if (lower.includes("contract") || lower.includes("freelance"))
-    return "contract";
-  if (lower.includes("intern")) return "internship";
-  return lower;
-}
-
-function safeParseDate(s: string): Date | null {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /**

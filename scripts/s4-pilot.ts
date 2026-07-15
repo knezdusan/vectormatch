@@ -1,14 +1,17 @@
 /**
- * S4 30-Query Pilot — Brave Search Targeted
+ * S4 Brave Search Targeted — Pilot or Full Matrix
  *
- * Runs 30 targeted queries (ATS domain × stack × scope) against Brave Search
- * free tier to measure hit-rates per template class.
+ * Runs targeted queries (ATS domain × stack × scope) against Brave Search
+ * free tier to discover companies hiring for web-dev roles.
  *
- * Strategy: 6 ATS × 5 stacks × 1 scope (worldwide) = 30 queries
- * This gives us per-ATS and per-stack hit-rate data without exhausting the
- * free tier budget.
+ * Modes:
+ *   --full    Run the full 300-query matrix (6 ATS × 10 stacks × 5 scopes)
+ *             Uses ~15% of monthly Brave quota (300/2000).
+ *   (default) Run the 30-query pilot (6 ATS × 5 stacks × 1 scope)
  *
- * Usage: npx tsx scripts/s4-pilot.ts
+ * Usage:
+ *   npx tsx scripts/s4-pilot.ts           # 30-query pilot
+ *   npx tsx scripts/s4-pilot.ts --full    # 300-query full matrix
  */
 import {
   generateQueryMatrix,
@@ -65,19 +68,29 @@ async function executeBraveQueryDirect(
 }
 
 async function main() {
+  const isFullMode = process.argv.includes("--full");
+
   console.log("═".repeat(80));
-  console.log("  S4 30-QUERY PILOT — Brave Search Targeted");
-  console.log("  ATS domain × stack × scope (worldwide only)");
+  if (isFullMode) {
+    console.log("  S4 FULL 300-QUERY MATRIX — Brave Search Targeted");
+    console.log("  6 ATS × 10 stacks × 5 scopes");
+  } else {
+    console.log("  S4 30-QUERY PILOT — Brave Search Targeted");
+    console.log("  ATS domain × stack × scope (worldwide only)");
+  }
   console.log("═".repeat(80));
   console.log();
 
-  // Build 30-query pilot: 6 ATS × 5 stacks × 1 scope
+  // Build query set
   const fullMatrix = generateQueryMatrix();
   const pilotStacks = ["Laravel", "Next.js", "React", "PHP", "fullstack"];
-  const pilotQueries = fullMatrix.filter(
-    (q) =>
-      pilotStacks.includes(q.stackKeyword) && q.scopeKeyword === "worldwide",
-  );
+  const pilotQueries = isFullMode
+    ? fullMatrix
+    : fullMatrix.filter(
+        (q) =>
+          pilotStacks.includes(q.stackKeyword) &&
+          q.scopeKeyword === "worldwide",
+      );
 
   console.log(`  Pilot queries: ${pilotQueries.length}`);
   console.log(

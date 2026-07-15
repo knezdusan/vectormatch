@@ -2277,9 +2277,15 @@ describe("inferRemoteScope — Fix 1: remote + specific location", () => {
     ).toBe("global");
   });
 
-  it("classifies null workplace + specific location as unknown (not country_fenced)", () => {
-    // Fix 1 only applies to remote jobs — null workplace is handled by Gate 0.5 Check 3
-    expect(inferRemoteScope("Pakistan", null, null)).toBe("unknown");
+  it("classifies null workplace + specific location as country_fenced (Directive 09 Part A.3)", () => {
+    // Directive 09 Part A.3: The `workplaceType === "remote"` guard was removed
+    // from the location-specific checks. When workplaceType is null (Greenhouse,
+    // many ATSs), specific city/country locations were falling through to
+    // "unknown" → LLM Step 2 → "global" (false-global). This was the primary
+    // classifier failure pattern (248 false-globals found, 60+ from SpaceX alone
+    // with locations like "Redmond, WA", "Bastrop, TX"). Now classified as
+    // country_fenced to prevent false-globals from reaching Gate 3.
+    expect(inferRemoteScope("Pakistan", null, null)).toBe("country_fenced");
   });
 
   it("classifies remote + null location as unknown", () => {

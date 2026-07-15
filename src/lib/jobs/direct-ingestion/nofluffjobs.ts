@@ -20,7 +20,11 @@
 // Currency is preserved as-is (mostly PLN, some USD/EUR).
 
 import { extractLocationCountry } from "@/lib/jobs/location-utils";
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  normalizeEmploymentType,
+} from "./types";
 
 /** NoFluffJobs API top-level response shape (partial — only fields we use). */
 interface NoFluffJobsResponse {
@@ -289,31 +293,6 @@ function inferScopeFromPlaces(
     return { remoteScope: "country_fenced", locationCountries: codes };
   }
   return { remoteScope: "region_fenced", locationCountries: codes };
-}
-
-/**
- * Map NoFluffJobs salary `type` to a normalized employment type.
- *
- * Actual observed values (July 2026): b2b, permanent, zlecenie, uod.
- *   - b2b       → contract (business-to-business)
- *   - permanent → full-time (permanent employment)
- *   - zlecenie  → contract (mandate contract)
- *   - uod       → contract (umowa o dzieło — contract for specific work)
- */
-function normalizeEmploymentType(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const lower = raw.toLowerCase();
-  if (lower === "b2b") return "contract";
-  if (lower.includes("permanent") || lower === "uop") return "full-time";
-  if (lower.includes("zlecenie") || lower.includes("mandate"))
-    return "contract";
-  if (lower === "uod") return "contract";
-  if (lower.includes("full")) return "full-time";
-  if (lower.includes("part")) return "part-time";
-  if (lower.includes("contract") || lower.includes("freelance"))
-    return "contract";
-  if (lower.includes("intern")) return "internship";
-  return lower;
 }
 
 /**

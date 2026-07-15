@@ -18,7 +18,14 @@
 // Each job: { slug, company_name, title, description (HTML), remote (bool),
 //             url, tags[], job_types[], location, created_at }
 
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  fetchJsonWithTimeout,
+  normalizeEmploymentTypeFromArray,
+  safeParseDate,
+  stripHtmlToText,
+} from "./types";
 
 /** Arbeitnow API response shape (partial — only fields we use). */
 interface ArbeitnowResponse {
@@ -63,23 +70,15 @@ export async function fetchArbeitnowJobs(
     let totalAvailable = 0;
 
     for (let page = 1; page <= MAX_PAGES; page++) {
-      const response = await fetchFn(
+      const fetchResult = await fetchJsonWithTimeout<ArbeitnowResponse>(
         `https://www.arbeitnow.com/api/job-board-api?page=${page}`,
-        {
-          headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(30000),
-        },
+        fetchFn,
+        "Arbeitnow",
       );
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: `Arbeitnow API HTTP ${response.status} ${response.statusText}`,
-          totalAvailable: 0,
-        };
+      if (!fetchResult.success) {
+        return fetchResult;
       }
-
-      const data = (await response.json()) as ArbeitnowResponse;
+      const data = fetchResult.data;
       const pageJobs = data.data ?? [];
 
       // Empty page → end of data (the API exposes no total/last_page).
@@ -91,7 +90,7 @@ export async function fetchArbeitnowJobs(
       for (const aj of pageJobs) {
         const tags = (aj.tags ?? []).map((t) => t.toLowerCase());
         const title = aj.title ?? "";
-        const description = stripHtml(aj.description ?? "");
+        const description = stripHtmlToText(aj.description ?? "");
 
         // Apply persona tech filter
         if (!techFilter({ tags, title, description })) {
@@ -108,7 +107,7 @@ export async function fetchArbeitnowJobs(
           jobUrl: aj.url ?? null,
           locationName: aj.location ?? null,
           workplaceType: aj.remote ? "remote" : null,
-          employmentType: normalizeEmploymentType(aj.job_types),
+          employmentType: normalizeEmploymentTypeFromArray(aj.job_types),
           // Arbeitnow doesn't expose country fencing; mark remote jobs as global.
           remoteScope: aj.remote ? "global" : "unknown",
           compensationMin: null,
@@ -135,45 +134,4 @@ export async function fetchArbeitnowJobs(
       totalAvailable: 0,
     };
   }
-}
-
-/**
- * Pick and normalize an employment type from the job_types array.
- * Arbeitnow exposes an array (e.g. ["full_time", "contract"]).
- */
-function normalizeEmploymentType(types: string[] | undefined): string | null {
-  if (!types || types.length === 0) return null;
-  const raw = types[0];
-  const lower = raw.toLowerCase();
-  if (lower.includes("full")) return "full-time";
-  if (lower.includes("part")) return "part-time";
-  if (lower.includes("contract") || lower.includes("freelance"))
-    return "contract";
-  if (lower.includes("intern")) return "internship";
-  return lower;
-}
-
-/**
- * Strip HTML tags from a string, preserving text content.
- * Arbeitnow descriptions contain HTML (p, ul, li, strong, br).
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function safeParseDate(s: string): Date | null {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
 }

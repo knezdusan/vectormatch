@@ -16,7 +16,14 @@
 //             publication_date, candidate_required_location, salary (free text),
 //             description (HTML) }
 
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  fetchJsonWithTimeout,
+  normalizeEmploymentType,
+  safeParseDate,
+  stripHtmlToText,
+} from "./types";
 
 /** Remotive API top-level response shape (partial — only fields we use). */
 interface RemotiveResponse {
@@ -57,23 +64,15 @@ export async function fetchRemotiveJobs(
   fetchFn: typeof fetch = fetch,
 ): Promise<DirectFetchResult> {
   try {
-    const response = await fetchFn(
+    const fetchResult = await fetchJsonWithTimeout<RemotiveResponse>(
       "https://remotive.com/api/remote-jobs?limit=100",
-      {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(30000),
-      },
+      fetchFn,
+      "Remotive",
     );
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: `Remotive API HTTP ${response.status} ${response.statusText}`,
-        totalAvailable: 0,
-      };
+    if (!fetchResult.success) {
+      return fetchResult;
     }
-
-    const data = (await response.json()) as RemotiveResponse;
+    const data = fetchResult.data;
     const rawJobs = data.jobs ?? [];
     const totalAvailable = data["job-count"] ?? rawJobs.length;
     const filteredJobs: DirectIngestionJob[] = [];
@@ -81,7 +80,7 @@ export async function fetchRemotiveJobs(
     for (const rj of rawJobs) {
       const tags = (rj.tags ?? []).map((t) => t.toLowerCase());
       const title = rj.title ?? "";
-      const description = stripHtml(rj.description ?? "");
+      const description = stripHtmlToText(rj.description ?? "");
 
       // Apply persona tech filter
       if (!techFilter({ tags, title, description })) {
@@ -148,41 +147,4 @@ function inferRemoteScope(
     return "global";
   }
   return "country_fenced";
-}
-
-/** Normalize Remotive's job_type (e.g. "full_time", "contract") to our enum. */
-function normalizeEmploymentType(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const lower = raw.toLowerCase();
-  if (lower.includes("full")) return "full-time";
-  if (lower.includes("part")) return "part-time";
-  if (lower.includes("contract") || lower.includes("freelance"))
-    return "contract";
-  if (lower.includes("intern")) return "internship";
-  return lower;
-}
-
-/**
- * Strip HTML tags from a string, preserving text content.
- * Remotive descriptions contain HTML.
- */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function safeParseDate(s: string): Date | null {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
 }

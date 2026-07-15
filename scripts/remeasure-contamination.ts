@@ -12,12 +12,17 @@
  * Usage: npx tsx scripts/remeasure-contamination.ts
  */
 import { neon } from "@neondatabase/serverless";
-import { isSpecificLocation, extractLocationCountry } from "../src/lib/jobs/location-utils.ts";
+import {
+  extractLocationCountry,
+  isSpecificLocation,
+} from "../src/lib/jobs/location-utils.ts";
 
 const sql = neon(process.env.DATABASE_URL!);
 
 async function main() {
-  console.log("=== Re-measure: remote_scope='global' contamination after classifier fix ===\n");
+  console.log(
+    "=== Re-measure: remote_scope='global' contamination after classifier fix ===\n",
+  );
 
   // 1. Get all jobs currently labeled 'global'
   const globalJobs = await sql`
@@ -55,7 +60,11 @@ async function main() {
       reason = `null workplace + specific location "${loc}"`;
     } else if ((workplace === "remote" || workplace === null) && loc) {
       const lowerLoc = loc.toLowerCase();
-      if (lowerLoc.includes("remote") || lowerLoc.includes("worldwide") || lowerLoc.includes("anywhere")) {
+      if (
+        lowerLoc.includes("remote") ||
+        lowerLoc.includes("worldwide") ||
+        lowerLoc.includes("anywhere")
+      ) {
         const country = extractLocationCountry(loc);
         if (country) {
           newScope = "country_fenced";
@@ -93,17 +102,34 @@ async function main() {
 
   // 3. Results
   console.log(`\n=== Re-classification Results ===`);
-  console.log(`Would stay 'global':         ${wouldStayGlobal} (${((wouldStayGlobal / globalJobs.length) * 100).toFixed(1)}%)`);
-  console.log(`Would become 'country_fenced': ${wouldBecomeFenced} (${((wouldBecomeFenced / globalJobs.length) * 100).toFixed(1)}%)`);
-  console.log(`Would become 'onsite':         ${wouldBecomeOnsite} (${((wouldBecomeOnsite / globalJobs.length) * 100).toFixed(1)}%)`);
+  console.log(
+    `Would stay 'global':         ${wouldStayGlobal} (${((wouldStayGlobal / globalJobs.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `Would become 'country_fenced': ${wouldBecomeFenced} (${((wouldBecomeFenced / globalJobs.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `Would become 'onsite':         ${wouldBecomeOnsite} (${((wouldBecomeOnsite / globalJobs.length) * 100).toFixed(1)}%)`,
+  );
 
-  const newContaminationRate = ((wouldBecomeFenced + wouldBecomeOnsite) / globalJobs.length) * 100;
+  const newContaminationRate =
+    ((wouldBecomeFenced + wouldBecomeOnsite) / globalJobs.length) * 100;
   console.log(`\nOld contamination rate: 48.5%`);
-  console.log(`New contamination rate: ${newContaminationRate.toFixed(1)}% (jobs that would be reclassified)`);
-  console.log(`\nNote: This is the location-based fix only. The full fix also includes`);
-  console.log(`multi-probe calibration (≥3 disjoint region probes) which would catch`);
-  console.log(`additional cases where the location is "Remote" but the JD text`);
-  console.log(`contains region-specific language (e.g., "must work EMEA hours").`);
+  console.log(
+    `New contamination rate: ${newContaminationRate.toFixed(1)}% (jobs that would be reclassified)`,
+  );
+  console.log(
+    `\nNote: This is the location-based fix only. The full fix also includes`,
+  );
+  console.log(
+    `multi-probe calibration (≥3 disjoint region probes) which would catch`,
+  );
+  console.log(
+    `additional cases where the location is "Remote" but the JD text`,
+  );
+  console.log(
+    `contains region-specific language (e.g., "must work EMEA hours").`,
+  );
 
   // 4. Show reclassified examples
   console.log(`\n=== Reclassified Examples (first 30) ===`);
@@ -111,10 +137,14 @@ async function main() {
 
   // 5. Per-source breakdown
   console.log(`\n=== Per-Source Breakdown ===`);
-  const bySource: Record<string, { total: number; stayGlobal: number; fenced: number; onsite: number }> = {};
+  const bySource: Record<
+    string,
+    { total: number; stayGlobal: number; fenced: number; onsite: number }
+  > = {};
   for (const job of globalJobs) {
     const source = job.ats_source;
-    if (!bySource[source]) bySource[source] = { total: 0, stayGlobal: 0, fenced: 0, onsite: 0 };
+    if (!bySource[source])
+      bySource[source] = { total: 0, stayGlobal: 0, fenced: 0, onsite: 0 };
     bySource[source].total++;
 
     const loc = job.location_name || "";
@@ -125,7 +155,11 @@ async function main() {
       bySource[source].onsite++;
     } else if ((workplace === "remote" || workplace === null) && loc) {
       const lowerLoc = loc.toLowerCase();
-      if (lowerLoc.includes("remote") || lowerLoc.includes("worldwide") || lowerLoc.includes("anywhere")) {
+      if (
+        lowerLoc.includes("remote") ||
+        lowerLoc.includes("worldwide") ||
+        lowerLoc.includes("anywhere")
+      ) {
         const country = extractLocationCountry(loc);
         if (country) bySource[source].fenced++;
         else bySource[source].stayGlobal++;
@@ -144,23 +178,27 @@ async function main() {
       become_fenced: s.fenced,
       become_onsite: s.onsite,
       fix_rate: `${(((s.fenced + s.onsite) / s.total) * 100).toFixed(1)}%`,
-    }))
+    })),
   );
 
   // 6. What the "global" set looks like after the fix
   console.log(`\n=== Post-Fix 'global' Set ===`);
   console.log(`Jobs that would remain 'global': ${wouldStayGlobal}`);
-  console.log(`These are jobs where the location is NOT a specific place — either:`);
+  console.log(
+    `These are jobs where the location is NOT a specific place — either:`,
+  );
   console.log(`  - Location is "Remote" (no country)`);
   console.log(`  - Location is "Global" / "Worldwide" / "Anywhere"`);
   console.log(`  - Location is null/empty`);
   console.log(`  - Location is a broad region (EMEA, APAC, etc.)`);
-  console.log(`These would need the multi-probe calibration to further validate.`);
+  console.log(
+    `These would need the multi-probe calibration to further validate.`,
+  );
 
   process.exit(0);
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Re-measurement failed:", err);
   process.exit(1);
 });

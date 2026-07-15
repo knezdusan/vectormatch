@@ -210,3 +210,76 @@ export interface DirectBoardConfig {
   /** Maximum jobs to fetch per ingestion run. */
   maxJobs: number;
 }
+
+export type FetchJsonResult<T> =
+  | { success: true; data: T }
+  | { success: false; error: string; totalAvailable: 0 };
+
+export async function fetchJsonWithTimeout<T>(
+  url: string,
+  fetchFn: typeof fetch,
+  apiName: string,
+): Promise<FetchJsonResult<T>> {
+  const response = await fetchFn(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!response.ok) {
+    return {
+      success: false,
+      error: `${apiName} API HTTP ${response.status} ${response.statusText}`,
+      totalAvailable: 0,
+    };
+  }
+
+  const data = (await response.json()) as T;
+  return { success: true, data };
+}
+
+export function stripHtmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function safeParseDate(s: string): Date | null {
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export function normalizeEmploymentType(
+  raw: string | undefined,
+): string | null {
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (lower === "b2b") return "contract";
+  if (lower === "uop" || lower.includes("permanent")) return "full-time";
+  if (lower.includes("zlecenie") || lower.includes("mandate"))
+    return "contract";
+  if (lower === "uod") return "contract";
+  if (lower.includes("full")) return "full-time";
+  if (lower.includes("part")) return "part-time";
+  if (lower.includes("contract") || lower.includes("freelance"))
+    return "contract";
+  if (lower.includes("intern")) return "internship";
+  return lower;
+}
+
+export function normalizeEmploymentTypeFromArray(
+  types: string[] | undefined,
+): string | null {
+  if (!types || types.length === 0) return null;
+  return normalizeEmploymentType(types[0]);
+}

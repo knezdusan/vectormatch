@@ -10,7 +10,9 @@ import { neon } from "@neondatabase/serverless";
 const sql = neon(process.env.DATABASE_URL!);
 
 async function main() {
-  console.log("=== Multi-Probe Analysis: How clean is remote_scope=global? ===\n");
+  console.log(
+    "=== Multi-Probe Analysis: How clean is remote_scope=global? ===\n",
+  );
 
   // 1. Current remote_scope distribution
   const scopeDist = await sql`
@@ -72,11 +74,14 @@ async function main() {
 
   const suspiciousCount = Number(suspiciousGlobal[0].cnt);
   const totalCount = Number(totalGlobal[0].cnt);
-  const suspiciousRate = totalCount > 0 ? ((suspiciousCount / totalCount) * 100).toFixed(1) : "N/A";
+  const suspiciousRate =
+    totalCount > 0 ? ((suspiciousCount / totalCount) * 100).toFixed(1) : "N/A";
 
   console.log("\n=== Contamination Analysis ===");
   console.log(`Total "global" jobs: ${totalCount}`);
-  console.log(`"global" jobs with suspicious location strings: ${suspiciousCount}`);
+  console.log(
+    `"global" jobs with suspicious location strings: ${suspiciousCount}`,
+  );
   console.log(`Contamination rate: ${suspiciousRate}%`);
 
   // 4. Show some examples of suspicious "global" jobs
@@ -106,20 +111,40 @@ async function main() {
 
   // 5. The multi-probe design
   console.log("\n=== Multi-Probe Design for L2 ===");
-  console.log("Problem: remote_scope is assigned from a single CET-biased perspective.");
-  console.log("A job that says 'Remote within EMEA' may be labeled 'region_fenced' (correct),");
-  console.log("but a job that says 'Remote' with location 'London' may be labeled 'global'");
+  console.log(
+    "Problem: remote_scope is assigned from a single CET-biased perspective.",
+  );
+  console.log(
+    "A job that says 'Remote within EMEA' may be labeled 'region_fenced' (correct),",
+  );
+  console.log(
+    "but a job that says 'Remote' with location 'London' may be labeled 'global'",
+  );
   console.log("if the extractor does not catch the London-specific fencing.");
   console.log("");
-  console.log("Solution: Add geographically disjoint probe personas (e.g., LATAM, SE Asia).");
-  console.log("Award 'global' only when a job clears probes across disjoint regions/timezones.");
-  console.log("This makes the remote-density score (the L2 targeting signal) mean");
+  console.log(
+    "Solution: Add geographically disjoint probe personas (e.g., LATAM, SE Asia).",
+  );
+  console.log(
+    "Award 'global' only when a job clears probes across disjoint regions/timezones.",
+  );
+  console.log(
+    "This makes the remote-density score (the L2 targeting signal) mean",
+  );
   console.log("'worldwide-global,' not 'global-from-CET.'");
   console.log("");
-  console.log("Implementation: The remote-scope-extractor currently uses a single-applicant");
-  console.log("perspective. For L2, add a multi-probe check: a job is only 'global' if it");
-  console.log("passes geo-fencing checks from 3+ disjoint regions (CET, LATAM, SE Asia).");
-  console.log("This prevents EMEA-fenced jobs from being mislabeled as global and enlisted");
+  console.log(
+    "Implementation: The remote-scope-extractor currently uses a single-applicant",
+  );
+  console.log(
+    "perspective. For L2, add a multi-probe check: a job is only 'global' if it",
+  );
+  console.log(
+    "passes geo-fencing checks from 3+ disjoint regions (CET, LATAM, SE Asia).",
+  );
+  console.log(
+    "This prevents EMEA-fenced jobs from being mislabeled as global and enlisted",
+  );
 
   process.exit(0);
 }

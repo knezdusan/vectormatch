@@ -20,7 +20,13 @@
 // consistent, so we extract <item> blocks and per-field content with targeted
 // regex — no new dependency needed.
 
-import type { DirectFetchResult, DirectIngestionJob } from "./types";
+import {
+  type DirectFetchResult,
+  type DirectIngestionJob,
+  normalizeEmploymentType,
+  safeParseDate,
+  stripHtmlToText,
+} from "./types";
 
 /** Maps WWR <category> values to normalized tag arrays. */
 const CATEGORY_TAG_MAP: Record<string, string[]> = {
@@ -199,18 +205,7 @@ function parseDescription(raw: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&");
-  return stripHtml(unescaped);
-}
-
-/** Strip HTML tags from a string, preserving text content. */
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return stripHtmlToText(unescaped);
 }
 
 /** Extract the job ID (last URL path segment) from a WWR link. */
@@ -238,21 +233,4 @@ function inferRemoteScope(
     return "global";
   }
   return "country_fenced";
-}
-
-/** Normalize WWR's <type> (e.g. "Full-Time", "Contract") to our enum. */
-function normalizeEmploymentType(raw: string | undefined): string | null {
-  if (!raw) return null;
-  const lower = raw.toLowerCase();
-  if (lower.includes("full")) return "full-time";
-  if (lower.includes("part")) return "part-time";
-  if (lower.includes("contract") || lower.includes("freelance"))
-    return "contract";
-  if (lower.includes("intern")) return "internship";
-  return lower;
-}
-
-function safeParseDate(s: string): Date | null {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
 }

@@ -20,7 +20,9 @@ import { neon } from "@neondatabase/serverless";
 const sql = neon(process.env.DATABASE_URL!);
 
 async function main() {
-  console.log("=== G2 / M3: Never-Polled Hit Rate (Production Endpoints) ===\n");
+  console.log(
+    "=== G2 / M3: Never-Polled Hit Rate (Production Endpoints) ===\n",
+  );
 
   // 1. Report the ATS composition of the full 4,056 backlog
   const backlogComposition = await sql`
@@ -163,11 +165,12 @@ async function main() {
           outcome = "zod_fail";
           zodFailCount++;
           // Truncate the Zod error for readability
-          errorDetail = parsed.error.issues
-            ?.slice(0, 2)
-            .map((iss: any) => `${iss.path.join(".")}: ${iss.message}`)
-            .join("; ")
-            .substring(0, 100) || "Zod validation failed";
+          errorDetail =
+            parsed.error.issues
+              ?.slice(0, 2)
+              .map((iss: any) => `${iss.path.join(".")}: ${iss.message}`)
+              .join("; ")
+              .substring(0, 100) || "Zod validation failed";
           if (!errorsBySource[source]) errorsBySource[source] = [];
           if (errorsBySource[source].length < 3) {
             errorsBySource[source].push(`${slug}: ${errorDetail}`);
@@ -206,19 +209,50 @@ async function main() {
   // 4. Results
   console.log("\n=== G2 / M3 Results (Production Endpoints) ===");
   console.log(`  Total polled: ${samples.length}`);
-  console.log(`  Hits (≥1 job):           ${hitCount} (${((hitCount / samples.length) * 100).toFixed(1)}%)`);
-  console.log(`  Dead (HTTP 404):         ${deadCount} (${((deadCount / samples.length) * 100).toFixed(1)}%)`);
-  console.log(`  Empty (200, 0 jobs):     ${emptyCount} (${((emptyCount / samples.length) * 100).toFixed(1)}%)`);
-  console.log(`  Zod validation failed:   ${zodFailCount} (${((zodFailCount / samples.length) * 100).toFixed(1)}%)`);
-  console.log(`  Network errors:          ${networkErrorCount} (${((networkErrorCount / samples.length) * 100).toFixed(1)}%)`);
-  console.log(`  Other HTTP errors:       ${otherHttpErrorCount} (${((otherHttpErrorCount / samples.length) * 100).toFixed(1)}%)`);
+  console.log(
+    `  Hits (≥1 job):           ${hitCount} (${((hitCount / samples.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `  Dead (HTTP 404):         ${deadCount} (${((deadCount / samples.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `  Empty (200, 0 jobs):     ${emptyCount} (${((emptyCount / samples.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `  Zod validation failed:   ${zodFailCount} (${((zodFailCount / samples.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `  Network errors:          ${networkErrorCount} (${((networkErrorCount / samples.length) * 100).toFixed(1)}%)`,
+  );
+  console.log(
+    `  Other HTTP errors:       ${otherHttpErrorCount} (${((otherHttpErrorCount / samples.length) * 100).toFixed(1)}%)`,
+  );
 
   // Hit rate by source — THE KEY TABLE
   console.log("\n=== Hit Rate by ATS Source (Production Endpoints) ===");
-  const bySource: Record<string, { total: number; hits: number; dead: number; empty: number; zod_fail: number; net_err: number; http_err: number }> = {};
+  const bySource: Record<
+    string,
+    {
+      total: number;
+      hits: number;
+      dead: number;
+      empty: number;
+      zod_fail: number;
+      net_err: number;
+      http_err: number;
+    }
+  > = {};
   for (const r of results) {
     if (!bySource[r.source]) {
-      bySource[r.source] = { total: 0, hits: 0, dead: 0, empty: 0, zod_fail: 0, net_err: 0, http_err: 0 };
+      bySource[r.source] = {
+        total: 0,
+        hits: 0,
+        dead: 0,
+        empty: 0,
+        zod_fail: 0,
+        net_err: 0,
+        http_err: 0,
+      };
     }
     bySource[r.source].total++;
     if (r.outcome === "hit") bySource[r.source].hits++;
@@ -243,7 +277,9 @@ async function main() {
 
   // Zod failure examples (if any)
   if (Object.keys(errorsBySource).length > 0) {
-    console.log("\n=== Zod Validation Failure Examples (first 3 per source) ===");
+    console.log(
+      "\n=== Zod Validation Failure Examples (first 3 per source) ===",
+    );
     for (const [source, examples] of Object.entries(errorsBySource)) {
       console.log(`\n  ${source}:`);
       for (const ex of examples) {
@@ -260,8 +296,13 @@ async function main() {
   }
 
   // 5. Weighted extrapolation using actual backlog composition
-  console.log("\n=== Weighted Extrapolation (using actual backlog composition) ===");
-  const totalBacklog = backlogComposition.reduce((sum: number, r: any) => sum + Number(r.cnt), 0);
+  console.log(
+    "\n=== Weighted Extrapolation (using actual backlog composition) ===",
+  );
+  const totalBacklog = backlogComposition.reduce(
+    (sum: number, r: any) => sum + Number(r.cnt),
+    0,
+  );
   let extrapolatedHits = 0;
   let extrapolatedDead = 0;
 
@@ -304,9 +345,15 @@ async function main() {
   console.table(extrapolation);
 
   console.log(`\n  Total backlog: ${totalBacklog}`);
-  console.log(`  Extrapolated hits (salvageable): ~${extrapolatedHits} companies`);
-  console.log(`  Extrapolated dead (404):         ~${extrapolatedDead} companies`);
-  console.log(`  Conclusion: ${extrapolatedHits > 500 ? "L2 is ADDITIVE — significant salvageable corpus" : extrapolatedHits > 100 ? "L2 is PARTIALLY ADDITIVE" : "L2 is largely DUPLICATIVE"}`);
+  console.log(
+    `  Extrapolated hits (salvageable): ~${extrapolatedHits} companies`,
+  );
+  console.log(
+    `  Extrapolated dead (404):         ~${extrapolatedDead} companies`,
+  );
+  console.log(
+    `  Conclusion: ${extrapolatedHits > 500 ? "L2 is ADDITIVE — significant salvageable corpus" : extrapolatedHits > 100 ? "L2 is PARTIALLY ADDITIVE" : "L2 is largely DUPLICATIVE"}`,
+  );
 
   process.exit(0);
 }

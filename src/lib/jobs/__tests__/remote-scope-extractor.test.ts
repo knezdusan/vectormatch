@@ -972,10 +972,10 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
     expect(mockLlm).toHaveBeenCalled();
   });
 
-  it("deterministicOnly=true: no regex signal → returns 'unknown', no LLM", async () => {
+  it("deterministicOnly=true: no regex signal → returns 'undetermined', no LLM", async () => {
     // Pipeline reorder (2026-07-10): When deterministicOnly=true, the function
     // runs regex + multi-probe but skips the LLM. Jobs with no deterministic
-    // signal return "unknown" instead of calling the LLM. The LLM is deferred
+    // signal return "undetermined" instead of calling the LLM. The LLM is deferred
     // to Step 5.5 (after Gate 1+2) for cost reduction.
     const mockLlm = makeMockLlm({
       remoteScope: "global",
@@ -990,7 +990,7 @@ describe("Step 1f — Rule 6: null workplaceType + specific city → onsite", ()
       mockLlm,
       true, // deterministicOnly
     );
-    expect(result.remoteScope).toBe("unknown");
+    expect(result.remoteScope).toBe("undetermined");
     expect(result.resolvedBy).toBe("deterministic_only_no_signal");
     expect(mockLlm).not.toHaveBeenCalled();
   });

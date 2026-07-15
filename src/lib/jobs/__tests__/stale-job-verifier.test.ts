@@ -149,6 +149,7 @@ describe("verifyJobExists — SmartRecruiters", () => {
             { id: "74983486", name: "Engineer" },
             { id: "74983487", name: "Designer" },
           ],
+          totalFound: 2,
         }),
       },
     ]);
@@ -170,6 +171,7 @@ describe("verifyJobExists — SmartRecruiters", () => {
         status: 200,
         body: JSON.stringify({
           content: [{ id: "74983487", name: "Designer" }],
+          totalFound: 1,
         }),
       },
     ]);

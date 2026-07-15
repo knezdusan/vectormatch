@@ -6,7 +6,7 @@
  *
  * Usage: npx tsx --require ./scripts/stubs/stub-server-only.cjs scripts/flow-snapshot.ts
  */
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { neon } from "@neondatabase/serverless";
 
@@ -128,14 +128,28 @@ async function main() {
   // Print summary
   console.log(`Flow Snapshot — ${snapshot.date}`);
   console.log("═".repeat(60));
-  console.log(`Jobs:     ${snapshot.jobs.total} total, ${snapshot.jobs.active} active, ${snapshot.jobs.embedded} embedded`);
-  console.log(`Scope:    global=${snapshot.jobs.scope.global} country_fenced=${snapshot.jobs.scope.country_fenced} region_fenced=${snapshot.jobs.scope.region_fenced} onsite=${snapshot.jobs.scope.onsite} unknown=${snapshot.jobs.scope.unknown}`);
-  console.log(`Direct:   remoteok=${snapshot.directIngestion.remoteok} remotive=${snapshot.directIngestion.remotive} himalayas=${snapshot.directIngestion.himalayas} arbeitnow=${snapshot.directIngestion.arbeitnow} wwr=${snapshot.directIngestion.weworkremotely}`);
-  console.log(`ATS:      ${snapshot.directIngestion.all_ats} active jobs from ATS poller`);
-  console.log(`Queue:    ${snapshot.matchQueue.total} total, ${snapshot.matchQueue.pending} pending, ${snapshot.matchQueue.approved} approved, ${snapshot.matchQueue.rejected} rejected`);
+  console.log(
+    `Jobs:     ${snapshot.jobs.total} total, ${snapshot.jobs.active} active, ${snapshot.jobs.embedded} embedded`,
+  );
+  console.log(
+    `Scope:    global=${snapshot.jobs.scope.global} country_fenced=${snapshot.jobs.scope.country_fenced} region_fenced=${snapshot.jobs.scope.region_fenced} onsite=${snapshot.jobs.scope.onsite} unknown=${snapshot.jobs.scope.unknown}`,
+  );
+  console.log(
+    `Direct:   remoteok=${snapshot.directIngestion.remoteok} remotive=${snapshot.directIngestion.remotive} himalayas=${snapshot.directIngestion.himalayas} arbeitnow=${snapshot.directIngestion.arbeitnow} wwr=${snapshot.directIngestion.weworkremotely}`,
+  );
+  console.log(
+    `ATS:      ${snapshot.directIngestion.all_ats} active jobs from ATS poller`,
+  );
+  console.log(
+    `Queue:    ${snapshot.matchQueue.total} total, ${snapshot.matchQueue.pending} pending, ${snapshot.matchQueue.approved} approved, ${snapshot.matchQueue.rejected} rejected`,
+  );
   console.log(`Evaluated: ${snapshot.matchQueue.evaluated_24h} in last 24h`);
-  console.log(`Today:    ${snapshot.todayFlow.jobs} jobs ingested, ${snapshot.todayFlow.active} active, ${snapshot.todayFlow.embedded} embedded`);
-  console.log(`Personas: ${snapshot.personas.total} total, ${snapshot.personas.embedded} embedded`);
+  console.log(
+    `Today:    ${snapshot.todayFlow.jobs} jobs ingested, ${snapshot.todayFlow.active} active, ${snapshot.todayFlow.embedded} embedded`,
+  );
+  console.log(
+    `Personas: ${snapshot.personas.total} total, ${snapshot.personas.embedded} embedded`,
+  );
   console.log();
   console.log(`Snapshot appended to ${SNAPSHOT_FILE}`);
 }

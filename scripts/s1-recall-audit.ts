@@ -11,10 +11,19 @@
  *
  * Usage: npx tsx scripts/s1-recall-audit.ts
  */
-import { parseRemoteInTechRepo, type RemoteInTechCompany } from "@/lib/jobs/seeders/batch-sources/remoteintech";
+import {
+  parseRemoteInTechRepo,
+  type RemoteInTechCompany,
+} from "@/lib/jobs/seeders/batch-sources/remoteintech";
 
 // Web-dev tech tags (same as the pre-filter)
-const WEBDEV_TECH_TAGS = new Set(["javascript", "typescript", "react", "nodejs", "php"]);
+const WEBDEV_TECH_TAGS = new Set([
+  "javascript",
+  "typescript",
+  "react",
+  "nodejs",
+  "php",
+]);
 const GLOBAL_REGIONS = new Set(["worldwide", "americas-europe"]);
 
 async function main() {
@@ -39,21 +48,35 @@ async function main() {
 
   // Actually, let's use a different approach: fetch the raw file list and
   // parse frontmatter for a random sample of ALL files.
-  const REPO_TREE_API = "https://api.github.com/repos/remoteintech/remote-jobs/contents/src/companies";
-  const REPO_RAW_BASE = "https://raw.githubusercontent.com/remoteintech/remote-jobs/main/src/companies";
+  const REPO_TREE_API =
+    "https://api.github.com/repos/remoteintech/remote-jobs/contents/src/companies";
+  const REPO_RAW_BASE =
+    "https://raw.githubusercontent.com/remoteintech/remote-jobs/main/src/companies";
 
   console.log("Fetching full file list from GitHub...");
   const resp = await fetch(REPO_TREE_API, {
-    headers: { Accept: "application/vnd.github.v3+json", "User-Agent": "VectorMatch-Audit/1.0" },
+    headers: {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "VectorMatch-Audit/1.0",
+    },
   });
   const files = (await resp.json()) as Array<{ name: string; type: string }>;
-  const mdFiles = files.filter((f) => f.type === "file" && f.name.endsWith(".md")).map((f) => f.name);
+  const mdFiles = files
+    .filter((f) => f.type === "file" && f.name.endsWith(".md"))
+    .map((f) => f.name);
   console.log(`Found ${mdFiles.length} company files`);
   console.log();
 
   // Parse ALL files (we need the full set to find filtered ones)
   // Do it in batches
-  const allCompanies: { name: string; region: string; technologies: string[]; website: string; careersUrl: string | null; filename: string }[] = [];
+  const allCompanies: {
+    name: string;
+    region: string;
+    technologies: string[];
+    website: string;
+    careersUrl: string | null;
+    filename: string;
+  }[] = [];
   const BATCH_SIZE = 20;
   for (let i = 0; i < mdFiles.length; i += BATCH_SIZE) {
     const batch = mdFiles.slice(i, i + BATCH_SIZE);
@@ -88,7 +111,10 @@ async function main() {
         const lines = yaml.split("\n");
         let inArray = false;
         for (const line of lines) {
-          if (line.match(new RegExp(`^${key}:\\s*$`))) { inArray = true; continue; }
+          if (line.match(new RegExp(`^${key}:\\s*$`))) {
+            inArray = true;
+            continue;
+          }
           if (inArray) {
             const m = line.match(/^\s+-\s+(.+)/);
             if (m) items.push(m[1].trim());
@@ -117,30 +143,42 @@ async function main() {
   console.log();
 
   // Separate into buckets
-  const regionFiltered = allCompanies.filter((c) =>
-    !GLOBAL_REGIONS.has(c.region) &&
-    c.technologies.some((t) => WEBDEV_TECH_TAGS.has(t)),
+  const regionFiltered = allCompanies.filter(
+    (c) =>
+      !GLOBAL_REGIONS.has(c.region) &&
+      c.technologies.some((t) => WEBDEV_TECH_TAGS.has(t)),
   );
-  const techFiltered = allCompanies.filter((c) =>
-    GLOBAL_REGIONS.has(c.region) &&
-    !c.technologies.some((t) => WEBDEV_TECH_TAGS.has(t)),
+  const techFiltered = allCompanies.filter(
+    (c) =>
+      GLOBAL_REGIONS.has(c.region) &&
+      !c.technologies.some((t) => WEBDEV_TECH_TAGS.has(t)),
   );
 
-  console.log(`Region-filtered (have web-dev tech, non-global region): ${regionFiltered.length}`);
-  console.log(`Tech-filtered (global region, no web-dev tech):          ${techFiltered.length}`);
+  console.log(
+    `Region-filtered (have web-dev tech, non-global region): ${regionFiltered.length}`,
+  );
+  console.log(
+    `Tech-filtered (global region, no web-dev tech):          ${techFiltered.length}`,
+  );
   console.log();
 
   // ── Sample 20 from region-filtered ─────────────────────────────────────────
   console.log("─".repeat(80));
   console.log("  SAMPLE: 20 REGION-FILTERED companies");
-  console.log("  (Have web-dev tech but non-global region — are any actually global?)");
+  console.log(
+    "  (Have web-dev tech but non-global region — are any actually global?)",
+  );
   console.log("─".repeat(80));
   console.log();
 
   // Deterministic sample: every Nth element
-  const regionSample: typeof regionFiltered[] = [];
+  const regionSample: (typeof regionFiltered)[] = [];
   const regionStep = Math.max(1, Math.floor(regionFiltered.length / 20));
-  for (let i = 0; i < regionFiltered.length && regionSample.length < 20; i += regionStep) {
+  for (
+    let i = 0;
+    i < regionFiltered.length && regionSample.length < 20;
+    i += regionStep
+  ) {
     regionSample.push(regionFiltered[i]);
   }
 
@@ -157,19 +195,27 @@ async function main() {
     );
   }
   console.log();
-  console.log(`  Region false-negative rate (heuristic): ${regionFalseNegatives}/${regionSample.length} (${((regionFalseNegatives / regionSample.length) * 100).toFixed(0)}%)`);
+  console.log(
+    `  Region false-negative rate (heuristic): ${regionFalseNegatives}/${regionSample.length} (${((regionFalseNegatives / regionSample.length) * 100).toFixed(0)}%)`,
+  );
   console.log();
 
   // ── Sample 20 from tech-filtered ───────────────────────────────────────────
   console.log("─".repeat(80));
   console.log("  SAMPLE: 20 TECH-FILTERED companies");
-  console.log("  (Global region but no web-dev tech tags — are any actually web-dev?)");
+  console.log(
+    "  (Global region but no web-dev tech tags — are any actually web-dev?)",
+  );
   console.log("─".repeat(80));
   console.log();
 
-  const techSample: typeof techFiltered[] = [];
+  const techSample: (typeof techFiltered)[] = [];
   const techStep = Math.max(1, Math.floor(techFiltered.length / 20));
-  for (let i = 0; i < techFiltered.length && techSample.length < 20; i += techStep) {
+  for (
+    let i = 0;
+    i < techFiltered.length && techSample.length < 20;
+    i += techStep
+  ) {
     techSample.push(techFiltered[i]);
   }
 
@@ -181,7 +227,9 @@ async function main() {
     const hasGeneralLang = c.technologies.some((t) =>
       ["python", "ruby", "go", "java", "rust"].includes(t),
     );
-    const flag = hasGeneralLang ? "⚠ MIGHT HIRE WEB-DEV" : "✓ correctly filtered";
+    const flag = hasGeneralLang
+      ? "⚠ MIGHT HIRE WEB-DEV"
+      : "✓ correctly filtered";
     if (hasGeneralLang) techFalseNegatives++;
 
     console.log(
@@ -189,7 +237,9 @@ async function main() {
     );
   }
   console.log();
-  console.log(`  Tech false-negative rate (heuristic): ${techFalseNegatives}/${techSample.length} (${((techFalseNegatives / techSample.length) * 100).toFixed(0)}%)`);
+  console.log(
+    `  Tech false-negative rate (heuristic): ${techFalseNegatives}/${techSample.length} (${((techFalseNegatives / techSample.length) * 100).toFixed(0)}%)`,
+  );
   console.log();
 
   // ── Verdict ────────────────────────────────────────────────────────────────
@@ -197,21 +247,31 @@ async function main() {
   console.log("  RECALL AUDIT VERDICT");
   console.log("═".repeat(80));
   console.log();
-  console.log(`  Region false-negative rate: ${((regionFalseNegatives / regionSample.length) * 100).toFixed(0)}%`);
-  console.log(`  Tech false-negative rate:   ${((techFalseNegatives / techSample.length) * 100).toFixed(0)}%`);
+  console.log(
+    `  Region false-negative rate: ${((regionFalseNegatives / regionSample.length) * 100).toFixed(0)}%`,
+  );
+  console.log(
+    `  Tech false-negative rate:   ${((techFalseNegatives / techSample.length) * 100).toFixed(0)}%`,
+  );
   console.log();
 
   if (regionFalseNegatives > 5 || techFalseNegatives > 5) {
     console.log("  ⚠ MATERIAL false-negative rate detected.");
     console.log("    Consider loosening the pre-filter before the full run.");
     if (regionFalseNegatives > 5) {
-      console.log("    - Region: consider adding 'americas' or 'europe' to global set");
+      console.log(
+        "    - Region: consider adding 'americas' or 'europe' to global set",
+      );
     }
     if (techFalseNegatives > 5) {
-      console.log("    - Tech: consider probing companies with general-purpose languages");
+      console.log(
+        "    - Tech: consider probing companies with general-purpose languages",
+      );
     }
   } else {
-    console.log("  ✓ False-negative rate is low. Pre-filter is not dropping material candidates.");
+    console.log(
+      "  ✓ False-negative rate is low. Pre-filter is not dropping material candidates.",
+    );
   }
   console.log("═".repeat(80));
 }
