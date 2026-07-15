@@ -244,3 +244,440 @@ const WEBDEV_GATE_REGEX = new RegExp(
 export function passesGateZeroWebDev(title: string): boolean {
   return WEBDEV_GATE_REGEX.test(title);
 }
+
+// ── Gate 0 Fence Detection (Directive 11, Fix 1) ─────────────────────────────
+//
+// The founder audit revealed jobs with country/state fences in the TITLE or
+// LOCATION string passing through all gates and appearing on the dashboard.
+// Examples from the ground-truth mismatch set:
+//   - "Senior Software Engineer - Fullstack, US Remote" (title contains "US Remote")
+//   - "Remote; Argentina" (location contains country name)
+//   - "Remote, md" (location contains US state abbreviation)
+//   - "San Francisco, CA, New York, NY, Portland, OR, or Remote within Canada or United States"
+//   - "London; Geneva" (specific non-US cities)
+//   - "São Paulo" (specific non-US city)
+//   - "European Union" (region fence)
+//   - "NAMER + EMEA" (region fence)
+//
+// This function runs at Position 0 (pre-normalization, alongside Gate 0 title
+// filter) to reject country-fenced jobs BEFORE they enter the database. It also
+// serves as a backstop in Gate 1+2 for jobs that were already ingested.
+//
+// Returns the detected fence type, or null if no fence detected.
+
+/** US state codes (2-letter postal abbreviations). */
+const US_STATE_CODES = new Set([
+  "al",
+  "ak",
+  "az",
+  "ar",
+  "ca",
+  "co",
+  "ct",
+  "de",
+  "fl",
+  "ga",
+  "hi",
+  "id",
+  "il",
+  "in",
+  "ia",
+  "ks",
+  "ky",
+  "la",
+  "me",
+  "md",
+  "ma",
+  "mi",
+  "mn",
+  "ms",
+  "mo",
+  "mt",
+  "ne",
+  "nv",
+  "nh",
+  "nj",
+  "nm",
+  "ny",
+  "nc",
+  "nd",
+  "oh",
+  "ok",
+  "or",
+  "pa",
+  "ri",
+  "sc",
+  "sd",
+  "tn",
+  "tx",
+  "ut",
+  "vt",
+  "va",
+  "wa",
+  "wv",
+  "wi",
+  "wy",
+  "dc",
+]);
+
+/** Country names and common variants that indicate a geographic fence. */
+const COUNTRY_NAMES = [
+  "united states",
+  "usa",
+  "u.s.",
+  "u.s.a.",
+  "america",
+  "canada",
+  "argentina",
+  "brazil",
+  "colombia",
+  "mexico",
+  "germany",
+  "france",
+  "spain",
+  "italy",
+  "portugal",
+  "netherlands",
+  "poland",
+  "ukraine",
+  "romania",
+  "ireland",
+  "sweden",
+  "norway",
+  "denmark",
+  "finland",
+  "belgium",
+  "austria",
+  "switzerland",
+  "czech republic",
+  "greece",
+  "india",
+  "pakistan",
+  "philippines",
+  "vietnam",
+  "indonesia",
+  "malaysia",
+  "singapore",
+  "hong kong",
+  "japan",
+  "south korea",
+  "korea",
+  "australia",
+  "new zealand",
+  "south africa",
+  "nigeria",
+  "kenya",
+  "egypt",
+  "morocco",
+  "israel",
+  "uae",
+  "saudi arabia",
+  "turkey",
+  "united kingdom",
+  "uk",
+  "england",
+  "scotland",
+  "wales",
+];
+
+/** Region/continent terms that indicate a geographic fence. */
+const REGION_TERMS = [
+  "european union",
+  "eu only",
+  "europe only",
+  "namer",
+  "emea",
+  "apac",
+  "latam",
+  "lac",
+  "north america",
+  "south america",
+  "central america",
+  "middle east",
+  "africa",
+  "asia",
+  "europe",
+  "balkans",
+  "eastern europe",
+  "western europe",
+  "nordics",
+  "scandinavia",
+  "caribbean",
+  "benelux",
+  "dach",
+];
+
+/**
+ * Compiled regex for detecting country-fence patterns in title+location strings.
+ * Matches patterns like:
+ *   - "US Remote", "US-Remote", "Remote (US)", "Remote, US"
+ *   - "Remote; Argentina", "Remote - Argentina"
+ *   - "Remote within Canada or United States"
+ *   - "Remote, md", "Remote, MD"
+ *   - "Remote within [country/region]"
+ *   - Country name alone in location (e.g., "São Paulo", "Toronto")
+ */
+const FENCE_PATTERNS = [
+  // "US Remote" / "US-Remote" / "USA Remote" in title
+  /\b(u\.?s\.?a?\.?|united states)\s*[-/]?\s*remote\b/i,
+  // "Remote (US)" / "Remote (USA)" / "Remote (United States)"
+  /\bremote\s*[[(]\s*(u\.?s\.?a?\.?|united states|usa)\s*[\])]/i,
+  // "Remote, US" / "Remote, USA" / "Remote - US"
+  /\bremote\s*[,;:-]\s*(u\.?s\.?a?\.?|united states|usa)\b/i,
+  // "Remote within [country/region]"
+  /\bremote\s+within\s+/i,
+  // "Remote; [country]" / "Remote - [country]"
+  /\bremote\s*[;,-]\s*(argentina|brazil|colombia|mexico|canada|germany|france|spain|italy|portugal|netherlands|poland|ukraine|india|pakistan|philippines|australia|united kingdom|uk|ireland|sweden|norway|denmark|finland|belgium|switzerland|austria|greece|romania|south africa|nigeria|israel|turkey|japan|south korea|singapore|hong kong|new zealand)\b/i,
+  // "Remote, [state code]" (e.g., "Remote, md", "Remote, ca")
+  /\bremote\s*,\s*([a-z]{2})\b/i,
+  // Region terms in location
+  /\b(european union|namer|emea|apac|latam|north america|south america|middle east|balkans|eastern europe|western europe|nordics|scandinavia|dach|benelux)\b/i,
+];
+
+const FENCE_REGEX = new RegExp(
+  FENCE_PATTERNS.map((r) => r.source).join("|"),
+  "i",
+);
+
+/**
+ * Detect country/region fence in a job's title and location strings.
+ *
+ * This runs at Position 0 (pre-normalization) alongside the Gate 0 title filter.
+ * If a fence is detected, the job is rejected before database insertion (poller
+ * path) or filtered out at Gate 1+2 (SQL backstop for already-ingested jobs).
+ *
+ * @param title    The raw job title (e.g., "Senior Software Engineer - Fullstack, US Remote")
+ * @param location The raw job location string (e.g., "Remote, md" or "São Paulo")
+ * @returns        The fence type detected, or null if no fence found.
+ *                 - "title_fence": fence pattern found in title
+ *                 - "location_country": country name in location
+ *                 - "location_region": region term in location
+ *                 - "location_us_state": US state code in location
+ *                 - "location_specific_city": specific city pattern (comma-separated)
+ */
+export function detectCountryFence(
+  title: string,
+  location: string | null | undefined,
+):
+  | "title_fence"
+  | "location_country"
+  | "location_region"
+  | "location_us_state"
+  | "location_specific_city"
+  | null {
+  const titleStr = title ?? "";
+  const locStr = location ?? "";
+
+  // 1. Check title for explicit fence patterns ("US Remote", "Remote (US)", etc.)
+  if (FENCE_REGEX.test(titleStr)) {
+    return "title_fence";
+  }
+
+  if (!locStr || locStr.trim().length === 0) return null;
+
+  const locLower = locStr.toLowerCase().trim();
+
+  // 2. Check location for fence patterns (regex matches "Remote, XX", "Remote within", etc.)
+  if (FENCE_REGEX.test(locStr)) {
+    // Distinguish region from country from US state
+    if (
+      /\b(european union|namer|emea|apac|latam|north america|south america|middle east|balkans|eastern europe|western europe|nordics|scandinavia|dach|benelux)\b/.test(
+        locLower,
+      )
+    ) {
+      return "location_region";
+    }
+    // Check if it's a "Remote, [state code]" pattern
+    const remoteStateMatch = locLower.match(/remote\s*,\s*([a-z]{2})\b/);
+    if (remoteStateMatch && US_STATE_CODES.has(remoteStateMatch[1])) {
+      return "location_us_state";
+    }
+    return "location_country";
+  }
+
+  // 3. Check for region terms first (before country — "EMEA" etc.)
+  for (const region of REGION_TERMS) {
+    if (locLower.includes(region)) {
+      return "location_region";
+    }
+  }
+
+  // 4. Check for US state codes in location (e.g., "Remote, md", "San Francisco, CA")
+  // Look for patterns like ", XX" where XX is a state code
+  const stateMatches = locLower.matchAll(/,\s*([a-z]{2})\b/g);
+  for (const match of stateMatches) {
+    if (US_STATE_CODES.has(match[1])) {
+      return "location_us_state";
+    }
+  }
+
+  // 5. Check for country names in location (including "us" as a standalone word)
+  for (const country of COUNTRY_NAMES) {
+    if (locLower.includes(country)) {
+      return "location_country";
+    }
+  }
+  // Check for standalone "us" (word-boundary, very short location like "US")
+  if (/\bus\b/.test(locLower) && locLower.length <= 5) {
+    return "location_country";
+  }
+
+  // 6. Check for specific city patterns
+  // If the location does NOT contain remote/anywhere/worldwide/global/distributed,
+  // it's likely a specific city or region — treat as a fence.
+  const REMOTE_KEYWORDS = [
+    "remote",
+    "anywhere",
+    "worldwide",
+    "global",
+    "distributed",
+    "any location",
+  ];
+  const hasRemoteKeyword = REMOTE_KEYWORDS.some((kw) => locLower.includes(kw));
+  if (!hasRemoteKeyword) {
+    // If location has a semicolon (multiple cities) or comma (city, state/country)
+    // or is a single non-empty word that isn't a remote keyword, it's a specific location
+    if (locLower.includes(";") || /^[a-z].*,\s*[a-z]/i.test(locStr)) {
+      return "location_specific_city";
+    }
+    // Single-word or multi-word location that isn't a remote keyword
+    // e.g., "Toronto", "São Paulo", "London"
+    if (locLower.length > 0 && locLower.length < 50) {
+      return "location_specific_city";
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Convenience wrapper: returns true if the job PASSES the fence gate (no fence detected).
+ * Used in the poller path alongside passesGateZero/passesGateZeroWebDev.
+ */
+export function passesFenceGate(
+  title: string,
+  location: string | null | undefined,
+): boolean {
+  return detectCountryFence(title, location) === null;
+}
+
+// ── Gate 0 National-Security Filter (Directive 11, Fix 2) ───────────────────
+//
+// The founder audit revealed 13 jobs from Redhorsecorp (a US government
+// contractor) appearing on the dashboard despite the user being a non-US
+// remote worker. These jobs require security clearance, US citizenship,
+// or are subject to ITAR/EAR export controls — none of which are eligible
+// for a non-US remote contractor.
+//
+// This deterministic gate checks the job title and description text for
+// national-security keywords. If detected, the job is rejected at ingestion
+// (poller path) and also at Gate 1+2 (SQL backstop for already-ingested jobs).
+//
+// The gate is intentionally broad (recall over precision) — a false positive
+// (rejecting a civilian job that mentions "security") is low-cost, while a
+// false negative (showing a clearance-required job to a non-US user) is
+// a product-breaking experience.
+
+/**
+ * Keywords that indicate a national-security / gov-contractor role.
+ * These are hard fences — jobs containing these are rejected for non-US users.
+ */
+const NATIONAL_SECURITY_KEYWORDS = [
+  // Security clearance levels
+  "security clearance",
+  "top secret",
+  "ts/sci",
+  "ts/sci clearance",
+  "secret clearance",
+  "confidential clearance",
+  "public trust clearance",
+  "clearance required",
+  "must have clearance",
+  "active clearance",
+  "eligible for clearance",
+  "clearance eligibility",
+  // Citizenship requirements
+  "us citizen",
+  "u.s. citizen",
+  "united states citizen",
+  "us citizenship",
+  "u.s. citizenship",
+  "must be a us citizen",
+  "american citizen",
+  "national of the united states",
+  // Export control regimes
+  "itar",
+  "ear",
+  "export control",
+  "export controlled",
+  "ear-controlled",
+  "itar-controlled",
+  "itars",
+  // Government/defense agencies
+  "dod",
+  "department of defense",
+  "dod contract",
+  "defense contract",
+  "government contract",
+  "federal contract",
+  "federal contractor",
+  "national security",
+  "homeland security",
+  "law enforcement",
+  "intelligence community",
+  "central intelligence",
+  "cia",
+  "fbi",
+  "nsa",
+  "dhs",
+  "space force",
+  "air force",
+  "navy",
+  "army",
+  "marines",
+  "pentagon",
+  "fort ",
+  "naval ",
+  "air force base",
+  // E-Verify / government employment terms
+  "e-verify",
+  "everify",
+  "e verify",
+  "public trust",
+  "position of public trust",
+  "background investigation",
+  "background check required",
+  "polygraph",
+  "counterintelligence",
+  // Common gov-contractor company indicators in job text
+  "security clearance required",
+  "must be able to obtain clearance",
+  "us person",
+  "u.s. person",
+  "us person status",
+];
+
+const NATIONAL_SECURITY_REGEX = new RegExp(
+  NATIONAL_SECURITY_KEYWORDS.map((kw) =>
+    kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  ).join("|"),
+  "i",
+);
+
+/**
+ * Detect national-security / gov-contractor indicators in job text.
+ *
+ * Checks the title and the first ~2000 chars of the job description for
+ * national-security keywords. Returns true if detected.
+ *
+ * @param title       The job title
+ * @param description The job description text (or normalized_text)
+ * @returns           true if national-security indicators detected
+ */
+export function isNationalSecurityJob(
+  title: string,
+  description: string | null | undefined,
+): boolean {
+  const text = `${title ?? ""} ${(description ?? "").slice(0, 3000)}`;
+  return NATIONAL_SECURITY_REGEX.test(text);
+}

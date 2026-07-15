@@ -39,6 +39,21 @@ import {
   GATE2_WEIGHT,
 } from "@/lib/jobs/matching-config";
 
+// ── Stack family tag arrays (Directive 11, Fix 3) ───────────────────────────
+// SQL-level stack-disjoint check: if the persona's must_have_tags belong to
+// the JS family and the job has zero JS-family tags, they are disjoint → reject.
+// This prevents Ruby/Java/.NET/QA jobs from matching JS/PHP personas on
+// process-noise tags (docker, ci-cd, aws) alone.
+const STACK_FAMILY_JS = `ARRAY['typescript','javascript','react','nextjs','nodejs','vue','nuxt','express','graphql','tailwindcss','svelte','sveltekit','remix','gatsby','astro','solidjs','preact','angular','ember','backbone','jquery','vite','webpack','babel','esbuild','rollup','parcel','redux','mobx','zustand','recoil','tanstack','react-query','prisma','drizzle','trpc','hono','elysia','fastify','koa','nestjs','typeorm','sequelize','mongoose','mongodb']::text[]`;
+const STACK_FAMILY_PHP = `ARRAY['php','laravel','symfony','wordpress','drupal','magento','composer','artisan','blade','eloquent','livewire','inertia','codeigniter','yii','cakephp','fuelphp','slim']::text[]`;
+const STACK_FAMILY_RUBY = `ARRAY['ruby','rails','sinatra','hanami','padrino','roda','rspec','minitest','capybara','sidekiq','resque']::text[]`;
+const STACK_FAMILY_JAVA = `ARRAY['java','spring','spring-boot','kotlin','gradle','maven','hibernate','jpa','jakarta','tomcat','jetty','quarkus','micronaut','vertx','play','akka','scala','clojure','groovy']::text[]`;
+const STACK_FAMILY_DOTNET = `ARRAY['csharp','dotnet','aspnet','fsharp','vbnet','razor','blazor','xamarin','maui','ef','entity-framework','linq','signalr','wcf','wpf','winforms']::text[]`;
+const STACK_FAMILY_PYTHON = `ARRAY['python','django','flask','fastapi','tornado','aiohttp','asyncio','celery','pytest','unittest','pandas','numpy','scipy','scikit-learn','tensorflow','pytorch','keras','jupyter','streamlit','gradio','langchain','llamaindex']::text[]`;
+const STACK_FAMILY_GO = `ARRAY['go','golang','gin','echo','fiber','gorm','chi','cobra','viper','buf','grpc-go']::text[]`;
+const STACK_FAMILY_RUST = `ARRAY['rust','cargo','tokio','actix','axum','rocket','serde','warp','tide','diesel','sqlx']::text[]`;
+const STACK_FAMILY_CPP = `ARRAY['cpp','cplusplus','c','qt','boost','stl','cmake','opencv','cuda','opencl','mpi','protobuf-c']::text[]`;
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -138,6 +153,36 @@ export async function runGateSQLRouter(
       ? `ARRAY[${jobTags.map((t) => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`
       : `ARRAY[]::text[]`;
 
+  // ── Stack-disjoint check (Directive 11, Fix 3) ──────────────────────────
+  // If the persona's must_have_tags belong to a stack family (e.g., JS) and
+  // the job has zero tags from that family, they are disjoint → reject.
+  // This prevents Ruby/Java/.NET/QA jobs from matching JS/PHP personas on
+  // process-noise tags (docker, ci-cd, aws) alone.
+  // Built here (after tagsArraySql is defined) because it references the job's
+  // tag array.
+  const stackDisjointClause =
+    jobTags.length > 0
+      ? sql.raw(`AND NOT (
+        (p.must_have_tags && ${STACK_FAMILY_JS} AND NOT (${tagsArraySql} && ${STACK_FAMILY_JS}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_PHP} AND NOT (${tagsArraySql} && ${STACK_FAMILY_PHP}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_RUBY} AND NOT (${tagsArraySql} && ${STACK_FAMILY_RUBY}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_JAVA} AND NOT (${tagsArraySql} && ${STACK_FAMILY_JAVA}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_DOTNET} AND NOT (${tagsArraySql} && ${STACK_FAMILY_DOTNET}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_PYTHON} AND NOT (${tagsArraySql} && ${STACK_FAMILY_PYTHON}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_GO} AND NOT (${tagsArraySql} && ${STACK_FAMILY_GO}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_RUST} AND NOT (${tagsArraySql} && ${STACK_FAMILY_RUST}))
+        OR
+        (p.must_have_tags && ${STACK_FAMILY_CPP} AND NOT (${tagsArraySql} && ${STACK_FAMILY_CPP}))
+      )`)
+      : sql``;
+
   // Gate 1 WHERE clause: if jobTags is empty, skip the overlap filter (rely
   // on Gate 2 alone per §5.4). Otherwise, require ≥GATE1_MIN_OVERLAP must-have
   // tag overlap AND zero blocklist hits.
@@ -191,9 +236,42 @@ export async function runGateSQLRouter(
   // the main WHERE clause includes jm.remote_scope = 'global'.
   // Gate 3 still reads the job text as a secondary check (catches classifier
   // false-globals), but the cheap SQL filter eliminates the bulk of waste.
+  //
+  // ── Title/Location fence backstop (Directive 11, Fix 1) ───────────────────
+  // The job_meta CTE also fetches location_name and applies a regex filter
+  // to reject jobs with country/state fences in the title or location. This
+  // catches jobs that were ingested before the Position 0 fence gate was added.
+  // The regex checks for: US state codes, country names, "US Remote" patterns,
+  // and region terms (EMEA, APAC, etc.) in the title and location strings.
   const query = sql`
     WITH job_meta AS (
-      SELECT ats_slug, title, remote_scope
+      SELECT ats_slug, title, remote_scope, location_name,
+             (title ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
+              OR title ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
+              OR title ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+              OR title ~* 'Remote\s+within\s+'
+              OR title ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+              OR COALESCE(location_name, '') ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
+              OR COALESCE(location_name, '') ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
+              OR COALESCE(location_name, '') ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+              OR COALESCE(location_name, '') ~* 'Remote\s+within\s+'
+              OR COALESCE(location_name, '') ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+              OR COALESCE(location_name, '') ~* 'Remote\s*,\s*[A-Za-z]{2}\b'
+              OR COALESCE(location_name, '') ~* '(European Union|NAMER|EMEA|APAC|LATAM|North America|South America|Middle East|Balkans|Eastern Europe|Western Europe|Nordics|Scandinavia|DACH|Benelux)'
+              OR COALESCE(location_name, '') ~* '(United States|USA|Canada|Argentina|Brazil|Colombia|Mexico|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|England|Scotland|Wales|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Kenya|Egypt|Morocco|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+             ) AS is_fenced,
+             -- Directive 11 Fix 2: National-security keyword gate (SQL backstop)
+             -- Rejects jobs with security clearance, ITAR, DoD, US citizenship, etc.
+             (title ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
+              OR title ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
+              OR title ~* '(itar|ear|export control|dod|department of defense|defense contract)'
+              OR title ~* '(national security|homeland security|intelligence community)'
+              OR COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
+              OR COALESCE(normalized_text, '') ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
+              OR COALESCE(normalized_text, '') ~* '(itar|ear|export control|dod|department of defense|defense contract)'
+              OR COALESCE(normalized_text, '') ~* '(national security|homeland security|intelligence community)'
+              OR COALESCE(normalized_text, '') ~* '(e-verify|everify|public trust|polygraph|counterintelligence)'
+             ) AS is_natsec
       FROM job WHERE id = ${jobId}::uuid
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
@@ -217,6 +295,9 @@ export async function runGateSQLRouter(
       AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
       AND jm.remote_scope = 'global'
+      AND NOT jm.is_fenced
+      AND NOT jm.is_natsec
+      ${stackDisjointClause}
       AND NOT EXISTS (
         SELECT 1 FROM match_queue mq
         JOIN job j2 ON mq.job_id = j2.id

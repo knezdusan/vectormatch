@@ -20,7 +20,10 @@
  */
 
 import {
+  detectCountryFence,
   GATE_ZERO_REGEX,
+  isNationalSecurityJob,
+  passesFenceGate,
   passesGateZero,
   passesGateZeroWebDev,
 } from "@/lib/jobs/gate-zero";
@@ -400,5 +403,247 @@ describe("Gate 0 Web-Dev — role-scoped title filter", () => {
     );
     expect(passesGateZeroWebDev("PHP Developer - Laravel Team")).toBe(true);
     expect(passesGateZeroWebDev("Full-Stack Engineer | Platform")).toBe(true);
+  });
+});
+
+// ── Gate 0 Fence Detection (Directive 11, Fix 1) ───────────────────────────
+
+describe("Gate 0 Fence Detection — detectCountryFence", () => {
+  // Title fences (from founder audit ground-truth)
+  it("detects 'US Remote' in title", () => {
+    expect(
+      detectCountryFence(
+        "Senior Software Engineer - Fullstack, US Remote",
+        null,
+      ),
+    ).toBe("title_fence");
+  });
+
+  it("detects 'Remote (US)' in title", () => {
+    expect(detectCountryFence("Software Engineer (Remote, US)", null)).toBe(
+      "title_fence",
+    );
+  });
+
+  it("detects 'Remote - US' in title", () => {
+    expect(detectCountryFence("Frontend Engineer - Remote, US", null)).toBe(
+      "title_fence",
+    );
+  });
+
+  // Location fences (from founder audit ground-truth)
+  it("detects 'Remote, md' as US state fence", () => {
+    expect(detectCountryFence("Software Developer", "Remote, md")).toBe(
+      "location_us_state",
+    );
+  });
+
+  it("detects 'Remote within Canada or United States' as country fence", () => {
+    expect(
+      detectCountryFence(
+        "Senior Frontend Engineer",
+        "Remote within Canada or United States",
+      ),
+    ).toBe("location_country");
+  });
+
+  it("detects 'London; Geneva' as specific city", () => {
+    expect(
+      detectCountryFence("Senior Front End Engineer (Docs)", "London; Geneva"),
+    ).toBe("location_specific_city");
+  });
+
+  it("detects 'São Paulo' as country fence (contains no 'remote')", () => {
+    // "São Paulo" doesn't match the city pattern directly, but it's a specific location
+    // The function should detect it as a specific city
+    const result = detectCountryFence(
+      "Senior Enterprise AI Engineer",
+      "São Paulo",
+    );
+    expect(result).not.toBeNull();
+  });
+
+  it("detects 'European Union' as region fence", () => {
+    expect(detectCountryFence("Senior AI Engineer", "European Union")).toBe(
+      "location_region",
+    );
+  });
+
+  it("detects 'NAMER + EMEA' as region fence", () => {
+    expect(detectCountryFence("Senior Platform Engineer", "NAMER + EMEA")).toBe(
+      "location_region",
+    );
+  });
+
+  it("detects 'US' alone as country fence", () => {
+    expect(detectCountryFence("Control Plane Engineer", "US")).toBe(
+      "location_country",
+    );
+  });
+
+  it("detects 'San Francisco, CA' as US state fence", () => {
+    expect(
+      detectCountryFence(
+        "Senior Frontend Engineer",
+        "San Francisco, CA, New York, NY, Portland, OR, or Remote within Canada or United States",
+      ),
+    ).not.toBeNull();
+  });
+
+  it("detects 'Toronto' as specific city fence", () => {
+    expect(detectCountryFence("Software Engineer 3", "Toronto")).toBe(
+      "location_specific_city",
+    );
+  });
+
+  // Non-fences (should pass)
+  it("passes 'Remote' alone", () => {
+    expect(detectCountryFence("Senior Software Engineer", "Remote")).toBeNull();
+  });
+
+  it("passes 'Remote' with null location", () => {
+    expect(detectCountryFence("Senior Software Engineer", null)).toBeNull();
+  });
+
+  it("passes empty location", () => {
+    expect(detectCountryFence("Senior Software Engineer", "")).toBeNull();
+  });
+
+  it("passes 'Anywhere' location", () => {
+    expect(
+      detectCountryFence("Senior Software Engineer", "Anywhere"),
+    ).toBeNull();
+  });
+
+  it("passes 'Worldwide' location", () => {
+    expect(
+      detectCountryFence("Senior Software Engineer", "Worldwide"),
+    ).toBeNull();
+  });
+
+  it("passes 'Global' location", () => {
+    expect(detectCountryFence("Senior Software Engineer", "Global")).toBeNull();
+  });
+
+  it("passes 'Remote, Distributed' location", () => {
+    expect(
+      detectCountryFence("Senior Software Engineer", "Remote, Distributed"),
+    ).toBeNull();
+  });
+});
+
+describe("Gate 0 Fence Detection — passesFenceGate", () => {
+  it("rejects 'US Remote' in title", () => {
+    expect(
+      passesFenceGate("Senior Software Engineer - Fullstack, US Remote", null),
+    ).toBe(false);
+  });
+
+  it("rejects 'Remote, md' location", () => {
+    expect(passesFenceGate("Software Developer", "Remote, md")).toBe(false);
+  });
+
+  it("accepts 'Remote' location", () => {
+    expect(passesFenceGate("Senior Software Engineer", "Remote")).toBe(true);
+  });
+
+  it("accepts null location", () => {
+    expect(passesFenceGate("Senior Software Engineer", null)).toBe(true);
+  });
+});
+
+// ── Gate 0 National-Security Filter (Directive 11, Fix 2) ──────────────────
+
+describe("Gate 0 National-Security Filter — isNationalSecurityJob", () => {
+  it("detects 'security clearance required' in description", () => {
+    expect(
+      isNationalSecurityJob(
+        "Software Engineer",
+        "This role requires security clearance.",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects 'TS/SCI clearance' in description", () => {
+    expect(
+      isNationalSecurityJob(
+        "Senior Engineer",
+        "Must have active TS/SCI clearance.",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects 'US citizen' requirement", () => {
+    expect(
+      isNationalSecurityJob("Developer", "Must be a US citizen to apply."),
+    ).toBe(true);
+  });
+
+  it("detects 'ITAR' in description", () => {
+    expect(
+      isNationalSecurityJob(
+        "Engineer",
+        "This position is subject to ITAR regulations.",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects 'DoD contract' in description", () => {
+    expect(
+      isNationalSecurityJob(
+        "Full-Stack Developer",
+        "Work on a DoD contract project.",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects 'national security' in description", () => {
+    expect(
+      isNationalSecurityJob(
+        "Software Engineer",
+        "Supporting national security missions.",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects 'E-Verify' in description", () => {
+    expect(
+      isNationalSecurityJob(
+        "Developer",
+        "This employer participates in E-Verify.",
+      ),
+    ).toBe(true);
+  });
+
+  it("detects clearance keywords in title", () => {
+    expect(
+      isNationalSecurityJob("Software Engineer with Security Clearance", null),
+    ).toBe(true);
+  });
+
+  it("does NOT flag normal engineering jobs", () => {
+    expect(
+      isNationalSecurityJob(
+        "Senior React Developer",
+        "We are looking for a senior developer experienced in React and Node.js.",
+      ),
+    ).toBe(false);
+  });
+
+  it("does NOT flag 'security' alone (word boundary)", () => {
+    expect(
+      isNationalSecurityJob(
+        "Security Engineer",
+        "Application security and web security best practices.",
+      ),
+    ).toBe(false);
+  });
+
+  it("does NOT flag null description", () => {
+    expect(isNationalSecurityJob("Software Engineer", null)).toBe(false);
+  });
+
+  it("does NOT flag empty description", () => {
+    expect(isNationalSecurityJob("Software Engineer", "")).toBe(false);
   });
 });

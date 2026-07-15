@@ -8,11 +8,31 @@
 //
 // See TDD §4.0c (job table), §4.4.4 (stale job problem), §4.5 (B→C handoff).
 
+import { createHash } from "node:crypto";
 import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
 import { isStorageSafeForIngestion } from "@/lib/jobs/storage-check";
 import type { NormalizedJob } from "./ats-adapters";
+
+// ── Content-hash dedup (Directive 11, Fix 4) ────────────────────────────────
+// Computes a SHA-256 hash of (company_name + normalized_title + location_name)
+// to detect cross-source duplicates — the same job posted on different ATS
+// platforms (e.g., Canva on greenhouse vs canva on lever).
+//
+// The hash is case-insensitive (company names and titles are lowercased) and
+// whitespace-normalized to catch "Senior Software Engineer" vs "senior software engineer".
+function computeContentHash(
+  companyName: string | null,
+  title: string,
+  locationName: string | null,
+): string {
+  const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, " ");
+  const company = normalize(companyName ?? "");
+  const ttl = normalize(title ?? "");
+  const loc = normalize(locationName ?? "");
+  return createHash("sha256").update(`${company}|${ttl}|${loc}`).digest("hex");
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,6 +163,12 @@ export async function upsertJobs(
         compensationCurrency: j.metadata.compensationCurrency,
         // Remote scope (added July 2026 — zero-match fix)
         remoteScope: j.metadata.remoteScope,
+        // Content-hash for cross-source dedup (Directive 11, Fix 4)
+        textHash: computeContentHash(
+          j.metadata.companyName,
+          j.title,
+          j.metadata.locationName,
+        ),
       })),
     )
     .onConflictDoUpdate({

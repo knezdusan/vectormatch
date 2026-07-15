@@ -119,7 +119,7 @@ export { extractCompaniesFromResults } from "@/lib/jobs/seeders/batch-sources/go
  * @param options   Optional: freshness (e.g. "pd" for past day)
  * @returns         Parsed and validated search response
  */
-async function executeBraveQuery(
+export async function executeBraveQuery(
   query: string,
   config: BraveSearchConfig,
   fetchFn: FetchFn,

@@ -21,7 +21,13 @@
 //
 // See TDD §4.4 for the full specification.
 
-import { passesGateZero, passesGateZeroWebDev } from "@/lib/jobs/gate-zero";
+import {
+  isNationalSecurityJob,
+  passesFenceGate,
+  passesGateZero,
+  passesGateZeroWebDev,
+} from "@/lib/jobs/gate-zero";
+import { isQARole } from "@/lib/jobs/stack-families";
 import type { FetchFn } from "@/lib/jobs/types";
 import { fetchJobsFromAts } from "./ats-adapters";
 import type { CompanyHealth } from "./company-state";
@@ -212,6 +218,40 @@ export async function pollCompany(
   const filteredJobs = allJobs.filter((job) => gateFilter(job.title));
   const rejectedCount = allJobs.length - filteredJobs.length;
 
+  // Step 2b: Apply Gate 0 fence filter (Directive 11, Fix 1).
+  // Reject jobs with country/state fences in title or location strings
+  // BEFORE they enter the database. This catches patterns like:
+  //   - "Senior Software Engineer - Fullstack, US Remote" (title fence)
+  //   - "Remote, md" (US state in location)
+  //   - "Remote within Canada or United States" (country fence in location)
+  //   - "London; Geneva" (specific non-remote cities)
+  // These jobs would be misclassified as "global" by the classifier and
+  // reach the dashboard despite being country-fenced.
+  const fenceFilteredJobs = filteredJobs.filter((job) =>
+    passesFenceGate(job.title, job.metadata.locationName ?? null),
+  );
+  const fenceRejectedCount = filteredJobs.length - fenceFilteredJobs.length;
+
+  // Step 2c: Apply national-security filter (Directive 11, Fix 2).
+  // Reject jobs that contain national-security keywords (security clearance,
+  // ITAR, DoD, US citizenship required, etc.) — these are not eligible for
+  // non-US remote contractors. This catches the Redhorsecorp pattern (13
+  // mismatched jobs in the founder audit).
+  const securityFilteredJobs = fenceFilteredJobs.filter(
+    (job) => !isNationalSecurityJob(job.title, job.rawJson ?? null),
+  );
+  const securityRejectedCount =
+    fenceFilteredJobs.length - securityFilteredJobs.length;
+
+  // Step 2d: Apply QA role filter (Directive 11, Fix 3).
+  // Reject QA/SDET/test-automation roles — these are not developer roles and
+  // should not match developer personas. The founder audit found "QA Automation
+  // Engineer SR" matching a JS persona.
+  const qaFilteredJobs = securityFilteredJobs.filter(
+    (job) => !isQARole(job.title, []),
+  );
+  const qaRejectedCount = securityFilteredJobs.length - qaFilteredJobs.length;
+
   // Step 2a: Selective Tier 2 detail fetch for ATS sources that need it.
   // For jobs where the Tier 1 content is too short for a good embedding
   // (< MIN_FULLTEXT_LENGTH chars), fetch the detail endpoint to get the full
@@ -222,15 +262,15 @@ export async function pollCompany(
   // SmartRecruiters: list endpoint has no description field at all.
   // Greenhouse: list endpoint includes ?content=true but some boards return
   //   empty content. Detail endpoint may return fuller content.
-  let enrichedJobs = filteredJobs;
+  let enrichedJobs = qaFilteredJobs;
   let enrichmentInactiveDropped = 0;
-  if (atsSource === "smartrecruiters" && filteredJobs.length > 0) {
+  if (atsSource === "smartrecruiters" && qaFilteredJobs.length > 0) {
     try {
       const { enrichSmartRecruitersJobs } = await import(
         "@/lib/jobs/poller/smartrecruiters-detail"
       );
       const enrichment = await enrichSmartRecruitersJobs(
-        filteredJobs,
+        qaFilteredJobs,
         atsSlug,
         fetchFn,
       );
