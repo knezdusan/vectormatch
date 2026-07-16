@@ -27,6 +27,10 @@
         "/Users/knez/Documents/WebDev/vectormatch/.devin/bin/fallow-mcp-wrapper.mjs"
       ]
     },
+    "wordpress": {
+      "url": "https://mcp.wpvibe.ai/mcp",
+      "transport": "http"
+    },
     "bigquery": {
       "transport": "STDIO",
       "command": "npx",

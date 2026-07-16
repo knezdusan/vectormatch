@@ -22,6 +22,7 @@ export * from "./auth/verification";
 // JOBS
 export * from "./jobs/alerts";
 export * from "./jobs/applicant";
+export * from "./jobs/applicantCompanyBlock";
 export * from "./jobs/company";
 export * from "./jobs/companyDiscoverySources";
 export * from "./jobs/companyQualityScore";
@@ -44,6 +45,7 @@ import { account } from "./auth/account";
 import { session } from "./auth/session";
 import { user as usersTable } from "./auth/user";
 import { applicant } from "./jobs/applicant";
+import { applicantCompanyBlock } from "./jobs/applicantCompanyBlock";
 import { company } from "./jobs/company";
 import { cvUpload } from "./jobs/cvUpload";
 import { ingestionLog } from "./jobs/ingestionLog";
@@ -86,7 +88,18 @@ export const applicantRelations = relations(applicant, ({ one, many }) => ({
   cvUploads: many(cvUpload),
   workingHistory: many(workingHistory),
   tagsExperience: many(tagsExperience),
+  companyBlocks: many(applicantCompanyBlock),
 }));
+
+export const applicantCompanyBlockRelations = relations(
+  applicantCompanyBlock,
+  ({ one }) => ({
+    user: one(usersTable, {
+      fields: [applicantCompanyBlock.userId],
+      references: [usersTable.id],
+    }),
+  }),
+);
 
 export const jobRelations = relations(job, ({ many }) => ({
   matches: many(matchQueue),

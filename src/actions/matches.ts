@@ -12,10 +12,12 @@
 //
 // (MODULE_C_DECISIONS.md §8.2)
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/db/db";
+import { applicantCompanyBlock } from "@/db/schemas/jobs/applicantCompanyBlock";
+import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { getAuthSession } from "@/lib/auth";
 
@@ -169,4 +171,123 @@ export async function markAllMatchesRead(): Promise<
   revalidatePath("/dashboard");
 
   return { success: true, count: result.length };
+}
+
+// =============================================================================
+// COMPANY BLACKLIST (Directive 11, Fix 5)
+// =============================================================================
+
+/**
+ * Block a company from appearing in future match results.
+ *
+ * When a user blocks a company (e.g., Redhorsecorp), all existing approved
+ * matches from that company are set to "mismatch" status, and future Gate 1+2
+ * runs will skip jobs from that company for this user.
+ *
+ * @param atsSlug  The company's ATS slug (e.g., "redhorsecorp")
+ * @param reason   Optional reason for blocking (for the audit stream)
+ * @returns        { success: true } or { success: false, error: "..." }
+ */
+export async function blockCompany(
+  atsSlug: string,
+  reason?: string,
+): Promise<MatchActionState> {
+  const session = await getAuthSession();
+  if (!session) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  if (!atsSlug || atsSlug.trim().length === 0) {
+    return { success: false, error: "Company slug is required" };
+  }
+
+  // Insert the block (upsert — if already blocked, update the reason)
+  await db
+    .insert(applicantCompanyBlock)
+    .values({
+      userId: session.user.id,
+      atsSlug: atsSlug.trim(),
+      reason: reason ?? null,
+    })
+    .onConflictDoUpdate({
+      target: [applicantCompanyBlock.userId, applicantCompanyBlock.atsSlug],
+      set: { reason: reason ?? null },
+    });
+
+  // Set all existing approved matches from this company to "mismatch"
+  // This removes them from the dashboard immediately
+  await db.execute(
+    sql`UPDATE match_queue SET status = 'mismatch'
+        WHERE applicant_id = ${session.user.id} AND status = 'approved'
+        AND job_id IN (SELECT id FROM job WHERE ats_slug = ${atsSlug.trim()})`,
+  );
+
+  revalidatePath("/dashboard/jobs");
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+/**
+ * Unblock a previously blocked company.
+ *
+ * Removes the company from the user's blacklist. Future Gate 1+2 runs will
+ * be able to match jobs from this company again (for new jobs — existing
+ * mismatched matches are not automatically restored).
+ *
+ * @param atsSlug  The company's ATS slug to unblock
+ * @returns        { success: true } or { success: false, error: "..." }
+ */
+export async function unblockCompany(
+  atsSlug: string,
+): Promise<MatchActionState> {
+  const session = await getAuthSession();
+  if (!session) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  await db
+    .delete(applicantCompanyBlock)
+    .where(
+      and(
+        eq(applicantCompanyBlock.userId, session.user.id),
+        eq(applicantCompanyBlock.atsSlug, atsSlug),
+      ),
+    );
+
+  revalidatePath("/dashboard/jobs");
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+/**
+ * Get the list of blocked companies for the current user.
+ *
+ * @returns  Array of { atsSlug, companyName, reason, createdAt }
+ */
+export async function getBlockedCompanies(): Promise<
+  Array<{
+    atsSlug: string;
+    companyName: string | null;
+    reason: string | null;
+    createdAt: Date;
+  }>
+> {
+  const session = await getAuthSession();
+  if (!session) {
+    return [];
+  }
+
+  const blocks = await db
+    .select({
+      atsSlug: applicantCompanyBlock.atsSlug,
+      companyName: applicantCompanyBlock.companyName,
+      reason: applicantCompanyBlock.reason,
+      createdAt: applicantCompanyBlock.createdAt,
+    })
+    .from(applicantCompanyBlock)
+    .where(eq(applicantCompanyBlock.userId, session.user.id));
+
+  return blocks;
 }

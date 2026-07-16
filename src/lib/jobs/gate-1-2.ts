@@ -247,11 +247,13 @@ export async function runGateSQLRouter(
     WITH job_meta AS (
       SELECT ats_slug, title, remote_scope, location_name,
              (title ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
+              OR title ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
               OR title ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
               OR title ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
               OR title ~* 'Remote\s+within\s+'
               OR title ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
               OR COALESCE(location_name, '') ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
+              OR COALESCE(location_name, '') ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
               OR COALESCE(location_name, '') ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
               OR COALESCE(location_name, '') ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
               OR COALESCE(location_name, '') ~* 'Remote\s+within\s+'
@@ -259,19 +261,34 @@ export async function runGateSQLRouter(
               OR COALESCE(location_name, '') ~* 'Remote\s*,\s*[A-Za-z]{2}\b'
               OR COALESCE(location_name, '') ~* '(European Union|NAMER|EMEA|APAC|LATAM|North America|South America|Middle East|Balkans|Eastern Europe|Western Europe|Nordics|Scandinavia|DACH|Benelux)'
               OR COALESCE(location_name, '') ~* '(United States|USA|Canada|Argentina|Brazil|Colombia|Mexico|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|England|Scotland|Wales|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Kenya|Egypt|Morocco|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+              -- Standalone "US" as location (very short string)
+              OR (length(trim(COALESCE(location_name, ''))) <= 5 AND COALESCE(location_name, '') ~* '\mus\M')
+              -- Directive 11 Fix 1 extension: Specific city detection
+              -- If location has no remote keyword and is not empty, it's a specific city → fence
+              OR (
+                COALESCE(location_name, '') != ''
+                AND COALESCE(location_name, '') !~* '(remote|anywhere|worldwide|global|distributed|any location)'
+                AND (COALESCE(location_name, '') ~* ';' OR COALESCE(location_name, '') ~* '^[a-z].*,\s*[a-z]' OR length(trim(COALESCE(location_name, ''))) < 50)
+              )
              ) AS is_fenced,
              -- Directive 11 Fix 2: National-security keyword gate (SQL backstop)
              -- Rejects jobs with security clearance, ITAR, DoD, US citizenship, etc.
+             -- Uses \m (start of word) and \M (end of word) for word boundaries
+             -- to prevent false positives (e.g., "ear" matching "year", "itar" matching "avatar")
              (title ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
               OR title ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
-              OR title ~* '(itar|ear|export control|dod|department of defense|defense contract)'
+              OR title ~* '(\mitar\M|\mear\M|export control|\mdod\M|department of defense|defense contract)'
               OR title ~* '(national security|homeland security|intelligence community)'
               OR COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
               OR COALESCE(normalized_text, '') ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
-              OR COALESCE(normalized_text, '') ~* '(itar|ear|export control|dod|department of defense|defense contract)'
+              OR COALESCE(normalized_text, '') ~* '(\mitar\M|\mear\M|export control|\mdod\M|department of defense|defense contract)'
               OR COALESCE(normalized_text, '') ~* '(national security|homeland security|intelligence community)'
               OR COALESCE(normalized_text, '') ~* '(e-verify|everify|public trust|polygraph|counterintelligence)'
-             ) AS is_natsec
+             ) AS is_natsec,
+             -- Directive 11 Fix 3: QA role gate (SQL backstop)
+             -- Rejects QA/SDET/test-automation roles that aren't developer positions
+             (title ~* '(qa engineer|qa automation|quality assurance|software engineer in test|software development engineer in test|sdet|test automation engineer|automation tester|test engineer|qa lead|quality engineer)'
+             ) AS is_qa
       FROM job WHERE id = ${jobId}::uuid
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
@@ -297,6 +314,7 @@ export async function runGateSQLRouter(
       AND jm.remote_scope = 'global'
       AND NOT jm.is_fenced
       AND NOT jm.is_natsec
+      AND NOT jm.is_qa
       ${stackDisjointClause}
       AND NOT EXISTS (
         SELECT 1 FROM match_queue mq
@@ -305,6 +323,26 @@ export async function runGateSQLRouter(
           AND j2.title = jm.title
           AND mq.persona_id = p.id
           AND mq.status = 'approved'
+      )
+      -- Directive 11 Fix 4: Cross-source dedup via text_hash
+      -- If another job with the same content hash (company + title + location)
+      -- is already approved for this persona, skip — it's the same job posted
+      -- on a different ATS platform.
+      AND NOT EXISTS (
+        SELECT 1 FROM match_queue mq2
+        JOIN job j3 ON mq2.job_id = j3.id
+        WHERE j3.text_hash = (SELECT text_hash FROM job WHERE id = ${jobId}::uuid)
+          AND j3.text_hash IS NOT NULL
+          AND mq2.persona_id = p.id
+          AND mq2.status = 'approved'
+          AND mq2.job_id != ${jobId}::uuid
+      )
+      -- Directive 11 Fix 5: Per-user company blacklist
+      -- If the applicant has blocked this company (ats_slug), skip matching
+      AND NOT EXISTS (
+        SELECT 1 FROM applicant_company_block acb
+        WHERE acb.user_id = p.applicant_id
+          AND acb.ats_slug = jm.ats_slug
       )
     ORDER BY
       (

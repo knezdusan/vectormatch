@@ -1,0 +1,1437 @@
+- generic [active] [ref=f19e1]:
+  - generic [ref=f19e3]:
+    - banner [ref=f19e4]:
+      - generic [ref=f19e5]:
+        - link "Wellfound" [ref=f19e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=f19e11]:
+          - generic [ref=f19e12]:
+            - link "Discover" [ref=f19e13] [cursor=pointer]:
+              - /url: /discover
+            - link "Find Jobs" [ref=f19e14] [cursor=pointer]:
+              - /url: /jobs
+            - link "For Recruiters" [ref=f19e15] [cursor=pointer]:
+              - /url: /recruit/overview
+          - generic [ref=f19e16]:
+            - button "Log In" [ref=f19e18] [cursor=pointer]
+            - button "Sign Up" [ref=f19e20] [cursor=pointer]
+      - iframe
+    - generic [ref=f19e21]:
+      - generic [ref=f19e22]:
+        - generic [ref=f19e24]:
+          - banner [ref=f19e25]: Show me
+          - generic [ref=f19e26]:
+            - generic [ref=f19e30]:
+              - generic [ref=f19e31]: any
+              - textbox [ref=f19e34]
+            - banner [ref=f19e39]: roles,
+          - generic [ref=f19e40]:
+            - generic [ref=f19e41]:
+              - banner [ref=f19e42]: that are
+              - generic [ref=f19e46]:
+                - generic [ref=f19e47]: Remote
+                - textbox [ref=f19e50]
+            - button "Search" [ref=f19e58] [cursor=pointer]
+        - generic [ref=f19e59]:
+          - generic [ref=f19e60]:
+            - heading "Remote Tech & Startup Jobs" [level=1] [ref=f19e61]
+            - heading "11519 results total" [level=4] [ref=f19e62]
+          - heading "Page 1 of 199" [level=4] [ref=f19e64]
+      - generic [ref=f19e65]:
+        - generic [ref=f19e67]:
+          - generic [ref=f19e68]:
+            - generic [ref=f19e69]:
+              - generic [ref=f19e71]:
+                - link [ref=f19e72] [cursor=pointer]:
+                  - /url: /company/moderntreasury
+                  - img "Modern Treasury company logo" [ref=f19e74]
+                - generic [ref=f19e75]:
+                  - generic [ref=f19e76]:
+                    - link [ref=f19e77] [cursor=pointer]:
+                      - /url: /company/moderntreasury
+                      - heading "Modern Treasury" [level=2] [ref=f19e78]
+                    - generic [ref=f19e79]: Actively Hiring
+                  - generic [ref=f19e81]: Modern Treasury builds payments operations solutions
+                  - generic [ref=f19e82]: 51-200 Employees
+              - list [ref=f19e84]:
+                - listitem [ref=f19e85]:
+                  - generic [ref=f19e86]: Top 10% of responders
+                - listitem [ref=f19e90]:
+                  - generic [ref=f19e91]: Responds within two weeks
+                - listitem [ref=f19e95]:
+                  - generic [ref=f19e96]: B2B
+                - listitem [ref=f19e98]: "+4"
+            - generic [ref=f19e99]:
+              - generic [ref=f19e100]:
+                - generic [ref=f19e101]:
+                  - generic [ref=f19e102]:
+                    - link "Software Engineer - Infrastructure" [ref=f19e103] [cursor=pointer]:
+                      - /url: /jobs/3852615-software-engineer-infrastructure
+                    - generic [ref=f19e104]: Full-time
+                  - generic [ref=f19e105]:
+                    - generic [ref=f19e106]: $150k – $250k
+                    - generic [ref=f19e111]: Remote • San Francisco
+                - generic [ref=f19e116]:
+                  - generic [ref=f19e117]: yesterday
+                  - button "Save" [ref=f19e118] [cursor=pointer]
+                  - button "Apply" [ref=f19e120] [cursor=pointer]
+              - generic [ref=f19e121]:
+                - generic [ref=f19e122]:
+                  - generic [ref=f19e123]:
+                    - link "AI Search and Discovery Lead" [ref=f19e124] [cursor=pointer]:
+                      - /url: /jobs/4290055-ai-search-and-discovery-lead
+                    - generic [ref=f19e125]: Full-time
+                  - generic [ref=f19e126]:
+                    - generic [ref=f19e127]: $120k – $160k
+                    - generic [ref=f19e132]: Remote • San Francisco
+                - generic [ref=f19e137]:
+                  - generic [ref=f19e138]: 1 month ago
+                  - button "Save" [ref=f19e139] [cursor=pointer]
+                  - button "Apply" [ref=f19e141] [cursor=pointer]
+          - generic [ref=f19e142]:
+            - generic [ref=f19e143]:
+              - generic [ref=f19e145]:
+                - link [ref=f19e146] [cursor=pointer]:
+                  - /url: /company/yipitdata
+                  - img "YipitData company logo" [ref=f19e148]
+                - generic [ref=f19e149]:
+                  - generic [ref=f19e150]:
+                    - link [ref=f19e151] [cursor=pointer]:
+                      - /url: /company/yipitdata
+                      - heading "YipitData" [level=2] [ref=f19e152]
+                    - generic [ref=f19e153]: Actively Hiring
+                  - generic [ref=f19e155]: A remote-first company with employees across the globe. Inc's Best Workplaces 2020~2022
+                  - generic [ref=f19e156]: 501-1000 Employees
+              - list [ref=f19e158]:
+                - listitem [ref=f19e159]:
+                  - generic [ref=f19e160]: B2B
+                - listitem [ref=f19e162]:
+                  - generic [ref=f19e163]: Scale Stage
+                - listitem [ref=f19e167]:
+                  - generic [ref=f19e168]: Top Investors
+                - listitem [ref=f19e172]: "+4"
+            - generic [ref=f19e173]:
+              - generic [ref=f19e174]:
+                - generic [ref=f19e175]:
+                  - generic [ref=f19e176]:
+                    - link "Data Engineer - Global Team (India)" [ref=f19e177] [cursor=pointer]:
+                      - /url: /jobs/3338784-data-engineer-global-team-india
+                    - generic [ref=f19e178]: Full-time
+                  - generic [ref=f19e179]: $100k – $200k
+                - generic [ref=f19e185]:
+                  - generic [ref=f19e186]: 1 day ago
+                  - button "Save" [ref=f19e187] [cursor=pointer]
+                  - button "Apply" [ref=f19e189] [cursor=pointer]
+              - generic [ref=f19e190]:
+                - generic [ref=f19e191]:
+                  - generic [ref=f19e192]:
+                    - link "Data Scientist, Corporate" [ref=f19e193] [cursor=pointer]:
+                      - /url: /jobs/4437273-data-scientist-corporate
+                    - generic [ref=f19e194]: Full-time
+                  - generic [ref=f19e195]: Up to $170k
+                - generic [ref=f19e200]:
+                  - generic [ref=f19e201]: 6 days ago
+                  - button "Save" [ref=f19e202] [cursor=pointer]
+                  - button "Apply" [ref=f19e204] [cursor=pointer]
+              - generic [ref=f19e205]:
+                - generic [ref=f19e206]:
+                  - generic [ref=f19e207]:
+                    - link "Associate Director of Product Classification" [ref=f19e208] [cursor=pointer]:
+                      - /url: /jobs/4436965-associate-director-of-product-classification
+                    - generic [ref=f19e209]: Full-time
+                  - generic [ref=f19e210]: $210k – $220k
+                - generic [ref=f19e215]:
+                  - generic [ref=f19e216]: 7 days ago
+                  - button "Save" [ref=f19e217] [cursor=pointer]
+                  - button "Apply" [ref=f19e219] [cursor=pointer]
+          - generic [ref=f19e220]:
+            - generic [ref=f19e221]:
+              - generic [ref=f19e223]:
+                - link [ref=f19e224] [cursor=pointer]:
+                  - /url: /company/pantheon
+                  - img "Pantheon Platform company logo" [ref=f19e226]
+                - generic [ref=f19e227]:
+                  - generic [ref=f19e228]:
+                    - link [ref=f19e229] [cursor=pointer]:
+                      - /url: /company/pantheon
+                      - heading "Pantheon Platform" [level=2] [ref=f19e230]
+                    - generic [ref=f19e231]: Actively Hiring
+                  - generic [ref=f19e233]: Provides website tools, organization and hosting for businesses
+                  - generic [ref=f19e234]: 51-200 Employees
+              - list [ref=f19e236]:
+                - listitem [ref=f19e237]:
+                  - generic [ref=f19e238]: B2B
+                - listitem [ref=f19e240]:
+                  - generic [ref=f19e241]: Scale Stage
+                - listitem [ref=f19e245]:
+                  - generic [ref=f19e246]: Top Investors
+                - listitem [ref=f19e250]: "+5"
+            - generic [ref=f19e251]:
+              - generic [ref=f19e252]:
+                - generic [ref=f19e253]:
+                  - generic [ref=f19e254]:
+                    - link "GTM Systems Administrator" [ref=f19e255] [cursor=pointer]:
+                      - /url: /jobs/4465436-gtm-systems-administrator
+                    - generic [ref=f19e256]: Full-time
+                  - generic [ref=f19e257]: $90k – $113k
+                - generic [ref=f19e263]:
+                  - generic [ref=f19e264]: yesterday
+                  - button "Save" [ref=f19e265] [cursor=pointer]
+                  - button "Apply" [ref=f19e267] [cursor=pointer]
+              - generic [ref=f19e268]:
+                - generic [ref=f19e269]:
+                  - generic [ref=f19e270]:
+                    - link "Senior Analytics Engineer" [ref=f19e271] [cursor=pointer]:
+                      - /url: /jobs/4457974-senior-analytics-engineer
+                    - generic [ref=f19e272]: Full-time
+                  - generic [ref=f19e273]: $135k – $225k
+                - generic [ref=f19e279]:
+                  - generic [ref=f19e280]: 4 days ago
+                  - button "Save" [ref=f19e281] [cursor=pointer]
+                  - button "Apply" [ref=f19e283] [cursor=pointer]
+              - generic [ref=f19e284]:
+                - generic [ref=f19e285]:
+                  - generic [ref=f19e286]:
+                    - link "Staff Software Engineer - Data Platform" [ref=f19e287] [cursor=pointer]:
+                      - /url: /jobs/4452656-staff-software-engineer-data-platform
+                    - generic [ref=f19e288]: Full-time
+                  - generic [ref=f19e289]: $167k – $232k
+                - generic [ref=f19e295]:
+                  - generic [ref=f19e296]: 5 days ago
+                  - button "Save" [ref=f19e297] [cursor=pointer]
+                  - button "Apply" [ref=f19e299] [cursor=pointer]
+          - generic [ref=f19e300]:
+            - generic [ref=f19e301]:
+              - generic [ref=f19e303]:
+                - link [ref=f19e304] [cursor=pointer]:
+                  - /url: /company/ashbyhq
+                  - img "Ashby company logo" [ref=f19e306]
+                - generic [ref=f19e307]:
+                  - generic [ref=f19e308]:
+                    - link [ref=f19e309] [cursor=pointer]:
+                      - /url: /company/ashbyhq
+                      - heading "Ashby" [level=2] [ref=f19e310]
+                    - generic [ref=f19e311]: Actively Hiring
+                  - generic [ref=f19e313]: We're building the next generation of all-in-one recruiting software
+                  - generic [ref=f19e314]: 11-50 Employees
+              - list [ref=f19e316]:
+                - listitem [ref=f19e317]:
+                  - generic [ref=f19e318]: B2B
+                - listitem [ref=f19e320]:
+                  - generic [ref=f19e321]: Growth Stage
+                - listitem [ref=f19e325]:
+                  - generic [ref=f19e326]: Top Investors
+                - listitem [ref=f19e330]: "+2"
+            - generic [ref=f19e331]:
+              - generic [ref=f19e332]:
+                - generic [ref=f19e333]:
+                  - generic [ref=f19e334]:
+                    - link "Product Support Engineer - Americas" [ref=f19e335] [cursor=pointer]:
+                      - /url: /jobs/4271314-product-support-engineer-americas
+                    - generic [ref=f19e336]: Full-time
+                  - generic [ref=f19e337]:
+                    - generic [ref=f19e338]: $75k – $140k
+                    - generic [ref=f19e347]:
+                      - text: Remote only • Canada
+                      - generic [ref=f19e348]: "+1"
+                - generic [ref=f19e349]:
+                  - generic [ref=f19e350]: today
+                  - button "Save" [ref=f19e351] [cursor=pointer]
+                  - button "Apply" [ref=f19e353] [cursor=pointer]
+              - generic [ref=f19e354]:
+                - generic [ref=f19e355]:
+                  - generic [ref=f19e356]:
+                    - link "Support Manager - Americas" [ref=f19e357] [cursor=pointer]:
+                      - /url: /jobs/3977636-support-manager-americas
+                    - generic [ref=f19e358]: Full-time
+                  - generic [ref=f19e359]:
+                    - generic [ref=f19e360]: $125k – $155k
+                    - generic [ref=f19e365]: Remote • United States
+                - generic [ref=f19e370]:
+                  - generic [ref=f19e371]: 4 days ago
+                  - button "Save" [ref=f19e372] [cursor=pointer]
+                  - button "Apply" [ref=f19e374] [cursor=pointer]
+              - generic [ref=f19e375]:
+                - generic [ref=f19e376]:
+                  - generic [ref=f19e377]:
+                    - link "Director, GTM Engineering & Systems" [ref=f19e378] [cursor=pointer]:
+                      - /url: /jobs/4296005-director-gtm-engineering-systems
+                    - generic [ref=f19e379]: Full-time
+                  - generic [ref=f19e380]:
+                    - generic [ref=f19e381]: $240k – $262k
+                    - generic [ref=f19e386]: Remote • United States
+                - generic [ref=f19e391]:
+                  - generic [ref=f19e392]: 1 month ago
+                  - button "Save" [ref=f19e393] [cursor=pointer]
+                  - button "Apply" [ref=f19e395] [cursor=pointer]
+          - generic [ref=f19e396]:
+            - generic [ref=f19e397]:
+              - generic [ref=f19e399]:
+                - link [ref=f19e400] [cursor=pointer]:
+                  - /url: /company/oklo
+                  - img "Oklo company logo" [ref=f19e402]
+                - generic [ref=f19e403]:
+                  - generic [ref=f19e404]:
+                    - link [ref=f19e405] [cursor=pointer]:
+                      - /url: /company/oklo
+                      - heading "Oklo" [level=2] [ref=f19e406]
+                    - generic [ref=f19e407]: Actively Hiring
+                  - generic [ref=f19e409]: Making reactors people want
+                  - generic [ref=f19e410]: 201-500 Employees
+              - list [ref=f19e412]:
+                - listitem [ref=f19e413]:
+                  - generic [ref=f19e414]: B2B
+                - listitem [ref=f19e416]:
+                  - generic [ref=f19e417]: Growth Stage
+                - listitem [ref=f19e421]:
+                  - generic [ref=f19e422]: Top Investors
+                - listitem [ref=f19e426]: "+2"
+            - generic [ref=f19e427]:
+              - generic [ref=f19e428]:
+                - generic [ref=f19e429]:
+                  - generic [ref=f19e430]:
+                    - link "Controls Engineer, Fuel Fabrication" [ref=f19e431] [cursor=pointer]:
+                      - /url: /jobs/4465515-controls-engineer-fuel-fabrication
+                    - generic [ref=f19e432]: Full-time
+                  - generic [ref=f19e433]:
+                    - generic [ref=f19e434]: $100k – $150k
+                    - generic [ref=f19e439]: Remote • Idaho Falls
+                - generic [ref=f19e444]:
+                  - generic [ref=f19e445]: yesterday
+                  - button "Save" [ref=f19e446] [cursor=pointer]
+                  - button "Apply" [ref=f19e448] [cursor=pointer]
+              - generic [ref=f19e449]:
+                - generic [ref=f19e450]:
+                  - generic [ref=f19e451]:
+                    - link "Procurement Specialist - Fuel Recycling" [ref=f19e452] [cursor=pointer]:
+                      - /url: /jobs/4417596-procurement-specialist-fuel-recycling
+                    - generic [ref=f19e453]: Full-time
+                  - generic [ref=f19e454]:
+                    - generic [ref=f19e455]: $100k – $150k
+                    - generic [ref=f19e460]: Remote • Santa Clara
+                - generic [ref=f19e465]:
+                  - generic [ref=f19e466]: 1 week ago
+                  - button "Save" [ref=f19e467] [cursor=pointer]
+                  - button "Apply" [ref=f19e469] [cursor=pointer]
+              - generic [ref=f19e470]:
+                - generic [ref=f19e471]:
+                  - generic [ref=f19e472]:
+                    - link "Sr. Manager, Direct Procurement (Hardware)" [ref=f19e473] [cursor=pointer]:
+                      - /url: /jobs/4417595-sr-manager-direct-procurement-hardware
+                    - generic [ref=f19e474]: Full-time
+                  - generic [ref=f19e475]:
+                    - generic [ref=f19e476]: $150k – $185k
+                    - generic [ref=f19e481]: Remote • Santa Clara
+                - generic [ref=f19e486]:
+                  - generic [ref=f19e487]: 1 week ago
+                  - button "Save" [ref=f19e488] [cursor=pointer]
+                  - button "Apply" [ref=f19e490] [cursor=pointer]
+          - generic [ref=f19e491]:
+            - generic [ref=f19e492]:
+              - generic [ref=f19e494]:
+                - link [ref=f19e495] [cursor=pointer]:
+                  - /url: /company/kero-sports
+                  - img "Kero Sports company logo" [ref=f19e497]
+                - generic [ref=f19e498]:
+                  - generic [ref=f19e499]:
+                    - link [ref=f19e500] [cursor=pointer]:
+                      - /url: /company/kero-sports
+                      - heading "Kero Sports" [level=2] [ref=f19e501]
+                    - generic [ref=f19e502]: Actively Hiring
+                  - generic [ref=f19e504]: Real-time sports betting technology that turns live game data into in-play markets
+                  - generic [ref=f19e505]: 11-50 Employees
+              - list [ref=f19e507]:
+                - listitem [ref=f19e508]:
+                  - generic [ref=f19e509]: Top 5% of responders
+                - listitem [ref=f19e513]:
+                  - generic [ref=f19e514]: Responds within a few days
+                - listitem [ref=f19e518]:
+                  - generic [ref=f19e519]: B2C
+                - listitem [ref=f19e521]: "+2"
+            - generic [ref=f19e523]:
+              - generic [ref=f19e524]:
+                - generic [ref=f19e525]:
+                  - link "Data Scientist / Senior Data Scientist — Sports Modeling & Live Betting" [ref=f19e526] [cursor=pointer]:
+                    - /url: /jobs/1780326-data-scientist-ml-engineer
+                  - generic [ref=f19e527]: Full-time
+                - generic [ref=f19e528]:
+                  - generic [ref=f19e529]: $100k – $160k • 0.5% – 1.0%
+                  - generic [ref=f19e538]:
+                    - text: Remote only • Canada
+                    - generic [ref=f19e539]: "+1"
+                  - generic [ref=f19e541]: 3 years of exp
+              - generic [ref=f19e545]:
+                - generic [ref=f19e546]: 4 days ago
+                - button "Save" [ref=f19e547] [cursor=pointer]
+                - button "Apply" [ref=f19e549] [cursor=pointer]
+          - generic [ref=f19e550]:
+            - generic [ref=f19e551]:
+              - generic [ref=f19e553]:
+                - link [ref=f19e554] [cursor=pointer]:
+                  - /url: /company/signifyd
+                  - img "Signifyd company logo" [ref=f19e556]
+                - generic [ref=f19e557]:
+                  - generic [ref=f19e558]:
+                    - link [ref=f19e559] [cursor=pointer]:
+                      - /url: /company/signifyd
+                      - heading "Signifyd" [level=2] [ref=f19e560]
+                    - generic [ref=f19e561]: Actively Hiring
+                  - generic [ref=f19e563]: Optimize Revenue. Eliminate Fraud
+                  - generic [ref=f19e564]: 201-500 Employees
+              - list [ref=f19e566]:
+                - listitem [ref=f19e567]:
+                  - generic [ref=f19e568]: B2B
+                - listitem [ref=f19e570]:
+                  - generic [ref=f19e571]: Scale Stage
+                - listitem [ref=f19e575]:
+                  - generic [ref=f19e576]: Top Investors
+                - listitem [ref=f19e580]: "+4"
+            - generic [ref=f19e581]:
+              - generic [ref=f19e582]:
+                - generic [ref=f19e583]:
+                  - generic [ref=f19e584]:
+                    - link "Senior Software Engineer II" [ref=f19e585] [cursor=pointer]:
+                      - /url: /jobs/4446152-senior-software-engineer-ii
+                    - generic [ref=f19e586]: Full-time
+                  - generic [ref=f19e587]: $170k – $220k
+                - generic [ref=f19e593]:
+                  - generic [ref=f19e594]: 5 days ago
+                  - button "Save" [ref=f19e595] [cursor=pointer]
+                  - button "Apply" [ref=f19e597] [cursor=pointer]
+              - generic [ref=f19e598]:
+                - generic [ref=f19e599]:
+                  - generic [ref=f19e600]:
+                    - link "Senior Enterprise Account Manager" [ref=f19e601] [cursor=pointer]:
+                      - /url: /jobs/4410795-senior-enterprise-account-manager
+                    - generic [ref=f19e602]: Full-time
+                  - generic [ref=f19e603]: $140k – $145k
+                - generic [ref=f19e609]:
+                  - generic [ref=f19e610]: 2 weeks ago
+                  - button "Save" [ref=f19e611] [cursor=pointer]
+                  - button "Apply" [ref=f19e613] [cursor=pointer]
+              - generic [ref=f19e614]:
+                - generic [ref=f19e615]:
+                  - generic [ref=f19e616]:
+                    - link "Senior Software Engineer, Cloud Platform" [ref=f19e617] [cursor=pointer]:
+                      - /url: /jobs/4102159-senior-software-engineer-cloud-platform
+                    - generic [ref=f19e618]: Full-time
+                  - generic [ref=f19e619]: $150k – $190k
+                - generic [ref=f19e625]:
+                  - generic [ref=f19e626]: 4 weeks ago
+                  - button "Save" [ref=f19e627] [cursor=pointer]
+                  - button "Apply" [ref=f19e629] [cursor=pointer]
+          - generic [ref=f19e630]:
+            - generic [ref=f19e631]:
+              - generic [ref=f19e633]:
+                - link [ref=f19e634] [cursor=pointer]:
+                  - /url: /company/truebill
+                  - img "Rocket Money company logo" [ref=f19e636]
+                - generic [ref=f19e637]:
+                  - generic [ref=f19e638]:
+                    - link [ref=f19e639] [cursor=pointer]:
+                      - /url: /company/truebill
+                      - heading "Rocket Money" [level=2] [ref=f19e640]
+                    - generic [ref=f19e641]: Actively Hiring
+                  - generic [ref=f19e643]: The Money App That Works for You
+                  - generic [ref=f19e644]: 201-500 Employees
+              - list [ref=f19e646]:
+                - listitem [ref=f19e647]:
+                  - generic [ref=f19e648]: B2C
+                - listitem [ref=f19e650]:
+                  - generic [ref=f19e651]: Scale Stage
+                - listitem [ref=f19e655]:
+                  - generic [ref=f19e656]: Top Investors
+                - listitem [ref=f19e660]: "+2"
+            - generic [ref=f19e661]:
+              - generic [ref=f19e662]:
+                - generic [ref=f19e663]:
+                  - generic [ref=f19e664]:
+                    - link "Senior Full Stack Engineer, Autopilot" [ref=f19e665] [cursor=pointer]:
+                      - /url: /jobs/4470027-senior-full-stack-engineer-autopilot
+                    - generic [ref=f19e666]: Full-time
+                  - generic [ref=f19e667]:
+                    - generic [ref=f19e668]: $150k – $185k
+                    - generic [ref=f19e677]:
+                      - text: Remote • New York City
+                      - generic [ref=f19e678]: "+3"
+                - generic [ref=f19e679]:
+                  - generic [ref=f19e680]: today
+                  - button "Save" [ref=f19e681] [cursor=pointer]
+                  - button "Apply" [ref=f19e683] [cursor=pointer]
+              - generic [ref=f19e684]:
+                - generic [ref=f19e685]:
+                  - generic [ref=f19e686]:
+                    - link "Creative Strategist" [ref=f19e687] [cursor=pointer]:
+                      - /url: /jobs/4437308-creative-strategist
+                    - generic [ref=f19e688]: Full-time
+                  - generic [ref=f19e689]:
+                    - generic [ref=f19e690]: $150k – $175k
+                    - generic [ref=f19e699]:
+                      - text: Remote • Detroit
+                      - generic [ref=f19e700]: "+4"
+                - generic [ref=f19e701]:
+                  - generic [ref=f19e702]: yesterday
+                  - button "Save" [ref=f19e703] [cursor=pointer]
+                  - button "Apply" [ref=f19e705] [cursor=pointer]
+              - generic [ref=f19e706]:
+                - generic [ref=f19e707]:
+                  - generic [ref=f19e708]:
+                    - link "Senior Full Stack Engineer, Premium" [ref=f19e709] [cursor=pointer]:
+                      - /url: /jobs/4385573-senior-full-stack-engineer-premium
+                    - generic [ref=f19e710]: Full-time
+                  - generic [ref=f19e711]:
+                    - generic [ref=f19e712]: $150k – $185k
+                    - generic [ref=f19e721]:
+                      - text: Remote • New York City
+                      - generic [ref=f19e722]: "+3"
+                - generic [ref=f19e723]:
+                  - generic [ref=f19e724]: 3 weeks ago
+                  - button "Save" [ref=f19e725] [cursor=pointer]
+                  - button "Apply" [ref=f19e727] [cursor=pointer]
+          - generic [ref=f19e728]:
+            - generic [ref=f19e729]:
+              - generic [ref=f19e731]:
+                - link [ref=f19e732] [cursor=pointer]:
+                  - /url: /company/kalepa
+                  - img "Kalepa company logo" [ref=f19e734]
+                - generic [ref=f19e735]:
+                  - generic [ref=f19e736]:
+                    - link [ref=f19e737] [cursor=pointer]:
+                      - /url: /company/kalepa
+                      - heading "Kalepa" [level=2] [ref=f19e738]
+                    - generic [ref=f19e739]: Actively Hiring
+                  - generic [ref=f19e741]: We're on a mission to transform the $7 trillion insurance industry
+                  - generic [ref=f19e742]: 11-50 Employees
+              - list [ref=f19e744]:
+                - listitem [ref=f19e745]:
+                  - generic [ref=f19e746]: Top 10% of responders
+                - listitem [ref=f19e750]:
+                  - generic [ref=f19e751]: Responds within two weeks
+                - listitem [ref=f19e755]:
+                  - generic [ref=f19e756]: B2B
+                - listitem [ref=f19e758]: "+2"
+            - generic [ref=f19e759]:
+              - generic [ref=f19e760]:
+                - generic [ref=f19e761]:
+                  - generic [ref=f19e762]:
+                    - link "Staff Backend Engineer - Core Product (USA)" [ref=f19e763] [cursor=pointer]:
+                      - /url: /jobs/4209865-staff-backend-engineer-core-product-usa
+                    - generic [ref=f19e764]: Full-time
+                  - generic [ref=f19e765]: $210k – $290k
+                - generic [ref=f19e771]:
+                  - generic [ref=f19e772]: 1 day ago
+                  - button "Save" [ref=f19e773] [cursor=pointer]
+                  - button "Apply" [ref=f19e775] [cursor=pointer]
+              - generic [ref=f19e776]:
+                - generic [ref=f19e777]:
+                  - generic [ref=f19e778]:
+                    - link "Staff Backend Engineer - Submission Processing (Europe)" [ref=f19e779] [cursor=pointer]:
+                      - /url: /jobs/4452895-staff-backend-engineer-submission-processing-europe
+                    - generic [ref=f19e780]: Full-time
+                  - generic [ref=f19e781]: $100k – $185k
+                - generic [ref=f19e787]:
+                  - generic [ref=f19e788]: 4 days ago
+                  - button "Save" [ref=f19e789] [cursor=pointer]
+                  - button "Apply" [ref=f19e791] [cursor=pointer]
+              - generic [ref=f19e792]:
+                - generic [ref=f19e793]:
+                  - generic [ref=f19e794]:
+                    - link "Staff Backend Engineer - Submission Processing" [ref=f19e795] [cursor=pointer]:
+                      - /url: /jobs/4437003-staff-backend-engineer-submission-processing
+                    - generic [ref=f19e796]: Full-time
+                  - generic [ref=f19e797]: $210k – $290k
+                - generic [ref=f19e803]:
+                  - generic [ref=f19e804]: 7 days ago
+                  - button "Save" [ref=f19e805] [cursor=pointer]
+                  - button "Apply" [ref=f19e807] [cursor=pointer]
+          - generic [ref=f19e808]:
+            - generic [ref=f19e809]:
+              - generic [ref=f19e811]:
+                - link [ref=f19e812] [cursor=pointer]:
+                  - /url: /company/constructor-io
+                  - img "Constructor.io company logo" [ref=f19e814]
+                - generic [ref=f19e815]:
+                  - generic [ref=f19e816]:
+                    - link [ref=f19e817] [cursor=pointer]:
+                      - /url: /company/constructor-io
+                      - heading "Constructor.io" [level=2] [ref=f19e818]
+                    - generic [ref=f19e819]: Actively Hiring
+                  - generic [ref=f19e821]: Personalized and highly-relevant search and product discovery
+                  - generic [ref=f19e822]: 501-1000 Employees
+              - list [ref=f19e824]:
+                - listitem [ref=f19e825]:
+                  - generic [ref=f19e826]: Responds within three weeks
+                - listitem [ref=f19e830]:
+                  - generic [ref=f19e831]: B2B
+                - listitem [ref=f19e833]:
+                  - generic [ref=f19e834]: Growth Stage
+                - listitem [ref=f19e838]: "+1"
+            - generic [ref=f19e839]:
+              - generic [ref=f19e840]:
+                - generic [ref=f19e841]:
+                  - generic [ref=f19e842]:
+                    - 'link "Full Stack Engineer: Retail Media" [ref=f19e843] [cursor=pointer]':
+                      - /url: /jobs/4468476-full-stack-engineer-retail-media
+                    - generic [ref=f19e844]: Full-time
+                  - generic [ref=f19e845]:
+                    - generic [ref=f19e846]: $80k – $120k
+                    - generic [ref=f19e851]: Remote • United Kingdom
+                - generic [ref=f19e856]:
+                  - generic [ref=f19e857]: today
+                  - button "Save" [ref=f19e858] [cursor=pointer]
+                  - button "Apply" [ref=f19e860] [cursor=pointer]
+              - generic [ref=f19e861]:
+                - generic [ref=f19e862]:
+                  - generic [ref=f19e863]:
+                    - 'link "Senior Backend Engineer: Offsite Search Optimisation" [ref=f19e864] [cursor=pointer]':
+                      - /url: /jobs/4436394-senior-backend-engineer-offsite-search-optimisation
+                    - generic [ref=f19e865]: Full-time
+                  - generic [ref=f19e866]:
+                    - generic [ref=f19e867]: $80k – $120k
+                    - generic [ref=f19e872]: Remote • Munich
+                - generic [ref=f19e877]:
+                  - generic [ref=f19e878]: 1 week ago
+                  - button "Save" [ref=f19e879] [cursor=pointer]
+                  - button "Apply" [ref=f19e881] [cursor=pointer]
+              - generic [ref=f19e882]:
+                - generic [ref=f19e883]:
+                  - generic [ref=f19e884]:
+                    - 'link "BackEnd Engineer: Experiments" [ref=f19e885] [cursor=pointer]':
+                      - /url: /jobs/4263122-backend-engineer-experiments
+                    - generic [ref=f19e886]: Full-time
+                  - generic [ref=f19e887]:
+                    - generic [ref=f19e888]: $80k – $110k
+                    - generic [ref=f19e893]: Remote • Barcelona
+                - generic [ref=f19e898]:
+                  - generic [ref=f19e899]: 1 week ago
+                  - button "Save" [ref=f19e900] [cursor=pointer]
+                  - button "Apply" [ref=f19e902] [cursor=pointer]
+          - generic [ref=f19e903]:
+            - generic [ref=f19e904]:
+              - generic [ref=f19e906]:
+                - link [ref=f19e907] [cursor=pointer]:
+                  - /url: /company/stuut-1
+                  - img "Stuut company logo" [ref=f19e909]
+                - generic [ref=f19e910]:
+                  - generic [ref=f19e911]:
+                    - link [ref=f19e912] [cursor=pointer]:
+                      - /url: /company/stuut-1
+                      - heading "Stuut" [level=2] [ref=f19e913]
+                    - generic [ref=f19e914]: Actively Hiring
+                  - generic [ref=f19e916]: AI Co-Pilot for Accounts Receivable
+                  - generic [ref=f19e917]: 11-50 Employees
+              - list [ref=f19e919]:
+                - listitem [ref=f19e920]:
+                  - generic [ref=f19e921]: Top 10% of responders
+                - listitem [ref=f19e925]:
+                  - generic [ref=f19e926]: Responds within a few days
+                - listitem [ref=f19e930]:
+                  - generic [ref=f19e931]: B2C
+                - listitem [ref=f19e933]: "+2"
+            - generic [ref=f19e934]:
+              - generic [ref=f19e935]:
+                - generic [ref=f19e936]:
+                  - generic [ref=f19e937]:
+                    - link "Member of Technical Staff — Audio and Voice AI" [ref=f19e938] [cursor=pointer]:
+                      - /url: /jobs/3768622-member-of-technical-staff-audio-and-voice-ai
+                    - generic [ref=f19e939]: Full-time
+                  - generic [ref=f19e940]:
+                    - generic [ref=f19e941]: $250k – $320k • 0.01% – 1.0%
+                    - generic [ref=f19e950]:
+                      - text: In office • New York City
+                      - generic [ref=f19e951]: "+1"
+                    - generic [ref=f19e953]: 5 years of exp
+                - generic [ref=f19e957]:
+                  - generic [ref=f19e958]: yesterday
+                  - button "Save" [ref=f19e959] [cursor=pointer]
+                  - button "Apply" [ref=f19e961] [cursor=pointer]
+              - generic [ref=f19e962]:
+                - generic [ref=f19e963]:
+                  - generic [ref=f19e964]:
+                    - link "Lead Voice Infrastructure Engineer" [ref=f19e965] [cursor=pointer]:
+                      - /url: /jobs/4047381-lead-voice-infrastructure-engineer
+                    - generic [ref=f19e966]: Full-time
+                  - generic [ref=f19e967]:
+                    - generic [ref=f19e968]: $250k – $290k • 0.1% – 0.5%
+                    - generic [ref=f19e977]:
+                      - text: Onsite or remote • New York City
+                      - generic [ref=f19e978]: "+2"
+                    - generic [ref=f19e980]: 3 years of exp
+                - generic [ref=f19e984]:
+                  - generic [ref=f19e985]: yesterday
+                  - button "Save" [ref=f19e986] [cursor=pointer]
+                  - button "Apply" [ref=f19e988] [cursor=pointer]
+              - generic [ref=f19e989]:
+                - generic [ref=f19e990]:
+                  - generic [ref=f19e991]:
+                    - link "Director of Product Marketing" [ref=f19e992] [cursor=pointer]:
+                      - /url: /jobs/4064386-director-of-product-marketing
+                    - generic [ref=f19e993]: Full-time
+                  - generic [ref=f19e994]:
+                    - generic [ref=f19e995]: $225k – $275k • 0.01% – 0.15%
+                    - generic [ref=f19e1004]:
+                      - text: In office • New York City
+                      - generic [ref=f19e1005]: "+1"
+                    - generic [ref=f19e1007]: 3 years of exp
+                - generic [ref=f19e1011]:
+                  - generic [ref=f19e1012]: yesterday
+                  - button "Save" [ref=f19e1013] [cursor=pointer]
+                  - button "Apply" [ref=f19e1015] [cursor=pointer]
+          - generic [ref=f19e1016]:
+            - generic [ref=f19e1017]:
+              - generic [ref=f19e1019]:
+                - link [ref=f19e1020] [cursor=pointer]:
+                  - /url: /company/sadaora
+                  - img "Sadaora company logo" [ref=f19e1022]
+                - generic [ref=f19e1023]:
+                  - generic [ref=f19e1024]:
+                    - link [ref=f19e1025] [cursor=pointer]:
+                      - /url: /company/sadaora
+                      - heading "Sadaora" [level=2] [ref=f19e1026]
+                    - generic [ref=f19e1027]: Actively Hiring
+                  - generic [ref=f19e1029]: A platform which uses your personal data to make lifes daily decisions plain and simple
+                  - generic [ref=f19e1030]: 1-10 Employees
+              - list [ref=f19e1032]:
+                - listitem [ref=f19e1033]:
+                  - generic [ref=f19e1034]: Top 10% of responders
+                - listitem [ref=f19e1038]:
+                  - generic [ref=f19e1039]: Responds within two weeks
+                - listitem [ref=f19e1043]:
+                  - generic [ref=f19e1044]: B2B
+                - listitem [ref=f19e1046]: "+1"
+            - generic [ref=f19e1047]:
+              - generic [ref=f19e1048]:
+                - generic [ref=f19e1049]:
+                  - generic [ref=f19e1050]:
+                    - link "Founding Engineering Partner" [ref=f19e1051] [cursor=pointer]:
+                      - /url: /jobs/4465242-founding-engineering-partner
+                    - generic [ref=f19e1052]: Full-time
+                  - generic [ref=f19e1053]:
+                    - generic [ref=f19e1054]: $180k – $230k • 2.0% – 4.0%
+                    - generic [ref=f19e1059]: Remote only • Everywhere
+                    - generic [ref=f19e1065]: 8 years of exp
+                - generic [ref=f19e1069]:
+                  - generic [ref=f19e1070]: yesterday
+                  - button "Save" [ref=f19e1071] [cursor=pointer]
+                  - button "Apply" [ref=f19e1073] [cursor=pointer]
+              - generic [ref=f19e1074]:
+                - generic [ref=f19e1075]:
+                  - link "Founding Product Engineer (Frontend)" [ref=f19e1077] [cursor=pointer]:
+                    - /url: /jobs/4463313-founding-engineering-partner-clone
+                  - generic [ref=f19e1078]:
+                    - generic [ref=f19e1079]: $125k – $150k • 0.75% – 1.5%
+                    - generic [ref=f19e1084]: Remote only • Everywhere
+                    - generic [ref=f19e1090]: 5 years of exp
+                - generic [ref=f19e1094]:
+                  - generic [ref=f19e1095]: yesterday
+                  - button "Save" [ref=f19e1096] [cursor=pointer]
+                  - button "Apply" [ref=f19e1098] [cursor=pointer]
+          - generic [ref=f19e1099]:
+            - generic [ref=f19e1100]:
+              - generic [ref=f19e1102]:
+                - link [ref=f19e1103] [cursor=pointer]:
+                  - /url: /company/aventior
+                  - img "Aventior company logo" [ref=f19e1105]
+                - generic [ref=f19e1106]:
+                  - generic [ref=f19e1107]:
+                    - link [ref=f19e1108] [cursor=pointer]:
+                      - /url: /company/aventior
+                      - heading "Aventior" [level=2] [ref=f19e1109]
+                    - generic [ref=f19e1110]: Actively Hiring
+                  - generic [ref=f19e1112]: Driving digital transformation in the industrial markets
+                  - generic [ref=f19e1113]: 51-200 Employees
+              - list [ref=f19e1115]:
+                - listitem [ref=f19e1116]:
+                  - generic [ref=f19e1117]: Top 10% of responders
+                - listitem [ref=f19e1121]:
+                  - generic [ref=f19e1122]: Responds within two weeks
+                - listitem [ref=f19e1126]:
+                  - generic [ref=f19e1127]: B2B
+                - listitem [ref=f19e1129]: "+1"
+            - generic [ref=f19e1130]:
+              - generic [ref=f19e1131]:
+                - generic [ref=f19e1132]:
+                  - generic [ref=f19e1133]:
+                    - link "Senior Azure DevOps Engineer(Remote-USA/Colombia/Canada)" [ref=f19e1134] [cursor=pointer]:
+                      - /url: /jobs/4465343-senior-azure-devops-engineer-remote-usa-colombia-canada
+                    - generic [ref=f19e1135]: Full-time
+                  - generic [ref=f19e1136]:
+                    - generic [ref=f19e1137]: $60k – $75k • No equity
+                    - generic [ref=f19e1146]:
+                      - text: Remote only • Boston
+                      - generic [ref=f19e1147]: "+4"
+                    - generic [ref=f19e1149]: 4 years of exp
+                - generic [ref=f19e1153]:
+                  - generic [ref=f19e1154]: yesterday
+                  - button "Save" [ref=f19e1155] [cursor=pointer]
+                  - button "Apply" [ref=f19e1157] [cursor=pointer]
+              - generic [ref=f19e1158]:
+                - generic [ref=f19e1159]:
+                  - generic [ref=f19e1160]:
+                    - link "Senior DevOps Engineer (Remote-USA/Colombia/Canada)" [ref=f19e1161] [cursor=pointer]:
+                      - /url: /jobs/4465336-senior-devops-engineer-remote-usa-colombia-canada
+                    - generic [ref=f19e1162]: Full-time
+                  - generic [ref=f19e1163]:
+                    - generic [ref=f19e1164]: $60k – $75k • No equity
+                    - generic [ref=f19e1173]:
+                      - text: Remote only • Boston
+                      - generic [ref=f19e1174]: "+4"
+                    - generic [ref=f19e1176]: 5 years of exp
+                - generic [ref=f19e1180]:
+                  - generic [ref=f19e1181]: yesterday
+                  - button "Save" [ref=f19e1182] [cursor=pointer]
+                  - button "Apply" [ref=f19e1184] [cursor=pointer]
+              - generic [ref=f19e1185]:
+                - generic [ref=f19e1186]:
+                  - generic [ref=f19e1187]:
+                    - 'link "Compliance Specialist : India(Remote)" [ref=f19e1188] [cursor=pointer]':
+                      - /url: /jobs/4464827-compliance-specialist-india-remote
+                    - generic [ref=f19e1189]: Full-time
+                  - generic [ref=f19e1190]:
+                    - generic [ref=f19e1191]: ₹8L – ₹10L • No equity
+                    - generic [ref=f19e1196]: Remote only • Pune
+                    - generic [ref=f19e1202]: 5 years of exp
+                - generic [ref=f19e1206]:
+                  - generic [ref=f19e1207]: yesterday
+                  - button "Save" [ref=f19e1208] [cursor=pointer]
+                  - button "Apply" [ref=f19e1210] [cursor=pointer]
+          - generic [ref=f19e1211]:
+            - generic [ref=f19e1212]:
+              - generic [ref=f19e1214]:
+                - link [ref=f19e1215] [cursor=pointer]:
+                  - /url: /company/modernhealth
+                  - img "Modern Health company logo" [ref=f19e1217]
+                - generic [ref=f19e1218]:
+                  - generic [ref=f19e1219]:
+                    - link [ref=f19e1220] [cursor=pointer]:
+                      - /url: /company/modernhealth
+                      - heading "Modern Health" [level=2] [ref=f19e1221]
+                    - generic [ref=f19e1222]: Actively Hiring
+                  - generic [ref=f19e1224]: Mental Health Platform for Innovative Companies
+                  - generic [ref=f19e1225]: 201-500 Employees
+              - list [ref=f19e1227]:
+                - listitem [ref=f19e1228]:
+                  - generic [ref=f19e1229]: B2B
+                - listitem [ref=f19e1231]:
+                  - generic [ref=f19e1232]: Scale Stage
+                - listitem [ref=f19e1236]:
+                  - generic [ref=f19e1237]: Top Investors
+                - listitem [ref=f19e1241]: "+2"
+            - generic [ref=f19e1242]:
+              - generic [ref=f19e1243]:
+                - generic [ref=f19e1244]:
+                  - generic [ref=f19e1245]:
+                    - link "Staff Software Engineer, Full Stack" [ref=f19e1246] [cursor=pointer]:
+                      - /url: /jobs/4463533-staff-software-engineer-full-stack
+                    - generic [ref=f19e1247]: Full-time
+                  - generic [ref=f19e1248]: $161k – $189k
+                - generic [ref=f19e1254]:
+                  - generic [ref=f19e1255]: 1 day ago
+                  - button "Save" [ref=f19e1256] [cursor=pointer]
+                  - button "Apply" [ref=f19e1258] [cursor=pointer]
+              - generic [ref=f19e1259]:
+                - generic [ref=f19e1260]:
+                  - generic [ref=f19e1261]:
+                    - link "Staff Software Engineer, Frontend Platform" [ref=f19e1262] [cursor=pointer]:
+                      - /url: /jobs/4385805-staff-software-engineer-frontend-platform
+                    - generic [ref=f19e1263]: Full-time
+                  - generic [ref=f19e1264]: $160k – $189k
+                - generic [ref=f19e1270]:
+                  - generic [ref=f19e1271]: 2 weeks ago
+                  - button "Save" [ref=f19e1272] [cursor=pointer]
+                  - button "Apply" [ref=f19e1274] [cursor=pointer]
+              - generic [ref=f19e1275]:
+                - generic [ref=f19e1276]:
+                  - generic [ref=f19e1277]:
+                    - link "Senior Software Engineer, Full Stack" [ref=f19e1278] [cursor=pointer]:
+                      - /url: /jobs/4385804-senior-software-engineer-full-stack
+                    - generic [ref=f19e1279]: Full-time
+                  - generic [ref=f19e1280]: $138k – $162k
+                - generic [ref=f19e1286]:
+                  - generic [ref=f19e1287]: 2 weeks ago
+                  - button "Save" [ref=f19e1288] [cursor=pointer]
+                  - button "Apply" [ref=f19e1290] [cursor=pointer]
+          - generic [ref=f19e1291]:
+            - generic [ref=f19e1292]:
+              - generic [ref=f19e1294]:
+                - link [ref=f19e1295] [cursor=pointer]:
+                  - /url: /company/drivewealth-1
+                  - img "DriveWealth company logo" [ref=f19e1297]
+                - generic [ref=f19e1298]:
+                  - generic [ref=f19e1299]:
+                    - link [ref=f19e1300] [cursor=pointer]:
+                      - /url: /company/drivewealth-1
+                      - heading "DriveWealth" [level=2] [ref=f19e1301]
+                    - generic [ref=f19e1302]: Actively Hiring
+                  - generic [ref=f19e1304]: The Modern Brokerage Platform
+                  - generic [ref=f19e1305]: 201-500 Employees
+              - list [ref=f19e1307]:
+                - listitem [ref=f19e1308]:
+                  - generic [ref=f19e1309]: B2B
+                - listitem [ref=f19e1311]:
+                  - generic [ref=f19e1312]: Scale Stage
+                - listitem [ref=f19e1316]:
+                  - generic [ref=f19e1317]: Top Investors
+                - listitem [ref=f19e1321]: "+1"
+            - generic [ref=f19e1322]:
+              - generic [ref=f19e1323]:
+                - generic [ref=f19e1324]:
+                  - generic [ref=f19e1325]:
+                    - link "Senior Software Development Engineer, Cash & Liquidity" [ref=f19e1326] [cursor=pointer]:
+                      - /url: /jobs/3090124-senior-software-development-engineer-cash-liquidity
+                    - generic [ref=f19e1327]: Full-time
+                  - generic [ref=f19e1328]:
+                    - generic [ref=f19e1329]: $155k – $175k
+                    - generic [ref=f19e1334]: Remote • New York City
+                - generic [ref=f19e1339]:
+                  - generic [ref=f19e1340]: yesterday
+                  - button "Save" [ref=f19e1341] [cursor=pointer]
+                  - button "Apply" [ref=f19e1343] [cursor=pointer]
+              - generic [ref=f19e1344]:
+                - generic [ref=f19e1345]:
+                  - generic [ref=f19e1346]:
+                    - link "Data Engineer II" [ref=f19e1347] [cursor=pointer]:
+                      - /url: /jobs/3085170-data-engineer-ii
+                    - generic [ref=f19e1348]: Full-time
+                  - generic [ref=f19e1349]: $145k – $165k
+                - generic [ref=f19e1354]:
+                  - generic [ref=f19e1355]: 1 week ago
+                  - button "Save" [ref=f19e1356] [cursor=pointer]
+                  - button "Apply" [ref=f19e1358] [cursor=pointer]
+              - generic [ref=f19e1359]:
+                - generic [ref=f19e1360]:
+                  - generic [ref=f19e1361]:
+                    - link "Senior Site Reliability Engineer, Lithuania" [ref=f19e1362] [cursor=pointer]:
+                      - /url: /jobs/3835206-senior-site-reliability-engineer-lithuania
+                    - generic [ref=f19e1363]: Full-time
+                  - generic [ref=f19e1364]:
+                    - generic [ref=f19e1365]: €45k – €60k
+                    - generic [ref=f19e1370]: Remote • Emeabiam
+                - generic [ref=f19e1375]:
+                  - generic [ref=f19e1376]: 1 month ago
+                  - button "Save" [ref=f19e1377] [cursor=pointer]
+                  - button "Apply" [ref=f19e1379] [cursor=pointer]
+          - generic [ref=f19e1380]:
+            - generic [ref=f19e1381]:
+              - generic [ref=f19e1383]:
+                - link [ref=f19e1384] [cursor=pointer]:
+                  - /url: /company/earnest
+                  - img "Earnest company logo" [ref=f19e1386]
+                - generic [ref=f19e1387]:
+                  - generic [ref=f19e1388]:
+                    - link [ref=f19e1389] [cursor=pointer]:
+                      - /url: /company/earnest
+                      - heading "Earnest" [level=2] [ref=f19e1390]
+                    - generic [ref=f19e1391]: Actively Hiring
+                  - generic [ref=f19e1393]: Our mission is to make higher education accessible and affordable for everyone
+                  - generic [ref=f19e1394]: 201-500 Employees
+              - list [ref=f19e1396]:
+                - listitem [ref=f19e1397]:
+                  - generic [ref=f19e1398]: Responds within two weeks
+                - listitem [ref=f19e1402]:
+                  - generic [ref=f19e1403]: B2C
+                - listitem [ref=f19e1405]:
+                  - generic [ref=f19e1406]: Scale Stage
+                - listitem [ref=f19e1410]: "+1"
+            - generic [ref=f19e1411]:
+              - generic [ref=f19e1412]:
+                - generic [ref=f19e1413]:
+                  - generic [ref=f19e1414]:
+                    - link "Data Scientist" [ref=f19e1415] [cursor=pointer]:
+                      - /url: /jobs/4465153-data-scientist
+                    - generic [ref=f19e1416]: Full-time
+                  - generic [ref=f19e1417]:
+                    - generic [ref=f19e1418]: $195k – $195k
+                    - generic [ref=f19e1423]: Remote only • United States
+                - generic [ref=f19e1428]:
+                  - generic [ref=f19e1429]: yesterday
+                  - button "Save" [ref=f19e1430] [cursor=pointer]
+                  - button "Apply" [ref=f19e1432] [cursor=pointer]
+              - generic [ref=f19e1433]:
+                - generic [ref=f19e1434]:
+                  - generic [ref=f19e1435]:
+                    - link "Client Happiness Servicing, Associate" [ref=f19e1436] [cursor=pointer]:
+                      - /url: /jobs/4417074-client-happiness-servicing-associate
+                    - generic [ref=f19e1437]: Full-time
+                  - generic [ref=f19e1438]: $47k – $60k
+                - generic [ref=f19e1443]:
+                  - generic [ref=f19e1444]: 2 weeks ago
+                  - button "Save" [ref=f19e1445] [cursor=pointer]
+                  - button "Apply" [ref=f19e1447] [cursor=pointer]
+              - generic [ref=f19e1448]:
+                - generic [ref=f19e1449]:
+                  - generic [ref=f19e1450]:
+                    - link "Lifecycle Marketing Manager" [ref=f19e1451] [cursor=pointer]:
+                      - /url: /jobs/4410592-lifecycle-marketing-manager
+                    - generic [ref=f19e1452]: Full-time
+                  - generic [ref=f19e1453]:
+                    - generic [ref=f19e1454]: $140k – $175k
+                    - generic [ref=f19e1459]: Remote • San Francisco
+                - generic [ref=f19e1464]:
+                  - generic [ref=f19e1465]: 2 weeks ago
+                  - button "Save" [ref=f19e1466] [cursor=pointer]
+                  - button "Apply" [ref=f19e1468] [cursor=pointer]
+          - generic [ref=f19e1469]:
+            - generic [ref=f19e1470]:
+              - generic [ref=f19e1472]:
+                - link [ref=f19e1473] [cursor=pointer]:
+                  - /url: /company/influur-1
+                  - img "Influur company logo" [ref=f19e1475]
+                - generic [ref=f19e1476]:
+                  - generic [ref=f19e1477]:
+                    - link [ref=f19e1478] [cursor=pointer]:
+                      - /url: /company/influur-1
+                      - heading "Influur" [level=2] [ref=f19e1479]
+                    - generic [ref=f19e1480]: Actively Hiring
+                  - generic [ref=f19e1482]: Influur is the first two-sided marketplace in the creator economy industry
+                  - generic [ref=f19e1483]: 51-200 Employees
+              - list [ref=f19e1485]:
+                - listitem [ref=f19e1486]:
+                  - generic [ref=f19e1487]: B2B
+                - listitem [ref=f19e1489]:
+                  - generic [ref=f19e1490]: Growth Stage
+            - generic [ref=f19e1494]:
+              - generic [ref=f19e1495]:
+                - generic [ref=f19e1496]:
+                  - generic [ref=f19e1497]:
+                    - link "AI Engineer" [ref=f19e1498] [cursor=pointer]:
+                      - /url: /jobs/4465432-ai-engineer-clone
+                    - generic [ref=f19e1499]: Full-time
+                  - generic [ref=f19e1500]:
+                    - generic [ref=f19e1501]: $200k – $200k • 0.1% – 0.2%
+                    - generic [ref=f19e1510]:
+                      - text: Onsite or remote • New York City
+                      - generic [ref=f19e1511]: "+2"
+                    - generic [ref=f19e1513]: 4 years of exp
+                - generic [ref=f19e1517]:
+                  - generic [ref=f19e1518]: yesterday
+                  - button "Save" [ref=f19e1519] [cursor=pointer]
+                  - button "Apply" [ref=f19e1521] [cursor=pointer]
+              - generic [ref=f19e1522]:
+                - generic [ref=f19e1523]:
+                  - generic [ref=f19e1524]:
+                    - link "CTO (Hands-On Experience)" [ref=f19e1525] [cursor=pointer]:
+                      - /url: /jobs/4391578-ai-agent-developer-nodejs-nextjs-clone
+                    - generic [ref=f19e1526]: Full-time
+                  - generic [ref=f19e1527]:
+                    - generic [ref=f19e1528]: $250k – $330k • 0.1% – 1.0%
+                    - generic [ref=f19e1537]:
+                      - text: Onsite or remote • California
+                      - generic [ref=f19e1538]: "+5"
+                    - generic [ref=f19e1540]: 5 years of exp
+                - generic [ref=f19e1544]:
+                  - generic [ref=f19e1545]: 2 weeks ago
+                  - button "Save" [ref=f19e1546] [cursor=pointer]
+                  - button "Apply" [ref=f19e1548] [cursor=pointer]
+              - generic [ref=f19e1549]:
+                - generic [ref=f19e1550]:
+                  - generic [ref=f19e1551]:
+                    - link "AI Engineer" [ref=f19e1552] [cursor=pointer]:
+                      - /url: /jobs/3890200-ai-engineer
+                    - generic [ref=f19e1553]: Full-time
+                  - generic [ref=f19e1554]:
+                    - generic [ref=f19e1555]: $200k – $200k • 0.1% – 0.2%
+                    - generic [ref=f19e1564]:
+                      - text: Onsite or remote • San Francisco
+                      - generic [ref=f19e1565]: "+1"
+                    - generic [ref=f19e1567]: 2 years of exp
+                - generic [ref=f19e1571]:
+                  - generic [ref=f19e1572]: 3 weeks ago
+                  - button "Save" [ref=f19e1573] [cursor=pointer]
+                  - button "Apply" [ref=f19e1575] [cursor=pointer]
+          - generic [ref=f19e1576]:
+            - generic [ref=f19e1577]:
+              - generic [ref=f19e1579]:
+                - link [ref=f19e1580] [cursor=pointer]:
+                  - /url: /company/archesys
+                  - img "Archesys company logo" [ref=f19e1582]
+                - generic [ref=f19e1583]:
+                  - generic [ref=f19e1584]:
+                    - link [ref=f19e1585] [cursor=pointer]:
+                      - /url: /company/archesys
+                      - heading "Archesys" [level=2] [ref=f19e1586]
+                    - generic [ref=f19e1587]: Actively Hiring
+                  - generic [ref=f19e1589]: Improving the government services that impact everyday lives
+                  - generic [ref=f19e1590]: 11-50 Employees
+              - list [ref=f19e1592]:
+                - listitem [ref=f19e1593]:
+                  - generic [ref=f19e1594]: Top 5% of responders
+                - listitem [ref=f19e1598]:
+                  - generic [ref=f19e1599]: Responds within a few days
+                - listitem [ref=f19e1603]:
+                  - generic [ref=f19e1604]: B2B
+                - listitem [ref=f19e1606]: "+2"
+            - generic [ref=f19e1607]:
+              - generic [ref=f19e1608]:
+                - generic [ref=f19e1609]:
+                  - generic [ref=f19e1610]:
+                    - link "Cloud Solutions Architect" [ref=f19e1611] [cursor=pointer]:
+                      - /url: /jobs/2776300-2-cloud-solutions-architect
+                    - generic [ref=f19e1612]: Full-time
+                  - generic [ref=f19e1613]:
+                    - generic [ref=f19e1614]: $100k – $135k • No equity
+                    - generic [ref=f19e1623]:
+                      - text: Remote only • Alabama
+                      - generic [ref=f19e1624]: "+188"
+                    - generic [ref=f19e1626]: 5 years of exp
+                - generic [ref=f19e1630]:
+                  - generic [ref=f19e1631]: today
+                  - button "Save" [ref=f19e1632] [cursor=pointer]
+                  - button "Apply" [ref=f19e1634] [cursor=pointer]
+              - generic [ref=f19e1635]:
+                - generic [ref=f19e1636]:
+                  - generic [ref=f19e1637]:
+                    - link "AI Software Engineer" [ref=f19e1638] [cursor=pointer]:
+                      - /url: /jobs/4468480-cloud-solutions-architect-clone
+                    - generic [ref=f19e1639]: Full-time
+                  - generic [ref=f19e1640]:
+                    - generic [ref=f19e1641]: $100k – $137k • No equity
+                    - generic [ref=f19e1650]:
+                      - text: Remote only • Atlanta
+                      - generic [ref=f19e1651]: "+70"
+                    - generic [ref=f19e1653]: 4 years of exp
+                - generic [ref=f19e1657]:
+                  - generic [ref=f19e1658]: today
+                  - button "Save" [ref=f19e1659] [cursor=pointer]
+                  - button "Apply" [ref=f19e1661] [cursor=pointer]
+              - generic [ref=f19e1662]:
+                - generic [ref=f19e1663]:
+                  - generic [ref=f19e1664]:
+                    - link "Platform Engineer" [ref=f19e1665] [cursor=pointer]:
+                      - /url: /jobs/2776267-platform-engineer
+                    - generic [ref=f19e1666]: Full-time
+                  - generic [ref=f19e1667]:
+                    - generic [ref=f19e1668]: $90k – $120k • No equity
+                    - generic [ref=f19e1677]:
+                      - text: Remote only • Alabama
+                      - generic [ref=f19e1678]: "+206"
+                    - generic [ref=f19e1680]: 3 years of exp
+                - generic [ref=f19e1684]:
+                  - generic [ref=f19e1685]: 3 days ago
+                  - button "Save" [ref=f19e1686] [cursor=pointer]
+                  - button "Apply" [ref=f19e1688] [cursor=pointer]
+          - generic [ref=f19e1689]:
+            - generic [ref=f19e1690]:
+              - generic [ref=f19e1692]:
+                - link [ref=f19e1693] [cursor=pointer]:
+                  - /url: /company/rula
+                  - img "Rula company logo" [ref=f19e1695]
+                - generic [ref=f19e1696]:
+                  - generic [ref=f19e1697]:
+                    - link [ref=f19e1698] [cursor=pointer]:
+                      - /url: /company/rula
+                      - heading "Rula" [level=2] [ref=f19e1699]
+                    - generic [ref=f19e1700]: Actively Hiring
+                  - generic [ref=f19e1702]: Our mission is to make mental healthcare work for everyone
+                  - generic [ref=f19e1703]: 501-1000 Employees
+              - list [ref=f19e1705]:
+                - listitem [ref=f19e1706]:
+                  - generic [ref=f19e1707]: Top 1% of responders
+                - listitem [ref=f19e1711]:
+                  - generic [ref=f19e1712]: Responds within a day
+                - listitem [ref=f19e1716]:
+                  - generic [ref=f19e1717]: B2C
+                - listitem [ref=f19e1719]: "+1"
+            - generic [ref=f19e1720]:
+              - generic [ref=f19e1721]:
+                - generic [ref=f19e1722]:
+                  - generic [ref=f19e1723]:
+                    - link "Sr. Software Engineer - Patient Onboarding (Remote)" [ref=f19e1724] [cursor=pointer]:
+                      - /url: /jobs/4463671-sr-software-engineer-patient-onboarding-remote
+                    - generic [ref=f19e1725]: Full-time
+                  - generic [ref=f19e1726]:
+                    - generic [ref=f19e1727]: $172k – $203k
+                    - generic [ref=f19e1732]: Remote • Los Angeles
+                - generic [ref=f19e1737]:
+                  - generic [ref=f19e1738]: yesterday
+                  - button "Save" [ref=f19e1739] [cursor=pointer]
+                  - button "Apply" [ref=f19e1741] [cursor=pointer]
+              - generic [ref=f19e1742]:
+                - generic [ref=f19e1743]:
+                  - generic [ref=f19e1744]:
+                    - link "Software Engineer 2 - Patient Onboarding (Remote)" [ref=f19e1745] [cursor=pointer]:
+                      - /url: /jobs/4463670-software-engineer-2-patient-onboarding-remote
+                    - generic [ref=f19e1746]: Full-time
+                  - generic [ref=f19e1747]:
+                    - generic [ref=f19e1748]: $145k – $171k
+                    - generic [ref=f19e1753]: Remote • Los Angeles
+                - generic [ref=f19e1758]:
+                  - generic [ref=f19e1759]: yesterday
+                  - button "Save" [ref=f19e1760] [cursor=pointer]
+                  - button "Apply" [ref=f19e1762] [cursor=pointer]
+              - generic [ref=f19e1763]:
+                - generic [ref=f19e1764]:
+                  - generic [ref=f19e1765]:
+                    - link "Senior Staff Software Engineer (Remote)" [ref=f19e1766] [cursor=pointer]:
+                      - /url: /jobs/4396683-senior-staff-software-engineer-remote
+                    - generic [ref=f19e1767]: Full-time
+                  - generic [ref=f19e1768]:
+                    - generic [ref=f19e1769]: $240k – $283k
+                    - generic [ref=f19e1774]: Remote • Los Angeles
+                - generic [ref=f19e1779]:
+                  - generic [ref=f19e1780]: 2 weeks ago
+                  - button "Save" [ref=f19e1781] [cursor=pointer]
+                  - button "Apply" [ref=f19e1783] [cursor=pointer]
+          - generic [ref=f19e1784]:
+            - generic [ref=f19e1785]:
+              - generic [ref=f19e1787]:
+                - link [ref=f19e1788] [cursor=pointer]:
+                  - /url: /company/twin-health
+                  - img "Twin Health company logo" [ref=f19e1790]
+                - generic [ref=f19e1791]:
+                  - generic [ref=f19e1792]:
+                    - link [ref=f19e1793] [cursor=pointer]:
+                      - /url: /company/twin-health
+                      - heading "Twin Health" [level=2] [ref=f19e1794]
+                    - generic [ref=f19e1795]: Actively Hiring
+                  - generic [ref=f19e1797]: Reverse chronic diseases and improve metabolic health using IoT sensors, ML
+                  - generic [ref=f19e1798]: 201-500 Employees
+              - list [ref=f19e1800]:
+                - listitem [ref=f19e1801]:
+                  - generic [ref=f19e1802]: B2C
+                - listitem [ref=f19e1804]:
+                  - generic [ref=f19e1805]: Scale Stage
+                - listitem [ref=f19e1809]:
+                  - generic [ref=f19e1810]: Top Investors
+            - generic [ref=f19e1814]:
+              - generic [ref=f19e1815]:
+                - generic [ref=f19e1816]:
+                  - generic [ref=f19e1817]:
+                    - link "Senior Platform Engineer, Productivity & Cloud" [ref=f19e1818] [cursor=pointer]:
+                      - /url: /jobs/4465510-senior-platform-engineer-productivity-cloud
+                    - generic [ref=f19e1819]: Full-time
+                  - generic [ref=f19e1820]: $140k – $150k
+                - generic [ref=f19e1826]:
+                  - generic [ref=f19e1827]: yesterday
+                  - button "Save" [ref=f19e1828] [cursor=pointer]
+                  - button "Apply" [ref=f19e1830] [cursor=pointer]
+              - generic [ref=f19e1831]:
+                - generic [ref=f19e1832]:
+                  - generic [ref=f19e1833]:
+                    - link "Senior Marketing Automation Engineer" [ref=f19e1834] [cursor=pointer]:
+                      - /url: /jobs/4126238-senior-marketing-automation-engineer
+                    - generic [ref=f19e1835]: Full-time
+                  - generic [ref=f19e1836]: $135k – $155k
+                - generic [ref=f19e1842]:
+                  - generic [ref=f19e1843]: 1 day ago
+                  - button "Save" [ref=f19e1844] [cursor=pointer]
+                  - button "Apply" [ref=f19e1846] [cursor=pointer]
+              - generic [ref=f19e1847]:
+                - generic [ref=f19e1848]:
+                  - generic [ref=f19e1849]:
+                    - link "Senior AI Applications Engineer" [ref=f19e1850] [cursor=pointer]:
+                      - /url: /jobs/4452902-senior-ai-applications-engineer
+                    - generic [ref=f19e1851]: Full-time
+                  - generic [ref=f19e1852]: $195k – $210k
+                - generic [ref=f19e1858]:
+                  - generic [ref=f19e1859]: 4 days ago
+                  - button "Save" [ref=f19e1860] [cursor=pointer]
+                  - button "Apply" [ref=f19e1862] [cursor=pointer]
+        - navigation "Pagination Navigation" [ref=f19e1863]:
+          - list [ref=f19e1864]:
+            - listitem [ref=f19e1865]:
+              - link "Page 1, current page" [ref=f19e1866] [cursor=pointer]:
+                - /url: /remote
+                - text: "1"
+            - listitem [ref=f19e1867]:
+              - link "Go to page 2" [ref=f19e1868] [cursor=pointer]:
+                - /url: /remote?page=2
+                - text: "2"
+            - listitem [ref=f19e1869]:
+              - link "Go to page 3" [ref=f19e1870] [cursor=pointer]:
+                - /url: /remote?page=3
+                - text: "3"
+            - listitem [ref=f19e1871]:
+              - link "Go to page 4" [ref=f19e1872] [cursor=pointer]:
+                - /url: /remote?page=4
+                - text: "4"
+            - listitem [ref=f19e1873]:
+              - link "Go to page 5" [ref=f19e1874] [cursor=pointer]:
+                - /url: /remote?page=5
+                - text: "5"
+            - generic [ref=f19e1875]: ...
+            - listitem [ref=f19e1876]:
+              - link "Go to page 99" [ref=f19e1877] [cursor=pointer]:
+                - /url: /remote?page=99
+                - text: "99"
+            - listitem [ref=f19e1878]:
+              - link "Go to page 100" [ref=f19e1879] [cursor=pointer]:
+                - /url: /remote?page=100
+                - text: "100"
+            - listitem [ref=f19e1880]:
+              - link "Go to page 101" [ref=f19e1881] [cursor=pointer]:
+                - /url: /remote?page=101
+                - text: "101"
+            - generic [ref=f19e1882]: ...
+            - listitem [ref=f19e1883]:
+              - link "Go to page 199" [ref=f19e1884] [cursor=pointer]:
+                - /url: /remote?page=199
+                - text: "199"
+            - listitem [ref=f19e1885]:
+              - link "Next page" [ref=f19e1886] [cursor=pointer]:
+                - /url: /remote?page=2
+                - text: Next
+      - generic [ref=f19e1889]:
+        - heading "Explore other remote jobs" [level=3] [ref=f19e1891]
+        - generic [ref=f19e1892]:
+          - link "Backend Engineer" [ref=f19e1893] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/backend-engineer
+          - link "Creative Director" [ref=f19e1894] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/creative-director
+          - link "Data Scientist" [ref=f19e1895] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/data-scientist
+          - link "Designer" [ref=f19e1896] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/designer
+          - link "Devops Engineer" [ref=f19e1897] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/devops-engineer
+          - link "Engineering Manager" [ref=f19e1898] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/engineering-manager
+          - link "Full Stack Engineer" [ref=f19e1899] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/full-stack-engineer
+          - link "Graphic Designer" [ref=f19e1900] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/graphic-designer
+          - link "Mobile Engineer" [ref=f19e1901] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/mobile-engineer
+          - link "Product Manager" [ref=f19e1902] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/product-manager
+          - link "QA Engineer" [ref=f19e1903] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/qa-engineer
+          - link "Security Engineer" [ref=f19e1904] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/security-engineer
+          - link "Software Architect" [ref=f19e1905] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/software-architect
+          - link "Software Engineer" [ref=f19e1906] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/software-engineer
+        - heading "Explore tech jobs in top cities" [level=3] [ref=f19e1908]
+        - generic [ref=f19e1909]:
+          - link "San Francisco" [ref=f19e1910] [cursor=pointer]:
+            - /url: https://wellfound.com/location/san-francisco
+          - link "Los Angeles" [ref=f19e1911] [cursor=pointer]:
+            - /url: https://wellfound.com/location/los-angeles
+          - link "Boston" [ref=f19e1912] [cursor=pointer]:
+            - /url: https://wellfound.com/location/boston
+          - link "Chicago" [ref=f19e1913] [cursor=pointer]:
+            - /url: https://wellfound.com/location/chicago
+          - link "Seattle" [ref=f19e1914] [cursor=pointer]:
+            - /url: https://wellfound.com/location/seattle
+          - link "Austin" [ref=f19e1915] [cursor=pointer]:
+            - /url: https://wellfound.com/location/austin
+          - link "New York" [ref=f19e1916] [cursor=pointer]:
+            - /url: https://wellfound.com/location/new-york
+          - link "Denver" [ref=f19e1917] [cursor=pointer]:
+            - /url: https://wellfound.com/location/denver
+          - link "District of Columbia" [ref=f19e1918] [cursor=pointer]:
+            - /url: https://wellfound.com/location/district-of-columbia
+    - generic [ref=f19e1919]:
+      - button [ref=f19e1920] [cursor=pointer]
+      - button [ref=f19e1924] [cursor=pointer]
+      - button [ref=f19e1928] [cursor=pointer]
+      - button [ref=f19e1932] [cursor=pointer]
+      - button [ref=f19e1936] [cursor=pointer]
+    - contentinfo [ref=f19e1940]:
+      - generic [ref=f19e1941]:
+        - generic [ref=f19e1942]:
+          - link [ref=f19e1943] [cursor=pointer]:
+            - /url: /
+          - generic [ref=f19e1958]:
+            - link [ref=f19e1959] [cursor=pointer]:
+              - /url: http://twitter.com/wellfoundhq
+            - link [ref=f19e1962] [cursor=pointer]:
+              - /url: https://instagram.com/wellfoundhq
+        - generic [ref=f19e1966]:
+          - list [ref=f19e1967]:
+            - listitem [ref=f19e1968]:
+              - heading "For Candidates" [level=4] [ref=f19e1969]
+            - listitem [ref=f19e1970]:
+              - link "Overview" [ref=f19e1971] [cursor=pointer]:
+                - /url: /candidates/overview
+            - listitem [ref=f19e1972]:
+              - link "Startup Jobs" [ref=f19e1973] [cursor=pointer]:
+                - /url: /jobs
+            - listitem [ref=f19e1974]:
+              - link "Web3 Jobs" [ref=f19e1975] [cursor=pointer]:
+                - /url: /web3
+            - listitem [ref=f19e1976]:
+              - link "Featured" [ref=f19e1977] [cursor=pointer]:
+                - /url: /candidates/featured
+            - listitem [ref=f19e1978]:
+              - link "Startup Hiring Data" [ref=f19e1979] [cursor=pointer]:
+                - /url: /hiring-data
+            - listitem [ref=f19e1980]:
+              - link "Tech Startups" [ref=f19e1981] [cursor=pointer]:
+                - /url: /startups
+            - listitem [ref=f19e1982]:
+              - link "Remote" [ref=f19e1983] [cursor=pointer]:
+                - /url: /candidates/remote
+          - list [ref=f19e1984]:
+            - listitem [ref=f19e1985]:
+              - heading "For Recruiters" [level=4] [ref=f19e1986]
+            - listitem [ref=f19e1987]:
+              - link "Overview" [ref=f19e1988] [cursor=pointer]:
+                - /url: /recruit/overview
+            - listitem [ref=f19e1989]:
+              - link "Recruit Pro" [ref=f19e1990] [cursor=pointer]:
+                - /url: /recruit/products/recruit-pro
+            - listitem [ref=f19e1991]:
+              - link "Curated" [ref=f19e1992] [cursor=pointer]:
+                - /url: /recruit/products/curated
+            - listitem [ref=f19e1993]:
+              - link "Wellfound:ai" [ref=f19e1994] [cursor=pointer]:
+                - /url: /recruit/products/recruiter-cloud
+            - listitem [ref=f19e1995]:
+              - link "Hire Developers" [ref=f19e1996] [cursor=pointer]:
+                - /url: /hire
+            - listitem [ref=f19e1997]:
+              - link "Pricing" [ref=f19e1998] [cursor=pointer]:
+                - /url: /recruit/pricing
+          - list [ref=f19e1999]:
+            - listitem [ref=f19e2000]:
+              - heading "Company" [level=4] [ref=f19e2001]
+            - listitem [ref=f19e2002]:
+              - link "About" [ref=f19e2003] [cursor=pointer]:
+                - /url: https://wellfound.com
+            - listitem [ref=f19e2004]:
+              - link "Help" [ref=f19e2005] [cursor=pointer]:
+                - /url: https://help.wellfound.com/
+            - listitem [ref=f19e2006]:
+              - link "Blog" [ref=f19e2007] [cursor=pointer]:
+                - /url: /discover/blog
+            - listitem [ref=f19e2008]:
+              - link "Terms & Risks" [ref=f19e2009] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=f19e2010]:
+              - link "Privacy & Cookies" [ref=f19e2011] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f19e2012]:
+              - link "Trust" [ref=f19e2013] [cursor=pointer]:
+                - /url: https://trust.wellfound.ai
+            - listitem [ref=f19e2014]:
+              - link "Platform Status" [ref=f19e2015] [cursor=pointer]:
+                - /url: https://status.wellfound.com
+      - generic [ref=f19e2016]:
+        - generic [ref=f19e2017]:
+          - paragraph [ref=f19e2018]: Copyright © 2026 Wellfound. All rights reserved.
+          - generic [ref=f19e2019] [cursor=pointer]: Cookie Preferences
+        - paragraph [ref=f19e2020]:
+          - text: "Browse by:"
+          - link "Jobs" [ref=f19e2021] [cursor=pointer]:
+            - /url: /browse/tech-jobs
+          - text: ","
+          - link "Remote Jobs" [ref=f19e2022] [cursor=pointer]:
+            - /url: /browse/remote-tech-jobs
+          - text: ","
+          - link "Locations" [ref=f19e2023] [cursor=pointer]:
+            - /url: /browse/tech-job-locations
+          - text: ","
+          - link "Startups" [ref=f19e2024] [cursor=pointer]:
+            - /url: /browse/tech-startups
+          - text: ","
+          - link "Startups Hiring" [ref=f19e2025] [cursor=pointer]:
+            - /url: /browse/startups-hiring
+          - text: ","
+          - link "Industries" [ref=f19e2026] [cursor=pointer]:
+            - /url: /browse/tech-industries
+          - text: ","
+          - link "Tech Hubs" [ref=f19e2027] [cursor=pointer]:
+            - /url: /browse/tech-hubs
+  - alert [ref=f19e2028]

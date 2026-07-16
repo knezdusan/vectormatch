@@ -1,0 +1,146 @@
+- generic [active] [ref=f14e1]:
+  - generic [ref=f14e3]:
+    - banner [ref=f14e4]:
+      - generic [ref=f14e5]:
+        - link [ref=f14e6] [cursor=pointer]:
+          - /url: /
+        - button [ref=f14e21]
+      - navigation:
+        - link "Overview" [ref=f14e27] [cursor=pointer]:
+          - /url: /candidates/overview
+        - link "Jobs" [ref=f14e31] [cursor=pointer]:
+          - /url: /jobs
+        - link "Featured" [ref=f14e35] [cursor=pointer]:
+          - /url: /candidates/featured
+        - link "Remote" [ref=f14e39] [cursor=pointer]:
+          - /url: /candidates/remote
+        - link "For companies" [ref=f14e43] [cursor=pointer]:
+          - /url: /recruit/overview
+        - generic [ref=f14e46]:
+          - button "Log In" [ref=f14e48] [cursor=pointer]
+          - button "Sign Up" [ref=f14e50] [cursor=pointer]
+      - iframe
+    - generic [ref=f14e54]:
+      - heading "Over 130k remote & local startup jobs" [level=1] [ref=f14e55]
+      - heading "Find what's next:" [level=2] [ref=f14e56]
+      - generic [ref=f14e58]:
+        - generic [ref=f14e64]:
+          - generic [ref=f14e65]: Job title
+          - textbox [ref=f14e68]
+        - generic [ref=f14e76]:
+          - generic [ref=f14e77]: Location
+          - textbox [ref=f14e80]
+        - button "Search" [ref=f14e81]
+    - generic [ref=f14e90]:
+      - button [ref=f14e91] [cursor=pointer]
+      - button [ref=f14e95] [cursor=pointer]
+      - button [ref=f14e99] [cursor=pointer]
+      - button [ref=f14e103] [cursor=pointer]
+      - button [ref=f14e107] [cursor=pointer]
+    - contentinfo [ref=f14e111]:
+      - generic [ref=f14e112]:
+        - generic [ref=f14e113]:
+          - link [ref=f14e114] [cursor=pointer]:
+            - /url: /
+          - generic [ref=f14e129]:
+            - link [ref=f14e130] [cursor=pointer]:
+              - /url: http://twitter.com/wellfoundhq
+            - link [ref=f14e133] [cursor=pointer]:
+              - /url: https://instagram.com/wellfoundhq
+        - generic [ref=f14e137]:
+          - list [ref=f14e138]:
+            - listitem [ref=f14e139]:
+              - heading "For Candidates" [level=4] [ref=f14e140]
+            - listitem [ref=f14e141]:
+              - link "Overview" [ref=f14e142] [cursor=pointer]:
+                - /url: /candidates/overview
+            - listitem [ref=f14e143]:
+              - link "Startup Jobs" [ref=f14e144] [cursor=pointer]:
+                - /url: /jobs
+            - listitem [ref=f14e145]:
+              - link "Web3 Jobs" [ref=f14e146] [cursor=pointer]:
+                - /url: /web3
+            - listitem [ref=f14e147]:
+              - link "Featured" [ref=f14e148] [cursor=pointer]:
+                - /url: /candidates/featured
+            - listitem [ref=f14e149]:
+              - link "Startup Hiring Data" [ref=f14e150] [cursor=pointer]:
+                - /url: /hiring-data
+            - listitem [ref=f14e151]:
+              - link "Tech Startups" [ref=f14e152] [cursor=pointer]:
+                - /url: /startups
+            - listitem [ref=f14e153]:
+              - link "Remote" [ref=f14e154] [cursor=pointer]:
+                - /url: /candidates/remote
+          - list [ref=f14e155]:
+            - listitem [ref=f14e156]:
+              - heading "For Recruiters" [level=4] [ref=f14e157]
+            - listitem [ref=f14e158]:
+              - link "Overview" [ref=f14e159] [cursor=pointer]:
+                - /url: /recruit/overview
+            - listitem [ref=f14e160]:
+              - link "Recruit Pro" [ref=f14e161] [cursor=pointer]:
+                - /url: /recruit/products/recruit-pro
+            - listitem [ref=f14e162]:
+              - link "Curated" [ref=f14e163] [cursor=pointer]:
+                - /url: /recruit/products/curated
+            - listitem [ref=f14e164]:
+              - link "Wellfound:ai" [ref=f14e165] [cursor=pointer]:
+                - /url: /recruit/products/recruiter-cloud
+            - listitem [ref=f14e166]:
+              - link "Hire Developers" [ref=f14e167] [cursor=pointer]:
+                - /url: /hire
+            - listitem [ref=f14e168]:
+              - link "Pricing" [ref=f14e169] [cursor=pointer]:
+                - /url: /recruit/pricing
+          - list [ref=f14e170]:
+            - listitem [ref=f14e171]:
+              - heading "Company" [level=4] [ref=f14e172]
+            - listitem [ref=f14e173]:
+              - link "About" [ref=f14e174] [cursor=pointer]:
+                - /url: https://wellfound.com
+            - listitem [ref=f14e175]:
+              - link "Help" [ref=f14e176] [cursor=pointer]:
+                - /url: https://help.wellfound.com/
+            - listitem [ref=f14e177]:
+              - link "Blog" [ref=f14e178] [cursor=pointer]:
+                - /url: /discover/blog
+            - listitem [ref=f14e179]:
+              - link "Terms & Risks" [ref=f14e180] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=f14e181]:
+              - link "Privacy & Cookies" [ref=f14e182] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f14e183]:
+              - link "Trust" [ref=f14e184] [cursor=pointer]:
+                - /url: https://trust.wellfound.ai
+            - listitem [ref=f14e185]:
+              - link "Platform Status" [ref=f14e186] [cursor=pointer]:
+                - /url: https://status.wellfound.com
+      - generic [ref=f14e187]:
+        - generic [ref=f14e188]:
+          - paragraph [ref=f14e189]: Copyright © 2026 Wellfound. All rights reserved.
+          - generic [ref=f14e190] [cursor=pointer]: Cookie Preferences
+        - paragraph [ref=f14e191]:
+          - text: "Browse by:"
+          - link "Jobs" [ref=f14e192] [cursor=pointer]:
+            - /url: /browse/tech-jobs
+          - text: ","
+          - link "Remote Jobs" [ref=f14e193] [cursor=pointer]:
+            - /url: /browse/remote-tech-jobs
+          - text: ","
+          - link "Locations" [ref=f14e194] [cursor=pointer]:
+            - /url: /browse/tech-job-locations
+          - text: ","
+          - link "Startups" [ref=f14e195] [cursor=pointer]:
+            - /url: /browse/tech-startups
+          - text: ","
+          - link "Startups Hiring" [ref=f14e196] [cursor=pointer]:
+            - /url: /browse/startups-hiring
+          - text: ","
+          - link "Industries" [ref=f14e197] [cursor=pointer]:
+            - /url: /browse/tech-industries
+          - text: ","
+          - link "Tech Hubs" [ref=f14e198] [cursor=pointer]:
+            - /url: /browse/tech-hubs
+  - alert [ref=f14e199]

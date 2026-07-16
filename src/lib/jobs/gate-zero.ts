@@ -658,8 +658,8 @@ const NATIONAL_SECURITY_KEYWORDS = [
 ];
 
 const NATIONAL_SECURITY_REGEX = new RegExp(
-  NATIONAL_SECURITY_KEYWORDS.map((kw) =>
-    kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+  NATIONAL_SECURITY_KEYWORDS.map(
+    (kw) => `\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
   ).join("|"),
   "i",
 );
