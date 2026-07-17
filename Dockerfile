@@ -55,8 +55,18 @@ RUN --mount=type=cache,target=/app/.next/cache \
 # The browser binary is ~300MB but is required for the Wellfound direct-ingestion
 # adapter which uses Playwright to bypass Cloudflare captcha. Installed in the
 # builder stage so it can be copied to the runner without the full node_modules.
+#
+# Split into two steps for resilience:
+#   1. install-deps — apt packages (idempotent, no retry needed)
+#   2. install — browser binary download from cdn.playwright.dev (retry on
+#      transient network failures — the Chrome Headless Shell download has
+#      been observed to fail mid-stream, killing the entire build)
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
-RUN npx playwright install --with-deps chromium
+RUN npx playwright install-deps chromium
+RUN for i in 1 2 3; do \
+      npx playwright install chromium && break || \
+      { echo "Playwright browser download failed (attempt $i/3), retrying in 10s..." && sleep 10; }; \
+    done
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3: Runner (minimal production image)

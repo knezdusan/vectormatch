@@ -23,16 +23,20 @@ vi.mock("server-only", () => ({}));
 
 // Capture the SQL expression passed to .where() so we can inspect its chunks.
 const capturedWhereArgs: unknown[] = [];
+const capturedOrderByArgs: unknown[][] = [];
 
 // .where() must return an object that is both thenable (for getPublicJobsCount
 // which calls .then()) and has .orderBy() (for getPublicJobs which chains
 // .orderBy().limit().offset()). Object.assign onto a Promise achieves both.
 const mockWhereReturn = Object.assign(Promise.resolve([] as unknown[]), {
-  orderBy: vi.fn(() => ({
-    limit: vi.fn(() => ({
-      offset: vi.fn(() => Promise.resolve([] as unknown[])),
-    })),
-  })),
+  orderBy: vi.fn((...args: unknown[]) => {
+    capturedOrderByArgs.push(args);
+    return {
+      limit: vi.fn(() => ({
+        offset: vi.fn(() => Promise.resolve([] as unknown[])),
+      })),
+    };
+  }),
   limit: vi.fn(() => Promise.resolve([] as unknown[])),
 });
 
@@ -137,9 +141,26 @@ function extractRawSqlAndParams(obj: unknown): ExtractedSql {
     } else if (kind === "Param") {
       // Explicit Param instance — becomes $N placeholder
       params.push(o.value);
+    } else if (
+      typeof o.name === "string" &&
+      o.table &&
+      typeof (o.table as { name?: string }).name === "string"
+    ) {
+      // Column reference chunk (e.g., "published_at")
+      rawSqlParts.push(o.name);
     } else if (o.queryChunks && Array.isArray(o.queryChunks)) {
       // SQL container — recurse into its chunks
       o.queryChunks.forEach(walk);
+    } else if (
+      typeof o.name === "string" &&
+      o.table &&
+      typeof o.table === "object"
+    ) {
+      // Column reference chunk (e.g., "published_at")
+      rawSqlParts.push(o.name);
+    } else if (typeof (o as { getSQL?: () => unknown }).getSQL === "function") {
+      // SQL wrapper (Column, Table, etc.) — expand its generated SQL
+      walk((o as { getSQL: () => unknown }).getSQL());
     }
   }
 
@@ -453,5 +474,43 @@ describe("getPublicJobsCount — default 60-day freshness gate", () => {
     const ageDays = (now - cutoff) / (1000 * 60 * 60 * 24);
     expect(ageDays).toBeGreaterThan(55);
     expect(ageDays).toBeLessThan(65);
+  });
+});
+
+// =============================================================================
+// TESTS — NULL-safe date ordering regression
+// =============================================================================
+
+describe("getPublicJobs — NULL-safe date ordering", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    capturedWhereArgs.length = 0;
+    capturedOrderByArgs.length = 0;
+  });
+
+  it("sorts newest by COALESCE(published_at, detected_at) DESC", async () => {
+    await getPublicJobs({}, 20, 0, "newest");
+
+    expect(capturedOrderByArgs.length).toBeGreaterThan(0);
+    const orderByRaw = capturedOrderByArgs[0]
+      .map((arg) => extractRawSqlAndParams(arg).rawSql)
+      .join(" ");
+
+    expect(orderByRaw).toContain("COALESCE");
+    expect(orderByRaw).toContain("published_at");
+    expect(orderByRaw).toContain("detected_at");
+    expect(orderByRaw).toContain("DESC");
+  });
+
+  it("sorts salary with NULLS LAST on compensation_max", async () => {
+    await getPublicJobs({}, 20, 0, "salary");
+
+    expect(capturedOrderByArgs.length).toBeGreaterThan(0);
+    const orderByRaw = capturedOrderByArgs[0]
+      .map((arg) => extractRawSqlAndParams(arg).rawSql)
+      .join(" ");
+
+    expect(orderByRaw).toContain("compensation_max");
+    expect(orderByRaw).toContain("DESC NULLS LAST");
   });
 });
