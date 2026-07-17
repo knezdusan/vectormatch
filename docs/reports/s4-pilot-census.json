@@ -1,0 +1,765 @@
+{
+  "timestamp": "2026-07-17T10:43:27.531Z",
+  "mode": "pilot",
+  "queriesExecuted": 30,
+  "totalResults": 258,
+  "totalErrors": 0,
+  "totalCompanies": 175,
+  "uniqueSlugs": 138,
+  "perATS": {
+    "greenhouse": {
+      "queries": 5,
+      "results": 87,
+      "companies": 49
+    },
+    "lever": {
+      "queries": 5,
+      "results": 62,
+      "companies": 40
+    },
+    "ashby": {
+      "queries": 5,
+      "results": 14,
+      "companies": 13
+    },
+    "smartrecruiters": {
+      "queries": 5,
+      "results": 35,
+      "companies": 25
+    },
+    "workable": {
+      "queries": 5,
+      "results": 19,
+      "companies": 19
+    },
+    "recruitee": {
+      "queries": 5,
+      "results": 41,
+      "companies": 29
+    }
+  },
+  "perStack": {
+    "Laravel": {
+      "queries": 6,
+      "results": 51,
+      "companies": 29
+    },
+    "Next.js": {
+      "queries": 6,
+      "results": 29,
+      "companies": 20
+    },
+    "React": {
+      "queries": 6,
+      "results": 79,
+      "companies": 60
+    },
+    "PHP": {
+      "queries": 6,
+      "results": 31,
+      "companies": 22
+    },
+    "fullstack": {
+      "queries": 6,
+      "results": 68,
+      "companies": 44
+    }
+  },
+  "companies": [
+    {
+      "slug": "gitlab",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "brainpop",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "netlify",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "vercel",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "weedmaps77",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "webflow",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "taskrabbit",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "twilio",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "typeform",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "outschool",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "rvohealth",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "spacex",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "granular",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "smartlyio",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "khanacademy",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "yext",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "mojangab",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "readdle",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "stream",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "smartsheet",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "udacity",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "referralsuseonly",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "kobaltmusicgroup",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "wpp",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "manychat",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "surveymonkey",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "sonyinteractiveentertainmentglobal",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "razorpaysoftwareprivatelimited",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "telnyx54",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "postman",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "sonicwall",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "wikimedia",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "pagerduty",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "intercom",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "nationalpublicradioinc",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "thefork",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "recharge",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "flohealth",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "gocardless",
+      "atsSource": "greenhouse",
+      "url": ""
+    },
+    {
+      "slug": "insiderone",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "oowlish",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "1840&Company",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "airalo",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "covergenius",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "useinsider",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "Coda",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "getwingapp",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "airslate",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "hostinger",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "xsolla",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "educative",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "aircall",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "jobgether",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "mytos",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "magnetforensics",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "shieldai",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "securecodewarrior",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "gohighlevel",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "palantir",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "ippon",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "textnow",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "contentsquare",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "dilitrust",
+      "atsSource": "lever",
+      "url": ""
+    },
+    {
+      "slug": "ledger",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "ndeavour",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "chamelio",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "airapps",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "sensor-tower",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "Braiins",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "sprig",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "twelve-labs",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "padlet",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "climatiq",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "statista",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "datasnipper.com",
+      "atsSource": "ashby",
+      "url": ""
+    },
+    {
+      "slug": "NatixisInPortugal",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "ZinfyTechWebSolutions",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Gotipath",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "CanadianBankNoteCompany",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Sutherland",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "TurnitinLLC",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Nexthink",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Dev2",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "IFS1",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "TokyoTechie",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Medfar",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "SyngentaGroup",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Bet3651",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Intuitive",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "USM2",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "BoschGroup",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Dailymotion",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "AxelSpringerNewsMediaNational",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "CERN",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "T-SystemsICTIndiaPvtLtd1",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "Septeo",
+      "atsSource": "smartrecruiters",
+      "url": ""
+    },
+    {
+      "slug": "athena-global-technologies-limited",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "foodics",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "pitchero",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "minderacraft",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "huzzle",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "mila-2",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "lessonspace",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "climax-studios",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "oes",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "raspberrypi",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "fullstack-labs",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "persist-ventures-2",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "elementio",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "epignosis",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "tatum",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "safety",
+      "atsSource": "workable",
+      "url": ""
+    },
+    {
+      "slug": "curotec",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "appetiser",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "icewarp",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "experiencegift",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "workwize",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "wonderkind",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "basgroup",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "scholarshipowl",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "allshoretalent",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "temper2",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "digitalforms",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "ballysintralotsa",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "callstackpl",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "hygraph",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "teeturtle",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "gustileder",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "cmcom",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "tether",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "umob",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "careerswcc",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "addepto",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "tesenso",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "vpteam",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "xebiapoland",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "bettercollective",
+      "atsSource": "recruitee",
+      "url": ""
+    },
+    {
+      "slug": "majorleaguehacking",
+      "atsSource": "recruitee",
+      "url": ""
+    }
+  ],
+  "extrapolation": {
+    "avgCompaniesPerQuery": 5.8,
+    "projectedFullMatrix": 1750,
+    "projectedUnique": 1380
+  }
+}

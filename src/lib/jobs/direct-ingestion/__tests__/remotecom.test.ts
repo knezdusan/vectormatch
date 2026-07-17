@@ -42,6 +42,16 @@ vi.mock("../../job-normalizer", () => ({
 
 import { fetchRemoteComJobs } from "../remotecom";
 
+// Type narrowing helper for discriminated union results
+function expectSuccess(r: any): { jobs: any[] } {
+  expect(r.success).toBe(true);
+  return r;
+}
+function expectFailure(r: any): { error: string } {
+  expect(r.success).toBe(false);
+  return r;
+}
+
 const playwright = await import("playwright");
 const mockBrowser = playwright.chromium;
 const mockPagePromise = (mockBrowser.launch as any)().then((b: any) => b.newContext().then((c: any) => c.newPage()));
@@ -58,7 +68,7 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toEqual([]);
+    expect(expectSuccess(result).jobs).toEqual([]);
   });
 
   it("parses job cards into DirectIngestionJob objects", async () => {
@@ -75,8 +85,8 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(1);
-    const job = result.jobs[0];
+    expect(expectSuccess(result).jobs).toHaveLength(1);
+    const job = expectSuccess(result).jobs[0];
     expect(job.title).toBe("Senior Frontend Developer (React.js)");
     expect(job.companyName).toBe("Proxify");
     expect(job.externalJobId).toBe("senior-frontend-developer-react-js-j124ckja");
@@ -106,7 +116,7 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs[0].remoteScope).toBe("global");
+    expect(expectSuccess(result).jobs[0].remoteScope).toBe("global");
   });
 
   it("extracts company name from href slug", async () => {
@@ -125,7 +135,7 @@ describe("Remote.com adapter", () => {
     expect(result.success).toBe(true);
     // Company should be extracted from href when not parseable from cardText
     // In this case, the card text has the company, but the href extraction is the fallback
-    expect(result.jobs[0].companyName).toBeTruthy();
+    expect(expectSuccess(result).jobs[0].companyName).toBeTruthy();
   });
 
   it("applies tech filter to reject non-matching jobs", async () => {
@@ -152,8 +162,8 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, reactOnlyFilter, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(1);
-    expect(result.jobs[0].title).toBe("Senior Frontend Developer (React.js)");
+    expect(expectSuccess(result).jobs).toHaveLength(1);
+    expect(expectSuccess(result).jobs[0].title).toBe("Senior Frontend Developer (React.js)");
   });
 
   it("handles multiple pages", async () => {
@@ -176,7 +186,7 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 2);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(2);
+    expect(expectSuccess(result).jobs).toHaveLength(2);
     expect(page.goto).toHaveBeenCalledTimes(2);
   });
 
@@ -194,7 +204,7 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 5);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(1);
+    expect(expectSuccess(result).jobs).toHaveLength(1);
     expect(page.goto).toHaveBeenCalledTimes(2);
   });
 
@@ -211,7 +221,7 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(5, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(5);
+    expect(expectSuccess(result).jobs).toHaveLength(5);
   });
 
   it("returns error when browser launch fails", async () => {
@@ -221,7 +231,7 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 1);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Browser not installed");
+    expect(expectFailure(result).error).toContain("Browser not installed");
   });
 
   it("parses USD salary correctly", async () => {
@@ -238,8 +248,8 @@ describe("Remote.com adapter", () => {
     const result = await fetchRemoteComJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs[0].compensationMin).toBe(2);
-    expect(result.jobs[0].compensationMax).toBe(4);
-    expect(result.jobs[0].compensationCurrency).toBe("USD");
+    expect(expectSuccess(result).jobs[0].compensationMin).toBe(2);
+    expect(expectSuccess(result).jobs[0].compensationMax).toBe(4);
+    expect(expectSuccess(result).jobs[0].compensationCurrency).toBe("USD");
   });
 });

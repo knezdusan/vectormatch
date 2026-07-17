@@ -42,6 +42,16 @@ vi.mock("../../job-normalizer", () => ({
 
 import { fetchWellfoundJobs } from "../wellfound";
 
+// Type narrowing helper for discriminated union results
+function expectSuccess(r: any): { jobs: any[]; employers?: any[] } {
+  expect(r.success).toBe(true);
+  return r;
+}
+function expectFailure(r: any): { error: string } {
+  expect(r.success).toBe(false);
+  return r;
+}
+
 // Get the mocked page object so we can control evaluate responses
 const playwright = await import("playwright");
 const mockBrowser = playwright.chromium;
@@ -59,7 +69,7 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toEqual([]);
+    expect(expectSuccess(result).jobs).toEqual([]);
   });
 
   it("parses job cards into DirectIngestionJob objects", async () => {
@@ -84,8 +94,8 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(1);
-    const job = result.jobs[0];
+    expect(expectSuccess(result).jobs).toHaveLength(1);
+    const job = expectSuccess(result).jobs[0];
     expect(job.title).toBe("Senior React Engineer");
     expect(job.companyName).toBe("TestCo");
     expect(job.externalJobId).toBe("123-senior-react-engineer");
@@ -122,8 +132,8 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs[0].remoteScope).toBe("country_fenced");
-    expect(result.jobs[0].workplaceType).toBe("hybrid");
+    expect(expectSuccess(result).jobs[0].remoteScope).toBe("country_fenced");
+    expect(expectSuccess(result).jobs[0].workplaceType).toBe("hybrid");
   });
 
   it("harvests employers for the Slugger", async () => {
@@ -147,10 +157,10 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.employers).toBeDefined();
-    expect(result.employers).toHaveLength(1);
-    expect(result.employers![0].companyName).toBe("HarvestCo");
-    expect(result.employers![0].companyHref).toBe("/company/harvestco");
+    expect(expectSuccess(result).employers).toBeDefined();
+    expect(expectSuccess(result).employers).toHaveLength(1);
+    expect(expectSuccess(result).employers![0].companyName).toBe("HarvestCo");
+    expect(expectSuccess(result).employers![0].companyHref).toBe("/company/harvestco");
   });
 
   it("applies tech filter to reject non-matching jobs", async () => {
@@ -183,8 +193,8 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, reactOnlyFilter, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(1);
-    expect(result.jobs[0].title).toBe("React Frontend Engineer");
+    expect(expectSuccess(result).jobs).toHaveLength(1);
+    expect(expectSuccess(result).jobs[0].title).toBe("React Frontend Engineer");
   });
 
   it("handles multiple pages and stops at maxPages", async () => {
@@ -225,9 +235,9 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 2);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(2);
-    expect(result.jobs[0].title).toBe("React Engineer");
-    expect(result.jobs[1].title).toBe("Vue Engineer");
+    expect(expectSuccess(result).jobs).toHaveLength(2);
+    expect(expectSuccess(result).jobs[0].title).toBe("React Engineer");
+    expect(expectSuccess(result).jobs[1].title).toBe("Vue Engineer");
     expect(page.goto).toHaveBeenCalledTimes(2);
   });
 
@@ -254,7 +264,7 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 5);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(1);
+    expect(expectSuccess(result).jobs).toHaveLength(1);
     // Should only have called goto twice (page 1 + page 2 which was empty)
     expect(page.goto).toHaveBeenCalledTimes(2);
   });
@@ -278,7 +288,7 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(3, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs).toHaveLength(3);
+    expect(expectSuccess(result).jobs).toHaveLength(3);
   });
 
   it("returns error when browser launch fails", async () => {
@@ -288,7 +298,7 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain("Browser not installed");
+    expect(expectFailure(result).error).toContain("Browser not installed");
   });
 
   it("parses salary ranges correctly", async () => {
@@ -312,8 +322,8 @@ describe("Wellfound adapter", () => {
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
     expect(result.success).toBe(true);
-    expect(result.jobs[0].compensationMin).toBe(80000);
-    expect(result.jobs[0].compensationMax).toBe(150000);
-    expect(result.jobs[0].remoteScope).toBe("country_fenced");
+    expect(expectSuccess(result).jobs[0].compensationMin).toBe(80000);
+    expect(expectSuccess(result).jobs[0].compensationMax).toBe(150000);
+    expect(expectSuccess(result).jobs[0].remoteScope).toBe("country_fenced");
   });
 });

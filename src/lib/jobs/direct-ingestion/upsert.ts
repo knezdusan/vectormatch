@@ -17,11 +17,22 @@
 // job/ingested events are emitted. Gate routing happens separately via
 // direct-gate-routing.ts (WI3 Step 7).
 
+import { createHash } from "node:crypto";
 import { inArray, sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import { job } from "@/db/schemas/jobs/job";
 import { isJobFreshForInjection } from "@/lib/jobs/poller/phalanx-poller";
 import type { DirectBoardSource, DirectIngestionJob } from "./types";
+
+/**
+ * Compute a SHA-256 hash of the normalized text for dedup.
+ * Same algorithm as computeTextHash in provisional-job-repository.ts.
+ * Used by the direct-ingestion upsert to set textHash on every job, enabling
+ * the dedup guard to detect re-ingestion of identical content (B3.3).
+ */
+function computeTextHash(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
+}
 
 export interface DirectUpsertResult {
   totalUpserted: number;
@@ -175,6 +186,9 @@ export async function upsertDirectJobs(
         remoteScope: j.remoteScope,
         // Mark as normalized — prevents jobIngestedHandler from re-processing
         normalizedAt: now,
+        // B3.3: Set textHash for dedup — enables detection of re-ingested
+        // identical content (nofluffjobs/justjoin re-polling same jobs)
+        textHash: computeTextHash(j.normalizedText),
       })),
     )
     .onConflictDoUpdate({
@@ -204,6 +218,8 @@ export async function upsertDirectJobs(
         locationCountries: sql`excluded.location_countries`,
         // Keep normalizedAt set — don't reset
         normalizedAt: sql`GREATEST(${job.normalizedAt}, excluded.normalized_at)`,
+        // B3.3: Update textHash on re-ingestion to detect content drift
+        textHash: sql`excluded.text_hash`,
       },
     })
     .returning({ id: job.id, externalJobId: job.externalJobId });

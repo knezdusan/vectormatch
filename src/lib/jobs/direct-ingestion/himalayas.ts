@@ -82,6 +82,8 @@ const MAX_PAGES = 500;
  * @param maxJobs        Maximum jobs to return after filtering
  * @param techFilter     Function to filter jobs by tech-stack overlap
  * @param fetchFn        Injectable fetch (defaults to global fetch)
+ * @param worldwideOnly  If true, only ingest jobs with empty locationRestrictions
+ *                       (Directive 13, B5.1: worldwide slice, ~1393 global jobs)
  * @returns              DirectFetchResult with filtered DirectIngestionJob[]
  */
 export async function fetchHimalayasJobs(
@@ -92,6 +94,7 @@ export async function fetchHimalayasJobs(
     description: string;
   }) => boolean,
   fetchFn: typeof fetch = fetch,
+  worldwideOnly: boolean = false,
 ): Promise<DirectFetchResult> {
   try {
     const allJobs: DirectIngestionJob[] = [];
@@ -142,6 +145,27 @@ export async function fetchHimalayasJobs(
 
       // Transform + filter each job
       for (const hj of pageJobs) {
+        // B5.1: Worldwide-only filter — skip jobs with non-empty locationRestrictions
+        // when worldwideOnly is enabled. This produces the ~1393 global-only slice.
+        if (
+          worldwideOnly &&
+          hj.locationRestrictions &&
+          hj.locationRestrictions.length > 0
+        ) {
+          // Check if the restrictions contain worldwide/anywhere (still global)
+          const lowerRestrictions = hj.locationRestrictions.map((r) =>
+            r.toLowerCase(),
+          );
+          const isWorldwide = lowerRestrictions.some(
+            (r) =>
+              r.includes("worldwide") ||
+              r.includes("anywhere") ||
+              r.includes("global") ||
+              r.includes("world"),
+          );
+          if (!isWorldwide) continue;
+        }
+
         const tags = (hj.tags ?? []).map((t) => t.toLowerCase());
         const title = hj.title ?? "";
         const description = hj.excerpt ?? hj.description ?? "";

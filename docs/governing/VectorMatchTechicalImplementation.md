@@ -2627,9 +2627,91 @@ Port 8000 (Coolify's default admin port) is **not** opened — the Coolify dashb
 
 Apply the firewall to the CX33 server. The implicit deny at the end blocks all other inbound traffic.
 
+### 7.7 **WordPress Blog & WPVibe Integration `[Status: Implemented — July 17 2026]`**
+
+The public blog is a **WordPress** installation served at `https://vectormatch.dev/blog` via the same Traefik reverse proxy used by the Next.js app. It is fully decoupled from the Next.js application: no shared database, no shared build pipeline, no in-repo content. The WordPress container is managed by Coolify as a native service with a MariaDB 11 companion container and a named Docker volume for persistent files.
+
+#### Subpath routing & deployment
+
+WordPress is served under the `/blog` subpath. Coolify's Traefik `stripprefix` middleware removes `/blog` before forwarding requests to the WordPress container. Three volume-persisted files restore the prefix internally so WordPress rewrite rules and admin URLs remain correct:
+
+*   `wp-blog-defines.php` — loaded by `wp-config.php`; sets `WP_HOME`/`WP_SITEURL` to `https://vectormatch.dev/blog`, forces SSL behind the reverse proxy, and restores the stripped `/blog` prefix to `$_SERVER['REQUEST_URI']`.
+*   `wp-content/mu-plugins/00-subpath-rewrite.php` — filters `mod_rewrite_rules` so generated `.htaccess` rules stay root-based (Apache sees stripped paths).
+*   `.htaccess` — root-based WordPress rewrite rules plus a `mod_rewrite` block that re-adds the `/blog` prefix and forces `https` on Apache directory-slash redirects, which Traefik does not restore on `Location` headers.
+
+#### Custom theme & design system
+
+The active theme is `vectormatch-blog` (custom classic PHP theme). It is intentionally **not** a block/FSE theme: the goal is to mirror the Next.js application header, footer, and design system with minimal WordPress-specific UI.
+
+Key theme files:
+
+*   `header.php` / `footer.php` — replicate the Next.js `Navbar` and `Footer` components, including the VectorMatch logo (loaded from the WordPress media library), nav links (`/jobs`, `/#how`, `/#pitch`, `/blog`), and auth CTAs (`/auth?tab=signin`, `/auth?tab=signup`).
+*   `index.php`, `single.php`, `page.php`, `archive.php` — blog list, single post, page, and taxonomy archives. No `front-page.php`; the homepage is the latest-posts list (`show_on_front = posts`).
+*   `theme.css` — Tailwind v4 design tokens (`@theme` block) matching the Next.js app: colors (`background`, `card`, `foreground`, `primary`, `primary-bright`, `accent`, `muted-foreground`, `border`, `faint`), fonts (`Geist`, `PT Serif`, `Geist Mono`), and component utilities (`.btn-brand`, `.btn-outline`, `.nav-link`, `.card`, `.prose`).
+*   `template-parts/head.php` — inlines `theme.css` into a `<style type="text/tailwindcss">` block for the WPVibe browser CDN, loads Google Fonts, and registers editor color/font tokens via `add_theme_support('editor-color-palette')`.
+*   `functions.php` — theme setup, asset loading, Gutenberg token sync, security hardening, and taxonomy lockdown.
+*   `cta.php` — shared CTA template part.
+*   `dist/styles.css` — compiled Tailwind output generated when the theme is published; the browser CDN is the fallback during drafting.
+
+The theme uses Tailwind v4 utility classes. WPVibe injects a Tailwind v4 browser CDN in draft mode and (after publish) falls back to the compiled `dist/styles.css`. The `theme.css` `@theme` block is the single source of truth; the same file is parsed by `vectormatch_blog_editor_tokens()` to register Gutenberg presets, so there is no `theme.json`.
+
+#### Plugin stack & configuration
+
+Active plugins (as of July 17 2026):
+
+| Plugin | Role | Status |
+|---|---|---|
+| **Elementor** (free) | Optional future content-block builder; **not** used for header/footer/templates. | Active |
+| **Rank Math SEO** | Sitemap, schema, Open Graph, title/meta management. | Active; setup wizard must be completed in wp-admin to activate `/blog/sitemap_index.xml` and JSON-LD schema. |
+| **LiteSpeed Cache** | Page caching, CSS/JS minification, lazy loading. | Active; Alpine.js is excluded from JS optimization because LiteSpeed's minifier corrupts its source-map comment. |
+| **UpdraftPlus** | Daily DB backups, 7-day retention. | Active; remote storage (Google Drive / S3 / etc.) requires OAuth/manual setup in wp-admin. |
+| **Wordfence Security** | Firewall, malware scan, login security. | **Inactive** during agent work; must be reactivated and configured (2FA) in wp-admin after automated setup is complete. |
+| **WPVibe** | MCP bridge for AI agent management. | Active |
+
+Removed plugins: Akismet Anti-spam.
+
+Security hardening is enforced in the theme (`functions.php`) and WordPress options:
+
+*   `DISALLOW_FILE_EDIT` defined as `true`.
+*   `users_can_register` forced to `0`.
+*   Default comment status and pingback status set to `closed`; `default_pingback_flag` set to `0`.
+*   `blog_public` enabled.
+*   XML-RPC disabled; REST API user enumeration disabled; `wp_generator` removed; X-Pingback header removed.
+*   Taxonomy creation/editing restricted to administrators via `user_has_cap` filter.
+*   Permalinks set to `/%postname%/`.
+
+#### Taxonomy
+
+The blog is pre-seeded with a taxonomy that aligns with VectorMatch's content strategy:
+
+*   **Categories (6):** ATS & Hiring Systems, Job Search Strategy, Remote & Global Work, Developer Career Growth, Market Intelligence, Product & Engineering.
+*   **Tags (31):** React, Next.js, TypeScript, Tailwind CSS, GraphQL, Node.js, Vue, Angular, PHP, Laravel, Python, Greenhouse, Lever, Ashby, Workday, SmartRecruiters, ATS, LinkedIn, Resume, Cover Letter, Interviews, Salary, Remote, Freelance, B2B, Work Authorization, AI, Networking, Portfolio, Skills, Seniority.
+
+#### WPVibe agent workflow & constraints
+
+WPVibe is the MCP bridge that allows Devin to manage the WordPress site via `run_wp_cli`, `rest_api`, `write_file`, `edit_file`, and theme draft/publish operations. The site is at `https://vectormatch.dev/blog` and must be connected via `connect_site` first. Connection requires a one-click authorization in the WordPress admin.
+
+**Recommended agent workflow:**
+
+1.  **Connect**: `connect_site(site_url: "https://vectormatch.dev/blog")`. This returns an authorization link for the user to approve. After approval, credentials are stored and subsequent calls are authenticated.
+2.  **Inspect**: `site_info` to confirm active theme, plugins, and capabilities; `run_wp_cli` for plugin/theme queries.
+3.  **Draft changes**: `create_draft_theme` to make theme edits safely. `write_file` and `edit_file` operate on the draft theme. `upload_media` adds assets to the WordPress library. `rest_api` creates posts, categories, tags, pages.
+4.  **Preview**: draft changes are previewable via WPVibe's preview URL before publish.
+5.  **Publish**: `publish_draft_theme` makes the draft live and purges caches. The previous live theme is kept as `*-wpvibe-backup`.
+6.  **Plugins/options**: `run_wp_cli` installs/activates/deactivates plugins and updates options. Some operations (e.g., plugin uninstall, file deletion) require explicit user approval via a WPVibe approval link.
+
+**Known constraints & workarounds:**
+
+*   **Wordfence blocks WPVibe**: Once Wordfence is active, its firewall/login security blocks the Application Password authentication used by WPVibe. Keep Wordfence deactivated during agent work; reactivate it only after the agent has finished, then complete 2FA and login settings in wp-admin.
+*   **DISALLOW_FILE_EDIT**: WordPress has `DISALLOW_FILE_EDIT` enabled. This prevents in-admin theme/plugin editing, which is desirable for security, but it also means mu-plugins must be added via the theme (`functions.php`) or direct file access rather than WPVibe's theme file tools (which are scoped to the active draft theme). In this setup, security hardening and taxonomy lockdown were placed in `functions.php` instead of separate mu-plugins.
+*   **Rank Math setup wizard**: Sitemap and schema output require the Rank Math setup wizard to be completed in wp-admin. The WordPress core sitemap (`/blog/wp-sitemap.xml`) works immediately as a fallback.
+*   **LiteSpeed Cache JS optimization**: The local Alpine.js file was excluded from JS optimization because LiteSpeed's minifier corrupted its source-map comment. If future console errors appear, check whether LiteSpeed has optimized a script it should not have.
+*   **Rewrite rules**: After changing permalink structure or publishing a theme, run `wp rewrite flush` to regenerate rules.
+*   **Approval tier**: Plugin installs and option updates are generally agent-autonomous; plugin uninstalls and file deletions require explicit user approval through WPVibe.
+
 ## 8. PUBLIC SITE SEO & BRAND ASSETS `[Status: Implemented]`
 
-The marketing site uses Next.js App Router metadata conventions for SEO, social sharing, and PWA assets. **Blog SEO** (per-post metadata, sitemaps, Open Graph) is handled by WordPress SEO plugins (RankMath/Yoast) at `/blog/*` — the Next.js `sitemap.ts` includes the `/blog` base URL so search engines discover the WordPress blog, and WordPress generates its own sitemap at `/blog/sitemap_index.xml`.
+The marketing site uses Next.js App Router metadata conventions for SEO, social sharing, and PWA assets. **Blog SEO** (per-post metadata, sitemaps, Open Graph) is handled by the WordPress Rank Math plugin at `/blog/*` — the Next.js `sitemap.ts` includes the `/blog` base URL so search engines discover the WordPress blog. WordPress core provides an interim sitemap at `/blog/wp-sitemap.xml`; once the Rank Math setup wizard is completed, `/blog/sitemap_index.xml` will become the canonical sitemap. Per-post Open Graph metadata is handled by Rank Math.
 
 ### 8.1 Favicon & touch icons
 

@@ -13,6 +13,8 @@
  *   npx tsx scripts/s4-pilot.ts           # 30-query pilot
  *   npx tsx scripts/s4-pilot.ts --full    # 300-query full matrix
  */
+
+import { writeFileSync } from "node:fs";
 import {
   generateQueryMatrix,
   type TargetedQuery,
@@ -289,6 +291,30 @@ async function main() {
   console.log();
 
   console.log("═".repeat(80));
+
+  // ── Persist results to file (B4.1: S4 slug census recovery) ──────────────
+  const outputFile = isFullMode
+    ? "docs/reports/s4-full-matrix-census.json"
+    : "docs/reports/s4-pilot-census.json";
+  const censusData = {
+    timestamp: new Date().toISOString(),
+    mode: isFullMode ? "full" : "pilot",
+    queriesExecuted: pilotQueries.length,
+    totalResults,
+    totalErrors,
+    totalCompanies,
+    uniqueSlugs: uniqueSlugs.size,
+    perATS: atsGroups,
+    perStack: stackGroups,
+    companies: allCompanies,
+    extrapolation: {
+      avgCompaniesPerQuery: parseFloat(avgCompaniesPerQuery.toFixed(1)),
+      projectedFullMatrix,
+      projectedUnique,
+    },
+  };
+  writeFileSync(outputFile, JSON.stringify(censusData, null, 2));
+  console.log(`\n  Census persisted to: ${outputFile}`);
 }
 
 main().catch((err) => {

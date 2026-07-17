@@ -1,0 +1,868 @@
+{
+  "timestamp": "2026-07-17T10:44:26.587Z",
+  "source": "s4-pilot-census.json",
+  "newCandidates": 95,
+  "alreadyEnrolled": 43,
+  "estimatedCost": 1.9000000000000012,
+  "candidates": [
+    {
+      "slug": "brainpop",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "weedmaps77",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "twilio",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "typeform",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "rvohealth",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "granular",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "smartlyio",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "yext",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "readdle",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "stream",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "smartsheet",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "referralsuseonly",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "kobaltmusicgroup",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "wpp",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "manychat",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "surveymonkey",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "sonyinteractiveentertainmentglobal",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "razorpaysoftwareprivatelimited",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "sonicwall",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "wikimedia",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "pagerduty",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "nationalpublicradioinc",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "thefork",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "flohealth",
+      "atsSource": "greenhouse",
+      "priority": 5,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "insiderone",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "covergenius",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "useinsider",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Coda",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "hostinger",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "educative",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "mytos",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "magnetforensics",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "securecodewarrior",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "textnow",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "dilitrust",
+      "atsSource": "lever",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "ledger",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "ndeavour",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "chamelio",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "sensor-tower",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "sprig",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "twelve-labs",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "padlet",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "statista",
+      "atsSource": "ashby",
+      "priority": 4,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "ZinfyTechWebSolutions",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Gotipath",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Nexthink",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Dev2",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "IFS1",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "TokyoTechie",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Medfar",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "SyngentaGroup",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Intuitive",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "USM2",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Dailymotion",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "CERN",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "T-SystemsICTIndiaPvtLtd1",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "Septeo",
+      "atsSource": "smartrecruiters",
+      "priority": 3,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "athena-global-technologies-limited",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "pitchero",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "huzzle",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "mila-2",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "lessonspace",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "climax-studios",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "oes",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "raspberrypi",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "fullstack-labs",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "persist-ventures-2",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "elementio",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "epignosis",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "tatum",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "safety",
+      "atsSource": "workable",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "curotec",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "appetiser",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "icewarp",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "experiencegift",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "workwize",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "wonderkind",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "basgroup",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "scholarshipowl",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "allshoretalent",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "temper2",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "digitalforms",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "ballysintralotsa",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "callstackpl",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "hygraph",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "teeturtle",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "gustileder",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "cmcom",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "umob",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "careerswcc",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "addepto",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "tesenso",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "vpteam",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "xebiapoland",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    },
+    {
+      "slug": "majorleaguehacking",
+      "atsSource": "recruitee",
+      "priority": 2,
+      "alreadyEnrolled": false,
+      "existingJobCount": 0,
+      "existingGlobalJobCount": 0,
+      "estimatedCost": 0.02
+    }
+  ],
+  "extrapolation": {
+    "projectedNew": 950,
+    "projectedCost": 19
+  }
+}
