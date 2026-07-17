@@ -272,7 +272,7 @@ export function JobCard({ job, isAuthenticated }: JobCardProps) {
               >
                 {freshness.label}
               </Badge>
-              <TooltipInfo content="When this job was first published (or detected if no publish date was provided). Green = under 7 days, yellow = 7-30 days, red = over 30 days." />
+              <TooltipInfo content="When this job was first published by the ATS, or when we first detected it if the ATS did not expose a publish date. Green = under 7 days, yellow = 7-30 days, red = over 30 days." />
             </div>
           )}
         </div>

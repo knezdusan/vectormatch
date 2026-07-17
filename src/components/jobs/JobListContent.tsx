@@ -18,7 +18,6 @@ const PAGE_SIZE = 20;
 const VALID_SORTS: readonly JobSortOption[] = [
   "newest",
   "oldest",
-  "relevance",
   "quality",
   "salary",
 ] as const;

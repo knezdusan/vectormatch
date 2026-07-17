@@ -405,7 +405,7 @@ export function JobList({
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1">
                   <Label className="text-sm">Sort by:</Label>
-                  <TooltipInfo content="Choose how job results are ordered. Newest/Oldest use publish date; Relevance falls back to Newest; Company Quality uses company fusion score + tier; Highest Pay uses the max salary (only ~2% of jobs have salary data)." />
+                  <TooltipInfo content="Choose how job results are ordered. Newest/Oldest use the publish date (or detection date when the ATS does not provide one). Company Quality uses fusion score + tier; Highest Pay uses the max salary and falls back to date (only ~2% of jobs have salary data)." />
                 </div>
                 <Select value={sortBy} onValueChange={handleSortChange}>
                   <SelectTrigger className="w-48">

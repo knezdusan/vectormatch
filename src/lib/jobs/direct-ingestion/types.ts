@@ -165,7 +165,12 @@ export interface DirectIngestionJob {
    *  country data (NoFluffJobs places[], JustJoin countryCode) should set
    *  "country_fenced" or "region_fenced" based on the actual country spread,
    *  not blindly default to "global". */
-  remoteScope: "global" | "country_fenced" | "region_fenced" | "unknown";
+  remoteScope:
+    | "global"
+    | "country_fenced"
+    | "region_fenced"
+    | "onsite"
+    | "unknown";
   /** ISO 3166-1 alpha-2 country codes the job is fenced to, when the board
    *  provides structured country data (e.g. NoFluffJobs places[].country.code,
    *  JustJoin detail.countryCode). Null for global / unknown scope. Mapped

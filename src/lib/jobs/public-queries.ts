@@ -8,7 +8,6 @@
 
 import {
   and,
-  asc,
   count,
   desc,
   eq,
@@ -28,12 +27,7 @@ import { job } from "@/db/schemas/jobs/job";
 // TYPES
 // =============================================================================
 
-export type JobSortOption =
-  | "newest"
-  | "oldest"
-  | "relevance"
-  | "quality"
-  | "salary";
+export type JobSortOption = "newest" | "oldest" | "quality" | "salary";
 export type JobRemoteScope =
   | "global"
   | "country_fenced"
@@ -110,7 +104,6 @@ export const JOB_SORT_OPTIONS: readonly {
 }[] = [
   { value: "newest", label: "Newest First" },
   { value: "oldest", label: "Oldest First" },
-  { value: "relevance", label: "Relevance" },
   { value: "quality", label: "Company Quality" },
   { value: "salary", label: "Highest Pay" },
 ] as const;
@@ -357,24 +350,35 @@ export async function getPublicJobs(
     // near the top of the conditions list). When postedWithin is provided, it
     // replaces the 60-day default; when absent, the 60-day default applies.
 
+    // Effective date for sorting: use the ATS publish date when available,
+    // otherwise fall back to the first time we detected the job. This matches
+    // the COALESCE(published_at, detected_at) semantics used by the age filter.
+    const effectiveDate = sql`COALESCE(${job.publishedAt}, ${job.detectedAt})`;
+
     // Sort order clause
     let orderByClause: SQL[];
     switch (sortBy) {
-      case "salary":
-        orderByClause = [desc(job.compensationMax), desc(job.publishedAt)];
+      case "newest":
+        orderByClause = [sql`${effectiveDate} DESC`];
         break;
       case "oldest":
-        orderByClause = [asc(job.publishedAt), asc(job.detectedAt)];
+        orderByClause = [sql`${effectiveDate} ASC`];
+        break;
+      case "salary":
+        orderByClause = [
+          sql`${job.compensationMax} DESC NULLS LAST`,
+          sql`${effectiveDate} DESC`,
+        ];
         break;
       case "quality":
         orderByClause = [
-          desc(company.fusionScore),
-          desc(company.tier),
-          desc(job.publishedAt),
+          sql`${company.fusionScore} DESC NULLS LAST`,
+          sql`${company.tier} DESC NULLS LAST`,
+          sql`${effectiveDate} DESC`,
         ];
         break;
       default:
-        orderByClause = [desc(job.publishedAt), desc(job.detectedAt)];
+        orderByClause = [sql`${effectiveDate} DESC`];
         break;
     }
 
