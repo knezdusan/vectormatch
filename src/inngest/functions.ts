@@ -1910,6 +1910,16 @@ export const directJobBoardIngestion = inngest.createFunction(
               : null,
           })),
         );
+        // D16 G1: If filterExcluded removed all jobs, log it — don't silently skip.
+        if (jobsForUpsert.length === 0) {
+          boardResults.push({
+            board: boardName,
+            success: true,
+            ingested: 0,
+            error: `fetched ${result.jobs.length} jobs but all filtered by filterExcluded`,
+          });
+          return;
+        }
         const upsertResult = await step.run(
           `upsert-${stepIdPrefix}`,
           async () => {
@@ -1933,6 +1943,14 @@ export const directJobBoardIngestion = inngest.createFunction(
           success: false,
           ingested: 0,
           error: result.error,
+        });
+      } else {
+        // D16 G1: success=true but 0 jobs returned — log it, don't silently skip.
+        boardResults.push({
+          board: boardName,
+          success: true,
+          ingested: 0,
+          error: `0 jobs passed filter (totalAvailable: ${result.totalAvailable})`,
         });
       }
     };
@@ -2130,6 +2148,17 @@ export const directJobBoardIngestion = inngest.createFunction(
     // ── Write ingestion log ─────────────────────────────────────────────────
     const totalIngested = boardResults.reduce((sum, r) => sum + r.ingested, 0);
     const anyErrors = boardResults.some((r) => !r.success);
+    const anyZeroJobBoards = boardResults.some(
+      (r) => r.success && r.ingested === 0,
+    );
+
+    // D16 G1: Per-board breakdown in the log — ends the era of silent zeros.
+    const boardBreakdown = boardResults
+      .map(
+        (r) =>
+          `${r.board}=${r.ingested}${r.error ? `(${r.error.slice(0, 80)})` : ""}`,
+      )
+      .join("; ");
 
     await step.run("write-log", async () => {
       return writeIngestionLog({
@@ -2141,16 +2170,15 @@ export const directJobBoardIngestion = inngest.createFunction(
         itemsUpdated: 0,
         itemsRejected: boardResults.filter((r) => !r.success).length,
         itemsSkipped: 0,
-        errorMessage: anyErrors
-          ? boardResults
-              .filter((r) => !r.success)
-              .map((r) => `${r.board}: ${r.error}`)
-              .join("; ")
-          : undefined,
+        errorMessage:
+          anyErrors || anyZeroJobBoards ? boardBreakdown : undefined,
         startedAt,
         finishedAt: new Date(),
       });
     });
+
+    // D16 G1: Console-log the per-board breakdown for real-time observability.
+    console.log(`[directJobBoardIngestion] ${boardBreakdown}`);
 
     return {
       boards: boardResults,
