@@ -732,6 +732,14 @@ export async function extractRemoteScope(
   // high-confidence global signal, the job is global — the JD text is a
   // stronger signal than the location field for global intent. If the regex
   // finds nothing, THEN check the location as a fallback (Step 1e below).
+  // D14 SpaceX regression fix (2026-07-17): Track the location-vs-JD conflict
+  // so the multi-probe at Step 1h cannot confirm "global" when the location is
+  // specific and only GLOBAL_HIGH (not ALWAYS_GLOBAL_OVERRIDE) fired. The
+  // "worldwide" regex can match product-scope language (e.g., SpaceX's
+  // "worldwide satellite connectivity") — the multi-probe doesn't check the
+  // location field, so it would falsely confirm "global" for onsite-US jobs.
+  let locationGlobalConflict = false;
+
   const regexResult = step1RegexHardSignals(hqStrippedText, workplaceType);
   if (
     regexResult !== null &&
@@ -775,6 +783,7 @@ export async function extractRemoteScope(
       // (Step 2 below). The conflict between JD global signal and specific
       // location requires contextual resolution.
       // (Intentionally not returning here — fall through to LLM.)
+      locationGlobalConflict = true;
     } else {
       // No conflict — location is not specific (or null). Return global.
       return regexResult;
@@ -850,13 +859,27 @@ export async function extractRemoteScope(
     }
     // Multi-probe is clean (no fencing signals). If the regex also found
     // global, confirm it — the job is genuinely worldwide. No LLM needed.
+    //
+    // D14 SpaceX regression fix (2026-07-17): Do NOT confirm "global" when
+    // there is a location-vs-JD conflict (locationGlobalConflict). The
+    // multi-probe only checks JD text for fencing probes — it does NOT
+    // consider the location field. A specific US city ("Bastrop, TX") is a
+    // strong fencing signal that the multi-probe cannot see. In the conflict
+    // case, return "undetermined" so the LLM resolves it at Step 5.5.
     if (regexFoundGlobal && probeResult.scope === "global") {
-      return {
-        remoteScope: "global",
-        allowedCountries: null,
-        resolvedBy: "step1_regex",
-        confidence: probeResult.confidence,
-      };
+      if (locationGlobalConflict) {
+        // Conflict: JD says global (weak signal), location says specific.
+        // The multi-probe is clean but can't see the location. Let the LLM
+        // resolve this — do NOT auto-global.
+        // (Intentionally not returning — fall through to LLM/undetermined.)
+      } else {
+        return {
+          remoteScope: "global",
+          allowedCountries: null,
+          resolvedBy: "step1_regex",
+          confidence: probeResult.confidence,
+        };
+      }
     }
   }
 

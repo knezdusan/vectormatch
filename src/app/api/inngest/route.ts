@@ -54,6 +54,7 @@ import {
   dailySourceD13MetaAds,
   directJobBoardIngestion,
   emergencyStoragePurge,
+  falseGlobalScopeSampler,
   gate3Evaluator,
   hnAlgoliaSeeder,
   inngestHealthMonitor,
@@ -174,6 +175,7 @@ export const { GET, POST, PUT } = serve({
     batchSourceB10SitemapProbe,
     dailyHealthCheck,
     directJobBoardIngestion,
+    falseGlobalScopeSampler,
     recallAuditCron,
   ],
 });

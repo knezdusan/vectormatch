@@ -1,0 +1,1728 @@
+{
+  "timestamp": "2026-07-17T13:16:16.159Z",
+  "totalCandidates": 95,
+  "passed": 36,
+  "failed": 29,
+  "errored": 30,
+  "top25": [
+    {
+      "rank": 1,
+      "slug": "twilio",
+      "atsSource": "greenhouse",
+      "totalJobs": 163,
+      "webDevJobs": 52,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 161,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Applications Engineer 2",
+        "Applications Engineer 2",
+        "Developer Evangelist"
+      ]
+    },
+    {
+      "rank": 2,
+      "slug": "rvohealth",
+      "atsSource": "greenhouse",
+      "totalJobs": 21,
+      "webDevJobs": 11,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 7,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Performance & Growth Associate",
+        "Senior Software Engineer, Golang",
+        "Senior Software Engineer, Golang"
+      ]
+    },
+    {
+      "rank": 3,
+      "slug": "smartlyio",
+      "atsSource": "greenhouse",
+      "totalJobs": 75,
+      "webDevJobs": 22,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Compensation and Insights Analyst",
+        "Engineering Manager",
+        "Engineering Manager (Meta)"
+      ]
+    },
+    {
+      "rank": 4,
+      "slug": "yext",
+      "atsSource": "greenhouse",
+      "totalJobs": 27,
+      "webDevJobs": 7,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Associate Technical Partner Manager",
+        "Billing and Revenue Systems Manager (Intake - Hyderabad, Ind",
+        "Senior Salesforce Developer"
+      ]
+    },
+    {
+      "rank": 5,
+      "slug": "smartsheet",
+      "atsSource": "greenhouse",
+      "totalJobs": 103,
+      "webDevJobs": 30,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 32,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Manager, AI/ML Ops Engineering (Hybrid in Bangalore)",
+        "Manager, Marketing Campaign Operations",
+        "Principal Data Engineer / Architect - Individual Contributor"
+      ]
+    },
+    {
+      "rank": 6,
+      "slug": "referralsuseonly",
+      "atsSource": "greenhouse",
+      "totalJobs": 49,
+      "webDevJobs": 9,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Enterprise Account Executive",
+        "Senior Competitive Benchmarking Engineer - Product Marketing",
+        "Senior Product Designer - Elastic"
+      ]
+    },
+    {
+      "rank": 7,
+      "slug": "wpp",
+      "atsSource": "greenhouse",
+      "totalJobs": 195,
+      "webDevJobs": 29,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Automation Engineering Lead",
+        "Azure Dev Ops Engineer",
+        "Back-End Developer (Node Js)"
+      ]
+    },
+    {
+      "rank": 8,
+      "slug": "manychat",
+      "atsSource": "greenhouse",
+      "totalJobs": 19,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "AI & Marketing Automation Manager",
+        "Marketing Analytics Lead ",
+        "Senior Data Engineer (Data Platform)"
+      ]
+    },
+    {
+      "rank": 9,
+      "slug": "sonyinteractiveentertainmentglobal",
+      "atsSource": "greenhouse",
+      "totalJobs": 188,
+      "webDevJobs": 102,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 10,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "AI Engineer",
+        "AI Engineer",
+        "Data Engineer (12 month Fixed term Contract)"
+      ]
+    },
+    {
+      "rank": 10,
+      "slug": "razorpaysoftwareprivatelimited",
+      "atsSource": "greenhouse",
+      "totalJobs": 23,
+      "webDevJobs": 7,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Engineering Manager",
+        "Engineering Manager",
+        "Full Stack Builder"
+      ]
+    },
+    {
+      "rank": 11,
+      "slug": "sonicwall",
+      "atsSource": "greenhouse",
+      "totalJobs": 42,
+      "webDevJobs": 17,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 15,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Full Stack Software Engineer- Networking exp is a must",
+        "Lab and Center Data Engineer ",
+        "Platform Engineer- GCP and Kubernetes experience is a must"
+      ]
+    },
+    {
+      "rank": 12,
+      "slug": "wikimedia",
+      "atsSource": "greenhouse",
+      "totalJobs": 19,
+      "webDevJobs": 11,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Data Scientist, Ecosystems",
+        "Senior Engineering Manager, Wikimedia Enterprise ",
+        "Senior Site Reliability Engineer, Data Persistence"
+      ]
+    },
+    {
+      "rank": 13,
+      "slug": "nationalpublicradioinc",
+      "atsSource": "greenhouse",
+      "totalJobs": 18,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "DevOps Engineer",
+        "Insights Analyst, Mobile Analytics",
+        "Manager, Mobile Software Engineering"
+      ]
+    },
+    {
+      "rank": 14,
+      "slug": "thefork",
+      "atsSource": "greenhouse",
+      "totalJobs": 26,
+      "webDevJobs": 9,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Android Engineer",
+        "Application Security Engineer",
+        "B2C CRM Specialist"
+      ]
+    },
+    {
+      "rank": 15,
+      "slug": "flohealth",
+      "atsSource": "greenhouse",
+      "totalJobs": 32,
+      "webDevJobs": 5,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Cloud Security Engineer",
+        "Cloud Security Engineer",
+        "Frontend Engineer"
+      ]
+    },
+    {
+      "rank": 16,
+      "slug": "insiderone",
+      "atsSource": "lever",
+      "totalJobs": 117,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Customer Onboarding Manager - (Implementation Project Manage",
+        "Customer Onboarding Manager - (Implementation Project Manage",
+        "Lead Front-end Developer - Vue.js (Remote)"
+      ]
+    },
+    {
+      "rank": 17,
+      "slug": "Coda",
+      "atsSource": "lever",
+      "totalJobs": 21,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Data Analyst",
+        "Senior Software Engineer, Full Stack",
+        "Software Engineer (All Levels), Back End"
+      ]
+    },
+    {
+      "rank": 18,
+      "slug": "educative",
+      "atsSource": "lever",
+      "totalJobs": 10,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Software Engineer (Entry-level)",
+        "Software Engineer (Experienced)"
+      ]
+    },
+    {
+      "rank": 19,
+      "slug": "magnetforensics",
+      "atsSource": "lever",
+      "totalJobs": 43,
+      "webDevJobs": 8,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Frontend Software Engineer, GKOS",
+        "Senior Software Engineer",
+        "Software Developer Co-op (Fall 2026)"
+      ]
+    },
+    {
+      "rank": 20,
+      "slug": "securecodewarrior",
+      "atsSource": "lever",
+      "totalJobs": 5,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Software Engineer, Content Platform",
+        "Senior Software Engineer, Learning Platform"
+      ]
+    },
+    {
+      "rank": 21,
+      "slug": "dilitrust",
+      "atsSource": "lever",
+      "totalJobs": 25,
+      "webDevJobs": 7,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Digital Workplace Tech Lead",
+        "FullStack Software Engineer (Node.js / Vue.js)",
+        "Ingénieur Logiciel Senior (PHP Symfony)"
+      ]
+    },
+    {
+      "rank": 22,
+      "slug": "Nexthink",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 99,
+      "webDevJobs": 16,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Platform Software Engineer - Core Infrastructure",
+        "Senior Java Backend Engineer",
+        "Senior Software Engineer "
+      ]
+    },
+    {
+      "rank": 23,
+      "slug": "Dev2",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Lead Software Engineer (Java, Node, Golang)",
+        "Lead Software Engineer (Java, Node, Golang)",
+        "Senior Software Engineer, Android"
+      ]
+    },
+    {
+      "rank": 24,
+      "slug": "IFS1",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 5,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Lead/Senior Lead Software Engineer - Agentic AI Engineering ",
+        "Director Software Engineering - AI Based Country Solutions P",
+        "Software Engineer – IFS Presales Support Services"
+      ]
+    },
+    {
+      "rank": 25,
+      "slug": "Medfar",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 33,
+      "webDevJobs": 3,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "React Native - Mobile Software Developer (SaaS Healthcare) ",
+        "Senior Software Engineering Manager (SaaS Healthcare)",
+        "Senior Software Developer - Health Systems Integration (HL7,"
+      ]
+    }
+  ],
+  "allResults": [
+    {
+      "slug": "brainpop",
+      "atsSource": "greenhouse",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "weedmaps77",
+      "atsSource": "greenhouse",
+      "totalJobs": 15,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 2,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "twilio",
+      "atsSource": "greenhouse",
+      "totalJobs": 163,
+      "webDevJobs": 52,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 161,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Applications Engineer 2",
+        "Applications Engineer 2",
+        "Developer Evangelist"
+      ]
+    },
+    {
+      "slug": "typeform",
+      "atsSource": "greenhouse",
+      "totalJobs": 10,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 10,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "rvohealth",
+      "atsSource": "greenhouse",
+      "totalJobs": 21,
+      "webDevJobs": 11,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 7,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Performance & Growth Associate",
+        "Senior Software Engineer, Golang",
+        "Senior Software Engineer, Golang"
+      ]
+    },
+    {
+      "slug": "granular",
+      "atsSource": "greenhouse",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "smartlyio",
+      "atsSource": "greenhouse",
+      "totalJobs": 75,
+      "webDevJobs": 22,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Compensation and Insights Analyst",
+        "Engineering Manager",
+        "Engineering Manager (Meta)"
+      ]
+    },
+    {
+      "slug": "yext",
+      "atsSource": "greenhouse",
+      "totalJobs": 27,
+      "webDevJobs": 7,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Associate Technical Partner Manager",
+        "Billing and Revenue Systems Manager (Intake - Hyderabad, Ind",
+        "Senior Salesforce Developer"
+      ]
+    },
+    {
+      "slug": "readdle",
+      "atsSource": "greenhouse",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "stream",
+      "atsSource": "greenhouse",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "smartsheet",
+      "atsSource": "greenhouse",
+      "totalJobs": 103,
+      "webDevJobs": 30,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 32,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Manager, AI/ML Ops Engineering (Hybrid in Bangalore)",
+        "Manager, Marketing Campaign Operations",
+        "Principal Data Engineer / Architect - Individual Contributor"
+      ]
+    },
+    {
+      "slug": "referralsuseonly",
+      "atsSource": "greenhouse",
+      "totalJobs": 49,
+      "webDevJobs": 9,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Enterprise Account Executive",
+        "Senior Competitive Benchmarking Engineer - Product Marketing",
+        "Senior Product Designer - Elastic"
+      ]
+    },
+    {
+      "slug": "kobaltmusicgroup",
+      "atsSource": "greenhouse",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "wpp",
+      "atsSource": "greenhouse",
+      "totalJobs": 195,
+      "webDevJobs": 29,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Automation Engineering Lead",
+        "Azure Dev Ops Engineer",
+        "Back-End Developer (Node Js)"
+      ]
+    },
+    {
+      "slug": "manychat",
+      "atsSource": "greenhouse",
+      "totalJobs": 19,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "AI & Marketing Automation Manager",
+        "Marketing Analytics Lead ",
+        "Senior Data Engineer (Data Platform)"
+      ]
+    },
+    {
+      "slug": "surveymonkey",
+      "atsSource": "greenhouse",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "sonyinteractiveentertainmentglobal",
+      "atsSource": "greenhouse",
+      "totalJobs": 188,
+      "webDevJobs": 102,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 10,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "AI Engineer",
+        "AI Engineer",
+        "Data Engineer (12 month Fixed term Contract)"
+      ]
+    },
+    {
+      "slug": "razorpaysoftwareprivatelimited",
+      "atsSource": "greenhouse",
+      "totalJobs": 23,
+      "webDevJobs": 7,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Engineering Manager",
+        "Engineering Manager",
+        "Full Stack Builder"
+      ]
+    },
+    {
+      "slug": "sonicwall",
+      "atsSource": "greenhouse",
+      "totalJobs": 42,
+      "webDevJobs": 17,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 15,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Full Stack Software Engineer- Networking exp is a must",
+        "Lab and Center Data Engineer ",
+        "Platform Engineer- GCP and Kubernetes experience is a must"
+      ]
+    },
+    {
+      "slug": "wikimedia",
+      "atsSource": "greenhouse",
+      "totalJobs": 19,
+      "webDevJobs": 11,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Data Scientist, Ecosystems",
+        "Senior Engineering Manager, Wikimedia Enterprise ",
+        "Senior Site Reliability Engineer, Data Persistence"
+      ]
+    },
+    {
+      "slug": "pagerduty",
+      "atsSource": "greenhouse",
+      "totalJobs": 16,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 8,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Senior Solutions Consultant"
+      ]
+    },
+    {
+      "slug": "nationalpublicradioinc",
+      "atsSource": "greenhouse",
+      "totalJobs": 18,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "DevOps Engineer",
+        "Insights Analyst, Mobile Analytics",
+        "Manager, Mobile Software Engineering"
+      ]
+    },
+    {
+      "slug": "thefork",
+      "atsSource": "greenhouse",
+      "totalJobs": 26,
+      "webDevJobs": 9,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Android Engineer",
+        "Application Security Engineer",
+        "B2C CRM Specialist"
+      ]
+    },
+    {
+      "slug": "flohealth",
+      "atsSource": "greenhouse",
+      "totalJobs": 32,
+      "webDevJobs": 5,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Cloud Security Engineer",
+        "Cloud Security Engineer",
+        "Frontend Engineer"
+      ]
+    },
+    {
+      "slug": "insiderone",
+      "atsSource": "lever",
+      "totalJobs": 117,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Customer Onboarding Manager - (Implementation Project Manage",
+        "Customer Onboarding Manager - (Implementation Project Manage",
+        "Lead Front-end Developer - Vue.js (Remote)"
+      ]
+    },
+    {
+      "slug": "covergenius",
+      "atsSource": "lever",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "useinsider",
+      "atsSource": "lever",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "Coda",
+      "atsSource": "lever",
+      "totalJobs": 21,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Data Analyst",
+        "Senior Software Engineer, Full Stack",
+        "Software Engineer (All Levels), Back End"
+      ]
+    },
+    {
+      "slug": "hostinger",
+      "atsSource": "lever",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "educative",
+      "atsSource": "lever",
+      "totalJobs": 10,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Software Engineer (Entry-level)",
+        "Software Engineer (Experienced)"
+      ]
+    },
+    {
+      "slug": "mytos",
+      "atsSource": "lever",
+      "totalJobs": 9,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Junior/Mid Software Engineer"
+      ]
+    },
+    {
+      "slug": "magnetforensics",
+      "atsSource": "lever",
+      "totalJobs": 43,
+      "webDevJobs": 8,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Frontend Software Engineer, GKOS",
+        "Senior Software Engineer",
+        "Software Developer Co-op (Fall 2026)"
+      ]
+    },
+    {
+      "slug": "securecodewarrior",
+      "atsSource": "lever",
+      "totalJobs": 5,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Software Engineer, Content Platform",
+        "Senior Software Engineer, Learning Platform"
+      ]
+    },
+    {
+      "slug": "textnow",
+      "atsSource": "lever",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "dilitrust",
+      "atsSource": "lever",
+      "totalJobs": 25,
+      "webDevJobs": 7,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Digital Workplace Tech Lead",
+        "FullStack Software Engineer (Node.js / Vue.js)",
+        "Ingénieur Logiciel Senior (PHP Symfony)"
+      ]
+    },
+    {
+      "slug": "ledger",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "ndeavour",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "chamelio",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "sensor-tower",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "sprig",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "twelve-labs",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "padlet",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "statista",
+      "atsSource": "ashby",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "ZinfyTechWebSolutions",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 5,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Back-end Developer"
+      ]
+    },
+    {
+      "slug": "Gotipath",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 1,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Software Engineer"
+      ]
+    },
+    {
+      "slug": "Nexthink",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 99,
+      "webDevJobs": 16,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Platform Software Engineer - Core Infrastructure",
+        "Senior Java Backend Engineer",
+        "Senior Software Engineer "
+      ]
+    },
+    {
+      "slug": "Dev2",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 6,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Lead Software Engineer (Java, Node, Golang)",
+        "Lead Software Engineer (Java, Node, Golang)",
+        "Senior Software Engineer, Android"
+      ]
+    },
+    {
+      "slug": "IFS1",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 5,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Lead/Senior Lead Software Engineer - Agentic AI Engineering ",
+        "Director Software Engineering - AI Based Country Solutions P",
+        "Software Engineer – IFS Presales Support Services"
+      ]
+    },
+    {
+      "slug": "TokyoTechie",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 3,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "Medfar",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 33,
+      "webDevJobs": 3,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "React Native - Mobile Software Developer (SaaS Healthcare) ",
+        "Senior Software Engineering Manager (SaaS Healthcare)",
+        "Senior Software Developer - Health Systems Integration (HL7,"
+      ]
+    },
+    {
+      "slug": "SyngentaGroup",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Frontend Engineer",
+        "Backend Engineer"
+      ]
+    },
+    {
+      "slug": "Intuitive",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Sr. Manufacturing Software Engineer",
+        "Sr Software Engineer",
+        "Software Engineer"
+      ]
+    },
+    {
+      "slug": "USM2",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 100,
+      "webDevJobs": 10,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Software Engineer- Java- only US Citizens",
+        "Software Engineer - FullStack",
+        "Role: Sr. Full stack – front and back end........Boston, MA "
+      ]
+    },
+    {
+      "slug": "Dailymotion",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 16,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior Backend Software Engineer – Video Platform (Full remo",
+        "Senior Backend Engineer (Python)  ",
+        "Senior Backend Engineer (Go)  "
+      ]
+    },
+    {
+      "slug": "CERN",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 53,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Backend Python Engineer (OSI-SIS-TS-2026-128-GRAP)",
+        "C++ Software Engineer (SY-EPC-CCS-2026-115-GRAP)",
+        "Full-Stack Software Engineer for CERN's PLM Platform (EN-IM-"
+      ]
+    },
+    {
+      "slug": "T-SystemsICTIndiaPvtLtd1",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 83,
+      "webDevJobs": 3,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Python + GenAI Full Stack Developer",
+        "Full Stack Developer",
+        "Software Developer"
+      ]
+    },
+    {
+      "slug": "Septeo",
+      "atsSource": "smartrecruiters",
+      "totalJobs": 61,
+      "webDevJobs": 3,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 1,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Développeur Backend Symfony Senior ",
+        "Ingénieur Backend Senior H/F",
+        "Ingénieur Backend Senior H/F"
+      ]
+    },
+    {
+      "slug": "athena-global-technologies-limited",
+      "atsSource": "workable",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "pitchero",
+      "atsSource": "workable",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "huzzle",
+      "atsSource": "workable",
+      "totalJobs": 2156,
+      "webDevJobs": 362,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Account Executive - Technology",
+        "Account Executive - Technology",
+        "Account Executive - Technology"
+      ]
+    },
+    {
+      "slug": "mila-2",
+      "atsSource": "workable",
+      "totalJobs": 12,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Coordonnateur.trice, Affaires académiques",
+        "Développeur.se, Développement d'applications IA / AI Applica",
+        "Full Stack Software Developer - Misinformation Mitigation"
+      ]
+    },
+    {
+      "slug": "lessonspace",
+      "atsSource": "workable",
+      "totalJobs": 1,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Lessonspace Senior Backend Engineer"
+      ]
+    },
+    {
+      "slug": "climax-studios",
+      "atsSource": "workable",
+      "totalJobs": 5,
+      "webDevJobs": 3,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Principal Backend Engineer - MPG - Fully remote from the UK ",
+        "Senior Backend Engineer - MPG - Fully remote from the UK or ",
+        "Software Engineer - Backend Services - MPG - Fully remote fr"
+      ]
+    },
+    {
+      "slug": "oes",
+      "atsSource": "workable",
+      "totalJobs": 14,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Digital Product Associate"
+      ]
+    },
+    {
+      "slug": "raspberrypi",
+      "atsSource": "workable",
+      "totalJobs": 5,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Experienced IC Design Engineer",
+        "IC Verification Engineer"
+      ]
+    },
+    {
+      "slug": "fullstack-labs",
+      "atsSource": "workable",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "persist-ventures-2",
+      "atsSource": "workable",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "elementio",
+      "atsSource": "workable",
+      "totalJobs": 1,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Technical Engineer (m/w/d)"
+      ]
+    },
+    {
+      "slug": "epignosis",
+      "atsSource": "workable",
+      "totalJobs": 3,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "tatum",
+      "atsSource": "workable",
+      "totalJobs": 1,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "safety",
+      "atsSource": "workable",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": []
+    },
+    {
+      "slug": "curotec",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "appetiser",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "icewarp",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "experiencegift",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "workwize",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "wonderkind",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "basgroup",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "scholarshipowl",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "allshoretalent",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "temper2",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "digitalforms",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "ballysintralotsa",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "callstackpl",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "hygraph",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "teeturtle",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "gustileder",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "cmcom",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "umob",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "careerswcc",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "addepto",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "tesenso",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "vpteam",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "xebiapoland",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    },
+    {
+      "slug": "majorleaguehacking",
+      "atsSource": "recruitee",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "HTTP 404",
+      "sampleTitles": []
+    }
+  ]
+}

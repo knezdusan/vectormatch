@@ -1805,6 +1805,9 @@ export const directJobBoardIngestion = inngest.createFunction(
     const { fetchRemoteComJobs } = await import(
       "@/lib/jobs/direct-ingestion/remotecom"
     );
+    const { fetchLaraJobsJobs } = await import(
+      "@/lib/jobs/direct-ingestion/larajobs"
+    );
     // NoFluffJobs & JustJoin disabled (LOCK 1) — Poland-fenced at application layer.
     // LaraJobs not wired (C1) — 1 addressable job doesn't justify a bespoke adapter.
     // Both decisions follow the adapter-vs-company-discovery rule (C2):
@@ -1934,9 +1937,12 @@ export const directJobBoardIngestion = inngest.createFunction(
       }
     };
 
-    // ── Board 1: Himalayas ──────────────────────────────────────────────────
+    // ── Board 1: Himalayas (worldwide-only slice, D13 B5.1) ─────────────────
+    // D14 JOB 1.3: worldwideOnly=true is now wired into the cron, not just
+    // available. Filters to ~1,393 genuinely-global jobs (empty
+    // locationRestrictions) instead of the full ~97K corpus.
     await ingestBoard("Himalayas", "himalayas", "himalayas_direct", () =>
-      fetchHimalayasJobs(500, techFilter),
+      fetchHimalayasJobs(500, techFilter, undefined, true),
     );
 
     // ── Board 2: RemoteOK ───────────────────────────────────────────────────
@@ -2112,6 +2118,14 @@ export const directJobBoardIngestion = inngest.createFunction(
         error: remotecomResult.error,
       });
     }
+
+    // ── Board 10: LaraJobs (Directive 14, JOB 5.3) ─────────────────────────
+    // The PHP/Laravel persona's only dedicated channel. ~9 active jobs.
+    // No anti-bot — plain HTTP fetch (no Playwright needed).
+    // RSS feed + HTML scraping for structured data (company, location, tags).
+    await ingestBoard("LaraJobs", "larajobs", "larajobs", () =>
+      fetchLaraJobsJobs(50, techFilter),
+    );
 
     // ── Write ingestion log ─────────────────────────────────────────────────
     const totalIngested = boardResults.reduce((sum, r) => sum + r.ingested, 0);
@@ -6357,6 +6371,212 @@ Examples of CORRECT rejections:
         overallRate,
         totalSampled: results.length,
         totalFalseRejections: totalFalse,
+      };
+    });
+
+    return summary;
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D14 JOB 3.3 — Weekly false-GLOBAL scope sampler (approvals-side).
+//
+// The recall audit cron (above) samples REJECTIONS to measure false-rejection
+// rate. This cron samples APPROVALS — specifically, jobs classified as
+// "global" — to detect false-GLOBAL classifications (onsite/country-fenced
+// jobs that were incorrectly marked global).
+//
+// This is the instrument that would have caught the SpaceX regression:
+// 46 onsite-US jobs (Bastrop TX, Starbase TX, Redmond WA) were marked "global"
+// because "worldwide" in the JD text referred to satellite coverage, not job
+// scope. The recall cron couldn't catch this because it samples rejections,
+// not approvals.
+//
+// Triggered by: cron "0 4 * * 1" (weekly Monday 04:00 UTC — after recall audit).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const falseGlobalScopeSampler = inngest.createFunction(
+  {
+    id: "false-global-scope-sampler",
+    name: "False-GLOBAL Scope Sampler (Approvals-Side)",
+    triggers: [{ cron: "0 4 * * 1" }],
+    concurrency: { limit: 1 },
+  },
+  async ({ step, logger }) => {
+    const SAMPLE_SIZE = 50;
+
+    const samples = await step.run("sample-global-jobs", async () => {
+      const { neon } = await import("@neondatabase/serverless");
+      const sql = neon(process.env.DATABASE_URL!);
+
+      const suspects = await sql`
+        SELECT id, title, ats_slug, location_name, workplace_type,
+               normalized_text, detected_at
+        FROM job
+        WHERE remote_scope = 'global'
+          AND status = 'active'
+          AND location_name IS NOT NULL
+          AND location_name !~* 'remote|worldwide|global|anywhere|distributed|europe|asia|africa|middle east|oceania|latam|americas|emea|apac|nato|eu|mena'
+          AND location_name ~* ',\s*[A-Z]{2}$'
+        ORDER BY detected_at DESC
+        LIMIT ${SAMPLE_SIZE}
+      `;
+
+      const remaining = SAMPLE_SIZE - suspects.length;
+      let controlGroup: typeof suspects = [];
+      if (remaining > 0) {
+        controlGroup = await sql`
+          SELECT id, title, ats_slug, location_name, workplace_type,
+                 normalized_text, detected_at
+          FROM job
+          WHERE remote_scope = 'global'
+            AND status = 'active'
+            AND (location_name IS NULL OR location_name ~* 'remote|worldwide|global|anywhere|distributed')
+          ORDER BY RANDOM()
+          LIMIT ${remaining}
+        `;
+      }
+
+      const all = [...suspects, ...controlGroup];
+      logger.info(`Sampled ${all.length} global jobs for false-GLOBAL audit`, {
+        suspects: suspects.length,
+        controlGroup: controlGroup.length,
+      });
+      return { suspects, controlGroup, all };
+    });
+
+    if (samples.all.length === 0) {
+      logger.info("No global jobs to audit this week");
+      return { sampled: 0, falseGlobalRate: null, suspects: 0 };
+    }
+
+    const evaluations = await step.run("llm-evaluate-suspects", async () => {
+      if (samples.suspects.length === 0) return [];
+
+      const { openai } = await import("@ai-sdk/openai");
+      const { generateObject } = await import("ai");
+      const { z } = await import("zod");
+
+      const verdictSchema = z.object({
+        isFalseGlobal: z
+          .boolean()
+          .describe(
+            "True if this job is NOT genuinely global remote — the location is a fencing restriction, not just an HQ city",
+          ),
+        reason: z.string().max(200).describe("1-2 sentence explanation"),
+      });
+
+      const results: Array<{
+        jobId: string;
+        atsSlug: string;
+        title: string;
+        location: string;
+        isFalseGlobal: boolean;
+        reason: string;
+      }> = [];
+
+      for (const job of samples.suspects) {
+        try {
+          const { object } = await generateObject({
+            model: openai("gpt-4o-mini"),
+            schema: verdictSchema,
+            schemaName: "FalseGlobalVerdict",
+            schemaDescription:
+              "Determine if a job marked 'global' is actually country-fenced or onsite",
+            prompt: `You are auditing a job-matching pipeline's scope classifier. Determine if this job, marked as "global", is actually a FALSE GLOBAL — meaning it is NOT genuinely open to worldwide remote work.
+
+JOB TITLE: ${job.title}
+LOCATION FIELD: ${job.location_name}
+WORKPLACE TYPE: ${job.workplace_type}
+JOB TEXT (first 800 chars): ${(job.normalized_text ?? "").slice(0, 800)}
+
+A FALSE GLOBAL means: the location field is a fencing restriction, not just an HQ city. The job requires physical presence in or legal eligibility for a specific country/region.
+
+Examples of FALSE GLOBAL:
+- Location: "Bastrop, TX" + "worldwide satellite connectivity" in text — the "worldwide" refers to the product, not the job scope. The job is US-based.
+- Location: "San Francisco, CA" + "distributed team" in text — "distributed" refers to the company, not the job. The job is US-based.
+- Location: "London, UK" + no "work from anywhere" — the job is UK-based.
+
+Examples of CORRECT GLOBAL:
+- Location: "Remote" or "Remote - Worldwide" — genuinely global.
+- Location: "London, UK" + "work from anywhere in the world" — the override signal makes it global despite the HQ city.
+
+Key distinction: Does the JD text EXPLICITLY say the worker can be anywhere (e.g., "work from anywhere", "anywhere in the world"), or does it just mention "worldwide"/"distributed" in a product/company context?`,
+            abortSignal: AbortSignal.timeout(15000),
+          });
+
+          results.push({
+            jobId: job.id,
+            atsSlug: job.ats_slug,
+            title: job.title,
+            location: job.location_name,
+            isFalseGlobal: object.isFalseGlobal,
+            reason: object.reason,
+          });
+        } catch (e) {
+          logger.warn(`LLM evaluation failed for job ${job.id}`, {
+            error: String(e),
+          });
+          results.push({
+            jobId: job.id,
+            atsSlug: job.ats_slug,
+            title: job.title,
+            location: job.location_name,
+            isFalseGlobal: false,
+            reason: "LLM evaluation failed — assumed correct classification",
+          });
+        }
+      }
+
+      return results;
+    });
+
+    const summary = await step.run("compute-false-global-summary", async () => {
+      const totalSuspects = evaluations.length;
+      const falseGlobals = evaluations.filter((e) => e.isFalseGlobal);
+      const falseGlobalRate =
+        totalSuspects > 0 ? falseGlobals.length / totalSuspects : 0;
+
+      logger.info("False-GLOBAL scope audit complete", {
+        totalGlobalJobs: samples.all.length,
+        suspectsWithSpecificLocation: totalSuspects,
+        falseGlobals: falseGlobals.length,
+        falseGlobalRate: `${(falseGlobalRate * 100).toFixed(1)}%`,
+      });
+
+      if (falseGlobals.length > 0) {
+        logger.warn(
+          `${falseGlobals.length} false-GLOBAL jobs detected (out of ${totalSuspects} suspects)`,
+          {
+            falseGlobals: falseGlobals.map((r) => ({
+              jobId: r.jobId,
+              atsSlug: r.atsSlug,
+              title: r.title,
+              location: r.location,
+              reason: r.reason,
+            })),
+          },
+        );
+      }
+
+      if (falseGlobalRate > 0.2) {
+        logger.error(
+          `CRITICAL: False-GLOBAL rate ${(falseGlobalRate * 100).toFixed(1)}% exceeds 20% threshold — scope classifier regression likely`,
+          {
+            falseGlobalRate,
+            threshold: 0.2,
+            falseGlobals: falseGlobals.length,
+            totalSuspects,
+          },
+        );
+      }
+
+      return {
+        totalGlobalJobs: samples.all.length,
+        suspectsWithSpecificLocation: totalSuspects,
+        falseGlobals: falseGlobals.length,
+        falseGlobalRate,
+        falseGlobalDetails: falseGlobals,
       };
     });
 

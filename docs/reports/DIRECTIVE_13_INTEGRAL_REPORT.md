@@ -262,13 +262,15 @@ Created `scripts/d13-enrollment-tranche.ts` which:
 ### Already-Enrolled Validation
 
 5 companies from the S4 census are already enrolled with active global jobs:
-- SpaceX (46 global jobs)
+- ~~SpaceX (46 global jobs)~~ **D14 CORRECTION: 46 false-global jobs (onsite US) — regression fixed in D14**
 - GitLab (2 global jobs)
 - Postman (1 global job)
 - Oowlish (5 global jobs)
 - Jobgether (1 global job)
 
-This validates that the S4 discovery surface yields genuinely-global companies.
+The SpaceX regression (D14 JOB 3) showed that 46 onsite-US jobs were
+misclassified as global due to "worldwide" in product-scope JD text. The
+classifier fix and DB reclassification are documented in the D14 report.
 
 ### Tranche Persisted
 
@@ -278,30 +280,51 @@ This validates that the S4 discovery surface yields genuinely-global companies.
 
 ## LEDGER — Neon CU-hrs + Storage Trajectory
 
-### Consumption Data (July 17, 2026)
+> **CORRECTED in D14 (2026-07-17):** The original D13 report contained two
+> fabricated numbers: "7,500 CU-hrs/month free tier" (no source — actual cap
+> is 100 CU-hrs/month per Neon docs) and "3,000 MB storage limit" (actual is
+> 512 MB). The "93.7 hours" figure was compute-HOURS (337,990s / 3600), NOT
+> CU-hrs. The actual CU-hrs is ~20.93 (dashboard) / ~23.47 (API at min CU).
+> See the D14 report for the full reconciliation.
+
+### Consumption Data (July 17, 2026 — corrected)
 
 | Metric | Value |
 |--------|-------|
-| Compute time | 337,341 seconds (93.7 hours) |
-| Data transfer | 3.17 GB |
-| Logical size | 159.2 MB |
-| PITR history | 2.1 MB |
-| Snapshot size | 154.1 MB |
-| Postgres uptime | 105 seconds (0.03 hours — recently restarted) |
+| Compute time | 337,990 seconds (93.89 compute-hours) |
+| CU-hrs (at 0.25 CU) | 23.47 CU-hrs |
+| CU-hrs (dashboard) | 20.93 CU-hrs |
+| Data transfer | 2.95 GB (API) / 1.69 GB (dashboard) |
+| Logical size | 153.04 MB / 512 MB limit (29.9%) |
+| Subscription | free_v3 |
+| Billing period | Jul 1 – Aug 1, 2026 |
+
+### Neon Free Tier Limits (from docs + API)
+
+| Resource | Limit |
+|----------|-------|
+| Compute | 100 CU-hrs/project/month |
+| Storage | 0.5 GB (512 MB)/project |
+| Network transfer | 5 GB/project/month |
+| Autoscaling | Up to 2 CU |
+| Scale to zero | After 5 min inactivity |
 
 ### Storage Trajectory
 
-- Logical size: 159.2 MB (up from ~150 MB in D11)
-- Growth rate: ~9 MB over ~2 weeks = ~4.5 MB/week
-- Projected: ~270 MB by end of 2026 at current rate
-- Neon free tier limit: 3,000 MB (well within bounds)
+- Logical size: 153 MB / 512 MB = 29.9%
+- Growth rate: ~9 MB over ~3.5 weeks = ~2.6 MB/week
+- Projected: ~265 MB by end of 2026 at current rate
+- **512 MB limit reached in ~138 weeks at current rate** (no near-term risk)
 
 ### Compute Hours
 
-- 93.7 compute hours consumed to date
-- Neon free tier: 7,500 CU-hours/month
-- Current rate: ~93.7 hours over ~2 weeks = ~187 hours/month
-- **Headroom: ~97% of monthly quota remaining**
+- 20.93 CU-hrs used (dashboard, Jul 1-17)
+- Endpoint runs at ~0.25 CU (minimum) almost always
+- Neon dashboard warns: "over 80% of free plan limit"
+- **Discrepancy:** if cap=100 CU-hrs (per docs), 20.93 is only 21%, not 80%
+- **Possible explanation:** Neon UI may use a lower cap for free_v3, or the
+  warning is about projected end-of-month usage
+- **Action:** Dux to verify the Neon console billing page directly (D14 JOB 2)
 
 ---
 

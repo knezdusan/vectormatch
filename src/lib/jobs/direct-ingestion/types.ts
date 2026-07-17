@@ -199,7 +199,8 @@ export type DirectBoardSource =
   | "weworkremotely"
   | "justjoin"
   | "wellfound"
-  | "remotecom";
+  | "remotecom"
+  | "larajobs";
 
 /** Configuration for each direct board. */
 export interface DirectBoardConfig {
