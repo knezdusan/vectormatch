@@ -6,6 +6,7 @@ import {
   CheckCheck,
   ExternalLink,
   Eye,
+  Globe,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -136,6 +137,32 @@ function formatLocationLine(
 }
 
 /**
+ * Format the geo/timezone constraint for the match card.
+ * Prefer the normalized title region tag, then the remote scope, then the
+ * explicit list of allowed countries.
+ */
+function formatTimezoneWindow(
+  remoteScope: string | null,
+  titleRegionTag: string | null,
+  locationCountries: string[] | null,
+): string | null {
+  if (titleRegionTag && titleRegionTag.trim().length > 0) {
+    return titleRegionTag.trim();
+  }
+  if (remoteScope === "global") {
+    return "Global";
+  }
+  if (locationCountries && locationCountries.length > 0) {
+    const visible = locationCountries.slice(0, 3);
+    const remaining = locationCountries.length - visible.length;
+    return remaining > 0
+      ? `${visible.join(", ")} +${remaining}`
+      : visible.join(", ");
+  }
+  return null;
+}
+
+/**
  * Choose the best description excerpt for the card.
  *
  * Prefer the AI-generated plain-text shortDescription. normalizedText is
@@ -199,6 +226,11 @@ function MatchCard({ match }: { match: MatchRow }) {
     match.jobNormalizedText,
     match.jobTitle,
   );
+  const timezoneWindow = formatTimezoneWindow(
+    match.jobRemoteScope,
+    match.jobTitleRegionTag,
+    match.jobLocationCountries,
+  );
 
   return (
     <Link href={`/dashboard/jobs/${match.matchQueueId}`} className="block">
@@ -230,7 +262,13 @@ function MatchCard({ match }: { match: MatchRow }) {
                 ) : null;
               })()}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {timezoneWindow && (
+                <Badge variant="outline" className="text-xs font-normal">
+                  <Globe className="mr-1 size-3" />
+                  {timezoneWindow}
+                </Badge>
+              )}
               <StarRating score={match.matchScore} />
               <Badge variant={statusBadgeVariant(match.status)}>
                 {statusLabel(match.status)}

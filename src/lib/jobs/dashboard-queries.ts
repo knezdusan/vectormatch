@@ -44,6 +44,9 @@ export type MatchRow = {
   jobShortDescription: string | null;
   jobWorkplaceType: string | null;
   jobLocationName: string | null;
+  jobRemoteScope: string | null;
+  jobTitleRegionTag: string | null;
+  jobLocationCountries: string[] | null;
   personaId: string;
   personaLabel: string;
   overlapScore: number;
@@ -274,6 +277,9 @@ export async function getMatches(
       jobShortDescription: job.shortDescription,
       jobWorkplaceType: job.workplaceType,
       jobLocationName: job.locationName,
+      jobRemoteScope: job.remoteScope,
+      jobTitleRegionTag: job.titleRegionTag,
+      jobLocationCountries: job.locationCountries,
       personaId: matchQueue.personaId,
       personaLabel: persona.personaLabel,
       overlapScore: matchQueue.overlapScore,
