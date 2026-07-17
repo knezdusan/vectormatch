@@ -49,6 +49,7 @@ export const company = pgTable(
     companyName: text("company_name"), // Filled in by poller from ATS metadata
     rootDomain: text("root_domain"), // For cross-seeder dedup
     canonicalName: text("canonical_name"), // F1: Canonicalized name for cross-platform dedup
+    githubOrg: text("github_org"), // Gate 4: public GitHub org login, if resolvable
 
     // ── Discovery Provenance ────────────────────────────────────────────────
     discoverySource: discoverySourceEnum("discovery_source").notNull(),
@@ -128,6 +129,8 @@ export const company = pgTable(
     canonicalNameIdx: index("company_canonical_name_idx").on(
       table.canonicalName,
     ),
+    // Gate 4: fast census of companies with/without a resolvable GitHub org
+    githubOrgIdx: index("company_github_org_idx").on(table.githubOrg),
     // Index for health dashboard queries
     healthIdx: index("company_health_idx").on(table.health),
   }),

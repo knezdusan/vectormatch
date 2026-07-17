@@ -1,0 +1,637 @@
+- generic [active] [ref=f42e1]:
+  - generic [ref=f42e2]:
+    - banner [ref=f42e3]:
+      - link "Go to Remote" [ref=f42e5] [cursor=pointer]:
+        - /url: https://remote.com
+      - generic [ref=f42e11]:
+        - link "Homepage" [ref=f42e13] [cursor=pointer]:
+          - /url: /jobs
+          - img "remote.com/jobs" [ref=f42e14]
+        - navigation "Main" [ref=f42e15]:
+          - list [ref=f42e16]:
+            - listitem [ref=f42e17]:
+              - link "Sign up" [ref=f42e18] [cursor=pointer]:
+                - /url: /jobs/sign-up
+            - listitem [ref=f42e21]:
+              - link "Log in" [ref=f42e22] [cursor=pointer]:
+                - /url: /jobs/sign-in
+    - main [ref=f42e25]:
+      - generic [ref=f42e26]:
+        - heading "Top remote engineering jobs" [level=1] [ref=f42e28]
+        - generic [ref=f42e29]:
+          - search [ref=f42e34]:
+            - textbox "Search by job title" [ref=f42e35]: engineering
+            - button "Clear" [ref=f42e36] [cursor=pointer]
+            - button "Search" [ref=f42e38] [cursor=pointer]
+            - generic [ref=f42e42]:
+              - generic [ref=f42e44]:
+                - log [ref=f42e46]
+                - button "Job type" [ref=f42e47] [cursor=pointer]
+              - generic [ref=f42e55]:
+                - log [ref=f42e57]
+                - button "Remote" [ref=f42e58] [cursor=pointer]
+              - button "Country or timezone" [ref=f42e66] [cursor=pointer]
+              - generic [ref=f42e74]:
+                - log [ref=f42e76]
+                - button "Seniority" [ref=f42e77] [cursor=pointer]
+              - button "Pay" [ref=f42e84] [cursor=pointer]
+              - generic [ref=f42e92]:
+                - log [ref=f42e94]
+                - button "Travel" [ref=f42e95] [cursor=pointer]
+              - button "Clear all" [ref=f42e102] [cursor=pointer]
+          - generic [ref=f42e108]:
+            - log [ref=f42e110]
+            - button "Most relevant" [ref=f42e111] [cursor=pointer]
+          - generic [ref=f42e118]:
+            - article [ref=f42e119]:
+              - generic [ref=f42e120]:
+                - generic [ref=f42e122]:
+                  - generic [ref=f42e123]:
+                    - generic [ref=f42e124]: 10 months ago
+                    - generic [ref=f42e125]: occasional travel
+                    - generic [ref=f42e127]: remote - Europe only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e129]
+                - generic [ref=f42e133]:
+                  - generic [ref=f42e134]:
+                    - img "Knowledge Hero GmbH" [ref=f42e136]
+                    - generic [ref=f42e137]:
+                      - link "Software Engineer" [ref=f42e138] [cursor=pointer]:
+                        - /url: /jobs/knowledge-hero-gmbh-c1n8f9gn/software-engineer-j1p7fj3u
+                      - generic [ref=f42e140]: Knowledge Hero GmbH
+                  - generic [ref=f42e141]:
+                    - generic [ref=f42e142]:
+                      - text: 55k - 70k EUR
+                      - generic [ref=f42e143]: /year
+                    - list [ref=f42e144]:
+                      - listitem [ref=f42e145]:
+                        - generic [ref=f42e148]: Remote
+                      - listitem [ref=f42e149]:
+                        - generic [ref=f42e152]: Europe only
+                      - listitem [ref=f42e153]:
+                        - generic [ref=f42e156]: Full-time
+            - article [ref=f42e157]:
+              - generic [ref=f42e158]:
+                - generic [ref=f42e160]:
+                  - generic [ref=f42e161]:
+                    - generic [ref=f42e162]: 10 days ago
+                    - generic [ref=f42e163]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e165]
+                - generic [ref=f42e169]:
+                  - generic [ref=f42e170]:
+                    - img "Proxify" [ref=f42e172]
+                    - generic [ref=f42e173]:
+                      - link "Senior Backend Developer (Python/Django)" [ref=f42e174] [cursor=pointer]:
+                        - /url: /jobs/proxify-c114ohln/senior-backend-developer-python-django-j12wcpci
+                      - generic [ref=f42e176]: Proxify
+                  - generic [ref=f42e177]:
+                    - generic [ref=f42e178]:
+                      - text: 3k - 6k EUR
+                      - generic [ref=f42e179]: /month
+                    - list [ref=f42e180]:
+                      - listitem [ref=f42e181]:
+                        - generic [ref=f42e184]: Remote
+                      - listitem [ref=f42e185]:
+                        - generic [ref=f42e188]: Anywhere
+                      - listitem [ref=f42e191]:
+                        - generic [ref=f42e194]: Contract
+            - article [ref=f42e195]:
+              - generic [ref=f42e196]:
+                - generic [ref=f42e198]:
+                  - generic [ref=f42e199]:
+                    - generic [ref=f42e200]: 10 days ago
+                    - generic [ref=f42e201]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e203]
+                - generic [ref=f42e207]:
+                  - generic [ref=f42e208]:
+                    - img "Proxify" [ref=f42e210]
+                    - generic [ref=f42e211]:
+                      - link "Senior DevOps Engineer (Azure)" [ref=f42e212] [cursor=pointer]:
+                        - /url: /jobs/proxify-c114ohln/senior-devops-engineer-azure-j11znpnd
+                      - generic [ref=f42e214]: Proxify
+                  - generic [ref=f42e215]:
+                    - generic [ref=f42e216]:
+                      - text: 3k - 7k EUR
+                      - generic [ref=f42e217]: /month
+                    - list [ref=f42e218]:
+                      - listitem [ref=f42e219]:
+                        - generic [ref=f42e222]: Remote
+                      - listitem [ref=f42e223]:
+                        - generic [ref=f42e226]: Anywhere
+                      - listitem [ref=f42e229]:
+                        - generic [ref=f42e232]: Contract
+            - article [ref=f42e233]:
+              - generic [ref=f42e234]:
+                - generic [ref=f42e236]:
+                  - generic [ref=f42e237]:
+                    - generic [ref=f42e238]: 10 days ago
+                    - generic [ref=f42e239]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e241]
+                - generic [ref=f42e245]:
+                  - generic [ref=f42e246]:
+                    - img "Proxify" [ref=f42e248]
+                    - generic [ref=f42e249]:
+                      - link "Senior Sharepoint Developer" [ref=f42e250] [cursor=pointer]:
+                        - /url: /jobs/proxify-c114ohln/senior-sharepoint-developer-j11kaqv4
+                      - generic [ref=f42e252]: Proxify
+                  - generic [ref=f42e253]:
+                    - generic [ref=f42e254]:
+                      - text: 4k - 8k EUR
+                      - generic [ref=f42e255]: /month
+                    - list [ref=f42e256]:
+                      - listitem [ref=f42e257]:
+                        - generic [ref=f42e260]: Remote
+                      - listitem [ref=f42e261]:
+                        - generic [ref=f42e264]: Anywhere
+                      - listitem [ref=f42e267]:
+                        - generic [ref=f42e270]: Contract
+            - article [ref=f42e271]:
+              - generic [ref=f42e272]:
+                - generic [ref=f42e274]:
+                  - generic [ref=f42e275]:
+                    - generic [ref=f42e276]: 10 days ago
+                    - generic [ref=f42e277]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e279]
+                - generic [ref=f42e283]:
+                  - generic [ref=f42e284]:
+                    - img "Proxify" [ref=f42e286]
+                    - generic [ref=f42e287]:
+                      - link "Senior Frontend Developer (React.js)" [ref=f42e288] [cursor=pointer]:
+                        - /url: /jobs/proxify-c114ohln/senior-frontend-developer-react-js-j124ckja
+                      - generic [ref=f42e290]: Proxify
+                  - generic [ref=f42e291]:
+                    - generic [ref=f42e292]:
+                      - text: 4k - 8k EUR
+                      - generic [ref=f42e293]: /month
+                    - list [ref=f42e294]:
+                      - listitem [ref=f42e295]:
+                        - generic [ref=f42e298]: Remote
+                      - listitem [ref=f42e299]:
+                        - generic [ref=f42e302]: Anywhere
+                      - listitem [ref=f42e305]:
+                        - generic [ref=f42e308]: Contract
+            - article [ref=f42e309]:
+              - generic [ref=f42e310]:
+                - generic [ref=f42e312]:
+                  - generic [ref=f42e313]:
+                    - generic [ref=f42e314]: 4 months ago
+                    - generic [ref=f42e315]: occasional travel
+                    - button "remote - GMT+0 to GMT+4 only" [ref=f42e317] [cursor=pointer]
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e322]
+                - generic [ref=f42e326]:
+                  - generic [ref=f42e327]:
+                    - img "Kendrion Group" [ref=f42e329]
+                    - generic [ref=f42e330]:
+                      - link "Global Network Engineer [M/F/X]" [ref=f42e331] [cursor=pointer]:
+                        - /url: /jobs/kendrion-group-c1xglxrk/global-network-engineer-m-f-x-j1ctdweg
+                      - generic [ref=f42e333]: Kendrion Group
+                  - generic [ref=f42e334]:
+                    - generic [ref=f42e335]:
+                      - text: 40k - 80k EUR
+                      - generic [ref=f42e336]: /year
+                    - list [ref=f42e337]:
+                      - listitem [ref=f42e338]:
+                        - generic [ref=f42e341]: Quick apply
+                      - listitem [ref=f42e342]:
+                        - generic [ref=f42e345]: Remote
+                      - listitem [ref=f42e346]:
+                        - generic [ref=f42e349]: GMT+0 to GMT+4
+                      - listitem [ref=f42e350]:
+                        - generic [ref=f42e353]: Full-time
+            - article [ref=f42e354]:
+              - generic [ref=f42e355]:
+                - generic [ref=f42e357]:
+                  - generic [ref=f42e358]:
+                    - generic [ref=f42e359]: 4 months ago
+                    - generic [ref=f42e360]: remote - Latin America only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e362]
+                - generic [ref=f42e366]:
+                  - generic [ref=f42e367]:
+                    - img "EWTN" [ref=f42e369]
+                    - generic [ref=f42e370]:
+                      - link "Engineering, Native App" [ref=f42e371] [cursor=pointer]:
+                        - /url: /jobs/ewtn-c15kyqza/engineering-native-app-j10n3cyx
+                      - generic [ref=f42e373]: EWTN
+                  - list [ref=f42e375]:
+                    - listitem [ref=f42e376]:
+                      - generic [ref=f42e379]: Quick apply
+                    - listitem [ref=f42e380]:
+                      - generic [ref=f42e383]: Remote
+                    - listitem [ref=f42e384]:
+                      - generic [ref=f42e387]: Latin America only
+                    - listitem [ref=f42e388]:
+                      - generic [ref=f42e391]: Full-time
+            - article [ref=f42e392]:
+              - generic [ref=f42e393]:
+                - generic [ref=f42e395]:
+                  - generic [ref=f42e396]:
+                    - generic [ref=f42e397]: 6 months ago
+                    - generic [ref=f42e398]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e400]
+                - generic [ref=f42e404]:
+                  - generic [ref=f42e405]:
+                    - img "CST Training LTD" [ref=f42e407]
+                    - generic [ref=f42e408]:
+                      - link "Junior Front End Developer" [ref=f42e409] [cursor=pointer]:
+                        - /url: /jobs/cst-training-ltd-c15suan9/junior-front-end-developer-j1tptb5u
+                      - generic [ref=f42e411]: CST Training LTD
+                  - list [ref=f42e413]:
+                    - listitem [ref=f42e414]:
+                      - generic [ref=f42e417]: Quick apply
+                    - listitem [ref=f42e418]:
+                      - generic [ref=f42e421]: Remote
+                    - listitem [ref=f42e422]:
+                      - generic [ref=f42e425]: Anywhere
+                    - listitem [ref=f42e428]:
+                      - generic [ref=f42e431]: Full-time
+            - article [ref=f42e432]:
+              - generic [ref=f42e433]:
+                - generic [ref=f42e435]:
+                  - generic [ref=f42e436]:
+                    - generic [ref=f42e437]: 7 months ago
+                    - generic [ref=f42e438]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e440]
+                - generic [ref=f42e444]:
+                  - generic [ref=f42e445]:
+                    - img "Remote" [ref=f42e447]
+                    - generic [ref=f42e448]:
+                      - link "Senior Backend Engineer (Elixir)" [ref=f42e449] [cursor=pointer]:
+                        - /url: /jobs/remote-c19vyacj/senior-backend-engineer-elixir-j1mlvudd
+                      - generic [ref=f42e451]: Remote
+                  - generic [ref=f42e452]:
+                    - generic [ref=f42e453]:
+                      - text: 52k - 117k USD
+                      - generic [ref=f42e454]: /year
+                    - list [ref=f42e455]:
+                      - listitem [ref=f42e456]:
+                        - generic [ref=f42e459]: Remote
+                      - listitem [ref=f42e460]:
+                        - generic [ref=f42e463]: Anywhere
+                      - listitem [ref=f42e466]:
+                        - generic [ref=f42e469]: Full-time
+            - article [ref=f42e470]:
+              - generic [ref=f42e471]:
+                - generic [ref=f42e473]:
+                  - generic [ref=f42e474]:
+                    - generic [ref=f42e475]: 7 months ago
+                    - generic [ref=f42e476]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e478]
+                - generic [ref=f42e482]:
+                  - generic [ref=f42e483]:
+                    - img "Remote" [ref=f42e485]
+                    - generic [ref=f42e486]:
+                      - link "Engineering Team Leader" [ref=f42e487] [cursor=pointer]:
+                        - /url: /jobs/remote-c19vyacj/engineering-team-leader-j1te8jld
+                      - generic [ref=f42e489]: Remote
+                  - generic [ref=f42e490]:
+                    - generic [ref=f42e491]:
+                      - text: 73k - 165k USD
+                      - generic [ref=f42e492]: /year
+                    - list [ref=f42e493]:
+                      - listitem [ref=f42e494]:
+                        - generic [ref=f42e497]: Remote
+                      - listitem [ref=f42e498]:
+                        - generic [ref=f42e501]: Anywhere
+                      - listitem [ref=f42e504]:
+                        - generic [ref=f42e507]: Full-time
+            - article [ref=f42e508]:
+              - generic [ref=f42e509]:
+                - generic [ref=f42e511]:
+                  - generic [ref=f42e512]:
+                    - generic [ref=f42e513]: 10 months ago
+                    - generic [ref=f42e514]: occasional travel
+                    - generic [ref=f42e516]: remote - Europe only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e518]
+                - generic [ref=f42e522]:
+                  - generic [ref=f42e523]:
+                    - img "Knowledge Hero GmbH" [ref=f42e525]
+                    - generic [ref=f42e526]:
+                      - link "Senior Software Engineer" [ref=f42e527] [cursor=pointer]:
+                        - /url: /jobs/knowledge-hero-gmbh-c1n8f9gn/senior-software-engineer-j1lux9me
+                      - generic [ref=f42e529]: Knowledge Hero GmbH
+                  - generic [ref=f42e530]:
+                    - generic [ref=f42e531]:
+                      - text: 60 - 90k EUR
+                      - generic [ref=f42e532]: /year
+                    - list [ref=f42e533]:
+                      - listitem [ref=f42e534]:
+                        - generic [ref=f42e537]: Remote
+                      - listitem [ref=f42e538]:
+                        - generic [ref=f42e541]: Europe only
+                      - listitem [ref=f42e542]:
+                        - generic [ref=f42e545]: Full-time
+            - article [ref=f42e546]:
+              - generic [ref=f42e547]:
+                - generic [ref=f42e549]:
+                  - generic [ref=f42e550]:
+                    - generic [ref=f42e551]: 10 months ago
+                    - generic [ref=f42e552]: occasional travel
+                    - generic [ref=f42e554]: remote - United States only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e556]
+                - generic [ref=f42e560]:
+                  - generic [ref=f42e561]:
+                    - img "Prismatic" [ref=f42e563]
+                    - generic [ref=f42e564]:
+                      - link "Engineering Manager" [ref=f42e565] [cursor=pointer]:
+                        - /url: /jobs/prismatic-c1bi404e/engineering-manager-j14a2kim
+                      - generic [ref=f42e567]: Prismatic
+                  - generic [ref=f42e568]:
+                    - generic [ref=f42e569]:
+                      - text: 185k - 200k USD
+                      - generic [ref=f42e570]: /year
+                    - list [ref=f42e571]:
+                      - listitem [ref=f42e572]:
+                        - generic [ref=f42e575]: Remote
+                      - listitem [ref=f42e576]:
+                        - generic [ref=f42e579]: United States only
+                      - listitem [ref=f42e580]:
+                        - generic [ref=f42e583]: Full-time
+            - article [ref=f42e584]:
+              - generic [ref=f42e585]:
+                - generic [ref=f42e587]:
+                  - generic [ref=f42e588]:
+                    - generic [ref=f42e589]: 21 hours ago
+                    - generic [ref=f42e590]: remote - United States only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e592]
+                - generic [ref=f42e596]:
+                  - generic [ref=f42e597]:
+                    - img "Casechek" [ref=f42e599]
+                    - generic [ref=f42e600]:
+                      - link "Software Engineer" [ref=f42e601] [cursor=pointer]:
+                        - /url: /jobs/casechek-c1ozotzl/software-engineer-j1deronc
+                      - generic [ref=f42e603]: Casechek
+                  - generic [ref=f42e604]:
+                    - generic [ref=f42e605]:
+                      - text: 100k - 125k USD
+                      - generic [ref=f42e606]: /year
+                    - list [ref=f42e607]:
+                      - listitem [ref=f42e608]:
+                        - generic [ref=f42e611]: Remote
+                      - listitem [ref=f42e612]:
+                        - generic [ref=f42e615]: United States only
+                      - listitem [ref=f42e616]:
+                        - generic [ref=f42e619]: Full-time
+            - article [ref=f42e620]:
+              - generic [ref=f42e621]:
+                - generic [ref=f42e623]:
+                  - generic [ref=f42e624]:
+                    - generic [ref=f42e625]: 13 days ago
+                    - button "remote - North America +1 more" [ref=f42e626] [cursor=pointer]
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e631]
+                - generic [ref=f42e635]:
+                  - generic [ref=f42e636]:
+                    - img "Dutch" [ref=f42e638]
+                    - generic [ref=f42e639]:
+                      - link "Software Engineer" [ref=f42e640] [cursor=pointer]:
+                        - /url: /jobs/dutch-c1sdtlax/software-engineer-j1zkc8vl
+                      - generic [ref=f42e642]: Dutch
+                  - generic [ref=f42e643]:
+                    - generic [ref=f42e644]:
+                      - text: 149k - 155k USD
+                      - generic [ref=f42e645]: /year
+                    - list [ref=f42e646]:
+                      - listitem [ref=f42e647]:
+                        - generic [ref=f42e650]: Remote
+                      - listitem [ref=f42e651]:
+                        - button "North America +1 more" [ref=f42e655] [cursor=pointer]
+                      - listitem [ref=f42e656]:
+                        - generic [ref=f42e659]: Full-time
+            - article [ref=f42e660]:
+              - generic [ref=f42e661]:
+                - generic [ref=f42e663]:
+                  - generic [ref=f42e664]:
+                    - generic [ref=f42e665]: 29 days ago
+                    - generic [ref=f42e666]: remote - United Kingdom (UK) only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e668]
+                - generic [ref=f42e672]:
+                  - generic [ref=f42e673]:
+                    - img "Kitman Labs" [ref=f42e675]
+                    - generic [ref=f42e676]:
+                      - link "Software Engineer" [ref=f42e677] [cursor=pointer]:
+                        - /url: /jobs/kitman-labs-c161mcti/software-engineer-j14gfcji
+                      - generic [ref=f42e679]: Kitman Labs
+                  - list [ref=f42e681]:
+                    - listitem [ref=f42e682]:
+                      - generic [ref=f42e685]: Remote
+                    - listitem [ref=f42e686]:
+                      - generic [ref=f42e689]: United Kingdom (UK) only
+                    - listitem [ref=f42e690]:
+                      - generic [ref=f42e693]: Full-time
+            - article [ref=f42e694]:
+              - generic [ref=f42e695]:
+                - generic [ref=f42e697]:
+                  - generic [ref=f42e698]:
+                    - generic [ref=f42e699]: 4 months ago
+                    - generic [ref=f42e700]: remote - Colombia only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e702]
+                - generic [ref=f42e706]:
+                  - generic [ref=f42e707]:
+                    - img "Flex" [ref=f42e709]
+                    - generic [ref=f42e710]:
+                      - link "Software Engineer" [ref=f42e711] [cursor=pointer]:
+                        - /url: /jobs/flex-c18w32b3/software-engineer-j19f77sa
+                      - generic [ref=f42e713]: Flex
+                  - generic [ref=f42e714]:
+                    - generic [ref=f42e715]:
+                      - text: 35k - 55k USD
+                      - generic [ref=f42e716]: /year
+                    - list [ref=f42e717]:
+                      - listitem [ref=f42e718]:
+                        - generic [ref=f42e721]: Remote
+                      - listitem [ref=f42e722]:
+                        - generic [ref=f42e725]: Colombia only
+                      - listitem [ref=f42e726]:
+                        - generic [ref=f42e729]: Full-time
+            - article [ref=f42e730]:
+              - generic [ref=f42e731]:
+                - generic [ref=f42e733]:
+                  - generic [ref=f42e734]:
+                    - generic [ref=f42e735]: 5 months ago
+                    - generic [ref=f42e736]: remote - Brazil only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e738]
+                - generic [ref=f42e742]:
+                  - generic [ref=f42e743]:
+                    - img "Flex" [ref=f42e745]
+                    - generic [ref=f42e746]:
+                      - link "Software Engineer" [ref=f42e747] [cursor=pointer]:
+                        - /url: /jobs/flex-c18w32b3/software-engineer-j1u4zdsx
+                      - generic [ref=f42e749]: Flex
+                  - generic [ref=f42e750]:
+                    - generic [ref=f42e751]:
+                      - text: 55k - 75k USD
+                      - generic [ref=f42e752]: /year
+                    - list [ref=f42e753]:
+                      - listitem [ref=f42e754]:
+                        - generic [ref=f42e757]: Remote
+                      - listitem [ref=f42e758]:
+                        - generic [ref=f42e761]: Brazil only
+                      - listitem [ref=f42e762]:
+                        - generic [ref=f42e765]: Full-time
+            - article [ref=f42e766]:
+              - generic [ref=f42e767]:
+                - generic [ref=f42e769]:
+                  - generic [ref=f42e770]:
+                    - generic [ref=f42e771]: 11 months ago
+                    - button "remote - Canada +1 more" [ref=f42e772] [cursor=pointer]
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e777]
+                - generic [ref=f42e781]:
+                  - generic [ref=f42e782]:
+                    - img "Secureframe" [ref=f42e784]
+                    - generic [ref=f42e785]:
+                      - link "Software Engineer" [ref=f42e786] [cursor=pointer]:
+                        - /url: /jobs/secureframe-c18syhvu/software-engineer-j1q8torh
+                      - generic [ref=f42e788]: Secureframe
+                  - list [ref=f42e790]:
+                    - listitem [ref=f42e791]:
+                      - generic [ref=f42e794]: Remote
+                    - listitem [ref=f42e795]:
+                      - button "Canada +1 more" [ref=f42e799] [cursor=pointer]
+                    - listitem [ref=f42e800]:
+                      - generic [ref=f42e803]: Full-time
+            - article [ref=f42e804]:
+              - generic [ref=f42e805]:
+                - generic [ref=f42e807]:
+                  - generic [ref=f42e808]:
+                    - generic [ref=f42e809]: 1 year ago
+                    - generic [ref=f42e810]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e812]
+                - generic [ref=f42e816]:
+                  - generic [ref=f42e817]:
+                    - img "Ladders Inc." [ref=f42e819]
+                    - generic [ref=f42e820]:
+                      - link "Software Engineer" [ref=f42e821] [cursor=pointer]:
+                        - /url: /jobs/ladders-inc-c14i8oe4/software-engineer-j1o29d0b
+                      - generic [ref=f42e823]: Ladders Inc.
+                  - list [ref=f42e825]:
+                    - listitem [ref=f42e826]:
+                      - generic [ref=f42e829]: Remote
+                    - listitem [ref=f42e830]:
+                      - generic [ref=f42e833]: Anywhere
+                    - listitem [ref=f42e836]:
+                      - generic [ref=f42e839]: Full-time
+            - article [ref=f42e840]:
+              - generic [ref=f42e841]:
+                - generic [ref=f42e843]:
+                  - generic [ref=f42e844]:
+                    - generic [ref=f42e845]: 20 hours ago
+                    - generic [ref=f42e846]: remote - Canada only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f42e848]
+                - generic [ref=f42e852]:
+                  - generic [ref=f42e853]:
+                    - img "Workleap" [ref=f42e855]
+                    - generic [ref=f42e856]:
+                      - link "Front-End Developer II, Protect - ShareGate" [ref=f42e857] [cursor=pointer]:
+                        - /url: /jobs/workleap-c1y0gs23/front-end-developer-ii-protect-sharegate-j1zig5fb
+                      - generic [ref=f42e859]: Workleap
+                  - generic [ref=f42e860]:
+                    - generic [ref=f42e861]:
+                      - text: 100k - 130k CAD
+                      - generic [ref=f42e862]: /year
+                    - list [ref=f42e863]:
+                      - listitem [ref=f42e864]:
+                        - generic [ref=f42e867]: Remote
+                      - listitem [ref=f42e868]:
+                        - generic [ref=f42e871]: Canada only
+                      - listitem [ref=f42e872]:
+                        - generic [ref=f42e875]: Full-time
+          - navigation "Pagination" [ref=f42e876]:
+            - list [ref=f42e877]:
+              - listitem
+              - listitem [ref=f42e878]:
+                - link "Page 1 is your current page" [ref=f42e879] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=1
+                  - text: "1"
+              - listitem [ref=f42e880]:
+                - link "Page 2" [ref=f42e881] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=2
+                  - text: "2"
+              - listitem [ref=f42e882]:
+                - link "Page 3" [ref=f42e883] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=3
+                  - text: "3"
+              - listitem [ref=f42e884]:
+                - link "Page 4" [ref=f42e885] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=4
+                  - text: "4"
+              - listitem [ref=f42e886]:
+                - button "..." [ref=f42e887] [cursor=pointer]
+              - listitem [ref=f42e888]:
+                - link "Page 71" [ref=f42e889] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=71
+                  - text: "71"
+              - listitem [ref=f42e890]:
+                - button "Next page" [ref=f42e891] [cursor=pointer]
+    - generic [ref=f42e894]:
+      - generic [ref=f42e897]:
+        - img "person-on-chair" [ref=f42e898]
+        - generic [ref=f42e899]:
+          - generic [ref=f42e900]: Live anywhere, work everywhere.
+          - link "Sign up for free" [ref=f42e901] [cursor=pointer]:
+            - /url: /jobs/sign-up
+      - contentinfo [ref=f42e905]:
+        - generic [ref=f42e906]:
+          - generic [ref=f42e907]:
+            - img "remote.com/jobs" [ref=f42e908]
+            - link [ref=f42e910] [cursor=pointer]:
+              - /url: https://www.producthunt.com/posts/remote-talent?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-remote-talent
+              - img "Remote Talent - Find the best remote jobs on the planet | Product Hunt" [ref=f42e911]
+          - generic [ref=f42e912]:
+            - generic [ref=f42e913]:
+              - generic [ref=f42e914]: Company
+              - list [ref=f42e915]:
+                - listitem [ref=f42e916]:
+                  - link "About Remote" [ref=f42e917] [cursor=pointer]:
+                    - /url: https://remote.com/about
+                - listitem [ref=f42e919]:
+                  - link "Careers" [ref=f42e920] [cursor=pointer]:
+                    - /url: https://remote.com/careers
+                - listitem [ref=f42e922]:
+                  - link "Support" [ref=f42e923] [cursor=pointer]:
+                    - /url: https://support.remote.com/hc/en-us
+                - listitem [ref=f42e925]:
+                  - link "Contact us" [ref=f42e926] [cursor=pointer]:
+                    - /url: https://remote.com/contact-us
+            - generic [ref=f42e928]:
+              - generic [ref=f42e929]: For job seekers
+              - list [ref=f42e930]:
+                - listitem [ref=f42e931]:
+                  - link "Sign up with Remote Jobs" [ref=f42e932] [cursor=pointer]:
+                    - /url: /jobs/sign-up
+                - listitem [ref=f42e934]:
+                  - link "Browse remote jobs" [ref=f42e935] [cursor=pointer]:
+                    - /url: /jobs/all
+            - generic [ref=f42e937]:
+              - generic [ref=f42e938]: Remote work
+              - list [ref=f42e939]:
+                - listitem [ref=f42e940]:
+                  - link "Remote jobs by category" [ref=f42e941] [cursor=pointer]:
+                    - /url: /jobs/types-of-remote-jobs
+          - generic [ref=f42e943]:
+            - generic [ref=f42e944]: Copyright © 2024. Remote Technology, Inc. All rights reserved.
+            - list [ref=f42e946]:
+              - listitem [ref=f42e947]:
+                - link "Privacy Policy" [ref=f42e948] [cursor=pointer]:
+                  - /url: https://remote.com/privacy-policy
+              - listitem [ref=f42e950]:
+                - link "Cookie Policy" [ref=f42e951] [cursor=pointer]:
+                  - /url: https://remote.com/cookie-policy
+              - listitem [ref=f42e953]:
+                - link "Terms of Use" [ref=f42e954] [cursor=pointer]:
+                  - /url: https://remote.com/terms-of-use
+              - list [ref=f42e956]:
+                - listitem [ref=f42e957]:
+                  - link [ref=f42e958] [cursor=pointer]:
+                    - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+                    - img "Youtube logo" [ref=f42e959]
+                - listitem [ref=f42e960]:
+                  - link [ref=f42e961] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/company/remote.com/
+                    - img "Linkedin logo" [ref=f42e962]
+                - listitem [ref=f42e963]:
+                  - link [ref=f42e964] [cursor=pointer]:
+                    - /url: https://twitter.com/remote
+                    - img "Twitter logo" [ref=f42e965]
+                - listitem [ref=f42e966]:
+                  - link [ref=f42e967] [cursor=pointer]:
+                    - /url: https://www.instagram.com/remote/
+                    - img "Instagram logo" [ref=f42e968]
+  - alert [ref=f42e969]

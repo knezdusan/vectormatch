@@ -1,0 +1,241 @@
+- generic [active] [ref=f36e1]:
+  - generic [ref=f36e2]:
+    - banner [ref=f36e3]:
+      - link "Go to Remote" [ref=f36e5] [cursor=pointer]:
+        - /url: https://remote.com
+      - generic [ref=f36e11]:
+        - link "Homepage" [ref=f36e13] [cursor=pointer]:
+          - /url: /jobs
+          - img "remote.com/jobs" [ref=f36e14]
+        - navigation "Main" [ref=f36e15]:
+          - list [ref=f36e16]:
+            - listitem [ref=f36e17]:
+              - link "Sign up" [ref=f36e18] [cursor=pointer]:
+                - /url: /jobs/sign-up
+            - listitem [ref=f36e21]:
+              - link "Log in" [ref=f36e22] [cursor=pointer]:
+                - /url: /jobs/sign-in
+    - main [ref=f36e25]:
+      - generic [ref=f36e26]:
+        - heading "Top remote engineering jobs" [level=1] [ref=f36e28]
+        - generic [ref=f36e29]:
+          - search [ref=f36e34]:
+            - textbox "Search by job title" [ref=f36e35]: engineering
+            - button "Clear" [ref=f36e36] [cursor=pointer]
+            - button "Search" [ref=f36e38] [cursor=pointer]
+            - generic [ref=f36e42]:
+              - generic [ref=f36e44]:
+                - log [ref=f36e46]
+                - button "Job type" [ref=f36e47] [cursor=pointer]
+              - generic [ref=f36e55]:
+                - log [ref=f36e57]
+                - button "Remote" [ref=f36e58] [cursor=pointer]
+              - button "Country or timezone" [ref=f36e66] [cursor=pointer]
+              - generic [ref=f36e74]:
+                - log [ref=f36e76]
+                - button "Seniority" [ref=f36e77] [cursor=pointer]
+              - button "Pay" [ref=f36e84] [cursor=pointer]
+              - generic [ref=f36e92]:
+                - log [ref=f36e94]
+                - button "Travel" [ref=f36e95] [cursor=pointer]
+              - button "Clear all" [ref=f36e102] [cursor=pointer]
+          - generic [ref=f36e108]:
+            - log [ref=f36e110]
+            - button "Most relevant" [ref=f36e111] [cursor=pointer]
+          - generic [ref=f36e118]:
+            - article [ref=f36e119]:
+              - generic [ref=f36e120]:
+                - generic [ref=f36e122]:
+                  - generic [ref=f36e123]:
+                    - generic [ref=f36e124]: 6 months ago
+                    - button "remote - North America +1 more" [ref=f36e125] [cursor=pointer]
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f36e130]
+                - generic [ref=f36e134]:
+                  - generic [ref=f36e135]:
+                    - img "True Zero Technologies" [ref=f36e137]
+                    - generic [ref=f36e138]:
+                      - link "Splunk Engineer-Core Certified Consultant/ ES Accreditation Required (R-00101)" [ref=f36e139] [cursor=pointer]:
+                        - /url: /jobs/true-zero-technologies-c1asb31q/splunk-engineer-core-certified-consultant-es-accreditation-required-r-00101-j1al2gj3
+                      - generic [ref=f36e141]: True Zero Technologies
+                  - list [ref=f36e143]:
+                    - listitem [ref=f36e144]:
+                      - generic [ref=f36e147]: Remote
+                    - listitem [ref=f36e148]:
+                      - button "North America +1 more" [ref=f36e152] [cursor=pointer]
+                    - listitem [ref=f36e153]:
+                      - generic [ref=f36e156]: Full-time
+            - article [ref=f36e157]:
+              - generic [ref=f36e158]:
+                - generic [ref=f36e160]:
+                  - generic [ref=f36e161]:
+                    - generic [ref=f36e162]: 8 months ago
+                    - generic [ref=f36e163]: remote - United States only
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f36e165]
+                - generic [ref=f36e169]:
+                  - generic [ref=f36e170]:
+                    - img "Horizon Industries" [ref=f36e172]
+                    - generic [ref=f36e173]:
+                      - link "Full Stack Developer(DISA)" [ref=f36e174] [cursor=pointer]:
+                        - /url: /jobs/horizon-industries-c16hyelo/full-stack-developer-disa-j118rsvm
+                      - generic [ref=f36e176]: Horizon Industries
+                  - list [ref=f36e178]:
+                    - listitem [ref=f36e179]:
+                      - generic [ref=f36e182]: Remote
+                    - listitem [ref=f36e183]:
+                      - generic [ref=f36e186]: United States only
+                    - listitem [ref=f36e187]:
+                      - generic [ref=f36e190]: Full-time
+            - article [ref=f36e191]:
+              - generic [ref=f36e192]:
+                - generic [ref=f36e194]:
+                  - generic [ref=f36e195]:
+                    - generic [ref=f36e196]: 1 year ago
+                    - generic [ref=f36e197]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f36e199]
+                - generic [ref=f36e203]:
+                  - generic [ref=f36e204]:
+                    - img "Invisible Technologies" [ref=f36e206]
+                    - generic [ref=f36e207]:
+                      - link "Software Developers & Programming Specialist - AI Trainer" [ref=f36e208] [cursor=pointer]:
+                        - /url: /jobs/invisible-technologies-c1bcklvo/software-developers-programming-specialist-ai-trainer-j1ogdyg1
+                      - generic [ref=f36e210]: Invisible Technologies
+                  - generic [ref=f36e211]:
+                    - generic [ref=f36e212]:
+                      - text: 8 - 65 USD
+                      - generic [ref=f36e213]: /hour
+                    - list [ref=f36e214]:
+                      - listitem [ref=f36e215]:
+                        - generic [ref=f36e218]: Remote
+                      - listitem [ref=f36e219]:
+                        - generic [ref=f36e222]: Anywhere
+                      - listitem [ref=f36e225]:
+                        - generic [ref=f36e228]: Full-time
+            - article [ref=f36e229]:
+              - generic [ref=f36e230]:
+                - generic [ref=f36e232]:
+                  - generic [ref=f36e233]:
+                    - generic [ref=f36e234]: 2 months ago
+                    - generic [ref=f36e235]: fully remote
+                  - button "Log in or sign up to save jobs" [disabled] [ref=f36e237]
+                - generic [ref=f36e241]:
+                  - generic [ref=f36e242]:
+                    - img "MyMarketingPass" [ref=f36e244]
+                    - generic [ref=f36e245]:
+                      - link "Sr. Web Developer Wanted! (Wordpress / Elementor / Shopify / CSS)" [ref=f36e246] [cursor=pointer]:
+                        - /url: /jobs/mymarketingpass-c1ymnbf2/sr-web-developer-wanted-wordpress-elementor-shopify-css-j1bz2py8
+                      - generic [ref=f36e248]: MyMarketingPass
+                  - generic [ref=f36e249]:
+                    - generic [ref=f36e250]:
+                      - text: 10 - 20 USD
+                      - generic [ref=f36e251]: /hour
+                    - list [ref=f36e252]:
+                      - listitem [ref=f36e253]:
+                        - generic [ref=f36e256]: Quick apply
+                      - listitem [ref=f36e257]:
+                        - generic [ref=f36e260]: Remote
+                      - listitem [ref=f36e261]:
+                        - generic [ref=f36e264]: Anywhere
+                      - listitem [ref=f36e267]:
+                        - generic [ref=f36e270]: Full-time
+          - navigation "Pagination" [ref=f36e271]:
+            - list [ref=f36e272]:
+              - listitem [ref=f36e273]:
+                - button "Previous page" [ref=f36e274] [cursor=pointer]
+              - listitem [ref=f36e277]:
+                - link "Page 1" [ref=f36e278] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=1
+                  - text: "1"
+              - listitem [ref=f36e279]:
+                - button "..." [ref=f36e280] [cursor=pointer]
+              - listitem [ref=f36e281]:
+                - link "Page 68" [ref=f36e282] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=68
+                  - text: "68"
+              - listitem [ref=f36e283]:
+                - link "Page 69" [ref=f36e284] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=69
+                  - text: "69"
+              - listitem [ref=f36e285]:
+                - link "Page 70" [ref=f36e286] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=70
+                  - text: "70"
+              - listitem [ref=f36e287]:
+                - link "Page 71 is your current page" [ref=f36e288] [cursor=pointer]:
+                  - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs?page=71
+                  - text: "71"
+              - listitem
+    - generic [ref=f36e289]:
+      - generic [ref=f36e292]:
+        - img "person-on-chair" [ref=f36e293]
+        - generic [ref=f36e294]:
+          - generic [ref=f36e295]: Live anywhere, work everywhere.
+          - link "Sign up for free" [ref=f36e296] [cursor=pointer]:
+            - /url: /jobs/sign-up
+      - contentinfo [ref=f36e300]:
+        - generic [ref=f36e301]:
+          - generic [ref=f36e302]:
+            - img "remote.com/jobs" [ref=f36e303]
+            - link [ref=f36e305] [cursor=pointer]:
+              - /url: https://www.producthunt.com/posts/remote-talent?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-remote-talent
+              - img "Remote Talent - Find the best remote jobs on the planet | Product Hunt" [ref=f36e306]
+          - generic [ref=f36e307]:
+            - generic [ref=f36e308]:
+              - generic [ref=f36e309]: Company
+              - list [ref=f36e310]:
+                - listitem [ref=f36e311]:
+                  - link "About Remote" [ref=f36e312] [cursor=pointer]:
+                    - /url: https://remote.com/about
+                - listitem [ref=f36e314]:
+                  - link "Careers" [ref=f36e315] [cursor=pointer]:
+                    - /url: https://remote.com/careers
+                - listitem [ref=f36e317]:
+                  - link "Support" [ref=f36e318] [cursor=pointer]:
+                    - /url: https://support.remote.com/hc/en-us
+                - listitem [ref=f36e320]:
+                  - link "Contact us" [ref=f36e321] [cursor=pointer]:
+                    - /url: https://remote.com/contact-us
+            - generic [ref=f36e323]:
+              - generic [ref=f36e324]: For job seekers
+              - list [ref=f36e325]:
+                - listitem [ref=f36e326]:
+                  - link "Sign up with Remote Jobs" [ref=f36e327] [cursor=pointer]:
+                    - /url: /jobs/sign-up
+                - listitem [ref=f36e329]:
+                  - link "Browse remote jobs" [ref=f36e330] [cursor=pointer]:
+                    - /url: /jobs/all
+            - generic [ref=f36e332]:
+              - generic [ref=f36e333]: Remote work
+              - list [ref=f36e334]:
+                - listitem [ref=f36e335]:
+                  - link "Remote jobs by category" [ref=f36e336] [cursor=pointer]:
+                    - /url: /jobs/types-of-remote-jobs
+          - generic [ref=f36e338]:
+            - generic [ref=f36e339]: Copyright © 2024. Remote Technology, Inc. All rights reserved.
+            - list [ref=f36e341]:
+              - listitem [ref=f36e342]:
+                - link "Privacy Policy" [ref=f36e343] [cursor=pointer]:
+                  - /url: https://remote.com/privacy-policy
+              - listitem [ref=f36e345]:
+                - link "Cookie Policy" [ref=f36e346] [cursor=pointer]:
+                  - /url: https://remote.com/cookie-policy
+              - listitem [ref=f36e348]:
+                - link "Terms of Use" [ref=f36e349] [cursor=pointer]:
+                  - /url: https://remote.com/terms-of-use
+              - list [ref=f36e351]:
+                - listitem [ref=f36e352]:
+                  - link [ref=f36e353] [cursor=pointer]:
+                    - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+                    - img "Youtube logo" [ref=f36e354]
+                - listitem [ref=f36e355]:
+                  - link [ref=f36e356] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/company/remote.com/
+                    - img "Linkedin logo" [ref=f36e357]
+                - listitem [ref=f36e358]:
+                  - link [ref=f36e359] [cursor=pointer]:
+                    - /url: https://twitter.com/remote
+                    - img "Twitter logo" [ref=f36e360]
+                - listitem [ref=f36e361]:
+                  - link [ref=f36e362] [cursor=pointer]:
+                    - /url: https://www.instagram.com/remote/
+                    - img "Instagram logo" [ref=f36e363]
+  - alert [ref=f36e364]

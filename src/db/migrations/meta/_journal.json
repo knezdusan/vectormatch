@@ -379,6 +379,13 @@
       "when": 1784140800870,
       "tag": "0053_chilly_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1784222967059,
+      "tag": "0054_short_cyclops",
+      "breakpoints": true
     }
   ]
 }

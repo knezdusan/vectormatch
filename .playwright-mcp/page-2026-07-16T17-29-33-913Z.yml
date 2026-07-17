@@ -1,0 +1,153 @@
+- generic [active] [ref=f32e1]:
+  - generic [ref=f32e2]:
+    - banner [ref=f32e3]:
+      - link "Go to Remote" [ref=f32e5] [cursor=pointer]:
+        - /url: https://remote.com
+      - generic [ref=f32e11]:
+        - link "Homepage" [ref=f32e13] [cursor=pointer]:
+          - /url: /jobs
+          - img "remote.com/jobs" [ref=f32e14]
+        - navigation "Main" [ref=f32e15]:
+          - list [ref=f32e16]:
+            - listitem [ref=f32e17]:
+              - link "Sign up" [ref=f32e18] [cursor=pointer]:
+                - /url: /jobs/sign-up
+            - listitem [ref=f32e21]:
+              - link "Log in" [ref=f32e22] [cursor=pointer]:
+                - /url: /jobs/sign-in
+    - main [ref=f32e25]:
+      - generic [ref=f32e27]:
+        - generic [ref=f32e28]:
+          - heading "Remote jobs by category" [level=1] [ref=f32e29]
+          - generic [ref=f32e30]: Explore the most in-demand remote jobs currently available.
+        - heading "Remote jobs by Type" [level=2] [ref=f32e31]
+        - generic [ref=f32e32]:
+          - link "Full-time" [ref=f32e34] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/full-time-remote-jobs
+          - link "Part-time" [ref=f32e37] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/part-time-remote-jobs
+          - link "Freelancer" [ref=f32e40] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/freelance-remote-jobs
+          - link "Contractor" [ref=f32e43] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/contract-remote-jobs
+        - heading "Remote jobs by Role" [level=2] [ref=f32e45]
+        - generic [ref=f32e46]:
+          - link "Cyber security" [ref=f32e48] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-cyber-security-jobs
+          - link "Email marketing" [ref=f32e51] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-email-marketing-jobs
+          - link "Quality assurance" [ref=f32e54] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-quality-assurance-jobs
+          - link "Accounting" [ref=f32e57] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-accounting-jobs
+          - link "Marketing" [ref=f32e60] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-marketing-jobs
+          - link "Business analyst" [ref=f32e63] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-business-analyst-jobs
+          - link "Project manager" [ref=f32e66] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-project-manager-jobs
+          - link "Software engineer" [ref=f32e69] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-software-engineer-jobs
+          - link "Product manager" [ref=f32e72] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-product-manager-jobs
+          - link "Coding" [ref=f32e75] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-coding-jobs
+          - link "Data analyst" [ref=f32e78] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-data-analyst-jobs
+          - link "Digital marketing" [ref=f32e81] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-digital-marketing-jobs
+          - link "Scrum master" [ref=f32e84] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-scrum-master-jobs
+          - link "Design" [ref=f32e87] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-design-jobs
+          - link "Engineering" [ref=f32e90] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-engineering-jobs
+          - link "Ui designer" [ref=f32e93] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-ui-designer-jobs
+          - link "Ux designer" [ref=f32e96] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-ux-designer-jobs
+          - link "Front end developer" [ref=f32e99] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-front-end-developer-jobs
+          - link "Full stack developer" [ref=f32e102] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-full-stack-developer-jobs
+          - link "Social media" [ref=f32e105] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-social-media-jobs
+          - link "Sales" [ref=f32e108] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-sales-jobs
+          - link "Back end developer" [ref=f32e111] [cursor=pointer]:
+            - /url: /jobs/types-of-remote-jobs/remote-back-end-developer-jobs
+    - generic [ref=f32e113]:
+      - generic [ref=f32e116]:
+        - img "person-on-chair" [ref=f32e117]
+        - generic [ref=f32e118]:
+          - generic [ref=f32e119]: Live anywhere, work everywhere.
+          - link "Sign up for free" [ref=f32e120] [cursor=pointer]:
+            - /url: /jobs/sign-up
+      - contentinfo [ref=f32e124]:
+        - generic [ref=f32e125]:
+          - generic [ref=f32e126]:
+            - img "remote.com/jobs" [ref=f32e127]
+            - link [ref=f32e129] [cursor=pointer]:
+              - /url: https://www.producthunt.com/posts/remote-talent?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-remote-talent
+              - img "Remote Talent - Find the best remote jobs on the planet | Product Hunt" [ref=f32e130]
+          - generic [ref=f32e131]:
+            - generic [ref=f32e132]:
+              - generic [ref=f32e133]: Company
+              - list [ref=f32e134]:
+                - listitem [ref=f32e135]:
+                  - link "About Remote" [ref=f32e136] [cursor=pointer]:
+                    - /url: https://remote.com/about
+                - listitem [ref=f32e138]:
+                  - link "Careers" [ref=f32e139] [cursor=pointer]:
+                    - /url: https://remote.com/careers
+                - listitem [ref=f32e141]:
+                  - link "Support" [ref=f32e142] [cursor=pointer]:
+                    - /url: https://support.remote.com/hc/en-us
+                - listitem [ref=f32e144]:
+                  - link "Contact us" [ref=f32e145] [cursor=pointer]:
+                    - /url: https://remote.com/contact-us
+            - generic [ref=f32e147]:
+              - generic [ref=f32e148]: For job seekers
+              - list [ref=f32e149]:
+                - listitem [ref=f32e150]:
+                  - link "Sign up with Remote Jobs" [ref=f32e151] [cursor=pointer]:
+                    - /url: /jobs/sign-up
+                - listitem [ref=f32e153]:
+                  - link "Browse remote jobs" [ref=f32e154] [cursor=pointer]:
+                    - /url: /jobs/all
+            - generic [ref=f32e156]:
+              - generic [ref=f32e157]: Remote work
+              - list [ref=f32e158]:
+                - listitem [ref=f32e159]:
+                  - link "Remote jobs by category" [ref=f32e160] [cursor=pointer]:
+                    - /url: /jobs/types-of-remote-jobs
+          - generic [ref=f32e162]:
+            - generic [ref=f32e163]: Copyright © 2024. Remote Technology, Inc. All rights reserved.
+            - list [ref=f32e165]:
+              - listitem [ref=f32e166]:
+                - link "Privacy Policy" [ref=f32e167] [cursor=pointer]:
+                  - /url: https://remote.com/privacy-policy
+              - listitem [ref=f32e169]:
+                - link "Cookie Policy" [ref=f32e170] [cursor=pointer]:
+                  - /url: https://remote.com/cookie-policy
+              - listitem [ref=f32e172]:
+                - link "Terms of Use" [ref=f32e173] [cursor=pointer]:
+                  - /url: https://remote.com/terms-of-use
+              - list [ref=f32e175]:
+                - listitem [ref=f32e176]:
+                  - link [ref=f32e177] [cursor=pointer]:
+                    - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+                    - img "Youtube logo" [ref=f32e178]
+                - listitem [ref=f32e179]:
+                  - link [ref=f32e180] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/company/remote.com/
+                    - img "Linkedin logo" [ref=f32e181]
+                - listitem [ref=f32e182]:
+                  - link [ref=f32e183] [cursor=pointer]:
+                    - /url: https://twitter.com/remote
+                    - img "Twitter logo" [ref=f32e184]
+                - listitem [ref=f32e185]:
+                  - link [ref=f32e186] [cursor=pointer]:
+                    - /url: https://www.instagram.com/remote/
+                    - img "Instagram logo" [ref=f32e187]
+  - alert [ref=f32e188]

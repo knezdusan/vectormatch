@@ -1,0 +1,243 @@
+- generic [active] [ref=f46e1]:
+  - banner [ref=f46e2]:
+    - navigation [ref=f46e3]:
+      - generic [ref=f46e4]:
+        - link [ref=f46e5] [cursor=pointer]:
+          - /url: /
+          - img "Deel Logo Black" [ref=f46e7]
+        - generic [ref=f46e8]:
+          - button "Select language" [ref=f46e11] [cursor=pointer]:
+            - generic [ref=f46e12]:
+              - img "blackGlobe-icon" [ref=f46e13]
+              - img "United States" [ref=f46e14]
+            - generic [ref=f46e15]: EN
+          - generic [ref=f46e16]:
+            - link "app.deel.com login" [ref=f46e17] [cursor=pointer]:
+              - /url: https://app.deel.com/login?lang=en
+              - button "Log in" [ref=f46e18]
+            - button "Book a demo" [ref=f46e19] [cursor=pointer]
+            - button "Open menu" [ref=f46e20] [cursor=pointer]
+  - main [ref=f46e23]:
+    - generic [ref=f46e25]:
+      - heading "404" [level=1] [ref=f46e26]
+      - paragraph [ref=f46e27]: We couldn't find the page you’re looking for.
+      - paragraph [ref=f46e28]: But don’t worry, we can help your find your way.
+      - generic [ref=f46e29]:
+        - link "Explore all our solutions" [ref=f46e30] [cursor=pointer]:
+          - /url: https://www.deel.com
+        - link "Get a free 30-minute demo" [ref=f46e31] [cursor=pointer]:
+          - /url: https://www.deel.com/request-a-demo/
+  - contentinfo [ref=f46e38]:
+    - generic [ref=f46e39]:
+      - generic [ref=f46e41]:
+        - link [ref=f46e42] [cursor=pointer]:
+          - /url: /about/
+          - paragraph [ref=f46e43]: About us
+        - link [ref=f46e44] [cursor=pointer]:
+          - /url: /leadership-team/
+          - paragraph [ref=f46e45]: Leadership team
+        - link [ref=f46e46] [cursor=pointer]:
+          - /url: /careers/
+          - paragraph [ref=f46e47]: Careers
+        - link [ref=f46e48] [cursor=pointer]:
+          - /url: /pricing/
+          - paragraph [ref=f46e49]: Pricing
+      - generic [ref=f46e50]:
+        - generic [ref=f46e52]:
+          - heading "Solutions" [level=3] [ref=f46e53]
+          - generic [ref=f46e54]:
+            - link [ref=f46e55] [cursor=pointer]:
+              - /url: /solutions/payroll/
+              - paragraph [ref=f46e56]: Deel Payroll
+            - link [ref=f46e57] [cursor=pointer]:
+              - /url: /solutions/hr/
+              - paragraph [ref=f46e58]: Deel HR
+            - link [ref=f46e59] [cursor=pointer]:
+              - /url: /solutions/it/
+              - paragraph [ref=f46e60]: Deel IT
+            - link [ref=f46e61] [cursor=pointer]:
+              - /url: /solutions/benefits/
+              - paragraph [ref=f46e62]: Deel Benefits
+            - link [ref=f46e63] [cursor=pointer]:
+              - /url: /solutions/hire/
+              - paragraph [ref=f46e64]: Deel Hire
+            - link [ref=f46e65] [cursor=pointer]:
+              - /url: /solutions/mobility/
+              - paragraph [ref=f46e66]: Deel Mobility
+            - link [ref=f46e67] [cursor=pointer]:
+              - /url: /solutions/embedded/
+              - paragraph [ref=f46e68]: Deel Embedded
+            - link [ref=f46e69] [cursor=pointer]:
+              - /url: /solutions/services/
+              - paragraph [ref=f46e70]: Deel Services
+            - link [ref=f46e71] [cursor=pointer]:
+              - /url: /solutions/
+              - paragraph [ref=f46e72]: All Solutions
+        - generic [ref=f46e74]:
+          - heading "Deel Platform" [level=3] [ref=f46e75]
+          - generic [ref=f46e76]:
+            - link [ref=f46e77] [cursor=pointer]:
+              - /url: /hr-platform/
+              - paragraph [ref=f46e78]: HR Platform
+            - link [ref=f46e79] [cursor=pointer]:
+              - /url: /hr-platform/ai/
+              - paragraph [ref=f46e80]: Deel AI
+            - link [ref=f46e81] [cursor=pointer]:
+              - /url: /hr-platform/white-label/
+              - paragraph [ref=f46e82]: White Label
+            - link [ref=f46e83] [cursor=pointer]:
+              - /url: /solutions/open-api/
+              - paragraph [ref=f46e84]: Deel API
+            - link [ref=f46e85] [cursor=pointer]:
+              - /url: /integrations/
+              - paragraph [ref=f46e86]: Integrations
+            - link [ref=f46e87] [cursor=pointer]:
+              - /url: /hr-platform/workflows/
+              - paragraph [ref=f46e88]: Workflows
+            - link [ref=f46e89] [cursor=pointer]:
+              - /url: https://www.akai.run/
+              - paragraph [ref=f46e90]: Akai
+            - link [ref=f46e91] [cursor=pointer]:
+              - /url: https://status.deel.com/
+              - paragraph [ref=f46e92]: Platform Status
+        - generic [ref=f46e95]:
+          - heading "Why Deel?" [level=3] [ref=f46e96]
+          - generic [ref=f46e97]:
+            - link [ref=f46e98] [cursor=pointer]:
+              - /url: /solutions/payroll-engine/
+              - paragraph [ref=f46e99]: Built on in-house infrastructure
+            - link [ref=f46e100] [cursor=pointer]:
+              - /url: /case-studies/
+              - paragraph [ref=f46e101]: Customer stories
+            - link [ref=f46e102] [cursor=pointer]:
+              - /url: /deel-vs-competitors/
+              - paragraph [ref=f46e103]: Compare Deel
+            - link [ref=f46e104] [cursor=pointer]:
+              - /url: /security/
+              - paragraph [ref=f46e105]: Security
+            - link [ref=f46e106] [cursor=pointer]:
+              - /url: https://trust.deel.com/
+              - paragraph [ref=f46e107]: Trust Center
+            - link [ref=f46e108] [cursor=pointer]:
+              - /url: /partner/
+              - paragraph [ref=f46e109]: Become a partner
+            - link [ref=f46e110] [cursor=pointer]:
+              - /url: /partner/affiliates/
+              - paragraph [ref=f46e111]: Become an affiliate
+            - link [ref=f46e112] [cursor=pointer]:
+              - /url: https://www.g2.com/products/deel/reviews
+              - paragraph [ref=f46e113]: G2 customer reviews
+        - generic [ref=f46e115]:
+          - heading "Resources" [level=3] [ref=f46e116]
+          - generic [ref=f46e117]:
+            - link [ref=f46e118] [cursor=pointer]:
+              - /url: /blog/
+              - paragraph [ref=f46e119]: Blog
+            - link [ref=f46e120] [cursor=pointer]:
+              - /url: /blog/?type=template&type=guide
+              - paragraph [ref=f46e121]: Templates And Guides
+            - link [ref=f46e122] [cursor=pointer]:
+              - /url: /hiring/
+              - paragraph [ref=f46e123]: Global Hiring Guides
+            - link [ref=f46e124] [cursor=pointer]:
+              - /url: /events/
+              - paragraph [ref=f46e125]: Webinars & Events
+            - link [ref=f46e126] [cursor=pointer]:
+              - /url: /glossary/
+              - paragraph [ref=f46e127]: Global Work Glossary
+            - link [ref=f46e128] [cursor=pointer]:
+              - /url: /deel-impact/
+              - paragraph [ref=f46e129]: Deel Impact
+            - link [ref=f46e130] [cursor=pointer]:
+              - /url: /job-description-templates/
+              - paragraph [ref=f46e131]: Job Description Templates
+            - link [ref=f46e132] [cursor=pointer]:
+              - /url: /global-hiring-toolkit
+              - paragraph [ref=f46e133]: Free HR tools
+            - link [ref=f46e134] [cursor=pointer]:
+              - /url: https://developer.deel.com/home
+              - paragraph [ref=f46e135]: API Documentation
+            - link [ref=f46e136] [cursor=pointer]:
+              - /url: https://help.letsdeel.com/hc/en-gb
+              - paragraph [ref=f46e137]: Help Center
+            - link [ref=f46e138] [cursor=pointer]:
+              - /url: /press/
+              - paragraph [ref=f46e139]: Press
+        - generic [ref=f46e141]:
+          - heading "Customers" [level=3] [ref=f46e142]
+          - generic [ref=f46e143]:
+            - link [ref=f46e144] [cursor=pointer]:
+              - /url: /case-studies/revolut/
+              - paragraph [ref=f46e145]: Revolut
+            - link [ref=f46e146] [cursor=pointer]:
+              - /url: /case-studies/bcg/
+              - paragraph [ref=f46e147]: BCG
+            - link [ref=f46e148] [cursor=pointer]:
+              - /url: /case-studies/fico/
+              - paragraph [ref=f46e149]: FICO
+            - link [ref=f46e150] [cursor=pointer]:
+              - /url: /case-studies/puma-south-africa/
+              - paragraph [ref=f46e151]: Puma
+            - link [ref=f46e152] [cursor=pointer]:
+              - /url: /case-studies/outreach/
+              - paragraph [ref=f46e153]: Outreach
+            - link [ref=f46e154] [cursor=pointer]:
+              - /url: /case-studies/zipco/
+              - paragraph [ref=f46e155]: Zip Co
+            - link [ref=f46e156] [cursor=pointer]:
+              - /url: /case-studies/directional-pizza/
+              - paragraph [ref=f46e157]: Directional Pizza
+      - generic [ref=f46e158]:
+        - generic [ref=f46e159]:
+          - link [ref=f46e160] [cursor=pointer]:
+            - /url: /
+            - img "Deel Logo White" [ref=f46e162]
+          - generic [ref=f46e163]:
+            - link [ref=f46e164] [cursor=pointer]:
+              - /url: https://twitter.com/deel
+              - img "twitterFilled-icon" [ref=f46e165]
+            - link [ref=f46e166] [cursor=pointer]:
+              - /url: https://linkedin.com/company/deel
+              - img "linkedinFilled-icon" [ref=f46e167]
+            - link [ref=f46e168] [cursor=pointer]:
+              - /url: https://facebook.com/getdeel
+              - img "facebookFilled-icon" [ref=f46e169]
+            - link [ref=f46e170] [cursor=pointer]:
+              - /url: https://instagram.com/getdeel
+              - img "instagramFilled-icon" [ref=f46e171]
+        - heading "Get the latest insights on today's world of work delivered straight to your inbox." [level=3] [ref=f46e172]
+        - generic [ref=f46e173]:
+          - generic [ref=f46e174]:
+            - button "Email subscribe" [ref=f46e175] [cursor=pointer]
+            - textbox "Email subscribe" [ref=f46e179]:
+              - /placeholder: What's your e-mail?
+          - paragraph [ref=f46e181]:
+            - text: I confirm that I have read
+            - link "Deel’s Privacy Policy" [ref=f46e182] [cursor=pointer]:
+              - /url: /privacy/
+            - text: and agree with it.
+      - generic [ref=f46e183]:
+        - paragraph [ref=f46e184]: © Copyright 2026. All Rights Reserved.
+        - generic [ref=f46e185]:
+          - link [ref=f46e186] [cursor=pointer]:
+            - /url: /legal/disclaimer/
+            - paragraph [ref=f46e187]: Disclaimer
+          - link [ref=f46e188] [cursor=pointer]:
+            - /url: /legal/privacy-policy/
+            - paragraph [ref=f46e189]: Privacy Policy
+          - link [ref=f46e190] [cursor=pointer]:
+            - /url: "#!"
+            - paragraph [ref=f46e191]: Cookie Settings
+          - link [ref=f46e192] [cursor=pointer]:
+            - /url: /legal/
+            - paragraph [ref=f46e193]: Legal Hub
+          - link [ref=f46e194] [cursor=pointer]:
+            - /url: /legal/whistleblower-policy/
+            - paragraph [ref=f46e195]: Whistleblower Policy
+          - link [ref=f46e196] [cursor=pointer]:
+            - /url: /legal/disclosures/
+            - paragraph [ref=f46e197]: Disclosures
+          - link [ref=f46e198] [cursor=pointer]:
+            - /url: /legal/licenses/
+            - paragraph [ref=f46e199]: Licenses and Compliance
+  - alert [ref=f46e200]

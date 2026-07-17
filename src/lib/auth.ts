@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db/db";
-import { account } from "@/db/schemas";
+import { account, applicant } from "@/db/schemas";
 import {
   sendAlreadyRegisteredEmail,
   sendResetPasswordEmail,
@@ -92,6 +92,50 @@ export const auth = betterAuth({
     github: {
       clientId: process.env.GITHUB_CLIENT_ID as string,
       clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    },
+  },
+  databaseHooks: {
+    account: {
+      create: {
+        after: async (createdAccount: {
+          providerId: string;
+          accessToken?: string | null | undefined;
+          userId: string;
+        }) => {
+          if (
+            createdAccount.providerId !== "github" ||
+            !createdAccount.accessToken
+          ) {
+            return;
+          }
+          try {
+            const resp = await fetch("https://api.github.com/user", {
+              headers: {
+                Authorization: `Bearer ${createdAccount.accessToken}`,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "VectorMatch",
+              },
+              signal: AbortSignal.timeout(5000),
+            });
+            if (!resp.ok) return;
+            const githubUser = (await resp.json()) as { login?: string };
+            if (!githubUser.login) return;
+            await db
+              .insert(applicant)
+              .values({
+                userId: createdAccount.userId,
+                githubHandle: githubUser.login,
+              })
+              .onConflictDoUpdate({
+                target: applicant.userId,
+                set: { githubHandle: githubUser.login },
+              });
+          } catch {
+            // Best-effort: a failed GitHub handle capture must not block sign-in.
+          }
+        },
+      },
     },
   },
   rateLimit: {

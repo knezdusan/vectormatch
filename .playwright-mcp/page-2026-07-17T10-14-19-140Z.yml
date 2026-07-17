@@ -1,0 +1,56 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "Vector••Match" [ref=e4] [cursor=pointer]:
+        - /url: https://vectormatch.dev/blog/
+      - navigation "Primary" [ref=e12]:
+        - link "Jobs" [ref=e13] [cursor=pointer]:
+          - /url: /jobs
+        - link "How it works" [ref=e14] [cursor=pointer]:
+          - /url: /#how
+        - link "For Developers" [ref=e15] [cursor=pointer]:
+          - /url: /#pitch
+        - link "Blog" [ref=e16] [cursor=pointer]:
+          - /url: /blog
+      - generic [ref=e17]:
+        - link "Log in" [ref=e18] [cursor=pointer]:
+          - /url: /auth?tab=signin
+        - link "Get Started" [ref=e19] [cursor=pointer]:
+          - /url: /auth?tab=signup
+  - main [ref=e20]:
+    - paragraph [ref=e21]: No posts found.
+  - contentinfo [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - link "Vector••Match" [ref=e26] [cursor=pointer]:
+            - /url: https://vectormatch.dev/blog/
+          - paragraph [ref=e34]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+        - generic [ref=e35]:
+          - generic [ref=e36]:
+            - heading "Product" [level=2] [ref=e37]
+            - link "How it works" [ref=e38] [cursor=pointer]:
+              - /url: /#how
+            - link "For Developers" [ref=e39] [cursor=pointer]:
+              - /url: /#pitch
+            - link "VectorMatch" [ref=e40] [cursor=pointer]:
+              - /url: /
+          - generic [ref=e41]:
+            - heading "Company" [level=2] [ref=e42]
+            - link "Blog" [ref=e43] [cursor=pointer]:
+              - /url: /blog
+            - link "About" [ref=e44] [cursor=pointer]:
+              - /url: /about
+            - link "Contact" [ref=e45] [cursor=pointer]:
+              - /url: /contact
+          - generic [ref=e46]:
+            - heading "Legal" [level=2] [ref=e47]
+            - link "Privacy" [ref=e48] [cursor=pointer]:
+              - /url: /privacy
+            - link "Terms" [ref=e49] [cursor=pointer]:
+              - /url: /terms
+            - link "B2B Compliance" [ref=e50] [cursor=pointer]:
+              - /url: /compliance
+      - generic [ref=e51]:
+        - generic [ref=e52]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+        - generic [ref=e53]: Built for developers, by developers.

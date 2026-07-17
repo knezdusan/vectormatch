@@ -1,0 +1,139 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e3]:
+    - banner [ref=f4e4]:
+      - generic [ref=f4e5]:
+        - link "Wellfound" [ref=f4e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=f4e11]:
+          - generic [ref=f4e12]:
+            - link "Discover" [ref=f4e13] [cursor=pointer]:
+              - /url: /discover
+            - link "Find Jobs" [ref=f4e14] [cursor=pointer]:
+              - /url: /jobs
+            - link "For Recruiters" [ref=f4e15] [cursor=pointer]:
+              - /url: /recruit/overview
+          - generic [ref=f4e16]:
+            - button "Log In" [ref=f4e18] [cursor=pointer]
+            - button "Sign Up" [ref=f4e20] [cursor=pointer]
+      - iframe
+    - generic [ref=f4e22]:
+      - heading "Oops! Page not found (404)" [level=1] [ref=f4e23]
+      - paragraph [ref=f4e24]: We couldn't find what you were looking for.
+      - paragraph [ref=f4e25]:
+        - text: Please check your URL or
+        - link "return home" [ref=f4e26] [cursor=pointer]:
+          - /url: /
+        - text: .
+    - generic [ref=f4e27]:
+      - button [ref=f4e28] [cursor=pointer]
+      - button [ref=f4e32] [cursor=pointer]
+      - button [ref=f4e36] [cursor=pointer]
+      - button [ref=f4e40] [cursor=pointer]
+      - button [ref=f4e44] [cursor=pointer]
+    - contentinfo [ref=f4e48]:
+      - generic [ref=f4e49]:
+        - generic [ref=f4e50]:
+          - link [ref=f4e51] [cursor=pointer]:
+            - /url: /
+          - generic [ref=f4e66]:
+            - link [ref=f4e67] [cursor=pointer]:
+              - /url: http://twitter.com/wellfoundhq
+            - link [ref=f4e70] [cursor=pointer]:
+              - /url: https://instagram.com/wellfoundhq
+        - generic [ref=f4e74]:
+          - list [ref=f4e75]:
+            - listitem [ref=f4e76]:
+              - heading "For Candidates" [level=4] [ref=f4e77]
+            - listitem [ref=f4e78]:
+              - link "Overview" [ref=f4e79] [cursor=pointer]:
+                - /url: /candidates/overview
+            - listitem [ref=f4e80]:
+              - link "Startup Jobs" [ref=f4e81] [cursor=pointer]:
+                - /url: /jobs
+            - listitem [ref=f4e82]:
+              - link "Web3 Jobs" [ref=f4e83] [cursor=pointer]:
+                - /url: /web3
+            - listitem [ref=f4e84]:
+              - link "Featured" [ref=f4e85] [cursor=pointer]:
+                - /url: /candidates/featured
+            - listitem [ref=f4e86]:
+              - link "Startup Hiring Data" [ref=f4e87] [cursor=pointer]:
+                - /url: /hiring-data
+            - listitem [ref=f4e88]:
+              - link "Tech Startups" [ref=f4e89] [cursor=pointer]:
+                - /url: /startups
+            - listitem [ref=f4e90]:
+              - link "Remote" [ref=f4e91] [cursor=pointer]:
+                - /url: /candidates/remote
+          - list [ref=f4e92]:
+            - listitem [ref=f4e93]:
+              - heading "For Recruiters" [level=4] [ref=f4e94]
+            - listitem [ref=f4e95]:
+              - link "Overview" [ref=f4e96] [cursor=pointer]:
+                - /url: /recruit/overview
+            - listitem [ref=f4e97]:
+              - link "Recruit Pro" [ref=f4e98] [cursor=pointer]:
+                - /url: /recruit/products/recruit-pro
+            - listitem [ref=f4e99]:
+              - link "Curated" [ref=f4e100] [cursor=pointer]:
+                - /url: /recruit/products/curated
+            - listitem [ref=f4e101]:
+              - link "Wellfound:ai" [ref=f4e102] [cursor=pointer]:
+                - /url: /recruit/products/recruiter-cloud
+            - listitem [ref=f4e103]:
+              - link "Hire Developers" [ref=f4e104] [cursor=pointer]:
+                - /url: /hire
+            - listitem [ref=f4e105]:
+              - link "Pricing" [ref=f4e106] [cursor=pointer]:
+                - /url: /recruit/pricing
+          - list [ref=f4e107]:
+            - listitem [ref=f4e108]:
+              - heading "Company" [level=4] [ref=f4e109]
+            - listitem [ref=f4e110]:
+              - link "About" [ref=f4e111] [cursor=pointer]:
+                - /url: https://wellfound.com
+            - listitem [ref=f4e112]:
+              - link "Help" [ref=f4e113] [cursor=pointer]:
+                - /url: https://help.wellfound.com/
+            - listitem [ref=f4e114]:
+              - link "Blog" [ref=f4e115] [cursor=pointer]:
+                - /url: /discover/blog
+            - listitem [ref=f4e116]:
+              - link "Terms & Risks" [ref=f4e117] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=f4e118]:
+              - link "Privacy & Cookies" [ref=f4e119] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f4e120]:
+              - link "Trust" [ref=f4e121] [cursor=pointer]:
+                - /url: https://trust.wellfound.ai
+            - listitem [ref=f4e122]:
+              - link "Platform Status" [ref=f4e123] [cursor=pointer]:
+                - /url: https://status.wellfound.com
+      - generic [ref=f4e124]:
+        - generic [ref=f4e125]:
+          - paragraph [ref=f4e126]: Copyright © 2026 Wellfound. All rights reserved.
+          - generic [ref=f4e127] [cursor=pointer]: Cookie Preferences
+        - paragraph [ref=f4e128]:
+          - text: "Browse by:"
+          - link "Jobs" [ref=f4e129] [cursor=pointer]:
+            - /url: /browse/tech-jobs
+          - text: ","
+          - link "Remote Jobs" [ref=f4e130] [cursor=pointer]:
+            - /url: /browse/remote-tech-jobs
+          - text: ","
+          - link "Locations" [ref=f4e131] [cursor=pointer]:
+            - /url: /browse/tech-job-locations
+          - text: ","
+          - link "Startups" [ref=f4e132] [cursor=pointer]:
+            - /url: /browse/tech-startups
+          - text: ","
+          - link "Startups Hiring" [ref=f4e133] [cursor=pointer]:
+            - /url: /browse/startups-hiring
+          - text: ","
+          - link "Industries" [ref=f4e134] [cursor=pointer]:
+            - /url: /browse/tech-industries
+          - text: ","
+          - link "Tech Hubs" [ref=f4e135] [cursor=pointer]:
+            - /url: /browse/tech-hubs
+  - alert [ref=f4e136]

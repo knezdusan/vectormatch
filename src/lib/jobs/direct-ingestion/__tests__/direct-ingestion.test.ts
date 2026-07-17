@@ -1499,8 +1499,9 @@ describe("fetchWeWorkRemotelyJobs", () => {
     expect(job.publishedAt).toEqual(
       new Date("Tue, 07 Jul 2026 12:49:42 +0000"),
     );
-    // Category mapped to frontend tag
-    expect(job.extractedTags).toEqual(["frontend"]);
+    // Category mapped to frontend tag + regex-extracted "react" from title
+    // (Directive 13, B3.2: WWR adapter now uses scanTagsRegex for tech-specific tags)
+    expect(job.extractedTags).toEqual(["frontend", "react"]);
   });
 
   it("unescapes XML entities then strips HTML from description", async () => {

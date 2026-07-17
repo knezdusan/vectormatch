@@ -73,6 +73,7 @@ import {
   pollBacklogSweeper,
   probationEmbeddingBackfill,
   qualityFlywheelRecalc,
+  recallAuditCron,
   sluggerRetryProcessor,
   staleCleanup,
   staleJobVerifier,
@@ -173,5 +174,6 @@ export const { GET, POST, PUT } = serve({
     batchSourceB10SitemapProbe,
     dailyHealthCheck,
     directJobBoardIngestion,
+    recallAuditCron,
   ],
 });

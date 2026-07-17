@@ -1,0 +1,289 @@
+- generic [ref=e1]:
+  - region "Cookie preferences":
+    - button "Save cookies preferences" [ref=e2] [cursor=pointer]:
+      - img "Cookie Control toggle icon" [ref=e3]
+    - dialog [ref=e5]:
+      - generic [ref=e6]:
+        - heading "Your choice regarding cookies on this site" [level=1] [ref=e7]
+        - paragraph [ref=e8]: Some of these cookies are essential, while others help us to improve our services and your experience by providing insights into how the site is being used.
+      - generic [ref=e9]:
+        - button "Accept all" [active] [ref=e10] [cursor=pointer]
+        - button "Reject optional" [ref=e11] [cursor=pointer]
+        - button "Settings" [ref=e12] [cursor=pointer]
+  - alert [ref=e13]
+  - banner [ref=e14]:
+    - link "Skip to main content" [ref=e15] [cursor=pointer]:
+      - /url: "#main"
+    - navigation "Main navigation" [ref=e16]:
+      - generic [ref=e18]:
+        - link "Remote home" [ref=e19] [cursor=pointer]:
+          - /url: /
+        - generic [ref=e29]:
+          - button "Book demo" [ref=e31] [cursor=pointer]
+          - button "Open menu" [ref=e33] [cursor=pointer]
+  - main [ref=e37]:
+    - generic [ref=e38]:
+      - generic [ref=e40]:
+        - generic [ref=e127]:
+          - generic [ref=e128]: Ooops!
+          - generic [ref=e129]: "404"
+        - generic [ref=e130]: Page not found
+        - generic [ref=e131]:
+          - generic [ref=e132]: Let's find a better place for you to go
+          - generic [ref=e133]: Go back to the homepage or use the navigation to find what you need
+      - link "Go to the homepage" [ref=e140] [cursor=pointer]:
+        - /url: /
+  - contentinfo [ref=e144]:
+    - generic [ref=e146]:
+      - navigation "Footer" [ref=e147]:
+        - generic [ref=e149]:
+          - button "Solutions" [expanded]
+          - region "Solutions" [ref=e150]:
+            - list [ref=e151]:
+              - listitem [ref=e152]:
+                - link "Hire International Employees" [ref=e153] [cursor=pointer]:
+                  - /url: /global-hr/hire-international-employees
+              - listitem [ref=e154]:
+                - link "Hire International Contractors" [ref=e155] [cursor=pointer]:
+                  - /url: /global-hr/hire-international-contractors
+              - listitem [ref=e156]:
+                - link "Expand Globally" [ref=e157] [cursor=pointer]:
+                  - /url: /global-hr/global-expansion
+              - listitem [ref=e158]:
+                - link "Onboard Global Teams" [ref=e159] [cursor=pointer]:
+                  - /url: /global-hr/onboard-global-teams
+              - listitem [ref=e160]:
+                - link "Remote API" [ref=e161] [cursor=pointer]:
+                  - /url: /global-hr/remote-api
+              - listitem [ref=e162]:
+                - link "Run Payroll" [ref=e163] [cursor=pointer]:
+                  - /url: /global-hr/run-payroll
+              - listitem [ref=e164]:
+                - link "Offer Global Benefits" [ref=e165] [cursor=pointer]:
+                  - /url: /global-hr/global-benefits
+              - listitem [ref=e166]:
+                - link "Offer Stock Options" [ref=e167] [cursor=pointer]:
+                  - /url: /global-hr/offer-stock-options/equity-essentials
+              - listitem [ref=e168]:
+                - link "US Expansion Offering" [ref=e169] [cursor=pointer]:
+                  - /url: /global-hr/us-expansion
+              - listitem [ref=e170]:
+                - link "Global HR" [ref=e171] [cursor=pointer]:
+                  - /url: /global-hr
+        - generic [ref=e172]:
+          - generic [ref=e173]:
+            - button "Product Services" [expanded]
+            - region "Product Services" [ref=e174]:
+              - list [ref=e175]:
+                - listitem [ref=e176]:
+                  - link "Pricing" [ref=e177] [cursor=pointer]:
+                    - /url: /pricing
+                - listitem [ref=e178]:
+                  - link "Employer of Record (EOR)" [ref=e179] [cursor=pointer]:
+                    - /url: https://remote.com/global-hr/employer-of-record
+                - listitem [ref=e180]:
+                  - link "Contractor Management" [ref=e181] [cursor=pointer]:
+                    - /url: /global-hr/contractor-management
+                - listitem [ref=e182]:
+                  - link "Payroll" [ref=e183] [cursor=pointer]:
+                    - /url: /global-hr/global-payroll
+                - listitem [ref=e184]:
+                  - generic [ref=e185]: Remote Relocation
+                - listitem [ref=e186]:
+                  - link "Expansion Consulting Services" [ref=e187] [cursor=pointer]:
+                    - /url: /global-hr/international-expansion-consulting
+                - listitem [ref=e188]:
+                  - link "Recruit" [ref=e189] [cursor=pointer]:
+                    - /url: https://remote.com/global-hr/recruit
+          - generic [ref=e190]:
+            - button "Product Business Size" [expanded]
+            - region "Product Business Size" [ref=e191]:
+              - list [ref=e192]:
+                - listitem [ref=e193]:
+                  - link "Global HR for Startups" [ref=e194] [cursor=pointer]:
+                    - /url: /global-hr/startups
+                - listitem [ref=e195]:
+                  - link "Global HR for Small Business" [ref=e196] [cursor=pointer]:
+                    - /url: /global-hr/small-business
+                - listitem [ref=e197]:
+                  - link "Global HR for Enterprise" [ref=e198] [cursor=pointer]:
+                    - /url: /global-hr/enterprise
+        - generic [ref=e200]:
+          - button "Resources" [expanded]
+          - region "Resources" [ref=e201]:
+            - list [ref=e202]:
+              - listitem [ref=e203]:
+                - link "Global Employment Blog" [ref=e204] [cursor=pointer]:
+                  - /url: https://remote.com/blog
+              - listitem [ref=e205]:
+                - link "Research" [ref=e206] [cursor=pointer]:
+                  - /url: /resources/research
+              - listitem [ref=e207]:
+                - link "Case Studies" [ref=e208] [cursor=pointer]:
+                  - /url: https://remote.com/resources/case-studies
+              - listitem [ref=e209]:
+                - link "Webinars" [ref=e210] [cursor=pointer]:
+                  - /url: https://remote.com/resources/webinars
+              - listitem [ref=e211]:
+                - link "Developer API Docs" [ref=e212] [cursor=pointer]:
+                  - /url: /global-hr/remote-api/getting-started
+              - listitem [ref=e213]:
+                - link "Compare Remote" [ref=e214] [cursor=pointer]:
+                  - /url: https://remote.com/resources/compare-remote
+              - listitem [ref=e215]:
+                - link "Tech Stack Integrations" [ref=e216] [cursor=pointer]:
+                  - /url: https://remote.com/resources/integrations-for-customers
+              - listitem [ref=e217]:
+                - link "Remote Handbook" [ref=e218] [cursor=pointer]:
+                  - /url: https://www.notion.so/remotecom/a3439c6ccaac4d5f8c7515c357345c11?v=8bb7f9be662f45da87ef4ab14a42be37
+              - listitem [ref=e219]:
+                - link "Country Explorer" [ref=e220] [cursor=pointer]:
+                  - /url: https://remote.com/country-explorer
+              - listitem [ref=e221]:
+                - link "US State Explorer" [ref=e222] [cursor=pointer]:
+                  - /url: https://remote.com/us-state-explorer
+              - listitem [ref=e223]:
+                - link "Employee Cost Calculator" [ref=e224] [cursor=pointer]:
+                  - /url: /resources/employee-cost-calculator
+              - listitem [ref=e225]:
+                - link "Misclassification Risk Tool" [ref=e226] [cursor=pointer]:
+                  - /url: /resources/employee-misclassification-risk-tool
+        - generic [ref=e227]:
+          - generic [ref=e228]:
+            - button "Why Remote" [expanded]
+            - region "Why Remote" [ref=e229]:
+              - list [ref=e230]:
+                - listitem [ref=e231]:
+                  - link "Global Infrastructure" [ref=e232] [cursor=pointer]:
+                    - /url: /why-remote/global-infrastructure
+                - listitem [ref=e233]:
+                  - link "Security and Compliance" [ref=e234] [cursor=pointer]:
+                    - /url: /why-remote/security-compliance
+                - listitem [ref=e235]:
+                  - 'link "Security and Compliance: Trust Portal" [ref=e236] [cursor=pointer]':
+                    - /url: https://trust.remote.com/
+                - listitem [ref=e237]:
+                  - link "Transparent Price Guarantee" [ref=e238] [cursor=pointer]:
+                    - /url: https://remote.com/blog/fair-price-guarantee
+                - listitem [ref=e239]:
+                  - link "IP Protection" [ref=e240] [cursor=pointer]:
+                    - /url: /why-remote/ip-protection
+                - listitem [ref=e241]:
+                  - link "Customer Experience" [ref=e242] [cursor=pointer]:
+                    - /url: /why-remote/customer-experience
+          - generic [ref=e243]:
+            - button "By Role" [expanded]
+            - region "By Role" [ref=e244]:
+              - list [ref=e245]:
+                - listitem [ref=e246]:
+                  - link "Startup Founders" [ref=e247] [cursor=pointer]:
+                    - /url: https://remote.com/platform/use-case/startup-founders
+                - listitem [ref=e248]:
+                  - link "Remote for Employees" [ref=e249] [cursor=pointer]:
+                    - /url: https://remote.com/platform/use-case/employees
+                - listitem [ref=e250]:
+                  - link "Freelancer Hub" [ref=e251] [cursor=pointer]:
+                    - /url: /global-hr/freelancer-hub
+                - listitem [ref=e252]:
+                  - link "For jobseekers" [ref=e253] [cursor=pointer]:
+                    - /url: https://remote.com/jobs
+        - generic [ref=e255]:
+          - button "Company" [expanded]
+          - region "Company" [ref=e256]:
+            - list [ref=e257]:
+              - listitem [ref=e258]:
+                - link "About" [ref=e259] [cursor=pointer]:
+                  - /url: /about
+              - listitem [ref=e260]:
+                - link "Careers" [ref=e261] [cursor=pointer]:
+                  - /url: /careers
+              - listitem [ref=e262]:
+                - link "Newsroom" [ref=e263] [cursor=pointer]:
+                  - /url: https://remote.com/news
+              - listitem [ref=e264]:
+                - link "Events" [ref=e265] [cursor=pointer]:
+                  - /url: https://remote.com/events
+              - listitem [ref=e266]:
+                - link "Marketplace" [ref=e267] [cursor=pointer]:
+                  - /url: https://remote.com/partners/marketplace
+              - listitem [ref=e268]:
+                - link "Support" [ref=e269] [cursor=pointer]:
+                  - /url: https://support.remote.com/hc/en-us
+              - listitem [ref=e270]:
+                - link "Remote Status" [ref=e271] [cursor=pointer]:
+                  - /url: /status
+              - listitem [ref=e272]:
+                - link "Contact Us" [ref=e273] [cursor=pointer]:
+                  - /url: https://remote.com/contact-us
+              - listitem [ref=e274]:
+                - link "Accessibility Statement" [ref=e275] [cursor=pointer]:
+                  - /url: https://remote.com/accessibility-statement
+        - generic [ref=e277]:
+          - button "Partnerships" [expanded]
+          - region "Partnerships" [ref=e278]:
+            - list [ref=e279]:
+              - listitem [ref=e280]:
+                - link "Partner Programs" [ref=e281] [cursor=pointer]:
+                  - /url: /partners
+              - listitem [ref=e282]:
+                - link "Affiliates" [ref=e283] [cursor=pointer]:
+                  - /url: /partners/affiliates
+              - listitem [ref=e284]:
+                - link "VC Partners" [ref=e285] [cursor=pointer]:
+                  - /url: /partners/vc-partners
+              - listitem [ref=e286]:
+                - link "HR Consultant Partners" [ref=e287] [cursor=pointer]:
+                  - /url: /partners/hr-consultants
+              - listitem [ref=e288]:
+                - link "Financial Advisor Partners" [ref=e289] [cursor=pointer]:
+                  - /url: /partners/financial-advisors
+              - listitem [ref=e290]:
+                - link "Law Firm Partners" [ref=e291] [cursor=pointer]:
+                  - /url: /partners/law-firms
+              - listitem [ref=e292]:
+                - link "Partner Perks Marketplace" [ref=e293] [cursor=pointer]:
+                  - /url: /partners/perks-marketplace
+              - listitem [ref=e294]:
+                - link "Remote Recruiter Network" [ref=e295] [cursor=pointer]:
+                  - /url: https://remote.com/recruiters
+      - generic [ref=e296]:
+        - generic [ref=e297]:
+          - generic [ref=e298]:
+            - paragraph [ref=e300]: Copyright © 2026. Remote Technology, Inc. All rights reserved.
+            - paragraph [ref=e302]: Numbers on this page are based on internal data compiled from existing customer base and speed assumption is based on the fact that standard onboarding may take 30 days and Remote’s average onboarding time is 2.3 days.
+          - generic [ref=e303]:
+            - link "App Store (opens in new tab)" [ref=e304] [cursor=pointer]:
+              - /url: https://apps.apple.com/app/apple-store/id1613496903?pt=122685638&ct=Remote.com&mt=8
+              - img "App Store" [ref=e305]
+              - generic [ref=e306]: (opens in new tab)
+            - link "Google Play (opens in new tab)" [ref=e307] [cursor=pointer]:
+              - /url: https://play.google.com/store/apps/details?id=com.remote.employ&referrer=utm_source%3DRemote.com%26utm_medium%3Dbanner
+              - img "Google Play" [ref=e308]
+              - generic [ref=e309]: (opens in new tab)
+        - separator [ref=e310]
+        - generic [ref=e311]:
+          - list [ref=e312]:
+            - listitem [ref=e313]:
+              - link "Privacy Policy" [ref=e314] [cursor=pointer]:
+                - /url: https://remote.com/privacy-policy
+            - listitem [ref=e315]:
+              - link "Cookie Policy" [ref=e316] [cursor=pointer]:
+                - /url: https://remote.com/cookie-policy
+            - listitem [ref=e317]:
+              - link "Terms of Use" [ref=e318] [cursor=pointer]:
+                - /url: https://remote.com/terms-of-use
+            - listitem [ref=e319]:
+              - link "Disclaimer" [ref=e320] [cursor=pointer]:
+                - /url: https://remote.com/disclaimer
+            - listitem [ref=e321]:
+              - link "Imprint" [ref=e322] [cursor=pointer]:
+                - /url: /policy/imprint
+          - generic [ref=e323]:
+            - link "Remote's YouTube channel (opens in new tab)" [ref=e324] [cursor=pointer]:
+              - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+            - link "Remote's LinkedIn account (opens in new tab)" [ref=e326] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/remote.com
+            - link "Remote's X account (opens in new tab)" [ref=e328] [cursor=pointer]:
+              - /url: https://twitter.com/remote
+            - link "Remote's Instagram account (opens in new tab)" [ref=e330] [cursor=pointer]:
+              - /url: https://www.instagram.com/remote/

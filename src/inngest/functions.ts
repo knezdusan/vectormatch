@@ -1799,6 +1799,12 @@ export const directJobBoardIngestion = inngest.createFunction(
     const { fetchWeWorkRemotelyJobs } = await import(
       "@/lib/jobs/direct-ingestion/weworkremotely"
     );
+    const { fetchWellfoundJobs } = await import(
+      "@/lib/jobs/direct-ingestion/wellfound"
+    );
+    const { fetchRemoteComJobs } = await import(
+      "@/lib/jobs/direct-ingestion/remotecom"
+    );
     // NoFluffJobs & JustJoin disabled (LOCK 1) — Poland-fenced at application layer.
     // LaraJobs not wired (C1) — 1 addressable job doesn't justify a bespoke adapter.
     // Both decisions follow the adapter-vs-company-discovery rule (C2):
@@ -1975,6 +1981,137 @@ export const directJobBoardIngestion = inngest.createFunction(
       "weworkremotely",
       () => fetchWeWorkRemotelyJobs(200, techFilter),
     );
+
+    // ── Board 8: Wellfound (Directive 13, B1) ──────────────────────────────
+    // Playwright-based adapter — requires Chromium browser binaries in the
+    // Docker image. 1,889 remote software-engineer jobs, 47 pages, richest
+    // structured tags (salary, equity, stage, size, remote type).
+    // Dual-function: ingests jobs AND harvests employers for the Slugger.
+    // The employer harvest is stored in the ingestion log for the B4
+    // enrollment wave.
+    const wellfoundResult = await step.run("fetch-wellfound", async () => {
+      try {
+        const result = await fetchWellfoundJobs(500, techFilter, 10);
+        if (result.success) {
+          // Store harvested employers for the B4 enrollment wave
+          if (result.employers) {
+            console.log(
+              `[wellfound] Harvested ${result.employers.length} employers for Slugger enrollment`,
+            );
+          }
+          return {
+            success: true as const,
+            jobs: result.jobs,
+            employerCount: result.employers?.length ?? 0,
+            error: null as string | null,
+          };
+        }
+        return {
+          success: false as const,
+          jobs: [],
+          employerCount: 0,
+          error: result.error,
+        };
+      } catch (e) {
+        return {
+          success: false as const,
+          jobs: [],
+          employerCount: 0,
+          error: e instanceof Error ? e.message : String(e),
+        };
+      }
+    });
+    if (wellfoundResult.success && wellfoundResult.jobs.length > 0) {
+      const jobsForUpsert = filterExcluded(
+        (wellfoundResult.jobs as unknown as DirectIngestionJob[]).map((j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        })),
+      );
+      const upsertResult = await step.run("upsert-wellfound", async () => {
+        return upsertDirectJobs(
+          "wellfound",
+          "wellfound",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "Wellfound",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!wellfoundResult.success) {
+      boardResults.push({
+        board: "Wellfound",
+        success: false,
+        ingested: 0,
+        error: wellfoundResult.error,
+      });
+    }
+
+    // ── Board 9: Remote.com Talent Board (Directive 13, B2) ────────────────
+    // Playwright-based adapter — same browser requirement as Wellfound.
+    // ~5,320 jobs across 266 pages, sparse structured tags → scanTagsRegex
+    // extracts tech from job titles (e.g. "Senior Frontend Developer (React.js)").
+    // ~35% global, ~20-25% web-dev. EOR signal is implicit (hosting surface).
+    const remotecomResult = await step.run("fetch-remotecom", async () => {
+      try {
+        const result = await fetchRemoteComJobs(500, techFilter, 15);
+        if (result.success) {
+          return {
+            success: true as const,
+            jobs: result.jobs,
+            error: null as string | null,
+          };
+        }
+        return {
+          success: false as const,
+          jobs: [],
+          error: result.error,
+        };
+      } catch (e) {
+        return {
+          success: false as const,
+          jobs: [],
+          error: e instanceof Error ? e.message : String(e),
+        };
+      }
+    });
+    if (remotecomResult.success && remotecomResult.jobs.length > 0) {
+      const jobsForUpsert = filterExcluded(
+        (remotecomResult.jobs as unknown as DirectIngestionJob[]).map((j) => ({
+          ...j,
+          publishedAt: j.publishedAt
+            ? new Date(j.publishedAt as unknown as string)
+            : null,
+        })),
+      );
+      const upsertResult = await step.run("upsert-remotecom", async () => {
+        return upsertDirectJobs(
+          "remotecom",
+          "remotecom",
+          jobsForUpsert,
+          embedFn,
+        );
+      });
+      boardResults.push({
+        board: "Remote.com",
+        success: true,
+        ingested: upsertResult.totalUpserted,
+        error: null,
+      });
+    } else if (!remotecomResult.success) {
+      boardResults.push({
+        board: "Remote.com",
+        success: false,
+        ingested: 0,
+        error: remotecomResult.error,
+      });
+    }
 
     // ── Write ingestion log ─────────────────────────────────────────────────
     const totalIngested = boardResults.reduce((sum, r) => sum + r.ingested, 0);
@@ -6015,5 +6152,214 @@ export const inngestHealthMonitor = inngest.createFunction(
       overallHealthy: healthReport.overallHealthy,
       alertReason,
     };
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recall Audit Cron (Directive 12, Step 2.3)
+// ─────────────────────────────────────────────────────────────────────────────
+// Weekly LLM sample of newly-fenced/rejected jobs to measure false-rejection
+// rate. Samples jobs rejected by each gate (fence, natsec, QA, stack-disjoint)
+// and runs a lightweight LLM evaluation to determine if the rejection was
+// correct (true positive) or a false rejection.
+//
+// The MOAT is accuracy in BOTH directions: false positives (bad matches shown)
+// AND false rejections (good matches blocked). This cron instruments the
+// false-rejection direction, alongside the existing false-global stream.
+
+export const recallAuditCron = inngest.createFunction(
+  {
+    id: "recall-audit-cron",
+    name: "Recall Audit — False-Rejection Rate Monitor",
+    triggers: [{ cron: "0 2 * * 1" }], // weekly Monday 02:00 UTC
+    concurrency: { limit: 1 },
+  },
+  async ({ step, logger }) => {
+    const SAMPLE_SIZE = 30; // per gate
+
+    // Step 1: Sample jobs rejected by each gate in the past week
+    const samples = await step.run("sample-rejected-jobs", async () => {
+      const { neon } = await import("@neondatabase/serverless");
+      const sql = neon(process.env.DATABASE_URL!);
+
+      // Fence gate rejects (jobs with country fences in location)
+      const fenceRejects = await sql`
+        SELECT id, title, ats_slug, location_name, normalized_text, 'fence' as gate
+        FROM job
+        WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
+        AND detected_at > NOW() - INTERVAL '7 days'
+        AND (
+          COALESCE(location_name, '') ~* '(United States|USA|Canada|Argentina|Brazil|Colombia|Mexico|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|England|Scotland|Wales|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Kenya|Egypt|Morocco|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+          OR (length(trim(COALESCE(location_name, ''))) <= 5 AND COALESCE(location_name, '') ~* '\mus\M')
+        )
+        ORDER BY RANDOM()
+        LIMIT ${SAMPLE_SIZE}
+      `;
+
+      // Natsec gate rejects
+      const natsecRejects = await sql`
+        SELECT id, title, ats_slug, location_name, normalized_text, 'natsec' as gate
+        FROM job
+        WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
+        AND detected_at > NOW() - INTERVAL '7 days'
+        AND COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance|\mitar\M|export control|\mdod\M|department of defense|defense contract|national security|homeland security|intelligence community)'
+        ORDER BY RANDOM()
+        LIMIT ${SAMPLE_SIZE}
+      `;
+
+      // QA gate rejects
+      const qaRejects = await sql`
+        SELECT id, title, ats_slug, location_name, normalized_text, 'qa' as gate
+        FROM job
+        WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
+        AND detected_at > NOW() - INTERVAL '7 days'
+        AND title ~* '(qa engineer|qa automation|quality assurance|software engineer in test|sdet|test automation engineer|test engineer|qa lead|quality engineer)'
+        ORDER BY RANDOM()
+        LIMIT ${SAMPLE_SIZE}
+      `;
+
+      const all = [...fenceRejects, ...natsecRejects, ...qaRejects];
+      logger.info(`Sampled ${all.length} rejected jobs for recall audit`, {
+        fence: fenceRejects.length,
+        natsec: natsecRejects.length,
+        qa: qaRejects.length,
+      });
+      return all;
+    });
+
+    if (samples.length === 0) {
+      logger.info("No rejected jobs to audit this week");
+      return { sampled: 0, falseRejectionRate: null };
+    }
+
+    // Step 2: LLM evaluation of each sample
+    const results = await step.run("llm-evaluate-samples", async () => {
+      const { openai } = await import("@ai-sdk/openai");
+      const { generateObject } = await import("ai");
+      const { z } = await import("zod");
+
+      const verdictSchema = z.object({
+        isFalseRejection: z
+          .boolean()
+          .describe(
+            "True if this job was WRONGLY rejected — it is actually a genuinely global remote web-dev job eligible for a non-US contractor",
+          ),
+        reason: z.string().max(200).describe("1-2 sentence explanation"),
+      });
+
+      const evaluations: Array<{
+        jobId: string;
+        gate: string;
+        isFalseRejection: boolean;
+        reason: string;
+      }> = [];
+
+      for (const job of samples) {
+        try {
+          const { object } = await generateObject({
+            model: openai("gpt-4o-mini"),
+            schema: verdictSchema,
+            schemaName: "RecallAuditVerdict",
+            schemaDescription:
+              "Determine if a job was wrongly rejected by a deterministic gate",
+            prompt: `You are auditing a job-matching pipeline's rejection gates. Determine if this job was WRONGLY rejected.
+
+GATE: ${job.gate}
+- "fence" = rejected because the location string contains a country/state fence
+- "natsec" = rejected because the text contains national-security keywords
+- "qa" = rejected because the title indicates a QA/testing role
+
+JOB TITLE: ${job.title}
+LOCATION: ${job.location_name}
+JOB TEXT (first 1000 chars): ${(job.normalized_text ?? "").slice(0, 1000)}
+
+A FALSE REJECTION means: this job is actually a genuinely global remote web-development job that a non-US contractor could apply to. The gate over-rejected.
+
+Examples of FALSE rejections:
+- fence: "Remote (Worldwide) — HQ: San Francisco, CA" (state code in HQ string, not a fence)
+- natsec: "This employer participates in E-Verify" (standard US legal text, not a clearance job)
+- qa: "Software Engineer" with QA mentioned only as a secondary skill
+
+Examples of CORRECT rejections:
+- fence: "Remote within Canada or United States" (actually country-fenced)
+- natsec: "Must have active security clearance" (actually requires clearance)
+- qa: "QA Automation Engineer" (actually a QA role)`,
+            abortSignal: AbortSignal.timeout(15000),
+          });
+
+          evaluations.push({
+            jobId: job.id,
+            gate: job.gate,
+            isFalseRejection: object.isFalseRejection,
+            reason: object.reason,
+          });
+        } catch (e) {
+          logger.warn(`LLM evaluation failed for job ${job.id}`, {
+            error: String(e),
+          });
+          evaluations.push({
+            jobId: job.id,
+            gate: job.gate,
+            isFalseRejection: false,
+            reason: "LLM evaluation failed — assumed correct rejection",
+          });
+        }
+      }
+
+      return evaluations;
+    });
+
+    // Step 3: Compute and log false-rejection rates per gate
+    const summary = await step.run("compute-summary", async () => {
+      const gates = ["fence", "natsec", "qa"];
+      const summary: Record<
+        string,
+        { total: number; falseRejections: number; rate: number }
+      > = {};
+
+      for (const gate of gates) {
+        const gateResults = results.filter((r) => r.gate === gate);
+        const falseRejections = gateResults.filter(
+          (r) => r.isFalseRejection,
+        ).length;
+        summary[gate] = {
+          total: gateResults.length,
+          falseRejections,
+          rate:
+            gateResults.length > 0 ? falseRejections / gateResults.length : 0,
+        };
+      }
+
+      const totalFalse = results.filter((r) => r.isFalseRejection).length;
+      const overallRate = results.length > 0 ? totalFalse / results.length : 0;
+
+      logger.info("Recall audit complete", {
+        perGate: summary,
+        overallFalseRejectionRate: overallRate,
+        totalSampled: results.length,
+        totalFalseRejections: totalFalse,
+      });
+
+      // Log false rejections for manual review
+      const falseRejections = results.filter((r) => r.isFalseRejection);
+      if (falseRejections.length > 0) {
+        logger.warn(`${falseRejections.length} false rejections detected`, {
+          falseRejections: falseRejections.map((r) => ({
+            jobId: r.jobId,
+            gate: r.gate,
+            reason: r.reason,
+          })),
+        });
+      }
+
+      return {
+        summary,
+        overallRate,
+        totalSampled: results.length,
+        totalFalseRejections: totalFalse,
+      };
+    });
+
+    return summary;
   },
 );

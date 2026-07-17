@@ -1,0 +1,1020 @@
+- generic [active] [ref=f12e1]:
+  - generic [ref=f12e3]:
+    - banner [ref=f12e4]:
+      - generic [ref=f12e5]:
+        - link [ref=f12e6] [cursor=pointer]:
+          - /url: /
+        - button [ref=f12e21]
+      - navigation:
+        - link "Overview" [ref=f12e27] [cursor=pointer]:
+          - /url: /candidates/overview
+        - link "Jobs" [ref=f12e31] [cursor=pointer]:
+          - /url: /jobs
+        - link "Featured" [ref=f12e35] [cursor=pointer]:
+          - /url: /candidates/featured
+        - link "Remote" [ref=f12e39] [cursor=pointer]:
+          - /url: /candidates/remote
+        - link "For companies" [ref=f12e43] [cursor=pointer]:
+          - /url: /recruit/overview
+        - generic [ref=f12e46]:
+          - button "Log In" [ref=f12e48] [cursor=pointer]
+          - button "Sign Up" [ref=f12e50] [cursor=pointer]
+      - iframe
+    - generic [ref=f12e54]:
+      - heading "Over 130k remote & local startup jobs" [level=1] [ref=f12e55]
+      - heading "Find what's next:" [level=2] [ref=f12e56]
+      - generic [ref=f12e58]:
+        - generic [ref=f12e64]:
+          - generic [ref=f12e65]: Job title
+          - textbox [ref=f12e68]
+        - generic [ref=f12e76]:
+          - generic [ref=f12e77]: Location
+          - textbox [ref=f12e80]
+        - button "Search" [ref=f12e81]
+    - generic [ref=f12e82]:
+      - heading "Trending startups hiring now" [level=2] [ref=f12e83]
+      - generic [ref=f12e84]:
+        - generic [ref=f12e85]:
+          - banner [ref=f12e86]:
+            - generic [ref=f12e87]:
+              - img "Paddox Technologies" [ref=f12e88]
+              - generic [ref=f12e89]:
+                - heading [level=3] [ref=f12e90]:
+                  - link "Paddox Technologies" [ref=f12e91] [cursor=pointer]:
+                    - /url: /company/paddox-technologies
+                - generic [ref=f12e92]: 1-10 employees
+          - generic [ref=f12e93]:
+            - text: Building a Digital Workforce; putting AI to work
+            - list [ref=f12e95]:
+              - listitem [ref=f12e96]:
+                - generic [ref=f12e97]: Top 10% of responders
+              - listitem [ref=f12e101]:
+                - generic [ref=f12e102]: Responds within a few days
+              - listitem [ref=f12e106]:
+                - generic [ref=f12e107]: Growing fast
+          - contentinfo [ref=f12e111]:
+            - link "9 open positions" [ref=f12e112] [cursor=pointer]:
+              - /url: /company/paddox-technologies/jobs
+        - generic [ref=f12e116]:
+          - banner [ref=f12e117]:
+            - generic [ref=f12e118]:
+              - img "RxGPT" [ref=f12e119]
+              - generic [ref=f12e120]:
+                - heading [level=3] [ref=f12e121]:
+                  - link "RxGPT" [ref=f12e122] [cursor=pointer]:
+                    - /url: /company/rxgpt
+                - generic [ref=f12e123]: 11-50 employees
+          - generic [ref=f12e124]:
+            - text: Driving smarter hospital operations with trusted AI
+            - list [ref=f12e126]:
+              - listitem [ref=f12e127]:
+                - generic [ref=f12e128]: Growing fast
+          - contentinfo [ref=f12e132]:
+            - link "15 open positions" [ref=f12e133] [cursor=pointer]:
+              - /url: /company/rxgpt/jobs
+        - generic [ref=f12e137]:
+          - banner [ref=f12e138]:
+            - generic [ref=f12e139]:
+              - img "Lamatic.ai" [ref=f12e140]
+              - generic [ref=f12e141]:
+                - heading [level=3] [ref=f12e142]:
+                  - link "Lamatic.ai" [ref=f12e143] [cursor=pointer]:
+                    - /url: /company/lamatic
+                - generic [ref=f12e144]: 11-50 employees
+          - generic [ref=f12e145]:
+            - text: All in one stack to build reliable Agentic System
+            - list [ref=f12e147]:
+              - listitem [ref=f12e148]:
+                - generic [ref=f12e149]: B2B
+              - listitem [ref=f12e151]:
+                - generic [ref=f12e152]: Early Stage
+              - listitem [ref=f12e156]:
+                - generic [ref=f12e157]: Growing fast
+          - contentinfo [ref=f12e161]:
+            - link "4 open positions" [ref=f12e162] [cursor=pointer]:
+              - /url: /company/lamatic/jobs
+        - generic [ref=f12e166]:
+          - banner [ref=f12e167]:
+            - generic [ref=f12e168]:
+              - img "VASHISTHA CONSULTING GROUP" [ref=f12e169]
+              - generic [ref=f12e170]:
+                - heading [level=3] [ref=f12e171]:
+                  - link "VASHISTHA CONSULTING GROUP" [ref=f12e172] [cursor=pointer]:
+                    - /url: /company/vashistha-consulting-group
+                - generic [ref=f12e173]: 51-200 employees
+          - generic [ref=f12e174]:
+            - text: Building High-Performing Teams Through Strategic Hiring
+            - list [ref=f12e176]:
+              - listitem [ref=f12e177]:
+                - generic [ref=f12e178]: Growing fast
+              - listitem [ref=f12e182]:
+                - generic [ref=f12e183]: Recently funded
+          - contentinfo [ref=f12e187]:
+            - link "31 open positions" [ref=f12e188] [cursor=pointer]:
+              - /url: /company/vashistha-consulting-group/jobs
+      - generic [ref=f12e192]:
+        - generic [ref=f12e194]:
+          - generic [ref=f12e195]:
+            - generic [ref=f12e196]:
+              - heading "Trending startup jobs" [level=2] [ref=f12e197]
+              - link "View all jobs" [ref=f12e198] [cursor=pointer]:
+                - /url: /location/united-states
+            - generic [ref=f12e199]:
+              - generic [ref=f12e200]:
+                - link [ref=f12e202] [cursor=pointer]:
+                  - /url: /company/honor-providers-1
+                  - img "Honor Providers company logo" [ref=f12e203]
+                - generic [ref=f12e204]:
+                  - link "Sr. Operations Specialist (Healthcare)" [ref=f12e206] [cursor=pointer]:
+                    - /url: /jobs/4475604-sr-operations-specialist-healthcare
+                  - generic [ref=f12e207]:
+                    - generic [ref=f12e208]: Honor Providers •
+                    - generic [ref=f12e209]: In office • Fort Lauderdale • $80k – $120k • No equity • today
+              - generic [ref=f12e210]:
+                - button "Save" [ref=f12e211] [cursor=pointer]
+                - button "Apply" [ref=f12e212] [cursor=pointer]
+            - generic [ref=f12e213]:
+              - generic [ref=f12e214]:
+                - link [ref=f12e216] [cursor=pointer]:
+                  - /url: /company/artemest-1
+                  - img "Artemest company logo" [ref=f12e217]
+                - generic [ref=f12e218]:
+                  - link "Business Development Lead - NYC" [ref=f12e220] [cursor=pointer]:
+                    - /url: /jobs/4475602-business-development-lead-nyc
+                  - generic [ref=f12e221]:
+                    - generic [ref=f12e222]: Artemest •
+                    - generic [ref=f12e223]: In office • New York City • $80k – $90k • today
+              - generic [ref=f12e224]:
+                - button "Save" [ref=f12e225] [cursor=pointer]
+                - button "Apply" [ref=f12e226] [cursor=pointer]
+            - generic [ref=f12e227]:
+              - generic [ref=f12e228]:
+                - link [ref=f12e230] [cursor=pointer]:
+                  - /url: /company/neptune-14
+                  - img "Neptune company logo" [ref=f12e231]
+                - generic [ref=f12e232]:
+                  - link "Founding Engineer" [ref=f12e234] [cursor=pointer]:
+                    - /url: /jobs/4475593-founding-engineer
+                  - generic [ref=f12e235]:
+                    - generic [ref=f12e236]: Neptune •
+                    - generic [ref=f12e237]: In office • New York • $150k – $225k • today
+              - generic [ref=f12e238]:
+                - button "Save" [ref=f12e239] [cursor=pointer]
+                - button "Apply" [ref=f12e240] [cursor=pointer]
+            - generic [ref=f12e241]:
+              - generic [ref=f12e242]:
+                - link [ref=f12e244] [cursor=pointer]:
+                  - /url: /company/stayland-1
+                  - img "stayland company logo" [ref=f12e245]
+                - generic [ref=f12e246]:
+                  - link "Founding GTM & Design Partner Lead — AI Agent Security" [ref=f12e248] [cursor=pointer]:
+                    - /url: /jobs/4475590-founding-gtm-design-partner-lead-ai-agent-security
+                  - generic [ref=f12e249]:
+                    - generic [ref=f12e250]: stayland •
+                    - generic [ref=f12e251]: Remote only • United States • $65k – $80k • 1.0% – 2.0% • today
+              - generic [ref=f12e252]:
+                - button "Save" [ref=f12e253] [cursor=pointer]
+                - button "Apply" [ref=f12e254] [cursor=pointer]
+            - generic [ref=f12e255]:
+              - generic [ref=f12e256]:
+                - link [ref=f12e258] [cursor=pointer]:
+                  - /url: /company/autoenhance-ai-2
+                  - img "Autoenhance.ai company logo" [ref=f12e259]
+                - generic [ref=f12e260]:
+                  - link "Head of Marketing" [ref=f12e262] [cursor=pointer]:
+                    - /url: /jobs/4475589-head-of-marketing
+                  - generic [ref=f12e263]:
+                    - generic [ref=f12e264]: Autoenhance.ai •
+                    - generic [ref=f12e265]:
+                      - text: Remote only • Canada •
+                      - generic [ref=f12e266]: +2 more •
+                      - text: $100k – $130k • today
+              - generic [ref=f12e267]:
+                - button "Save" [ref=f12e268] [cursor=pointer]
+                - button "Apply" [ref=f12e269] [cursor=pointer]
+          - generic [ref=f12e270]:
+            - generic [ref=f12e271]:
+              - heading "Engineering jobs" [level=3] [ref=f12e272]
+              - link "View all engineering jobs" [ref=f12e273] [cursor=pointer]:
+                - /url: /role/l/software-engineer/united-states
+            - generic [ref=f12e274]:
+              - generic [ref=f12e275]:
+                - link [ref=f12e277] [cursor=pointer]:
+                  - /url: /company/fair-tech
+                  - img "Fair Tech company logo" [ref=f12e278]
+                - generic [ref=f12e279]:
+                  - link "Mid/Senior/Staff Software Engineer, Full Stack (Typescript)" [ref=f12e281] [cursor=pointer]:
+                    - /url: /jobs/4248684-software-engineer-full-stack-typescript
+                  - generic [ref=f12e282]:
+                    - generic [ref=f12e283]: Fair Tech •
+                    - generic [ref=f12e284]:
+                      - text: Onsite or remote • Phoenix •
+                      - generic [ref=f12e285]: +2 more •
+                      - text: $100k – $180k • 0.05% – 0.5% • today
+              - generic [ref=f12e286]:
+                - button "Save" [ref=f12e287] [cursor=pointer]
+                - button "Apply" [ref=f12e288] [cursor=pointer]
+            - generic [ref=f12e289]:
+              - generic [ref=f12e290]:
+                - link [ref=f12e292] [cursor=pointer]:
+                  - /url: /company/millindustries
+                  - img "Mill Industries company logo" [ref=f12e293]
+                - generic [ref=f12e294]:
+                  - link "Full Stack Tech Lead - Senior" [ref=f12e296] [cursor=pointer]:
+                    - /url: /jobs/4475465-full-stack-tech-lead-senior
+                  - generic [ref=f12e297]:
+                    - generic [ref=f12e298]: Mill Industries •
+                    - generic [ref=f12e299]: San Bruno • $185k – $225k • today
+              - generic [ref=f12e300]:
+                - button "Save" [ref=f12e301] [cursor=pointer]
+                - button "Apply" [ref=f12e302] [cursor=pointer]
+            - generic [ref=f12e303]:
+              - generic [ref=f12e304]:
+                - link [ref=f12e306] [cursor=pointer]:
+                  - /url: /company/lightfield-1
+                  - img "Lightfield company logo" [ref=f12e307]
+                - generic [ref=f12e308]:
+                  - link "Software Engineer, Applied AI, New Grad" [ref=f12e310] [cursor=pointer]:
+                    - /url: /jobs/4473334-software-engineer-applied-ai-new-grad
+                  - generic [ref=f12e311]:
+                    - generic [ref=f12e312]: Lightfield •
+                    - generic [ref=f12e313]: San Francisco • $160k – $180k • today
+              - generic [ref=f12e314]:
+                - button "Save" [ref=f12e315] [cursor=pointer]
+                - button "Apply" [ref=f12e316] [cursor=pointer]
+            - generic [ref=f12e317]:
+              - generic [ref=f12e318]:
+                - link [ref=f12e320] [cursor=pointer]:
+                  - /url: /company/neon-39
+                  - img "Neon company logo" [ref=f12e321]
+                - generic [ref=f12e322]:
+                  - link "Senior Software Engineer" [ref=f12e324] [cursor=pointer]:
+                    - /url: /jobs/4472159-senior-software-engineer
+                  - generic [ref=f12e325]:
+                    - generic [ref=f12e326]: Neon •
+                    - generic [ref=f12e327]: New York City • $170k – $190k • today
+              - generic [ref=f12e328]:
+                - button "Save" [ref=f12e329] [cursor=pointer]
+                - button "Apply" [ref=f12e330] [cursor=pointer]
+            - generic [ref=f12e331]:
+              - generic [ref=f12e332]:
+                - link [ref=f12e334] [cursor=pointer]:
+                  - /url: /company/until-labs-1
+                  - img "Until Labs company logo" [ref=f12e335]
+                - generic [ref=f12e336]:
+                  - link "Software Engineer" [ref=f12e338] [cursor=pointer]:
+                    - /url: /jobs/4470566-software-engineer
+                  - generic [ref=f12e339]:
+                    - generic [ref=f12e340]: Until Labs •
+                    - generic [ref=f12e341]:
+                      - text: Onsite or remote • San Francisco Bay Area •
+                      - generic [ref=f12e342]: +2 more •
+                      - text: $70k – $80k • today
+              - generic [ref=f12e343]:
+                - button "Save" [ref=f12e344] [cursor=pointer]
+                - button "Apply" [ref=f12e345] [cursor=pointer]
+          - generic [ref=f12e346]:
+            - generic [ref=f12e347]:
+              - heading "Product jobs" [level=3] [ref=f12e348]
+              - link "View all product jobs" [ref=f12e349] [cursor=pointer]:
+                - /url: /role/l/product-manager/united-states
+            - generic [ref=f12e350]:
+              - generic [ref=f12e351]:
+                - link [ref=f12e353] [cursor=pointer]:
+                  - /url: /company/tracera
+                  - img "Tracera company logo" [ref=f12e354]
+                - generic [ref=f12e355]:
+                  - link "Head of Product" [ref=f12e357] [cursor=pointer]:
+                    - /url: /jobs/4475486-head-of-product
+                  - generic [ref=f12e358]:
+                    - generic [ref=f12e359]: Tracera •
+                    - generic [ref=f12e360]: In office • New York City • $170k – $200k • No equity • today
+              - generic [ref=f12e361]:
+                - button "Save" [ref=f12e362] [cursor=pointer]
+                - button "Apply" [ref=f12e363] [cursor=pointer]
+            - generic [ref=f12e364]:
+              - generic [ref=f12e365]:
+                - link [ref=f12e367] [cursor=pointer]:
+                  - /url: /company/headspace
+                  - img "Headspace company logo" [ref=f12e368]
+                - generic [ref=f12e369]:
+                  - link "Senior Product Solutions Manager, Health Plans" [ref=f12e371] [cursor=pointer]:
+                    - /url: /jobs/4475437-senior-product-solutions-manager-health-plans
+                  - generic [ref=f12e372]:
+                    - generic [ref=f12e373]: Headspace •
+                    - generic [ref=f12e374]: Onsite or remote • Remote (United States) • $122k – $190k • today
+              - generic [ref=f12e375]:
+                - button "Save" [ref=f12e376] [cursor=pointer]
+                - button "Apply" [ref=f12e377] [cursor=pointer]
+            - generic [ref=f12e378]:
+              - generic [ref=f12e379]:
+                - link [ref=f12e381] [cursor=pointer]:
+                  - /url: /company/tradeify-co
+                  - img "Tradeify.co company logo" [ref=f12e382]
+                - generic [ref=f12e383]:
+                  - link "Senior Product Manager - Brokerage" [ref=f12e385] [cursor=pointer]:
+                    - /url: /jobs/4473339-senior-product-manager-brokerage
+                  - generic [ref=f12e386]:
+                    - generic [ref=f12e387]: Tradeify.co •
+                    - generic [ref=f12e388]: Remote • United States • $130k – $150k • today
+              - generic [ref=f12e389]:
+                - button "Save" [ref=f12e390] [cursor=pointer]
+                - button "Apply" [ref=f12e391] [cursor=pointer]
+            - generic [ref=f12e392]:
+              - generic [ref=f12e393]:
+                - link [ref=f12e395] [cursor=pointer]:
+                  - /url: /company/phare-health
+                  - img "Phare Health company logo" [ref=f12e396]
+                - generic [ref=f12e397]:
+                  - link "Director, Product" [ref=f12e399] [cursor=pointer]:
+                    - /url: /jobs/4473332-director-product
+                  - generic [ref=f12e400]:
+                    - generic [ref=f12e401]: Phare Health •
+                    - generic [ref=f12e402]: New York • $173k – $233k • today
+              - generic [ref=f12e403]:
+                - button "Save" [ref=f12e404] [cursor=pointer]
+                - button "Apply" [ref=f12e405] [cursor=pointer]
+            - generic [ref=f12e406]:
+              - generic [ref=f12e407]:
+                - link [ref=f12e409] [cursor=pointer]:
+                  - /url: /company/moloco
+                  - img "MOLOCO company logo" [ref=f12e410]
+                - generic [ref=f12e411]:
+                  - link "Group Product Manage, GenAI Creatives" [ref=f12e413] [cursor=pointer]:
+                    - /url: /jobs/4470322-group-product-manage-genai-creatives
+                  - generic [ref=f12e414]:
+                    - generic [ref=f12e415]: MOLOCO •
+                    - generic [ref=f12e416]: Menlo Park • $211k – $291k • yesterday
+              - generic [ref=f12e417]:
+                - button "Save" [ref=f12e418] [cursor=pointer]
+                - button "Apply" [ref=f12e419] [cursor=pointer]
+          - generic [ref=f12e420]:
+            - generic [ref=f12e421]:
+              - heading "Design jobs" [level=3] [ref=f12e422]
+              - link "View all design jobs" [ref=f12e423] [cursor=pointer]:
+                - /url: /role/l/designer/united-states
+            - generic [ref=f12e424]:
+              - generic [ref=f12e425]:
+                - link [ref=f12e427] [cursor=pointer]:
+                  - /url: /company/take-two-interactive-software
+                  - img "Take-Two Interactive Software company logo" [ref=f12e428]
+                - generic [ref=f12e429]:
+                  - link "Senior Designer" [ref=f12e431] [cursor=pointer]:
+                    - /url: /jobs/4470246-senior-designer
+                  - generic [ref=f12e432]:
+                    - generic [ref=f12e433]: Take-Two Interactive Software •
+                    - generic [ref=f12e434]: Remote • Massachusetts • $165k – $165k • yesterday
+              - generic [ref=f12e435]:
+                - button "Save" [ref=f12e436] [cursor=pointer]
+                - button "Apply" [ref=f12e437] [cursor=pointer]
+            - generic [ref=f12e438]:
+              - generic [ref=f12e439]:
+                - link [ref=f12e441] [cursor=pointer]:
+                  - /url: /company/peloton
+                  - img "Peloton Interactive company logo" [ref=f12e442]
+                - generic [ref=f12e443]:
+                  - link "Staff Industrial Designer" [ref=f12e445] [cursor=pointer]:
+                    - /url: /jobs/4446154-staff-industrial-designer
+                  - generic [ref=f12e446]:
+                    - generic [ref=f12e447]: Peloton Interactive •
+                    - generic [ref=f12e448]: New York City • $215k – $264k • 6 days ago
+              - generic [ref=f12e449]:
+                - button "Save" [ref=f12e450] [cursor=pointer]
+                - button "Apply" [ref=f12e451] [cursor=pointer]
+            - generic [ref=f12e452]:
+              - generic [ref=f12e453]:
+                - link [ref=f12e455] [cursor=pointer]:
+                  - /url: /company/paddox-technologies
+                  - img "Paddox Technologies company logo" [ref=f12e456]
+                - generic [ref=f12e457]:
+                  - link "Product Designer" [ref=f12e459] [cursor=pointer]:
+                    - /url: /jobs/4417538-product-designer
+                  - generic [ref=f12e460]:
+                    - generic [ref=f12e461]: Paddox Technologies •
+                    - generic [ref=f12e462]:
+                      - text: Onsite or remote • Dallas •
+                      - generic [ref=f12e463]: +2 more •
+                      - text: $70k – $100k • 2.0% – 10.0% • 2 weeks ago
+              - generic [ref=f12e464]:
+                - button "Save" [ref=f12e465] [cursor=pointer]
+                - button "Apply" [ref=f12e466] [cursor=pointer]
+            - generic [ref=f12e467]:
+              - generic [ref=f12e468]:
+                - link [ref=f12e470] [cursor=pointer]:
+                  - /url: /company/productai
+                  - img "Product.ai company logo" [ref=f12e471]
+                - generic [ref=f12e472]:
+                  - link "Senior Product Designer" [ref=f12e474] [cursor=pointer]:
+                    - /url: /jobs/4363739-senior-product-designer
+                  - generic [ref=f12e475]:
+                    - generic [ref=f12e476]: Product.ai •
+                    - generic [ref=f12e477]: In office • Los Angeles • $300k – $380k • 1.0% – 3.0% • 3 weeks ago
+              - generic [ref=f12e478]:
+                - button "Save" [ref=f12e479] [cursor=pointer]
+                - button "Apply" [ref=f12e480] [cursor=pointer]
+          - generic [ref=f12e481]:
+            - generic [ref=f12e482]:
+              - heading "Data and Analytics jobs" [level=3] [ref=f12e483]
+              - link "View all data and analytics jobs" [ref=f12e484] [cursor=pointer]:
+                - /url: /role/l/data-engineer/united-states
+            - generic [ref=f12e485]:
+              - generic [ref=f12e486]:
+                - link [ref=f12e488] [cursor=pointer]:
+                  - /url: /company/sira-5
+                  - img "SIRA company logo" [ref=f12e489]
+                - generic [ref=f12e490]:
+                  - link "Senior GCP Data Engineer" [ref=f12e492] [cursor=pointer]:
+                    - /url: /jobs/4470185-senior-gcp-data-engineer
+                  - generic [ref=f12e493]:
+                    - generic [ref=f12e494]: SIRA •
+                    - generic [ref=f12e495]: Remote only • United States • $120k – $130k • No equity • yesterday
+              - generic [ref=f12e496]:
+                - button "Save" [ref=f12e497] [cursor=pointer]
+                - button "Apply" [ref=f12e498] [cursor=pointer]
+            - generic [ref=f12e499]:
+              - generic [ref=f12e500]:
+                - link [ref=f12e502] [cursor=pointer]:
+                  - /url: /company/stuut-1
+                  - img "Stuut company logo" [ref=f12e503]
+                - generic [ref=f12e504]:
+                  - link "Data Engineer" [ref=f12e506] [cursor=pointer]:
+                    - /url: /jobs/3834594-data-engineer
+                  - generic [ref=f12e507]:
+                    - generic [ref=f12e508]: Stuut •
+                    - generic [ref=f12e509]:
+                      - text: In office • New York City •
+                      - generic [ref=f12e510]: +1 more •
+                      - text: $135k – $190k • 0.01% – 0.2% • 2 days ago
+              - generic [ref=f12e511]:
+                - button "Save" [ref=f12e512] [cursor=pointer]
+                - button "Apply" [ref=f12e513] [cursor=pointer]
+            - generic [ref=f12e514]:
+              - generic [ref=f12e515]:
+                - link [ref=f12e517] [cursor=pointer]:
+                  - /url: /company/dreamers-1
+                  - img "Dreamers company logo" [ref=f12e518]
+                - generic [ref=f12e519]:
+                  - link "Senior Data / BI / GIS Lead" [ref=f12e521] [cursor=pointer]:
+                    - /url: /jobs/2422813-front-end-programmer-data-visualization-expert
+                  - generic [ref=f12e522]:
+                    - generic [ref=f12e523]: Dreamers •
+                    - generic [ref=f12e524]: Remote only • United States • $170k – $250k • No equity • 6 days ago
+              - generic [ref=f12e525]:
+                - button "Save" [ref=f12e526] [cursor=pointer]
+                - button "Apply" [ref=f12e527] [cursor=pointer]
+            - generic [ref=f12e528]:
+              - generic [ref=f12e529]:
+                - link [ref=f12e531] [cursor=pointer]:
+                  - /url: /company/gallop-intelligence
+                  - img "Gallop Intelligence company logo" [ref=f12e532]
+                - generic [ref=f12e533]:
+                  - link "Founding Software Engineer, Data" [ref=f12e535] [cursor=pointer]:
+                    - /url: /jobs/4436872-founding-software-engineer-data
+                  - generic [ref=f12e536]:
+                    - generic [ref=f12e537]: Gallop Intelligence •
+                    - generic [ref=f12e538]: In office • Sunnyvale • $130k – $200k • 0.1% – 1.5% • 7 days ago
+              - generic [ref=f12e539]:
+                - button "Save" [ref=f12e540] [cursor=pointer]
+                - button "Apply" [ref=f12e541] [cursor=pointer]
+            - generic [ref=f12e542]:
+              - generic [ref=f12e543]:
+                - link [ref=f12e545] [cursor=pointer]:
+                  - /url: /company/carecircle
+                  - img "CareCircle company logo" [ref=f12e546]
+                - generic [ref=f12e547]:
+                  - link "Founding Engineer HealthTech Startup" [ref=f12e549] [cursor=pointer]:
+                    - /url: /jobs/4098472-founding-engineer-healthtech-startup
+                  - generic [ref=f12e550]:
+                    - generic [ref=f12e551]: CareCircle •
+                    - generic [ref=f12e552]: In office • Fort Lauderdale • $200k – $200k • 1.0% – 1.0% • 1 week ago
+              - generic [ref=f12e553]:
+                - button "Save" [ref=f12e554] [cursor=pointer]
+                - button "Apply" [ref=f12e555] [cursor=pointer]
+          - generic [ref=f12e556]:
+            - generic [ref=f12e557]:
+              - heading "Sales jobs" [level=3] [ref=f12e558]
+              - link "View all sales jobs" [ref=f12e559] [cursor=pointer]:
+                - /url: /role/l/sales/united-states
+            - generic [ref=f12e560]:
+              - generic [ref=f12e561]:
+                - link [ref=f12e563] [cursor=pointer]:
+                  - /url: /company/truvo-1
+                  - img "Truvo company logo" [ref=f12e564]
+                - generic [ref=f12e565]:
+                  - link "Licensed Insurance Sales Representative" [ref=f12e567] [cursor=pointer]:
+                    - /url: /jobs/4470156-licensed-insurance-sales-representative
+                  - generic [ref=f12e568]:
+                    - generic [ref=f12e569]: Truvo •
+                    - generic [ref=f12e570]:
+                      - text: Onsite or remote • United States •
+                      - generic [ref=f12e571]: +1 more •
+                      - text: $40k – $60k • No equity • yesterday
+              - generic [ref=f12e572]:
+                - button "Save" [ref=f12e573] [cursor=pointer]
+                - button "Apply" [ref=f12e574] [cursor=pointer]
+            - generic [ref=f12e575]:
+              - generic [ref=f12e576]:
+                - link [ref=f12e578] [cursor=pointer]:
+                  - /url: /company/lobuly-1
+                  - img "lobuly company logo" [ref=f12e579]
+                - generic [ref=f12e580]:
+                  - link "Co-Founder, Sales & Business Development" [ref=f12e582] [cursor=pointer]:
+                    - /url: /jobs/4468482-co-founder-sales-business-development
+                  - generic [ref=f12e583]:
+                    - generic [ref=f12e584]: lobuly •
+                    - generic [ref=f12e585]: Remote only • Everywhere • $30k – $80k • No equity • yesterday
+              - generic [ref=f12e586]:
+                - button "Save" [ref=f12e587] [cursor=pointer]
+                - button "Apply" [ref=f12e588] [cursor=pointer]
+            - generic [ref=f12e589]:
+              - generic [ref=f12e590]:
+                - link [ref=f12e592] [cursor=pointer]:
+                  - /url: /company/gray-swan-ai
+                  - img "Gray Swan AI company logo" [ref=f12e593]
+                - generic [ref=f12e594]:
+                  - link "Senior Sales Engineer" [ref=f12e596] [cursor=pointer]:
+                    - /url: /jobs/4025230-senior-sales-engineer
+                  - generic [ref=f12e597]:
+                    - generic [ref=f12e598]: Gray Swan AI •
+                    - generic [ref=f12e599]: Remote • Boston • $152k – $182k • yesterday
+              - generic [ref=f12e600]:
+                - button "Save" [ref=f12e601] [cursor=pointer]
+                - button "Apply" [ref=f12e602] [cursor=pointer]
+            - generic [ref=f12e603]:
+              - generic [ref=f12e604]:
+                - link [ref=f12e606] [cursor=pointer]:
+                  - /url: /company/polco-nrc
+                  - img "Polco company logo" [ref=f12e607]
+                - generic [ref=f12e608]:
+                  - link "Account Executive" [ref=f12e610] [cursor=pointer]:
+                    - /url: /jobs/4465412-account-executive
+                  - generic [ref=f12e611]:
+                    - generic [ref=f12e612]: Polco •
+                    - generic [ref=f12e613]:
+                      - text: Onsite or remote • Madison •
+                      - generic [ref=f12e614]: +1 more •
+                      - text: $160k – $200k • 1 day ago
+              - generic [ref=f12e615]:
+                - button "Save" [ref=f12e616] [cursor=pointer]
+                - button "Apply" [ref=f12e617] [cursor=pointer]
+            - generic [ref=f12e618]:
+              - generic [ref=f12e619]:
+                - link [ref=f12e621] [cursor=pointer]:
+                  - /url: /company/prokeep-1
+                  - img "Prokeep company logo" [ref=f12e622]
+                - generic [ref=f12e623]:
+                  - link "Account Executive, Midmarket/Enterprise" [ref=f12e625] [cursor=pointer]:
+                    - /url: /jobs/4465324-account-executive-midmarket-enterprise
+                  - generic [ref=f12e626]:
+                    - generic [ref=f12e627]: Prokeep •
+                    - generic [ref=f12e628]:
+                      - text: Onsite or remote • New Orleans •
+                      - generic [ref=f12e629]: +1 more •
+                      - text: $225k – $260k • 2 days ago
+              - generic [ref=f12e630]:
+                - button "Save" [ref=f12e631] [cursor=pointer]
+                - button "Apply" [ref=f12e632] [cursor=pointer]
+          - generic [ref=f12e633]:
+            - generic [ref=f12e634]:
+              - heading "Marketing jobs" [level=3] [ref=f12e635]
+              - link "View all marketing jobs" [ref=f12e636] [cursor=pointer]:
+                - /url: /role/l/marketing/united-states
+            - generic [ref=f12e637]:
+              - generic [ref=f12e638]:
+                - link [ref=f12e640] [cursor=pointer]:
+                  - /url: /company/thunder-13
+                  - img "Thunder company logo" [ref=f12e641]
+                - generic [ref=f12e642]:
+                  - link "Founding Growth Lead" [ref=f12e644] [cursor=pointer]:
+                    - /url: /jobs/4446277-founding-growth-lead
+                  - generic [ref=f12e645]:
+                    - generic [ref=f12e646]: Thunder •
+                    - generic [ref=f12e647]: In office • New York City • $150k – $200k • 3 days ago
+              - generic [ref=f12e648]:
+                - button "Save" [ref=f12e649] [cursor=pointer]
+                - button "Apply" [ref=f12e650] [cursor=pointer]
+            - generic [ref=f12e651]:
+              - generic [ref=f12e652]:
+                - link [ref=f12e654] [cursor=pointer]:
+                  - /url: /company/arobis-ai
+                  - img "Arobis AI company logo" [ref=f12e655]
+                - generic [ref=f12e656]:
+                  - link "Head of Marketing (Remote, US)" [ref=f12e658] [cursor=pointer]:
+                    - /url: /jobs/4461782-head-of-marketing-remote-us
+                  - generic [ref=f12e659]:
+                    - generic [ref=f12e660]: Arobis AI •
+                    - generic [ref=f12e661]:
+                      - text: Remote only • Canada •
+                      - generic [ref=f12e662]: +1 more •
+                      - text: $125k – $150k • 0.2% – 0.5% • 4 days ago
+              - generic [ref=f12e663]:
+                - button "Save" [ref=f12e664] [cursor=pointer]
+                - button "Apply" [ref=f12e665] [cursor=pointer]
+            - generic [ref=f12e666]:
+              - generic [ref=f12e667]:
+                - link [ref=f12e669] [cursor=pointer]:
+                  - /url: /company/unvale
+                  - img "Unvale company logo" [ref=f12e670]
+                - generic [ref=f12e671]:
+                  - link "Head of Growth" [ref=f12e673] [cursor=pointer]:
+                    - /url: /jobs/4435502-head-of-growth
+                  - generic [ref=f12e674]:
+                    - generic [ref=f12e675]: Unvale •
+                    - generic [ref=f12e676]: Onsite or remote • Remote (United States) • $55k – $85k • 0.25% – 1.5% • 1 week ago
+              - generic [ref=f12e677]:
+                - button "Save" [ref=f12e678] [cursor=pointer]
+                - button "Apply" [ref=f12e679] [cursor=pointer]
+            - generic [ref=f12e680]:
+              - generic [ref=f12e681]:
+                - link [ref=f12e683] [cursor=pointer]:
+                  - /url: /company/drawscape-1
+                  - img "Drawscape company logo" [ref=f12e684]
+                - generic [ref=f12e685]:
+                  - link "Head of Marketing (Ecommerce)" [ref=f12e687] [cursor=pointer]:
+                    - /url: /jobs/4147404-head-of-marketing-ecommerce
+                  - generic [ref=f12e688]:
+                    - generic [ref=f12e689]: Drawscape •
+                    - generic [ref=f12e690]:
+                      - text: Onsite or remote • Truckee •
+                      - generic [ref=f12e691]: +2 more •
+                      - text: $50k – $50k • 15.0% – 25.0% • 1 week ago
+              - generic [ref=f12e692]:
+                - button "Save" [ref=f12e693] [cursor=pointer]
+                - button "Apply" [ref=f12e694] [cursor=pointer]
+            - generic [ref=f12e695]:
+              - generic [ref=f12e696]:
+                - link [ref=f12e698] [cursor=pointer]:
+                  - /url: /company/bump-by-ownors
+                  - img "UseBump.com company logo" [ref=f12e699]
+                - generic [ref=f12e700]:
+                  - link "Marketing Assistant (Los Angeles)" [ref=f12e702] [cursor=pointer]:
+                    - /url: /jobs/2953301-head-of-community-los-angeles
+                  - generic [ref=f12e703]:
+                    - generic [ref=f12e704]: UseBump.com •
+                    - generic [ref=f12e705]: In office • Los Angeles • $50k – $65k • No equity • 1 week ago
+              - generic [ref=f12e706]:
+                - button "Save" [ref=f12e707] [cursor=pointer]
+                - button "Apply" [ref=f12e708] [cursor=pointer]
+          - generic [ref=f12e709]:
+            - generic [ref=f12e710]:
+              - heading "Operations jobs" [level=3] [ref=f12e711]
+              - link "View all operations jobs" [ref=f12e712] [cursor=pointer]:
+                - /url: /role/l/operations-manager/united-states
+            - generic [ref=f12e713]:
+              - generic [ref=f12e714]:
+                - link [ref=f12e716] [cursor=pointer]:
+                  - /url: /company/fleetpulse
+                  - img "FleetPulse company logo" [ref=f12e717]
+                - generic [ref=f12e718]:
+                  - link "Go To Market Engineer" [ref=f12e720] [cursor=pointer]:
+                    - /url: /jobs/4472275-go-to-market-engineer
+                  - generic [ref=f12e721]:
+                    - generic [ref=f12e722]: FleetPulse •
+                    - generic [ref=f12e723]: Chicago • $95k – $105k • today
+              - generic [ref=f12e724]:
+                - button "Save" [ref=f12e725] [cursor=pointer]
+                - button "Apply" [ref=f12e726] [cursor=pointer]
+            - generic [ref=f12e727]:
+              - generic [ref=f12e728]:
+                - link [ref=f12e730] [cursor=pointer]:
+                  - /url: /company/until-labs-1
+                  - img "Until Labs company logo" [ref=f12e731]
+                - generic [ref=f12e732]:
+                  - link "Document Control Specialist" [ref=f12e734] [cursor=pointer]:
+                    - /url: /jobs/4472182-document-control-specialist
+                  - generic [ref=f12e735]:
+                    - generic [ref=f12e736]: Until Labs •
+                    - generic [ref=f12e737]:
+                      - text: Onsite or remote • San Francisco •
+                      - generic [ref=f12e738]: +2 more •
+                      - text: $65k – $80k • today
+              - generic [ref=f12e739]:
+                - button "Save" [ref=f12e740] [cursor=pointer]
+                - button "Apply" [ref=f12e741] [cursor=pointer]
+            - generic [ref=f12e742]:
+              - generic [ref=f12e743]:
+                - link [ref=f12e745] [cursor=pointer]:
+                  - /url: /company/sentilink
+                  - img "SentiLink company logo" [ref=f12e746]
+                - generic [ref=f12e747]:
+                  - link "Learning and Development (L&D) Program Manager" [ref=f12e749] [cursor=pointer]:
+                    - /url: /jobs/4470130-learning-and-development-l-d-program-manager
+                  - generic [ref=f12e750]:
+                    - generic [ref=f12e751]: SentiLink •
+                    - generic [ref=f12e752]: Remote • United States • $155k – $200k • yesterday
+              - generic [ref=f12e753]:
+                - button "Save" [ref=f12e754] [cursor=pointer]
+                - button "Apply" [ref=f12e755] [cursor=pointer]
+            - generic [ref=f12e756]:
+              - generic [ref=f12e757]:
+                - link [ref=f12e759] [cursor=pointer]:
+                  - /url: /company/triumph-arcade
+                  - img "Triumph Arcade company logo" [ref=f12e760]
+                - generic [ref=f12e761]:
+                  - link "Shift Manager (Day Shift)" [ref=f12e763] [cursor=pointer]:
+                    - /url: /jobs/4470117-shift-manager-day-shift
+                  - generic [ref=f12e764]:
+                    - generic [ref=f12e765]: Triumph Arcade •
+                    - generic [ref=f12e766]: Mountain View • $90k – $120k • yesterday
+              - generic [ref=f12e767]:
+                - button "Save" [ref=f12e768] [cursor=pointer]
+                - button "Apply" [ref=f12e769] [cursor=pointer]
+            - generic [ref=f12e770]:
+              - generic [ref=f12e771]:
+                - link [ref=f12e773] [cursor=pointer]:
+                  - /url: /company/coalitioninc
+                  - img "Coalition, inc. company logo" [ref=f12e774]
+                - generic [ref=f12e775]:
+                  - link "Manager, Cyber Claims" [ref=f12e777] [cursor=pointer]:
+                    - /url: /jobs/4470043-manager-cyber-claims
+                  - generic [ref=f12e778]:
+                    - generic [ref=f12e779]: Coalition, inc. •
+                    - generic [ref=f12e780]:
+                      - text: Austin • Canada •
+                      - generic [ref=f12e781]: +7 more •
+                      - text: $115k – $155k • yesterday
+              - generic [ref=f12e782]:
+                - button "Save" [ref=f12e783] [cursor=pointer]
+                - button "Apply" [ref=f12e784] [cursor=pointer]
+          - generic [ref=f12e785]:
+            - generic [ref=f12e786]:
+              - heading "HR and recruiting jobs" [level=3] [ref=f12e787]
+              - link "View all hr and recruiting jobs" [ref=f12e788] [cursor=pointer]:
+                - /url: /role/l/recruiter/united-states
+            - generic [ref=f12e789]:
+              - generic [ref=f12e790]:
+                - link [ref=f12e792] [cursor=pointer]:
+                  - /url: /company/klaviyo
+                  - img "Klaviyo company logo" [ref=f12e793]
+                - generic [ref=f12e794]:
+                  - link "Senior Recruiter" [ref=f12e796] [cursor=pointer]:
+                    - /url: /jobs/4470310-senior-recruiter
+                  - generic [ref=f12e797]:
+                    - generic [ref=f12e798]: Klaviyo •
+                    - generic [ref=f12e799]: Boston • $102k – $153k • yesterday
+              - generic [ref=f12e800]:
+                - button "Save" [ref=f12e801] [cursor=pointer]
+                - button "Apply" [ref=f12e802] [cursor=pointer]
+            - generic [ref=f12e803]:
+              - generic [ref=f12e804]:
+                - link [ref=f12e806] [cursor=pointer]:
+                  - /url: /company/yuzuhealth
+                  - img "Yuzu Health company logo" [ref=f12e807]
+                - generic [ref=f12e808]:
+                  - link "Talent Acquisition Lead" [ref=f12e810] [cursor=pointer]:
+                    - /url: /jobs/4468461-talent-acquisition-lead
+                  - generic [ref=f12e811]:
+                    - generic [ref=f12e812]: Yuzu Health •
+                    - generic [ref=f12e813]: New York City • $160k – $230k • yesterday
+              - generic [ref=f12e814]:
+                - button "Save" [ref=f12e815] [cursor=pointer]
+                - button "Apply" [ref=f12e816] [cursor=pointer]
+            - generic [ref=f12e817]:
+              - generic [ref=f12e818]:
+                - link [ref=f12e820] [cursor=pointer]:
+                  - /url: /company/free-agent-2
+                  - img "Free Agent company logo" [ref=f12e821]
+                - generic [ref=f12e822]:
+                  - link "Athlete Community Ambassador (Remote)" [ref=f12e824] [cursor=pointer]:
+                    - /url: /jobs/4465540-athlete-community-ambassador-remote
+                  - generic [ref=f12e825]:
+                    - generic [ref=f12e826]: Free Agent •
+                    - generic [ref=f12e827]: Remote only • Everywhere • $70k – $100k • 1 day ago
+              - generic [ref=f12e828]:
+                - button "Save" [ref=f12e829] [cursor=pointer]
+                - button "Apply" [ref=f12e830] [cursor=pointer]
+            - generic [ref=f12e831]:
+              - generic [ref=f12e832]:
+                - link [ref=f12e834] [cursor=pointer]:
+                  - /url: /company/global-pathways-ai
+                  - img "Global Pathways AI company logo" [ref=f12e835]
+                - generic [ref=f12e836]:
+                  - link "Technical Recruiter" [ref=f12e838] [cursor=pointer]:
+                    - /url: /jobs/4465332-technical-recruiter
+                  - generic [ref=f12e839]:
+                    - generic [ref=f12e840]: Global Pathways AI •
+                    - generic [ref=f12e841]:
+                      - text: Remote only • Canada •
+                      - generic [ref=f12e842]: +1 more •
+                      - text: $90k – $120k • No equity • 2 days ago
+              - generic [ref=f12e843]:
+                - button "Save" [ref=f12e844] [cursor=pointer]
+                - button "Apply" [ref=f12e845] [cursor=pointer]
+            - generic [ref=f12e846]:
+              - generic [ref=f12e847]:
+                - link [ref=f12e849] [cursor=pointer]:
+                  - /url: /company/stuut-1
+                  - img "Stuut company logo" [ref=f12e850]
+                - generic [ref=f12e851]:
+                  - link "Founding Technical Recruiter" [ref=f12e853] [cursor=pointer]:
+                    - /url: /jobs/4436382-founding-technical-recruiter
+                  - generic [ref=f12e854]:
+                    - generic [ref=f12e855]: Stuut •
+                    - generic [ref=f12e856]: New York City • San Francisco • $180k – $250k • 2 days ago
+              - generic [ref=f12e857]:
+                - button "Save" [ref=f12e858] [cursor=pointer]
+                - button "Apply" [ref=f12e859] [cursor=pointer]
+          - generic [ref=f12e860]:
+            - generic [ref=f12e861]:
+              - heading "Finance / Legal jobs" [level=3] [ref=f12e862]
+              - link "View all finance / legal jobs" [ref=f12e863] [cursor=pointer]:
+                - /url: /role/l/finance/united-states
+            - generic [ref=f12e864]:
+              - generic [ref=f12e865]:
+                - link [ref=f12e867] [cursor=pointer]:
+                  - /url: /company/allocate-co-1
+                  - img "Allocate.co company logo" [ref=f12e868]
+                - generic [ref=f12e869]:
+                  - link "Accounting Manager" [ref=f12e871] [cursor=pointer]:
+                    - /url: /jobs/4473345-accounting-manager
+                  - generic [ref=f12e872]:
+                    - generic [ref=f12e873]: Allocate.co •
+                    - generic [ref=f12e874]: Palo Alto • $135k – $160k • today
+              - generic [ref=f12e875]:
+                - button "Save" [ref=f12e876] [cursor=pointer]
+                - button "Apply" [ref=f12e877] [cursor=pointer]
+            - generic [ref=f12e878]:
+              - generic [ref=f12e879]:
+                - link [ref=f12e881] [cursor=pointer]:
+                  - /url: /company/crossriver
+                  - img "Cross River company logo" [ref=f12e882]
+                - generic [ref=f12e883]:
+                  - link "Associate, FP&A" [ref=f12e885] [cursor=pointer]:
+                    - /url: /jobs/3783707-2-associate-fp-a
+                  - generic [ref=f12e886]:
+                    - generic [ref=f12e887]: Cross River •
+                    - generic [ref=f12e888]: Fort Lee • $90k – $120k • yesterday
+              - generic [ref=f12e889]:
+                - button "Save" [ref=f12e890] [cursor=pointer]
+                - button "Apply" [ref=f12e891] [cursor=pointer]
+            - generic [ref=f12e892]:
+              - generic [ref=f12e893]:
+                - link [ref=f12e895] [cursor=pointer]:
+                  - /url: /company/gomotive
+                  - img "Motive company logo" [ref=f12e896]
+                - generic [ref=f12e897]:
+                  - link "Senior Manager, Accounting" [ref=f12e899] [cursor=pointer]:
+                    - /url: /jobs/4045355-senior-manager-accounting
+                  - generic [ref=f12e900]:
+                    - generic [ref=f12e901]: Motive •
+                    - generic [ref=f12e902]: Remote • $129k – $177k • yesterday
+              - generic [ref=f12e903]:
+                - button "Save" [ref=f12e904] [cursor=pointer]
+                - button "Apply" [ref=f12e905] [cursor=pointer]
+            - generic [ref=f12e906]:
+              - generic [ref=f12e907]:
+                - link [ref=f12e909] [cursor=pointer]:
+                  - /url: /company/faire-wholesale
+                  - img "Faire company logo" [ref=f12e910]
+                - generic [ref=f12e911]:
+                  - link "Strategic Finance Senior Lead" [ref=f12e913] [cursor=pointer]:
+                    - /url: /jobs/4470242-strategic-finance-senior-lead
+                  - generic [ref=f12e914]:
+                    - generic [ref=f12e915]: Faire •
+                    - generic [ref=f12e916]: San Francisco • $237k – $326k • yesterday
+              - generic [ref=f12e917]:
+                - button "Save" [ref=f12e918] [cursor=pointer]
+                - button "Apply" [ref=f12e919] [cursor=pointer]
+        - complementary [ref=f12e920]:
+          - generic [ref=f12e922]:
+            - generic [ref=f12e923]:
+              - generic [ref=f12e924]:
+                - textbox "Your Email" [ref=f12e925]
+                - button "Sign up" [ref=f12e926]
+              - generic [ref=f12e927]: or
+              - link "Sign up with Google" [ref=f12e928] [cursor=pointer]:
+                - /url: /auth/google_oauth2/with_callback?callback=%2Fregistrations%2Fcontinue_after_social_login&provider=google_oauth&src=join
+            - generic [ref=f12e938]:
+              - text: Already have an account?
+              - button "Log In" [ref=f12e939] [cursor=pointer]
+          - generic [ref=f12e940]:
+            - heading "Level up your job search" [level=3] [ref=f12e941]
+            - list [ref=f12e942]:
+              - listitem [ref=f12e943]: Unique jobs in niche industries
+              - listitem [ref=f12e948]: Set salary & equity upfront
+              - listitem [ref=f12e952]: Personalized job filters
+              - listitem [ref=f12e956]: Showcase skills beyond a resume
+              - listitem [ref=f12e961]: Let founders and recruiters reach out to you
+            - button "Sign up & search" [ref=f12e966] [cursor=pointer]
+          - generic [ref=f12e967]:
+            - heading "Know your worth" [level=3] [ref=f12e968]
+            - paragraph [ref=f12e969]: Know your worth. Filter by industry, job title, location & more.
+            - link "Salary calculator" [ref=f12e970] [cursor=pointer]:
+              - /url: /hiring-data
+      - generic [ref=f12e973]:
+        - heading "Get started today" [level=3] [ref=f12e974]
+        - paragraph [ref=f12e975]: To apply to jobs with one-click and connect with founders and recruiters searching for your skills.
+        - button "Create your profile" [ref=f12e976] [cursor=pointer]
+    - generic [ref=f12e977]:
+      - button [ref=f12e978] [cursor=pointer]
+      - button [ref=f12e982] [cursor=pointer]
+      - button [ref=f12e986] [cursor=pointer]
+      - button [ref=f12e990] [cursor=pointer]
+      - button [ref=f12e994] [cursor=pointer]
+    - contentinfo [ref=f12e998]:
+      - generic [ref=f12e999]:
+        - generic [ref=f12e1000]:
+          - link [ref=f12e1001] [cursor=pointer]:
+            - /url: /
+          - generic [ref=f12e1016]:
+            - link [ref=f12e1017] [cursor=pointer]:
+              - /url: http://twitter.com/wellfoundhq
+            - link [ref=f12e1020] [cursor=pointer]:
+              - /url: https://instagram.com/wellfoundhq
+        - generic [ref=f12e1024]:
+          - list [ref=f12e1025]:
+            - listitem [ref=f12e1026]:
+              - heading "For Candidates" [level=4] [ref=f12e1027]
+            - listitem [ref=f12e1028]:
+              - link "Overview" [ref=f12e1029] [cursor=pointer]:
+                - /url: /candidates/overview
+            - listitem [ref=f12e1030]:
+              - link "Startup Jobs" [ref=f12e1031] [cursor=pointer]:
+                - /url: /jobs
+            - listitem [ref=f12e1032]:
+              - link "Web3 Jobs" [ref=f12e1033] [cursor=pointer]:
+                - /url: /web3
+            - listitem [ref=f12e1034]:
+              - link "Featured" [ref=f12e1035] [cursor=pointer]:
+                - /url: /candidates/featured
+            - listitem [ref=f12e1036]:
+              - link "Startup Hiring Data" [ref=f12e1037] [cursor=pointer]:
+                - /url: /hiring-data
+            - listitem [ref=f12e1038]:
+              - link "Tech Startups" [ref=f12e1039] [cursor=pointer]:
+                - /url: /startups
+            - listitem [ref=f12e1040]:
+              - link "Remote" [ref=f12e1041] [cursor=pointer]:
+                - /url: /candidates/remote
+          - list [ref=f12e1042]:
+            - listitem [ref=f12e1043]:
+              - heading "For Recruiters" [level=4] [ref=f12e1044]
+            - listitem [ref=f12e1045]:
+              - link "Overview" [ref=f12e1046] [cursor=pointer]:
+                - /url: /recruit/overview
+            - listitem [ref=f12e1047]:
+              - link "Recruit Pro" [ref=f12e1048] [cursor=pointer]:
+                - /url: /recruit/products/recruit-pro
+            - listitem [ref=f12e1049]:
+              - link "Curated" [ref=f12e1050] [cursor=pointer]:
+                - /url: /recruit/products/curated
+            - listitem [ref=f12e1051]:
+              - link "Wellfound:ai" [ref=f12e1052] [cursor=pointer]:
+                - /url: /recruit/products/recruiter-cloud
+            - listitem [ref=f12e1053]:
+              - link "Hire Developers" [ref=f12e1054] [cursor=pointer]:
+                - /url: /hire
+            - listitem [ref=f12e1055]:
+              - link "Pricing" [ref=f12e1056] [cursor=pointer]:
+                - /url: /recruit/pricing
+          - list [ref=f12e1057]:
+            - listitem [ref=f12e1058]:
+              - heading "Company" [level=4] [ref=f12e1059]
+            - listitem [ref=f12e1060]:
+              - link "About" [ref=f12e1061] [cursor=pointer]:
+                - /url: https://wellfound.com
+            - listitem [ref=f12e1062]:
+              - link "Help" [ref=f12e1063] [cursor=pointer]:
+                - /url: https://help.wellfound.com/
+            - listitem [ref=f12e1064]:
+              - link "Blog" [ref=f12e1065] [cursor=pointer]:
+                - /url: /discover/blog
+            - listitem [ref=f12e1066]:
+              - link "Terms & Risks" [ref=f12e1067] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=f12e1068]:
+              - link "Privacy & Cookies" [ref=f12e1069] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=f12e1070]:
+              - link "Trust" [ref=f12e1071] [cursor=pointer]:
+                - /url: https://trust.wellfound.ai
+            - listitem [ref=f12e1072]:
+              - link "Platform Status" [ref=f12e1073] [cursor=pointer]:
+                - /url: https://status.wellfound.com
+      - generic [ref=f12e1074]:
+        - generic [ref=f12e1075]:
+          - paragraph [ref=f12e1076]: Copyright © 2026 Wellfound. All rights reserved.
+          - generic [ref=f12e1077] [cursor=pointer]: Cookie Preferences
+        - paragraph [ref=f12e1078]:
+          - text: "Browse by:"
+          - link "Jobs" [ref=f12e1079] [cursor=pointer]:
+            - /url: /browse/tech-jobs
+          - text: ","
+          - link "Remote Jobs" [ref=f12e1080] [cursor=pointer]:
+            - /url: /browse/remote-tech-jobs
+          - text: ","
+          - link "Locations" [ref=f12e1081] [cursor=pointer]:
+            - /url: /browse/tech-job-locations
+          - text: ","
+          - link "Startups" [ref=f12e1082] [cursor=pointer]:
+            - /url: /browse/tech-startups
+          - text: ","
+          - link "Startups Hiring" [ref=f12e1083] [cursor=pointer]:
+            - /url: /browse/startups-hiring
+          - text: ","
+          - link "Industries" [ref=f12e1084] [cursor=pointer]:
+            - /url: /browse/tech-industries
+          - text: ","
+          - link "Tech Hubs" [ref=f12e1085] [cursor=pointer]:
+            - /url: /browse/tech-hubs
+  - alert [ref=f12e1086]

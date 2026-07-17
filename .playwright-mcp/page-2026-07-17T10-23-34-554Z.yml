@@ -1,0 +1,1117 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Wellfound" [ref=e6] [cursor=pointer]:
+          - /url: /
+        - navigation [ref=e11]:
+          - generic [ref=e12]:
+            - link "Discover" [ref=e13] [cursor=pointer]:
+              - /url: /discover
+            - link "Find Jobs" [ref=e14] [cursor=pointer]:
+              - /url: /jobs
+            - link "For Recruiters" [ref=e15] [cursor=pointer]:
+              - /url: /recruit/overview
+          - generic [ref=e16]:
+            - button "Log In" [ref=e18] [cursor=pointer]
+            - button "Sign Up" [ref=e20] [cursor=pointer]
+      - iframe
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - generic [ref=e24]:
+          - banner [ref=e25]: Show me
+          - generic [ref=e26]:
+            - generic [ref=e30]:
+              - generic [ref=e31]: Software Engineer
+              - textbox [ref=e34]
+            - banner [ref=e42]: roles,
+          - generic [ref=e43]:
+            - generic [ref=e44]:
+              - banner [ref=e45]: that are
+              - generic [ref=e49]:
+                - generic [ref=e50]: Remote
+                - textbox [ref=e53]
+            - button "Search" [ref=e61] [cursor=pointer]
+        - generic [ref=e62]:
+          - heading "Remote Software Engineer Jobs" [level=1] [ref=e63]
+          - generic [ref=e64]:
+            - heading "Page 1 of 47" [level=4] [ref=e65]
+            - heading "1879 results total" [level=4] [ref=e66]
+      - generic [ref=e67]:
+        - generic [ref=e69]:
+          - generic [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e73]:
+                - link [ref=e74] [cursor=pointer]:
+                  - /url: /company/paddox-technologies
+                  - img "Paddox Technologies company logo" [ref=e76]
+                - generic [ref=e77]:
+                  - generic [ref=e78]:
+                    - link [ref=e79] [cursor=pointer]:
+                      - /url: /company/paddox-technologies
+                      - heading "Paddox Technologies" [level=2] [ref=e80]
+                    - generic [ref=e81]: Actively Hiring
+                  - generic [ref=e83]: Building a Digital Workforce; putting AI to work
+                  - generic [ref=e84]: 1-10 Employees
+              - list [ref=e86]:
+                - listitem [ref=e87]:
+                  - generic [ref=e88]: Top 10% of responders
+                - listitem [ref=e92]:
+                  - generic [ref=e93]: Responds within a few days
+                - listitem [ref=e97]:
+                  - generic [ref=e98]: Growing fast
+            - generic [ref=e102]:
+              - generic [ref=e103]:
+                - generic [ref=e104]:
+                  - link "Software Engineer Contractor" [ref=e106] [cursor=pointer]:
+                    - /url: /jobs/4417559-software-engineer-clone
+                  - generic [ref=e107]:
+                    - generic [ref=e108]: $80k – $110k • 2.0% – 10.0%
+                    - generic [ref=e117]:
+                      - text: Onsite or remote • Dallas
+                      - generic [ref=e118]: "+2"
+                    - generic [ref=e120]: 1 year of exp
+                - generic [ref=e124]:
+                  - generic [ref=e125]: 2 weeks ago
+                  - button "Save" [ref=e126] [cursor=pointer]
+                  - button "Apply" [ref=e128] [cursor=pointer]
+              - generic [ref=e129]:
+                - generic [ref=e130]:
+                  - link "Software Engineer Intern" [ref=e132] [cursor=pointer]:
+                    - /url: /jobs/4417557-software-engineer-clone
+                  - generic [ref=e133]:
+                    - generic [ref=e134]: $80k – $110k • 2.0% – 10.0%
+                    - generic [ref=e143]:
+                      - text: Onsite or remote • Dallas
+                      - generic [ref=e144]: "+2"
+                    - generic [ref=e146]: 1 year of exp
+                - generic [ref=e150]:
+                  - generic [ref=e151]: 2 weeks ago
+                  - button "Save" [ref=e152] [cursor=pointer]
+                  - button "Apply" [ref=e154] [cursor=pointer]
+              - generic [ref=e155]:
+                - generic [ref=e156]:
+                  - generic [ref=e157]:
+                    - link "Software Engineer" [ref=e158] [cursor=pointer]:
+                      - /url: /jobs/4417556-software-engineer
+                    - generic [ref=e159]: Full-time
+                  - generic [ref=e160]:
+                    - generic [ref=e161]: $80k – $110k • 2.0% – 10.0%
+                    - generic [ref=e170]:
+                      - text: Onsite or remote • Dallas
+                      - generic [ref=e171]: "+2"
+                    - generic [ref=e173]: 1 year of exp
+                - generic [ref=e177]:
+                  - generic [ref=e178]: 2 weeks ago
+                  - button "Save" [ref=e179] [cursor=pointer]
+                  - button "Apply" [ref=e181] [cursor=pointer]
+          - generic [ref=e182]:
+            - generic [ref=e183]:
+              - generic [ref=e185]:
+                - link [ref=e186] [cursor=pointer]:
+                  - /url: /company/sarkari-360-plus
+                  - img "Bharat360AI company logo" [ref=e188]
+                - generic [ref=e189]:
+                  - generic [ref=e190]:
+                    - link [ref=e191] [cursor=pointer]:
+                      - /url: /company/sarkari-360-plus
+                      - heading "Bharat360AI" [level=2] [ref=e192]
+                    - generic [ref=e193]: Actively Hiring
+                  - generic [ref=e195]: Government
+                  - generic [ref=e196]: 11-50 Employees
+              - list [ref=e198]:
+                - listitem [ref=e199]:
+                  - generic [ref=e200]: Top 1% of responders
+                - listitem [ref=e204]:
+                  - generic [ref=e205]: Responds within a day
+                - listitem [ref=e209]:
+                  - generic [ref=e210]: Growing fast
+            - generic [ref=e215]:
+              - generic [ref=e216]:
+                - generic [ref=e217]:
+                  - link "Software Engineer" [ref=e218] [cursor=pointer]:
+                    - /url: /jobs/3526694-software-engineer
+                  - generic [ref=e219]: Full-time
+                - generic [ref=e220]: Onsite or remote • Remote (Everywhere)
+              - generic [ref=e226]:
+                - generic [ref=e227]: 6 days ago
+                - button "Save" [ref=e228] [cursor=pointer]
+                - button "Apply" [ref=e230] [cursor=pointer]
+          - generic [ref=e231]:
+            - generic [ref=e232]:
+              - generic [ref=e234]:
+                - link [ref=e235] [cursor=pointer]:
+                  - /url: /company/archesys
+                  - img "Archesys company logo" [ref=e237]
+                - generic [ref=e238]:
+                  - generic [ref=e239]:
+                    - link [ref=e240] [cursor=pointer]:
+                      - /url: /company/archesys
+                      - heading "Archesys" [level=2] [ref=e241]
+                    - generic [ref=e242]: Actively Hiring
+                  - generic [ref=e244]: Improving the government services that impact everyday lives
+                  - generic [ref=e245]: 11-50 Employees
+              - list [ref=e247]:
+                - listitem [ref=e248]:
+                  - generic [ref=e249]: Top 5% of responders
+                - listitem [ref=e253]:
+                  - generic [ref=e254]: Responds within a few days
+                - listitem [ref=e258]:
+                  - generic [ref=e259]: B2B
+                - listitem [ref=e261]: "+2"
+            - generic [ref=e262]:
+              - generic [ref=e263]:
+                - generic [ref=e264]:
+                  - generic [ref=e265]:
+                    - link "Ruby on Rails Engineer - (Remote)" [ref=e266] [cursor=pointer]:
+                      - /url: /jobs/3531489-ruby-on-rails-engineer-remote
+                    - generic [ref=e267]: Full-time
+                  - generic [ref=e268]:
+                    - generic [ref=e269]: $100k – $120k • No equity
+                    - generic [ref=e278]:
+                      - text: Remote only • Alabama
+                      - generic [ref=e279]: "+87"
+                    - generic [ref=e281]: 4 years of exp
+                - generic [ref=e285]:
+                  - generic [ref=e286]: 1 day ago
+                  - button "Save" [ref=e287] [cursor=pointer]
+                  - button "Apply" [ref=e289] [cursor=pointer]
+              - generic [ref=e290]:
+                - generic [ref=e291]:
+                  - generic [ref=e292]:
+                    - link "AI Software Engineer" [ref=e293] [cursor=pointer]:
+                      - /url: /jobs/4468480-cloud-solutions-architect-clone
+                    - generic [ref=e294]: Full-time
+                  - generic [ref=e295]:
+                    - generic [ref=e296]: $100k – $137k • No equity
+                    - generic [ref=e305]:
+                      - text: Remote only • Atlanta
+                      - generic [ref=e306]: "+70"
+                    - generic [ref=e308]: 4 years of exp
+                - generic [ref=e312]:
+                  - generic [ref=e313]: 2 days ago
+                  - button "Save" [ref=e314] [cursor=pointer]
+                  - button "Apply" [ref=e316] [cursor=pointer]
+          - generic [ref=e317]:
+            - generic [ref=e318]:
+              - generic [ref=e320]:
+                - link [ref=e321] [cursor=pointer]:
+                  - /url: /company/moderntreasury
+                  - img "Modern Treasury company logo" [ref=e323]
+                - generic [ref=e324]:
+                  - generic [ref=e325]:
+                    - link [ref=e326] [cursor=pointer]:
+                      - /url: /company/moderntreasury
+                      - heading "Modern Treasury" [level=2] [ref=e327]
+                    - generic [ref=e328]: Actively Hiring
+                  - generic [ref=e330]: Modern Treasury builds payments operations solutions
+                  - generic [ref=e331]: 51-200 Employees
+              - list [ref=e333]:
+                - listitem [ref=e334]:
+                  - generic [ref=e335]: Top 10% of responders
+                - listitem [ref=e339]:
+                  - generic [ref=e340]: Responds within two weeks
+                - listitem [ref=e344]:
+                  - generic [ref=e345]: B2B
+                - listitem [ref=e347]: "+4"
+            - generic [ref=e349]:
+              - generic [ref=e350]:
+                - generic [ref=e351]:
+                  - link "Software Engineer - Infrastructure" [ref=e352] [cursor=pointer]:
+                    - /url: /jobs/3852615-software-engineer-infrastructure
+                  - generic [ref=e353]: Full-time
+                - generic [ref=e354]:
+                  - generic [ref=e355]: $150k – $250k
+                  - generic [ref=e360]: Remote • San Francisco
+              - generic [ref=e365]:
+                - generic [ref=e366]: 3 days ago
+                - button "Save" [ref=e367] [cursor=pointer]
+                - button "Apply" [ref=e369] [cursor=pointer]
+          - generic [ref=e370]:
+            - generic [ref=e371]:
+              - generic [ref=e373]:
+                - link [ref=e374] [cursor=pointer]:
+                  - /url: /company/yuma-8
+                  - img "Yuma company logo" [ref=e376]
+                - generic [ref=e377]:
+                  - generic [ref=e378]:
+                    - link [ref=e379] [cursor=pointer]:
+                      - /url: /company/yuma-8
+                      - heading "Yuma" [level=2] [ref=e380]
+                    - generic [ref=e381]: Actively Hiring
+                  - generic [ref=e383]: Accelerating decentralized AI by building on Bittensor
+                  - generic [ref=e384]: 11-50 Employees
+              - list [ref=e386]:
+                - listitem [ref=e387]:
+                  - generic [ref=e388]: Responds within three weeks
+            - generic [ref=e393]:
+              - generic [ref=e394]:
+                - generic [ref=e395]:
+                  - link "Software Engineer" [ref=e396] [cursor=pointer]:
+                    - /url: /jobs/4019712-2-software-engineer
+                  - generic [ref=e397]: Full-time
+                - generic [ref=e398]:
+                  - generic [ref=e399]: $130k – $210k • No equity
+                  - generic [ref=e408]:
+                    - text: Onsite or remote • Stamford
+                    - generic [ref=e409]: "+18"
+                  - generic [ref=e411]: 3 years of exp
+              - generic [ref=e415]:
+                - generic [ref=e416]: 2 weeks ago
+                - button "Save" [ref=e417] [cursor=pointer]
+                - button "Apply" [ref=e419] [cursor=pointer]
+          - generic [ref=e420]:
+            - generic [ref=e421]:
+              - generic [ref=e423]:
+                - link [ref=e424] [cursor=pointer]:
+                  - /url: /company/the-prompt-academy
+                  - img "The Prompt Academy company logo" [ref=e426]
+                - generic [ref=e427]:
+                  - generic [ref=e428]:
+                    - link [ref=e429] [cursor=pointer]:
+                      - /url: /company/the-prompt-academy
+                      - heading "The Prompt Academy" [level=2] [ref=e430]
+                    - generic [ref=e431]: Actively Hiring
+                  - generic [ref=e433]: An education platform to help upskill in AI for the workforce
+                  - generic [ref=e434]: 1-10 Employees
+              - list [ref=e436]:
+                - listitem [ref=e437]:
+                  - generic [ref=e438]: Top 1% of responders
+                - listitem [ref=e442]:
+                  - generic [ref=e443]: Responds within a day
+                - listitem [ref=e447]:
+                  - generic [ref=e448]: Growing fast
+            - generic [ref=e453]:
+              - generic [ref=e454]:
+                - generic [ref=e455]:
+                  - link "Software Engineer" [ref=e456] [cursor=pointer]:
+                    - /url: /jobs/4372312-software-engineer
+                  - generic [ref=e457]: Full-time
+                - generic [ref=e458]:
+                  - generic [ref=e459]: $110k – $140k • No equity
+                  - generic [ref=e468]:
+                    - text: Remote only • Argentina
+                    - generic [ref=e469]: "+8"
+                  - generic [ref=e471]: 2 years of exp
+              - generic [ref=e475]:
+                - generic [ref=e476]: 3 weeks ago
+                - button "Save" [ref=e477] [cursor=pointer]
+                - button "Apply" [ref=e479] [cursor=pointer]
+          - generic [ref=e480]:
+            - generic [ref=e481]:
+              - generic [ref=e483]:
+                - link [ref=e484] [cursor=pointer]:
+                  - /url: /company/gf-accord-ai
+                  - img "GF-ACCORD AI company logo" [ref=e486]
+                - generic [ref=e487]:
+                  - generic [ref=e488]:
+                    - link [ref=e489] [cursor=pointer]:
+                      - /url: /company/gf-accord-ai
+                      - heading "GF-ACCORD AI" [level=2] [ref=e490]
+                    - generic [ref=e491]: Actively Hiring
+                  - generic [ref=e493]: AI replacing Business Analysts, Marketers, Consultants
+                  - generic [ref=e494]: 1-10 Employees
+              - list [ref=e496]:
+                - listitem [ref=e497]:
+                  - generic [ref=e498]: Top 10% of responders
+                - listitem [ref=e502]:
+                  - generic [ref=e503]: Responds within two weeks
+                - listitem [ref=e507]:
+                  - generic [ref=e508]: Early Stage
+                - listitem [ref=e512]: "+1"
+            - generic [ref=e514]:
+              - generic [ref=e515]:
+                - generic [ref=e516]:
+                  - link "AI software engineer" [ref=e517] [cursor=pointer]:
+                    - /url: /jobs/3038650-ai-software-engineer
+                  - generic [ref=e518]: Full-time
+                - generic [ref=e519]:
+                  - generic [ref=e520]: 1.0% – 2.0%
+                  - generic [ref=e529]:
+                    - text: Onsite or remote • Geneva
+                    - generic [ref=e530]: "+6"
+                  - generic [ref=e532]: 4 years of exp
+              - generic [ref=e536]:
+                - generic [ref=e537]: 1 week ago
+                - button "Save" [ref=e538] [cursor=pointer]
+                - button "Apply" [ref=e540] [cursor=pointer]
+          - generic [ref=e541]:
+            - generic [ref=e542]:
+              - generic [ref=e544]:
+                - link [ref=e545] [cursor=pointer]:
+                  - /url: /company/spoiler-alert
+                  - img "Spoiler Alert company logo" [ref=e547]
+                - generic [ref=e548]:
+                  - link [ref=e550] [cursor=pointer]:
+                    - /url: /company/spoiler-alert
+                    - heading "Spoiler Alert" [level=2] [ref=e551]
+                  - generic [ref=e552]: Enterprise supply chain software helping food brands manage unsold inventory
+                  - generic [ref=e553]: 11-50 Employees
+              - list [ref=e555]:
+                - listitem [ref=e556]:
+                  - generic [ref=e557]: B2B
+                - listitem [ref=e559]:
+                  - generic [ref=e560]: Early Stage
+            - generic [ref=e565]:
+              - generic [ref=e566]:
+                - generic [ref=e567]:
+                  - link "Software Engineer" [ref=e568] [cursor=pointer]:
+                    - /url: /jobs/4351195-software-engineer
+                  - generic [ref=e569]: Full-time
+                - generic [ref=e570]: $110k – $125k
+              - generic [ref=e575]:
+                - generic [ref=e576]: 1 month ago
+                - button "Save" [ref=e577] [cursor=pointer]
+                - button "Apply" [ref=e579] [cursor=pointer]
+          - generic [ref=e580]:
+            - generic [ref=e581]:
+              - generic [ref=e583]:
+                - link [ref=e584] [cursor=pointer]:
+                  - /url: /company/lightyear-5
+                  - img "Lightyear company logo" [ref=e586]
+                - generic [ref=e587]:
+                  - generic [ref=e588]:
+                    - link [ref=e589] [cursor=pointer]:
+                      - /url: /company/lightyear-5
+                      - heading "Lightyear" [level=2] [ref=e590]
+                    - generic [ref=e591]: Actively Hiring
+                  - generic [ref=e593]: Telecom made easy
+                  - generic [ref=e594]: 51-200 Employees
+              - list [ref=e596]:
+                - listitem [ref=e597]:
+                  - generic [ref=e598]: Responds within two weeks
+                - listitem [ref=e602]:
+                  - generic [ref=e603]: B2B
+                - listitem [ref=e605]:
+                  - generic [ref=e606]: Growth Stage
+            - generic [ref=e611]:
+              - generic [ref=e612]:
+                - generic [ref=e613]:
+                  - link "Software Engineer" [ref=e614] [cursor=pointer]:
+                    - /url: /jobs/3976887-software-engineer
+                  - generic [ref=e615]: Full-time
+                - generic [ref=e616]:
+                  - generic [ref=e617]: $120k – $180k
+                  - generic [ref=e622]: Remote only • United States
+                  - generic [ref=e628]: 2 years of exp
+              - generic [ref=e632]:
+                - generic [ref=e633]: 1 month ago
+                - button "Save" [ref=e634] [cursor=pointer]
+                - button "Apply" [ref=e636] [cursor=pointer]
+          - generic [ref=e637]:
+            - generic [ref=e638]:
+              - generic [ref=e640]:
+                - link [ref=e641] [cursor=pointer]:
+                  - /url: /company/constructor-io
+                  - img "Constructor.io company logo" [ref=e643]
+                - generic [ref=e644]:
+                  - generic [ref=e645]:
+                    - link [ref=e646] [cursor=pointer]:
+                      - /url: /company/constructor-io
+                      - heading "Constructor.io" [level=2] [ref=e647]
+                    - generic [ref=e648]: Actively Hiring
+                  - generic [ref=e650]: Personalized and highly-relevant search and product discovery
+                  - generic [ref=e651]: 501-1000 Employees
+              - list [ref=e653]:
+                - listitem [ref=e654]:
+                  - generic [ref=e655]: Responds within three weeks
+                - listitem [ref=e659]:
+                  - generic [ref=e660]: B2B
+                - listitem [ref=e662]:
+                  - generic [ref=e663]: Growth Stage
+                - listitem [ref=e667]: "+1"
+            - generic [ref=e668]:
+              - generic [ref=e669]:
+                - generic [ref=e670]:
+                  - generic [ref=e671]:
+                    - 'link "Senior Backend Engineer: Offsite Search Optimisation" [ref=e672] [cursor=pointer]':
+                      - /url: /jobs/4436394-senior-backend-engineer-offsite-search-optimisation
+                    - generic [ref=e673]: Full-time
+                  - generic [ref=e674]:
+                    - generic [ref=e675]: $80k – $120k
+                    - generic [ref=e680]: Remote • Munich
+                - generic [ref=e685]:
+                  - generic [ref=e686]: 1 week ago
+                  - button "Save" [ref=e687] [cursor=pointer]
+                  - button "Apply" [ref=e689] [cursor=pointer]
+              - generic [ref=e690]:
+                - generic [ref=e691]:
+                  - generic [ref=e692]:
+                    - 'link "BackEnd Engineer: Experiments" [ref=e693] [cursor=pointer]':
+                      - /url: /jobs/4263122-backend-engineer-experiments
+                    - generic [ref=e694]: Full-time
+                  - generic [ref=e695]:
+                    - generic [ref=e696]: $80k – $110k
+                    - generic [ref=e701]: Remote • Barcelona
+                - generic [ref=e706]:
+                  - generic [ref=e707]: 1 week ago
+                  - button "Save" [ref=e708] [cursor=pointer]
+                  - button "Apply" [ref=e710] [cursor=pointer]
+              - generic [ref=e711]:
+                - generic [ref=e712]:
+                  - generic [ref=e713]:
+                    - 'link "Software Engineer: Core" [ref=e714] [cursor=pointer]':
+                      - /url: /jobs/4263159-software-engineer-core
+                    - generic [ref=e715]: Full-time
+                  - generic [ref=e716]:
+                    - generic [ref=e717]: $80k – $120k
+                    - generic [ref=e722]: Remote • United Kingdom
+                - generic [ref=e727]:
+                  - generic [ref=e728]: 2 weeks ago
+                  - button "Save" [ref=e729] [cursor=pointer]
+                  - button "Apply" [ref=e731] [cursor=pointer]
+          - generic [ref=e732]:
+            - generic [ref=e735]:
+              - link [ref=e736] [cursor=pointer]:
+                - /url: /company/racct
+                - img "Racct company logo" [ref=e738]
+              - generic [ref=e739]:
+                - generic [ref=e740]:
+                  - link [ref=e741] [cursor=pointer]:
+                    - /url: /company/racct
+                    - heading "Racct" [level=2] [ref=e742]
+                  - generic [ref=e743]: Actively Hiring
+                - generic [ref=e745]: Racct's a local marketplace with delivery
+                - generic [ref=e746]: 1-10 Employees
+            - generic [ref=e748]:
+              - generic [ref=e749]:
+                - generic [ref=e750]:
+                  - link "Software Engineer" [ref=e751] [cursor=pointer]:
+                    - /url: /jobs/4436648-software-engineer
+                  - generic [ref=e752]: Full-time
+                - generic [ref=e753]:
+                  - generic [ref=e754]: $80k – $100k • 0.0% – 1.0%
+                  - generic [ref=e763]:
+                    - text: Onsite or remote • San Francisco
+                    - generic [ref=e764]: "+1"
+              - generic [ref=e765]:
+                - generic [ref=e766]: 1 week ago
+                - button "Save" [ref=e767] [cursor=pointer]
+                - button "Apply" [ref=e769] [cursor=pointer]
+          - generic [ref=e770]:
+            - generic [ref=e771]:
+              - generic [ref=e773]:
+                - link [ref=e774] [cursor=pointer]:
+                  - /url: /company/adronite
+                  - img "Adronite company logo" [ref=e776]
+                - generic [ref=e777]:
+                  - generic [ref=e778]:
+                    - link [ref=e779] [cursor=pointer]:
+                      - /url: /company/adronite
+                      - heading "Adronite" [level=2] [ref=e780]
+                    - generic [ref=e781]: Actively Hiring
+                  - generic [ref=e783]: A platform that enables companies to gain a deep understanding of complex codebases
+                  - generic [ref=e784]: 1-10 Employees
+              - list [ref=e786]:
+                - listitem [ref=e787]:
+                  - generic [ref=e788]: B2B
+                - listitem [ref=e790]:
+                  - generic [ref=e791]: Early Stage
+            - generic [ref=e796]:
+              - generic [ref=e797]:
+                - generic [ref=e798]:
+                  - link "Software Engineer" [ref=e799] [cursor=pointer]:
+                    - /url: /jobs/3188951-software-engineer
+                  - generic [ref=e800]: Full-time
+                - generic [ref=e801]:
+                  - generic [ref=e802]: $190k – $270k
+                  - generic [ref=e811]:
+                    - text: Onsite or remote • Seattle
+                    - generic [ref=e812]: "+2"
+                  - generic [ref=e814]: 7 years of exp
+              - generic [ref=e818]:
+                - generic [ref=e819]: 2 weeks ago
+                - button "Save" [ref=e820] [cursor=pointer]
+                - button "Apply" [ref=e822] [cursor=pointer]
+          - generic [ref=e823]:
+            - generic [ref=e824]:
+              - generic [ref=e826]:
+                - link [ref=e827] [cursor=pointer]:
+                  - /url: /company/noldor
+                  - img "Noldor company logo" [ref=e829]
+                - generic [ref=e830]:
+                  - generic [ref=e831]:
+                    - link [ref=e832] [cursor=pointer]:
+                      - /url: /company/noldor
+                      - heading "Noldor" [level=2] [ref=e833]
+                    - generic [ref=e834]: Actively Hiring
+                  - generic [ref=e836]: We enable the best MGAs with dedicated capacity through trusted brokers
+                  - generic [ref=e837]: 11-50 Employees
+              - list [ref=e839]:
+                - listitem [ref=e840]:
+                  - generic [ref=e841]: B2B
+                - listitem [ref=e843]:
+                  - generic [ref=e844]: Early Stage
+                - listitem [ref=e848]:
+                  - generic [ref=e849]: Growing fast
+            - generic [ref=e854]:
+              - generic [ref=e855]:
+                - generic [ref=e856]:
+                  - link "Software Engineer" [ref=e857] [cursor=pointer]:
+                    - /url: /jobs/2952041-software-engineer
+                  - generic [ref=e858]: Full-time
+                - generic [ref=e859]:
+                  - generic [ref=e860]: $185k – $225k
+                  - generic [ref=e865]: Remote only • United States
+                  - generic [ref=e871]: 6 years of exp
+              - generic [ref=e875]:
+                - generic [ref=e876]: 3 weeks ago
+                - button "Save" [ref=e877] [cursor=pointer]
+                - button "Apply" [ref=e879] [cursor=pointer]
+          - generic [ref=e880]:
+            - generic [ref=e881]:
+              - generic [ref=e883]:
+                - link [ref=e884] [cursor=pointer]:
+                  - /url: /company/permitflow
+                  - img "PermitFlow company logo" [ref=e886]
+                - generic [ref=e887]:
+                  - generic [ref=e888]:
+                    - link [ref=e889] [cursor=pointer]:
+                      - /url: /company/permitflow
+                      - heading "PermitFlow" [level=2] [ref=e890]
+                    - generic [ref=e891]: Actively Hiring
+                  - generic [ref=e893]: Construction's AI Workforce
+                  - generic [ref=e894]: 51-200 Employees
+              - list [ref=e896]:
+                - listitem [ref=e897]:
+                  - generic [ref=e898]: B2B
+                - listitem [ref=e900]:
+                  - generic [ref=e901]: Growth Stage
+                - listitem [ref=e905]:
+                  - generic [ref=e906]: Top Investors
+                - listitem [ref=e910]: "+1"
+            - generic [ref=e911]:
+              - generic [ref=e912]:
+                - generic [ref=e913]:
+                  - generic [ref=e914]:
+                    - link "Staff Software Engineer" [ref=e915] [cursor=pointer]:
+                      - /url: /jobs/3933989-staff-software-engineer
+                    - generic [ref=e916]: Full-time
+                  - generic [ref=e917]:
+                    - generic [ref=e918]: $200k – $275k
+                    - generic [ref=e923]: Remote • New York City
+                - generic [ref=e928]:
+                  - generic [ref=e929]: 4 months ago
+                  - button "Save" [ref=e930] [cursor=pointer]
+                  - button "Apply" [ref=e932] [cursor=pointer]
+              - generic [ref=e933]:
+                - generic [ref=e934]:
+                  - generic [ref=e935]:
+                    - link "Applied AI Engineer" [ref=e936] [cursor=pointer]:
+                      - /url: /jobs/3933982-applied-ai-engineer
+                    - generic [ref=e937]: Full-time
+                  - generic [ref=e938]:
+                    - generic [ref=e939]: $175k – $250k
+                    - generic [ref=e944]: Remote • New York City
+                - generic [ref=e949]:
+                  - generic [ref=e950]: 4 months ago
+                  - button "Save" [ref=e951] [cursor=pointer]
+                  - button "Apply" [ref=e953] [cursor=pointer]
+              - generic [ref=e954]:
+                - generic [ref=e955]:
+                  - generic [ref=e956]:
+                    - link "Software Engineer" [ref=e957] [cursor=pointer]:
+                      - /url: /jobs/3895480-software-engineer
+                    - generic [ref=e958]: Full-time
+                  - generic [ref=e959]:
+                    - generic [ref=e960]: $135k – $250k
+                    - generic [ref=e965]: Remote • New York City
+                - generic [ref=e970]:
+                  - generic [ref=e971]: 4 months ago
+                  - button "Save" [ref=e972] [cursor=pointer]
+                  - button "Apply" [ref=e974] [cursor=pointer]
+          - generic [ref=e975]:
+            - generic [ref=e976]:
+              - generic [ref=e978]:
+                - link [ref=e979] [cursor=pointer]:
+                  - /url: /company/yipitdata
+                  - img "YipitData company logo" [ref=e981]
+                - generic [ref=e982]:
+                  - generic [ref=e983]:
+                    - link [ref=e984] [cursor=pointer]:
+                      - /url: /company/yipitdata
+                      - heading "YipitData" [level=2] [ref=e985]
+                    - generic [ref=e986]: Actively Hiring
+                  - generic [ref=e988]: A remote-first company with employees across the globe. Inc's Best Workplaces 2020~2022
+                  - generic [ref=e989]: 501-1000 Employees
+              - list [ref=e991]:
+                - listitem [ref=e992]:
+                  - generic [ref=e993]: B2B
+                - listitem [ref=e995]:
+                  - generic [ref=e996]: Scale Stage
+                - listitem [ref=e1000]:
+                  - generic [ref=e1001]: Top Investors
+                - listitem [ref=e1005]: "+4"
+            - generic [ref=e1006]:
+              - generic [ref=e1007]:
+                - generic [ref=e1008]:
+                  - generic [ref=e1009]:
+                    - link "Data Engineer - Global Team (India)" [ref=e1010] [cursor=pointer]:
+                      - /url: /jobs/3338784-data-engineer-global-team-india
+                    - generic [ref=e1011]: Full-time
+                  - generic [ref=e1012]: $100k – $200k
+                - generic [ref=e1018]:
+                  - generic [ref=e1019]: 3 days ago
+                  - button "Save" [ref=e1020] [cursor=pointer]
+                  - button "Apply" [ref=e1022] [cursor=pointer]
+              - generic [ref=e1023]:
+                - generic [ref=e1024]:
+                  - generic [ref=e1025]:
+                    - link "Software Engineer" [ref=e1026] [cursor=pointer]:
+                      - /url: /jobs/1985731-software-engineer
+                    - generic [ref=e1027]: Full-time
+                  - generic [ref=e1028]: Remote • Guangzhou
+                - generic [ref=e1034]:
+                  - generic [ref=e1035]: 2 weeks ago
+                  - button "Save" [ref=e1036] [cursor=pointer]
+                  - button "Apply" [ref=e1038] [cursor=pointer]
+              - generic [ref=e1039]:
+                - generic [ref=e1041]:
+                  - link "Senior Software Engineer" [ref=e1042] [cursor=pointer]:
+                    - /url: /jobs/3253901-senior-software-engineer
+                  - generic [ref=e1043]: Full-time
+                - generic [ref=e1044]:
+                  - generic [ref=e1045]: 5 months ago
+                  - button "Save" [ref=e1046] [cursor=pointer]
+                  - button "Apply" [ref=e1048] [cursor=pointer]
+          - generic [ref=e1049]:
+            - generic [ref=e1050]:
+              - generic [ref=e1052]:
+                - link [ref=e1053] [cursor=pointer]:
+                  - /url: /company/trinsic-id
+                  - img "Trinsic company logo" [ref=e1055]
+                - generic [ref=e1056]:
+                  - generic [ref=e1057]:
+                    - link [ref=e1058] [cursor=pointer]:
+                      - /url: /company/trinsic-id
+                      - heading "Trinsic" [level=2] [ref=e1059]
+                    - generic [ref=e1060]: Actively Hiring
+                  - generic [ref=e1062]: Self-sovereign Identity | Verifiable Credentials
+                  - generic [ref=e1063]: 11-50 Employees
+              - list [ref=e1065]:
+                - listitem [ref=e1066]:
+                  - generic [ref=e1067]: Top 1% of responders
+                - listitem [ref=e1071]:
+                  - generic [ref=e1072]: Responds within a day
+                - listitem [ref=e1076]:
+                  - generic [ref=e1077]: B2B
+                - listitem [ref=e1079]: "+1"
+            - generic [ref=e1081]:
+              - generic [ref=e1082]:
+                - generic [ref=e1083]:
+                  - link "Senior Software Engineer" [ref=e1084] [cursor=pointer]:
+                    - /url: /jobs/4463484-senior-software-engineer
+                  - generic [ref=e1085]: Full-time
+                - generic [ref=e1086]:
+                  - generic [ref=e1091]:
+                    - text: Remote only • Germany
+                    - generic [ref=e1092]: "+7"
+                  - generic [ref=e1094]: 5 years of exp
+              - generic [ref=e1098]:
+                - generic [ref=e1099]: 3 days ago
+                - button "Save" [ref=e1100] [cursor=pointer]
+                - button "Apply" [ref=e1102] [cursor=pointer]
+          - generic [ref=e1103]:
+            - generic [ref=e1104]:
+              - generic [ref=e1106]:
+                - link [ref=e1107] [cursor=pointer]:
+                  - /url: /company/livelyhsa
+                  - img "Lively company logo" [ref=e1109]
+                - generic [ref=e1110]:
+                  - generic [ref=e1111]:
+                    - link [ref=e1112] [cursor=pointer]:
+                      - /url: /company/livelyhsa
+                      - heading "Lively" [level=2] [ref=e1113]
+                    - generic [ref=e1114]: Actively Hiring
+                  - generic [ref=e1116]: The Modern Health Savings Account
+                  - generic [ref=e1117]: 51-200 Employees
+              - list [ref=e1119]:
+                - listitem [ref=e1120]:
+                  - generic [ref=e1121]: Responds within three weeks
+                - listitem [ref=e1125]:
+                  - generic [ref=e1126]: B2B
+                - listitem [ref=e1128]:
+                  - generic [ref=e1129]: Growth Stage
+                - listitem [ref=e1133]: "+2"
+            - generic [ref=e1135]:
+              - generic [ref=e1136]:
+                - generic [ref=e1137]:
+                  - link "Sr. Software Engineer - Backend" [ref=e1138] [cursor=pointer]:
+                    - /url: /jobs/4025824-2-sr-software-engineer-backend
+                  - generic [ref=e1139]: Full-time
+                - generic [ref=e1140]:
+                  - generic [ref=e1141]: $125k – $200k
+                  - generic [ref=e1146]: Remote • San Francisco
+              - generic [ref=e1151]:
+                - generic [ref=e1152]: 1 week ago
+                - button "Save" [ref=e1153] [cursor=pointer]
+                - button "Apply" [ref=e1155] [cursor=pointer]
+          - generic [ref=e1156]:
+            - generic [ref=e1157]:
+              - generic [ref=e1159]:
+                - link [ref=e1160] [cursor=pointer]:
+                  - /url: /company/futurefit-ai-2
+                  - img "FutureFit AI company logo" [ref=e1162]
+                - generic [ref=e1163]:
+                  - generic [ref=e1164]:
+                    - link [ref=e1165] [cursor=pointer]:
+                      - /url: /company/futurefit-ai-2
+                      - heading "FutureFit AI" [level=2] [ref=e1166]
+                    - generic [ref=e1167]: Actively Hiring
+                  - generic [ref=e1169]: AI-powered GPS for your Career
+                  - generic [ref=e1170]: 11-50 Employees
+              - list [ref=e1172]:
+                - listitem [ref=e1173]:
+                  - generic [ref=e1174]: B2B
+                - listitem [ref=e1176]:
+                  - generic [ref=e1177]: Early Stage
+                - listitem [ref=e1181]:
+                  - generic [ref=e1182]: Growing fast
+            - generic [ref=e1187]:
+              - generic [ref=e1188]:
+                - generic [ref=e1189]:
+                  - link "Software Engineer" [ref=e1190] [cursor=pointer]:
+                    - /url: /jobs/4322508-software-engineer
+                  - generic [ref=e1191]: Full-time
+                - generic [ref=e1192]:
+                  - generic [ref=e1193]: $150k – $185k
+                  - generic [ref=e1198]: Remote • New York City
+              - generic [ref=e1203]:
+                - generic [ref=e1204]: 1 month ago
+                - button "Save" [ref=e1205] [cursor=pointer]
+                - button "Apply" [ref=e1207] [cursor=pointer]
+          - generic [ref=e1208]:
+            - generic [ref=e1209]:
+              - generic [ref=e1211]:
+                - link [ref=e1212] [cursor=pointer]:
+                  - /url: /company/avenda-health
+                  - img "Avenda Health company logo" [ref=e1214]
+                - generic [ref=e1215]:
+                  - generic [ref=e1216]:
+                    - link [ref=e1217] [cursor=pointer]:
+                      - /url: /company/avenda-health
+                      - heading "Avenda Health" [level=2] [ref=e1218]
+                    - generic [ref=e1219]: Actively Hiring
+                  - generic [ref=e1221]: Bringing superhuman abilities to cancer care
+                  - generic [ref=e1222]: 11-50 Employees
+              - list [ref=e1224]:
+                - listitem [ref=e1225]:
+                  - generic [ref=e1226]: Responds within three weeks
+                - listitem [ref=e1230]:
+                  - generic [ref=e1231]: B2B
+                - listitem [ref=e1233]:
+                  - generic [ref=e1234]: Growth Stage
+            - generic [ref=e1239]:
+              - generic [ref=e1240]:
+                - generic [ref=e1241]:
+                  - link "Sr. Software Engineer - Fullstack" [ref=e1242] [cursor=pointer]:
+                    - /url: /jobs/3184208-sr-software-engineer-fullstack
+                  - generic [ref=e1243]: Full-time
+                - generic [ref=e1244]:
+                  - generic [ref=e1245]: $170k – $200k • 0.1% – 0.25%
+                  - generic [ref=e1254]:
+                    - text: Onsite or remote • Los Angeles
+                    - generic [ref=e1255]: "+2"
+                  - generic [ref=e1257]: 7 years of exp
+              - generic [ref=e1261]:
+                - generic [ref=e1262]: 6 days ago
+                - button "Save" [ref=e1263] [cursor=pointer]
+                - button "Apply" [ref=e1265] [cursor=pointer]
+          - generic [ref=e1266]:
+            - generic [ref=e1267]:
+              - generic [ref=e1269]:
+                - link [ref=e1270] [cursor=pointer]:
+                  - /url: /company/vested-finance-1
+                  - img "Vested Finance company logo" [ref=e1272]
+                - generic [ref=e1273]:
+                  - generic [ref=e1274]:
+                    - link [ref=e1275] [cursor=pointer]:
+                      - /url: /company/vested-finance-1
+                      - heading "Vested Finance" [level=2] [ref=e1276]
+                    - generic [ref=e1277]: Actively Hiring
+                  - generic [ref=e1279]: US stock investing for global investors
+                  - generic [ref=e1280]: 51-200 Employees
+              - list [ref=e1282]:
+                - listitem [ref=e1283]:
+                  - generic [ref=e1284]: B2C
+                - listitem [ref=e1286]:
+                  - generic [ref=e1287]: Growth Stage
+                - listitem [ref=e1291]:
+                  - generic [ref=e1292]: Growing fast
+            - generic [ref=e1296]:
+              - generic [ref=e1297]:
+                - generic [ref=e1298]:
+                  - generic [ref=e1299]:
+                    - link "Software Engineer (Mobile, React Native/Flutter)" [ref=e1300] [cursor=pointer]:
+                      - /url: /jobs/4417481-software-engineer-mobile-react-native-flutter
+                    - generic [ref=e1301]: Full-time
+                  - generic [ref=e1302]:
+                    - generic [ref=e1303]: ₹25L – ₹30L
+                    - generic [ref=e1312]:
+                      - text: Remote only • India
+                      - generic [ref=e1313]: "+3"
+                    - generic [ref=e1315]: 3 years of exp
+                - generic [ref=e1319]:
+                  - generic [ref=e1320]: 2 weeks ago
+                  - button "Save" [ref=e1321] [cursor=pointer]
+                  - button "Apply" [ref=e1323] [cursor=pointer]
+              - generic [ref=e1324]:
+                - generic [ref=e1325]:
+                  - generic [ref=e1326]:
+                    - link "Engineering Manager" [ref=e1327] [cursor=pointer]:
+                      - /url: /jobs/4417466-engineering-manager
+                    - generic [ref=e1328]: Full-time
+                  - generic [ref=e1329]:
+                    - generic [ref=e1330]: ₹50L – ₹55L
+                    - generic [ref=e1339]:
+                      - text: Remote only • India
+                      - generic [ref=e1340]: "+3"
+                    - generic [ref=e1342]: 7 years of exp
+                - generic [ref=e1346]:
+                  - generic [ref=e1347]: 2 weeks ago
+                  - button "Save" [ref=e1348] [cursor=pointer]
+                  - button "Apply" [ref=e1350] [cursor=pointer]
+              - generic [ref=e1351]:
+                - generic [ref=e1352]:
+                  - generic [ref=e1353]:
+                    - link "Software Engineer" [ref=e1354] [cursor=pointer]:
+                      - /url: /jobs/4417465-software-engineer
+                    - generic [ref=e1355]: Full-time
+                  - generic [ref=e1356]:
+                    - generic [ref=e1357]: ₹20L – ₹24L
+                    - generic [ref=e1362]: Remote only • India
+                    - generic [ref=e1368]: 2 years of exp
+                - generic [ref=e1372]:
+                  - generic [ref=e1373]: 2 weeks ago
+                  - button "Save" [ref=e1374] [cursor=pointer]
+                  - button "Apply" [ref=e1376] [cursor=pointer]
+        - navigation "Pagination Navigation" [ref=e1377]:
+          - list [ref=e1378]:
+            - listitem [ref=e1379]:
+              - link "Page 1, current page" [ref=e1380] [cursor=pointer]:
+                - /url: /role/r/software-engineer
+                - text: "1"
+            - listitem [ref=e1381]:
+              - link "Go to page 2" [ref=e1382] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=2
+                - text: "2"
+            - listitem [ref=e1383]:
+              - link "Go to page 3" [ref=e1384] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=3
+                - text: "3"
+            - listitem [ref=e1385]:
+              - link "Go to page 4" [ref=e1386] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=4
+                - text: "4"
+            - listitem [ref=e1387]:
+              - link "Go to page 5" [ref=e1388] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=5
+                - text: "5"
+            - generic [ref=e1389]: ...
+            - listitem [ref=e1390]:
+              - link "Go to page 23" [ref=e1391] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=23
+                - text: "23"
+            - listitem [ref=e1392]:
+              - link "Go to page 24" [ref=e1393] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=24
+                - text: "24"
+            - listitem [ref=e1394]:
+              - link "Go to page 25" [ref=e1395] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=25
+                - text: "25"
+            - generic [ref=e1396]: ...
+            - listitem [ref=e1397]:
+              - link "Go to page 47" [ref=e1398] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=47
+                - text: "47"
+            - listitem [ref=e1399]:
+              - link "Next page" [ref=e1400] [cursor=pointer]:
+                - /url: /role/r/software-engineer?page=2
+                - text: Next
+      - generic [ref=e1403]:
+        - heading "Explore other remote roles" [level=3] [ref=e1405]
+        - generic [ref=e1406]:
+          - link "Affiliate Marketing Remote" [ref=e1407] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/affiliate-marketing
+          - link "Computer and Information Research Scientist Remote" [ref=e1408] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/computer-and-information-research-scientist
+          - link "Project Manager Remote" [ref=e1409] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/project-manager
+          - link "Technical Product Manager Remote" [ref=e1410] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/technical-product-manager
+          - link "Magento Developer Remote" [ref=e1411] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/magento-developer
+          - link "Animation Designer Remote" [ref=e1412] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/animation-designer
+          - link "Linux Developer Remote" [ref=e1413] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/linux-developer
+          - link "IT Operations Manager Remote" [ref=e1414] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/it-operations-manager
+          - link "Sales Representative Remote" [ref=e1415] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/sales-representative
+          - link "Front End Web Developer Remote" [ref=e1416] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/front-end-web-developer
+          - link "Apache Kafka Remote" [ref=e1417] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/apache-kafka
+          - link "Lead Programmer Remote" [ref=e1418] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/lead-programmer
+          - link "Java Developer Remote" [ref=e1419] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/java-developer
+          - link "Solutions Engineer Remote" [ref=e1420] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/solutions-engineer
+          - link "SaaS Developer Remote" [ref=e1421] [cursor=pointer]:
+            - /url: https://wellfound.com/role/r/saas-developer
+        - heading "Explore Software Engineer jobs in other places" [level=3] [ref=e1423]
+        - generic [ref=e1424]:
+          - link "Software Engineer - San Francisco" [ref=e1425] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/san-francisco
+          - link "Software Engineer - Los Angeles" [ref=e1426] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/los-angeles
+          - link "Software Engineer - Boston" [ref=e1427] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/boston
+          - link "Software Engineer - Chicago" [ref=e1428] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/chicago
+          - link "Software Engineer - Seattle" [ref=e1429] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/seattle
+          - link "Software Engineer - Austin" [ref=e1430] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/austin
+          - link "Software Engineer - New York" [ref=e1431] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/new-york
+          - link "Software Engineer - Denver" [ref=e1432] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/denver
+          - link "Software Engineer - District of Columbia" [ref=e1433] [cursor=pointer]:
+            - /url: https://wellfound.com/role/l/software-engineer/district-of-columbia
+        - heading "Explore tech jobs in top cities" [level=3] [ref=e1435]
+        - generic [ref=e1436]:
+          - link "San Francisco" [ref=e1437] [cursor=pointer]:
+            - /url: https://wellfound.com/location/san-francisco
+          - link "Los Angeles" [ref=e1438] [cursor=pointer]:
+            - /url: https://wellfound.com/location/los-angeles
+          - link "Boston" [ref=e1439] [cursor=pointer]:
+            - /url: https://wellfound.com/location/boston
+          - link "Chicago" [ref=e1440] [cursor=pointer]:
+            - /url: https://wellfound.com/location/chicago
+          - link "Seattle" [ref=e1441] [cursor=pointer]:
+            - /url: https://wellfound.com/location/seattle
+          - link "Austin" [ref=e1442] [cursor=pointer]:
+            - /url: https://wellfound.com/location/austin
+          - link "New York" [ref=e1443] [cursor=pointer]:
+            - /url: https://wellfound.com/location/new-york
+          - link "Denver" [ref=e1444] [cursor=pointer]:
+            - /url: https://wellfound.com/location/denver
+          - link "District of Columbia" [ref=e1445] [cursor=pointer]:
+            - /url: https://wellfound.com/location/district-of-columbia
+    - generic [ref=e1446]:
+      - button [ref=e1447] [cursor=pointer]
+      - button [ref=e1451] [cursor=pointer]
+      - button [ref=e1455] [cursor=pointer]
+      - button [ref=e1459] [cursor=pointer]
+      - button [ref=e1463] [cursor=pointer]
+    - contentinfo [ref=e1467]:
+      - generic [ref=e1468]:
+        - generic [ref=e1469]:
+          - link [ref=e1470] [cursor=pointer]:
+            - /url: /
+          - generic [ref=e1485]:
+            - link [ref=e1486] [cursor=pointer]:
+              - /url: http://twitter.com/wellfoundhq
+            - link [ref=e1489] [cursor=pointer]:
+              - /url: https://instagram.com/wellfoundhq
+        - generic [ref=e1493]:
+          - list [ref=e1494]:
+            - listitem [ref=e1495]:
+              - heading "For Candidates" [level=4] [ref=e1496]
+            - listitem [ref=e1497]:
+              - link "Overview" [ref=e1498] [cursor=pointer]:
+                - /url: /candidates/overview
+            - listitem [ref=e1499]:
+              - link "Startup Jobs" [ref=e1500] [cursor=pointer]:
+                - /url: /jobs
+            - listitem [ref=e1501]:
+              - link "Web3 Jobs" [ref=e1502] [cursor=pointer]:
+                - /url: /web3
+            - listitem [ref=e1503]:
+              - link "Featured" [ref=e1504] [cursor=pointer]:
+                - /url: /candidates/featured
+            - listitem [ref=e1505]:
+              - link "Startup Hiring Data" [ref=e1506] [cursor=pointer]:
+                - /url: /hiring-data
+            - listitem [ref=e1507]:
+              - link "Tech Startups" [ref=e1508] [cursor=pointer]:
+                - /url: /startups
+            - listitem [ref=e1509]:
+              - link "Remote" [ref=e1510] [cursor=pointer]:
+                - /url: /candidates/remote
+          - list [ref=e1511]:
+            - listitem [ref=e1512]:
+              - heading "For Recruiters" [level=4] [ref=e1513]
+            - listitem [ref=e1514]:
+              - link "Overview" [ref=e1515] [cursor=pointer]:
+                - /url: /recruit/overview
+            - listitem [ref=e1516]:
+              - link "Recruit Pro" [ref=e1517] [cursor=pointer]:
+                - /url: /recruit/products/recruit-pro
+            - listitem [ref=e1518]:
+              - link "Curated" [ref=e1519] [cursor=pointer]:
+                - /url: /recruit/products/curated
+            - listitem [ref=e1520]:
+              - link "Wellfound:ai" [ref=e1521] [cursor=pointer]:
+                - /url: /recruit/products/recruiter-cloud
+            - listitem [ref=e1522]:
+              - link "Hire Developers" [ref=e1523] [cursor=pointer]:
+                - /url: /hire
+            - listitem [ref=e1524]:
+              - link "Pricing" [ref=e1525] [cursor=pointer]:
+                - /url: /recruit/pricing
+          - list [ref=e1526]:
+            - listitem [ref=e1527]:
+              - heading "Company" [level=4] [ref=e1528]
+            - listitem [ref=e1529]:
+              - link "About" [ref=e1530] [cursor=pointer]:
+                - /url: https://wellfound.com
+            - listitem [ref=e1531]:
+              - link "Help" [ref=e1532] [cursor=pointer]:
+                - /url: https://help.wellfound.com/
+            - listitem [ref=e1533]:
+              - link "Blog" [ref=e1534] [cursor=pointer]:
+                - /url: /discover/blog
+            - listitem [ref=e1535]:
+              - link "Terms & Risks" [ref=e1536] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e1537]:
+              - link "Privacy & Cookies" [ref=e1538] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e1539]:
+              - link "Trust" [ref=e1540] [cursor=pointer]:
+                - /url: https://trust.wellfound.ai
+            - listitem [ref=e1541]:
+              - link "Platform Status" [ref=e1542] [cursor=pointer]:
+                - /url: https://status.wellfound.com
+      - generic [ref=e1543]:
+        - generic [ref=e1544]:
+          - paragraph [ref=e1545]: Copyright © 2026 Wellfound. All rights reserved.
+          - generic [ref=e1546] [cursor=pointer]: Cookie Preferences
+        - paragraph [ref=e1547]:
+          - text: "Browse by:"
+          - link "Jobs" [ref=e1548] [cursor=pointer]:
+            - /url: /browse/tech-jobs
+          - text: ","
+          - link "Remote Jobs" [ref=e1549] [cursor=pointer]:
+            - /url: /browse/remote-tech-jobs
+          - text: ","
+          - link "Locations" [ref=e1550] [cursor=pointer]:
+            - /url: /browse/tech-job-locations
+          - text: ","
+          - link "Startups" [ref=e1551] [cursor=pointer]:
+            - /url: /browse/tech-startups
+          - text: ","
+          - link "Startups Hiring" [ref=e1552] [cursor=pointer]:
+            - /url: /browse/startups-hiring
+          - text: ","
+          - link "Industries" [ref=e1553] [cursor=pointer]:
+            - /url: /browse/tech-industries
+          - text: ","
+          - link "Tech Hubs" [ref=e1554] [cursor=pointer]:
+            - /url: /browse/tech-hubs
+  - alert [ref=e1555]

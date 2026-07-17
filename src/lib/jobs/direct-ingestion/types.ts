@@ -197,7 +197,9 @@ export type DirectBoardSource =
   | "arbeitnow"
   | "remotive"
   | "weworkremotely"
-  | "justjoin";
+  | "justjoin"
+  | "wellfound"
+  | "remotecom";
 
 /** Configuration for each direct board. */
 export interface DirectBoardConfig {

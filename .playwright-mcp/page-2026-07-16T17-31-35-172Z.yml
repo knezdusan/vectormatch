@@ -1,0 +1,188 @@
+- generic [active] [ref=f64e1]:
+  - main [ref=f64e2]:
+    - generic [ref=f64e4]:
+      - link [ref=f64e5] [cursor=pointer]:
+        - /url: https://www.oysterhr.com/
+        - img "Oyster Logo" [ref=f64e6]
+      - generic [ref=f64e9]:
+        - 'heading "Aw, shucks! 404: page not found" [level=1] [ref=f64e10]': "Aw, shucks!404: page not found"
+        - paragraph [ref=f64e11]: It seems this page has been removed, had its name changed, or is temporarily unavailable. We’re working on fixing this.How about cracking open one of these pages instead?
+        - generic [ref=f64e12]:
+          - link "Visit the Blog" [ref=f64e13] [cursor=pointer]:
+            - /url: https://www.oysterhr.com/library
+          - button "Get a Demo" [ref=f64e15] [cursor=pointer]
+  - contentinfo [ref=f64e16]:
+    - generic [ref=f64e18]:
+      - generic [ref=f64e19]:
+        - generic [ref=f64e20]:
+          - heading "SOLUTIONS" [level=2] [ref=f64e21]
+          - list [ref=f64e22]:
+            - listitem [ref=f64e23]:
+              - link "Employer of Record" [ref=f64e24] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/product/employer-of-record
+            - listitem [ref=f64e25]:
+              - link "Global Contractors" [ref=f64e26] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/product/global-contractors
+            - listitem [ref=f64e27]:
+              - link "People Partner Services" [ref=f64e28] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/product/people-partner-services
+            - listitem [ref=f64e29]:
+              - link "Employee Benefits" [ref=f64e30] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/how-it-works/benefits
+            - listitem [ref=f64e31]:
+              - link "Visa Sponsorship" [ref=f64e32] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/talent-mobility
+            - listitem [ref=f64e33]:
+              - link "US PEO" [ref=f64e34] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/product/professional-employer-organization
+            - listitem [ref=f64e35]:
+              - link "Salary Insights" [ref=f64e36] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/salary-insights-tool
+        - generic [ref=f64e37]:
+          - heading "Using Oyster" [level=2] [ref=f64e38]
+          - list [ref=f64e39]:
+            - listitem [ref=f64e40]:
+              - link "Pricing" [ref=f64e41] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/pricing
+            - listitem [ref=f64e42]:
+              - link "Integrations" [ref=f64e43] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/integrations
+            - listitem [ref=f64e44]:
+              - link "Opens in a new tab" [ref=f64e45] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/developer-api
+                - text: Developer API
+            - listitem [ref=f64e46]:
+              - link "Case Studies" [ref=f64e47] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/case-studies
+            - listitem [ref=f64e48]:
+              - link "Country Availability" [ref=f64e49] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/country-availability
+            - listitem [ref=f64e50]:
+              - link "Direct+ Infrastructure" [ref=f64e51] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/direct-plus
+            - listitem [ref=f64e52]:
+              - link "Global Hiring Guides" [ref=f64e53] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/global-hiring-guides
+            - listitem [ref=f64e54]:
+              - link "Employee Cost Calculator" [ref=f64e55] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/cost-calculator
+            - listitem [ref=f64e56]:
+              - link "Global Employment Tools" [ref=f64e57] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/global-employment-tools
+        - generic [ref=f64e58]:
+          - heading "RESOURCES" [level=2] [ref=f64e59]
+          - list [ref=f64e60]:
+            - listitem [ref=f64e61]:
+              - link "Blog" [ref=f64e62] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/category/blog
+            - listitem
+            - listitem [ref=f64e63]:
+              - link "Events" [ref=f64e64] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/events
+            - listitem [ref=f64e65]:
+              - link "Opens in a new tab" [ref=f64e66] [cursor=pointer]:
+                - /url: https://link.chtbl.com/OysterWebsite
+                - text: Podcasts
+            - listitem [ref=f64e67]:
+              - link "Open Shell Newsletter" [ref=f64e68] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/open-shell
+            - listitem [ref=f64e69]:
+              - link "People Builders" [ref=f64e70] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/people-builders
+            - listitem
+            - listitem [ref=f64e71]:
+              - link "Global HR Glossary" [ref=f64e72] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/glossary
+            - listitem [ref=f64e73]:
+              - link "2026 EOR Buyer's Guide" [ref=f64e74] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/resources/2026-employer-of-record-buyers-guide
+        - generic [ref=f64e75]:
+          - heading "About Oyster" [level=2] [ref=f64e76]
+          - list [ref=f64e77]:
+            - listitem [ref=f64e78]:
+              - link "Who We Are" [ref=f64e79] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/who-we-are
+            - listitem [ref=f64e80]:
+              - link "Impact Report" [ref=f64e81] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/resources/annual-impact-report-2025
+            - listitem [ref=f64e82]:
+              - link "Careers" [ref=f64e83] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/careers
+            - listitem [ref=f64e84]:
+              - link "Partners" [ref=f64e85] [cursor=pointer]:
+                - /url: https://partners.oysterhr.com/
+            - listitem [ref=f64e86]:
+              - link "Become a Partner" [ref=f64e87] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/become-a-partner
+            - listitem [ref=f64e88]:
+              - link "Affiliates" [ref=f64e89] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/affiliates
+            - listitem [ref=f64e90]:
+              - link "Referral Program" [ref=f64e91] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/customer-referral
+            - listitem [ref=f64e92]:
+              - link "Merch Store" [ref=f64e93] [cursor=pointer]:
+                - /url: https://shop.oysterhr.com/
+            - listitem [ref=f64e94]:
+              - link "Security" [ref=f64e95] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/security
+            - listitem [ref=f64e96]:
+              - link "Information for LLMs" [ref=f64e97] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/ai-info-page
+            - listitem [ref=f64e98]:
+              - link "Awards and Press" [ref=f64e99] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/awards-and-press
+        - generic [ref=f64e100]:
+          - heading "Trust & Compliance" [level=2] [ref=f64e101]
+          - list [ref=f64e102]:
+            - listitem [ref=f64e103]:
+              - link "Trust Center" [ref=f64e104] [cursor=pointer]:
+                - /url: https://trust.oysterhr.com/
+            - listitem [ref=f64e105]:
+              - link "Website Privacy Notice" [ref=f64e106] [cursor=pointer]:
+                - /url: https://legal.oysterhr.com/privacy/privacy-notice
+            - listitem [ref=f64e107]:
+              - link "Website Terms of Use" [ref=f64e108] [cursor=pointer]:
+                - /url: https://legal.oysterhr.com/legal-home/terms-of-use
+            - listitem [ref=f64e109]:
+              - link "Manage My Privacy" [ref=f64e110] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/privacy-center
+            - listitem [ref=f64e111]:
+              - link "Do not sell or share my personal information" [ref=f64e113] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/privacy-center
+          - heading "CONTACT" [level=2] [ref=f64e115]
+          - list [ref=f64e116]:
+            - listitem [ref=f64e117]:
+              - link "hello@oysterhr.com" [ref=f64e118] [cursor=pointer]:
+                - /url: mailto:hello@oysterhr.com?subject=Website%20footer%20query
+            - listitem [ref=f64e119]:
+              - link "sales@oysterhr.com" [ref=f64e120] [cursor=pointer]:
+                - /url: mailto:sales@oysterhr.com?subject=Website%20footer%20query
+            - listitem [ref=f64e121]:
+              - link "Help Center" [ref=f64e122] [cursor=pointer]:
+                - /url: https://support.oysterhr.com/hc/en-us
+            - listitem [ref=f64e123]:
+              - link "Media Inquiries" [ref=f64e124] [cursor=pointer]:
+                - /url: https://www.oysterhr.com/media-kit
+      - generic [ref=f64e125]:
+        - link "Home page" [ref=f64e127] [cursor=pointer]:
+          - /url: https://www.oysterhr.com/
+        - generic [ref=f64e131]:
+          - link "Certified B Corp Certified B corporation" [ref=f64e133] [cursor=pointer]:
+            - /url: https://www.bcorporation.net/en-us/find-a-b-corp/company/oyster-hr-inc/
+            - paragraph [ref=f64e134]:
+              - text: Certified
+              - generic [ref=f64e135]: B Corp
+            - img "Certified B corporation" [ref=f64e137]
+          - generic [ref=f64e138]:
+            - link "Follow Oyster on Facebook" [ref=f64e139] [cursor=pointer]:
+              - /url: https://www.facebook.com/oysterhr
+            - link "Follow Oyster on Instagram" [ref=f64e144] [cursor=pointer]:
+              - /url: https://www.instagram.com/oysterhr/
+            - link "Follow Oyster on Linkedin" [ref=f64e149] [cursor=pointer]:
+              - /url: https://www.linkedin.com/company/oysterhr/
+            - link "Find Oyster on Notion" [ref=f64e154] [cursor=pointer]:
+              - /url: https://www.notion.so/oysterhr/Welcome-to-Oyster-fc482e3f107c4afd8c85ed217f1d0c1d
+            - link "Follow Oyster on Twitter" [ref=f64e159] [cursor=pointer]:
+              - /url: https://twitter.com/HeyOyster
+          - paragraph [ref=f64e163]: Oyster HR, Inc 2020-2026, All rights reserved.

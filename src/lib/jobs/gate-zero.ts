@@ -605,9 +605,11 @@ const NATIONAL_SECURITY_KEYWORDS = [
   "must be a us citizen",
   "american citizen",
   "national of the united states",
-  // Export control regimes
+  // Export control regimes — "ear" removed (Directive 12, Step 2.4):
+  // bare "ear" with word boundaries still matches "ear" in non-security contexts
+  // (hearing, ear protection in safety jobs). Use "export control" / "ear-controlled"
+  // instead, which are unambiguous.
   "itar",
-  "ear",
   "export control",
   "export controlled",
   "ear-controlled",
@@ -639,14 +641,16 @@ const NATIONAL_SECURITY_KEYWORDS = [
   "fort ",
   "naval ",
   "air force base",
-  // E-Verify / government employment terms
-  "e-verify",
-  "everify",
-  "e verify",
+  // E-Verify / government employment terms — REMOVED from bare keyword list
+  // (Directive 12, Step 2.4): e-verify appears in nearly every US company's job
+  // posting as a standard legal compliance statement. False-rejection rate was
+  // ~25% in the 30-sample audit, with e-verify as the primary false trigger.
+  // These are now context-dependent — only trigger if paired with clearance context.
+  // ──────────────────────────────────────────────────────────────────────────
+  // Context-dependent keywords (require clearance/gov context to trigger):
   "public trust",
   "position of public trust",
   "background investigation",
-  "background check required",
   "polygraph",
   "counterintelligence",
   // Common gov-contractor company indicators in job text
@@ -656,6 +660,69 @@ const NATIONAL_SECURITY_KEYWORDS = [
   "u.s. person",
   "us person status",
 ];
+
+// ── Context-dependent natsec keywords (Directive 12, Step 2.4) ──────────────
+//
+// These keywords are too broad to trigger a rejection on their own:
+//   - "e-verify" / "everify" — every US-registered remote-friendly employer
+//   - "background check required" — universal in fintech and most US jobs
+//   - "public trust" — can appear in non-security contexts
+//   - "background investigation" — can appear in non-security contexts
+//
+// They only trigger a rejection if the job text ALSO contains a hard-fence
+// clearance keyword (security clearance, top secret, TS/SCI, etc.) or an
+// explicit government/defense agency name (DoD, CIA, FBI, NSA, etc.).
+
+const CONTEXT_DEPENDENT_NATSEC_KEYWORDS = [
+  "e-verify",
+  "everify",
+  "e verify",
+  "background check required",
+  "background investigation",
+  "public trust",
+  "position of public trust",
+  "polygraph",
+  "counterintelligence",
+];
+
+const CLEARANCE_CONTEXT_KEYWORDS = [
+  "security clearance",
+  "top secret",
+  "ts/sci",
+  "secret clearance",
+  "confidential clearance",
+  "clearance required",
+  "active clearance",
+  "eligible for clearance",
+  "clearance eligibility",
+  "must be able to obtain clearance",
+  "security clearance required",
+  "itar",
+  "export control",
+  "export controlled",
+  "ear-controlled",
+  "itar-controlled",
+  "department of defense",
+  "defense contract",
+  "national security",
+  "homeland security",
+  "intelligence community",
+  "counterintelligence",
+];
+
+const CONTEXT_DEPENDENT_REGEX = new RegExp(
+  CONTEXT_DEPENDENT_NATSEC_KEYWORDS.map(
+    (kw) => `\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+  ).join("|"),
+  "i",
+);
+
+const CLEARANCE_CONTEXT_REGEX = new RegExp(
+  CLEARANCE_CONTEXT_KEYWORDS.map(
+    (kw) => `\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+  ).join("|"),
+  "i",
+);
 
 const NATIONAL_SECURITY_REGEX = new RegExp(
   NATIONAL_SECURITY_KEYWORDS.map(
@@ -679,5 +746,16 @@ export function isNationalSecurityJob(
   description: string | null | undefined,
 ): boolean {
   const text = `${title ?? ""} ${(description ?? "").slice(0, 3000)}`;
-  return NATIONAL_SECURITY_REGEX.test(text);
+
+  // Hard-fence keywords always trigger (clearance levels, export controls,
+  // defense agencies, citizenship requirements)
+  if (NATIONAL_SECURITY_REGEX.test(text)) return true;
+
+  // Context-dependent keywords only trigger if clearance context is also present
+  // (e-verify, background check, public trust, polygraph — common in non-gov jobs)
+  if (CONTEXT_DEPENDENT_REGEX.test(text)) {
+    return CLEARANCE_CONTEXT_REGEX.test(text);
+  }
+
+  return false;
 }

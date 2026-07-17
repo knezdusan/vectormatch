@@ -1,0 +1,520 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - generic [ref=f1e5]:
+          - generic [ref=f1e6]: Remote Masterclass
+          - generic [ref=f1e8]: Nail your next remote interview
+        - link "Access the class" [ref=f1e9] [cursor=pointer]:
+          - /url: https://remote.com/remote-academy/how-to-nail-a-remote-interview
+      - button "Dismiss banner" [ref=f1e15] [cursor=pointer]
+    - banner [ref=f1e18]:
+      - link "Go to Remote" [ref=f1e20] [cursor=pointer]:
+        - /url: https://remote.com
+      - generic [ref=f1e26]:
+        - link "Homepage" [ref=f1e28] [cursor=pointer]:
+          - /url: /jobs
+          - img "remote.com/jobs" [ref=f1e29]
+        - navigation "Main" [ref=f1e30]:
+          - list [ref=f1e31]:
+            - listitem [ref=f1e32]:
+              - link "Sign up" [ref=f1e33] [cursor=pointer]:
+                - /url: /jobs/sign-up
+            - listitem [ref=f1e36]:
+              - link "Log in" [ref=f1e37] [cursor=pointer]:
+                - /url: /jobs/sign-in
+    - generic [ref=f1e41]:
+      - generic [ref=f1e42]:
+        - heading "Your dream job is already looking for you" [level=1] [ref=f1e43]
+        - generic [ref=f1e44]: Say goodbye to endless job searching – create your profile, improve it with AI, and let companies find you with relevant opportunities.
+        - generic [ref=f1e45]:
+          - link "Create profile" [ref=f1e47] [cursor=pointer]:
+            - /url: /jobs/sign-up
+          - link "Browse jobs" [ref=f1e51] [cursor=pointer]:
+            - /url: /jobs/all
+      - img "Your dream job is already looking for you" [ref=f1e56]
+    - main [ref=f1e57]:
+      - generic [ref=f1e59]:
+        - generic [ref=f1e60]:
+          - generic [ref=f1e61]: Hot new jobs
+          - article [ref=f1e63]:
+            - generic [ref=f1e64]:
+              - generic [ref=f1e66]:
+                - generic [ref=f1e67]:
+                  - generic [ref=f1e68]: 8 days ago
+                  - button "remote - GMT-6 to GMT-4 only" [ref=f1e69] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e74]
+              - generic [ref=f1e78]:
+                - generic [ref=f1e79]:
+                  - img "Synergy Injury Relief PLLC" [ref=f1e81]
+                  - generic [ref=f1e82]:
+                    - link "Spanish Medical Interpreter" [ref=f1e83] [cursor=pointer]:
+                      - /url: /jobs/synergy-injury-relief-pllc-c1t4j3ey/spanish-medical-interpreter-j133hpn2
+                    - generic [ref=f1e85]: Synergy Injury Relief PLLC
+                - generic [ref=f1e86]:
+                  - generic [ref=f1e87]:
+                    - text: 2 - 4 USD
+                    - generic [ref=f1e88]: /year
+                  - list [ref=f1e89]:
+                    - listitem [ref=f1e90]:
+                      - generic [ref=f1e93]: Quick apply
+                    - listitem [ref=f1e94]:
+                      - generic [ref=f1e97]: Remote
+                    - listitem [ref=f1e98]:
+                      - generic [ref=f1e101]: GMT-6 to GMT-4
+                    - listitem [ref=f1e102]:
+                      - generic [ref=f1e105]: Full-time
+          - article [ref=f1e106]:
+            - generic [ref=f1e107]:
+              - generic [ref=f1e109]:
+                - generic [ref=f1e110]:
+                  - generic [ref=f1e111]: 11 days ago
+                  - generic [ref=f1e112]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e114]
+              - generic [ref=f1e118]:
+                - generic [ref=f1e119]:
+                  - img "Proxify" [ref=f1e121]
+                  - generic [ref=f1e122]:
+                    - link "Senior Backend Developer (Python/Django)" [ref=f1e123] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-backend-developer-python-django-j12wcpci
+                    - generic [ref=f1e125]: Proxify
+                - generic [ref=f1e126]:
+                  - generic [ref=f1e127]:
+                    - text: 3k - 6k EUR
+                    - generic [ref=f1e128]: /month
+                  - list [ref=f1e129]:
+                    - listitem [ref=f1e130]:
+                      - generic [ref=f1e133]: Remote
+                    - listitem [ref=f1e134]:
+                      - generic [ref=f1e137]: Anywhere
+                    - listitem [ref=f1e140]:
+                      - generic [ref=f1e143]: Contract
+          - article [ref=f1e144]:
+            - generic [ref=f1e145]:
+              - generic [ref=f1e147]:
+                - generic [ref=f1e148]:
+                  - generic [ref=f1e149]: 11 days ago
+                  - generic [ref=f1e150]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e152]
+              - generic [ref=f1e156]:
+                - generic [ref=f1e157]:
+                  - img "Proxify" [ref=f1e159]
+                  - generic [ref=f1e160]:
+                    - link "Senior DevOps Engineer (Azure)" [ref=f1e161] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-devops-engineer-azure-j11znpnd
+                    - generic [ref=f1e163]: Proxify
+                - generic [ref=f1e164]:
+                  - generic [ref=f1e165]:
+                    - text: 3k - 7k EUR
+                    - generic [ref=f1e166]: /month
+                  - list [ref=f1e167]:
+                    - listitem [ref=f1e168]:
+                      - generic [ref=f1e171]: Remote
+                    - listitem [ref=f1e172]:
+                      - generic [ref=f1e175]: Anywhere
+                    - listitem [ref=f1e178]:
+                      - generic [ref=f1e181]: Contract
+        - generic [ref=f1e182]:
+          - generic [ref=f1e183]: Top engineering jobs
+          - article [ref=f1e185]:
+            - generic [ref=f1e186]:
+              - generic [ref=f1e188]:
+                - generic [ref=f1e189]:
+                  - generic [ref=f1e190]: 10 months ago
+                  - generic [ref=f1e191]: occasional travel
+                  - generic [ref=f1e193]: remote - Europe only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e195]
+              - generic [ref=f1e199]:
+                - generic [ref=f1e200]:
+                  - img "Knowledge Hero GmbH" [ref=f1e202]
+                  - generic [ref=f1e203]:
+                    - link "Software Engineer" [ref=f1e204] [cursor=pointer]:
+                      - /url: /jobs/knowledge-hero-gmbh-c1n8f9gn/software-engineer-j1p7fj3u
+                    - generic [ref=f1e206]: Knowledge Hero GmbH
+                - generic [ref=f1e207]:
+                  - generic [ref=f1e208]:
+                    - text: 55k - 70k EUR
+                    - generic [ref=f1e209]: /year
+                  - list [ref=f1e210]:
+                    - listitem [ref=f1e211]:
+                      - generic [ref=f1e214]: Remote
+                    - listitem [ref=f1e215]:
+                      - generic [ref=f1e218]: Europe only
+                    - listitem [ref=f1e219]:
+                      - generic [ref=f1e222]: Full-time
+          - article [ref=f1e223]:
+            - generic [ref=f1e224]:
+              - generic [ref=f1e226]:
+                - generic [ref=f1e227]:
+                  - generic [ref=f1e228]: 11 days ago
+                  - generic [ref=f1e229]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e231]
+              - generic [ref=f1e235]:
+                - generic [ref=f1e236]:
+                  - img "Proxify" [ref=f1e238]
+                  - generic [ref=f1e239]:
+                    - link "Senior Backend Developer (Python/Django)" [ref=f1e240] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-backend-developer-python-django-j12wcpci
+                    - generic [ref=f1e242]: Proxify
+                - generic [ref=f1e243]:
+                  - generic [ref=f1e244]:
+                    - text: 3k - 6k EUR
+                    - generic [ref=f1e245]: /month
+                  - list [ref=f1e246]:
+                    - listitem [ref=f1e247]:
+                      - generic [ref=f1e250]: Remote
+                    - listitem [ref=f1e251]:
+                      - generic [ref=f1e254]: Anywhere
+                    - listitem [ref=f1e257]:
+                      - generic [ref=f1e260]: Contract
+          - article [ref=f1e261]:
+            - generic [ref=f1e262]:
+              - generic [ref=f1e264]:
+                - generic [ref=f1e265]:
+                  - generic [ref=f1e266]: 11 days ago
+                  - generic [ref=f1e267]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e269]
+              - generic [ref=f1e273]:
+                - generic [ref=f1e274]:
+                  - img "Proxify" [ref=f1e276]
+                  - generic [ref=f1e277]:
+                    - link "Senior DevOps Engineer (Azure)" [ref=f1e278] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-devops-engineer-azure-j11znpnd
+                    - generic [ref=f1e280]: Proxify
+                - generic [ref=f1e281]:
+                  - generic [ref=f1e282]:
+                    - text: 3k - 7k EUR
+                    - generic [ref=f1e283]: /month
+                  - list [ref=f1e284]:
+                    - listitem [ref=f1e285]:
+                      - generic [ref=f1e288]: Remote
+                    - listitem [ref=f1e289]:
+                      - generic [ref=f1e292]: Anywhere
+                    - listitem [ref=f1e295]:
+                      - generic [ref=f1e298]: Contract
+        - generic [ref=f1e299]:
+          - generic [ref=f1e300]: Top design jobs
+          - article [ref=f1e302]:
+            - generic [ref=f1e303]:
+              - generic [ref=f1e305]:
+                - generic [ref=f1e306]:
+                  - generic [ref=f1e307]: 6 months ago
+                  - generic [ref=f1e308]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e310]
+              - generic [ref=f1e314]:
+                - generic [ref=f1e315]:
+                  - img "CST Training LTD" [ref=f1e317]
+                  - generic [ref=f1e318]:
+                    - link "Instructional Designer" [ref=f1e319] [cursor=pointer]:
+                      - /url: /jobs/cst-training-ltd-c15suan9/instructional-designer-j1se8cp3
+                    - generic [ref=f1e321]: CST Training LTD
+                - list [ref=f1e323]:
+                  - listitem [ref=f1e324]:
+                    - generic [ref=f1e327]: Quick apply
+                  - listitem [ref=f1e328]:
+                    - generic [ref=f1e331]: Remote
+                  - listitem [ref=f1e332]:
+                    - generic [ref=f1e335]: Anywhere
+                  - listitem [ref=f1e338]:
+                    - generic [ref=f1e341]: Full-time
+          - article [ref=f1e342]:
+            - generic [ref=f1e343]:
+              - generic [ref=f1e345]:
+                - generic [ref=f1e346]:
+                  - generic [ref=f1e347]: 15 hours ago
+                  - button "remote - North America +1 more" [ref=f1e348] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e353]
+              - generic [ref=f1e357]:
+                - generic [ref=f1e358]:
+                  - img "Cloudflare" [ref=f1e360]
+                  - generic [ref=f1e361]:
+                    - link "Senior Principal, Sales Compensation Design & Strategy" [ref=f1e362] [cursor=pointer]:
+                      - /url: /jobs/cloudflare-c162xg3j/senior-principal-sales-compensation-design-strategy-j161b4iv
+                    - generic [ref=f1e364]: Cloudflare
+                - generic [ref=f1e365]:
+                  - generic [ref=f1e366]:
+                    - text: 200k - 317k USD
+                    - generic [ref=f1e367]: /year
+                  - list [ref=f1e368]:
+                    - listitem [ref=f1e369]:
+                      - generic [ref=f1e372]: Remote
+                    - listitem [ref=f1e373]:
+                      - button "North America +1 more" [ref=f1e377] [cursor=pointer]
+                    - listitem [ref=f1e378]:
+                      - generic [ref=f1e381]: Full-time
+          - article [ref=f1e382]:
+            - generic [ref=f1e383]:
+              - generic [ref=f1e385]:
+                - generic [ref=f1e386]:
+                  - generic [ref=f1e387]: 2 days ago
+                  - button "remote - United Kingdom (UK) +5 more" [ref=f1e388] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e393]
+              - generic [ref=f1e397]:
+                - generic [ref=f1e398]:
+                  - img "Typeform" [ref=f1e400]
+                  - generic [ref=f1e401]:
+                    - link "Senior Product Manager - Create & Design" [ref=f1e402] [cursor=pointer]:
+                      - /url: /jobs/typeform-c18hdu1c/senior-product-manager-create-design-j1h2avlr
+                    - generic [ref=f1e404]: Typeform
+                - list [ref=f1e406]:
+                  - listitem [ref=f1e407]:
+                    - generic [ref=f1e410]: Remote
+                  - listitem [ref=f1e411]:
+                    - button "United Kingdom (UK) +5 more" [ref=f1e415] [cursor=pointer]
+                  - listitem [ref=f1e416]:
+                    - generic [ref=f1e419]: Full-time
+        - generic [ref=f1e420]:
+          - generic [ref=f1e421]: Top sales jobs
+          - article [ref=f1e423]:
+            - generic [ref=f1e424]:
+              - generic [ref=f1e426]:
+                - generic [ref=f1e427]:
+                  - generic [ref=f1e428]: 2 months ago
+                  - generic [ref=f1e429]: frequent travel
+                  - generic [ref=f1e431]: remote - Israel only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e433]
+              - generic [ref=f1e437]:
+                - generic [ref=f1e438]:
+                  - img "Quectel" [ref=f1e440]
+                  - generic [ref=f1e441]:
+                    - link "Regional Sales Manager - Israel" [ref=f1e442] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/regional-sales-manager-israel-j1mrf41c
+                    - generic [ref=f1e444]: Quectel
+                - list [ref=f1e446]:
+                  - listitem [ref=f1e447]:
+                    - generic [ref=f1e450]: Quick apply
+                  - listitem [ref=f1e451]:
+                    - generic [ref=f1e454]: Remote
+                  - listitem [ref=f1e455]:
+                    - generic [ref=f1e458]: Israel only
+                  - listitem [ref=f1e459]:
+                    - generic [ref=f1e462]: Full-time
+          - article [ref=f1e463]:
+            - generic [ref=f1e464]:
+              - generic [ref=f1e466]:
+                - generic [ref=f1e467]:
+                  - generic [ref=f1e468]: 2 months ago
+                  - generic [ref=f1e469]: frequent travel
+                  - generic [ref=f1e471]: remote - Europe only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e473]
+              - generic [ref=f1e477]:
+                - generic [ref=f1e478]:
+                  - img "Quectel" [ref=f1e480]
+                  - generic [ref=f1e481]:
+                    - link "Antenna Sales Manager" [ref=f1e482] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/antenna-sales-manager-j1ql40gb
+                    - generic [ref=f1e484]: Quectel
+                - list [ref=f1e486]:
+                  - listitem [ref=f1e487]:
+                    - generic [ref=f1e490]: Remote
+                  - listitem [ref=f1e491]:
+                    - generic [ref=f1e494]: Europe only
+                  - listitem [ref=f1e495]:
+                    - generic [ref=f1e498]: Full-time
+          - article [ref=f1e499]:
+            - generic [ref=f1e500]:
+              - generic [ref=f1e502]:
+                - generic [ref=f1e503]:
+                  - generic [ref=f1e504]: 2 months ago
+                  - generic [ref=f1e505]: frequent travel
+                  - button "remote - Belgium +1 more" [ref=f1e507] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e512]
+              - generic [ref=f1e516]:
+                - generic [ref=f1e517]:
+                  - img "Quectel" [ref=f1e519]
+                  - generic [ref=f1e520]:
+                    - link "Regional Sales Manager - Benelux" [ref=f1e521] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/regional-sales-manager-benelux-j12h74my
+                    - generic [ref=f1e523]: Quectel
+                - list [ref=f1e525]:
+                  - listitem [ref=f1e526]:
+                    - generic [ref=f1e529]: Remote
+                  - listitem [ref=f1e530]:
+                    - button "Belgium +1 more" [ref=f1e534] [cursor=pointer]
+                  - listitem [ref=f1e535]:
+                    - generic [ref=f1e538]: Full-time
+        - generic [ref=f1e539]:
+          - generic [ref=f1e540]: Top customer success jobs
+          - article [ref=f1e542]:
+            - generic [ref=f1e543]:
+              - generic [ref=f1e545]:
+                - generic [ref=f1e546]:
+                  - generic [ref=f1e547]: 15 hours ago
+                  - button "remote - Canada +1 more" [ref=f1e548] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e553]
+              - generic [ref=f1e557]:
+                - generic [ref=f1e558]:
+                  - img "CoLab Software" [ref=f1e560]
+                  - generic [ref=f1e561]:
+                    - link "Senior Customer Success Manager" [ref=f1e562] [cursor=pointer]:
+                      - /url: /jobs/colab-software-c1fmcbwk/senior-customer-success-manager-j167g9k9
+                    - generic [ref=f1e564]: CoLab Software
+                - list [ref=f1e566]:
+                  - listitem [ref=f1e567]:
+                    - generic [ref=f1e570]: Remote
+                  - listitem [ref=f1e571]:
+                    - button "Canada +1 more" [ref=f1e575] [cursor=pointer]
+                  - listitem [ref=f1e576]:
+                    - generic [ref=f1e579]: Full-time
+          - article [ref=f1e580]:
+            - generic [ref=f1e581]:
+              - generic [ref=f1e583]:
+                - generic [ref=f1e584]:
+                  - generic [ref=f1e585]: 15 hours ago
+                  - button "remote - North America +1 more" [ref=f1e586] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e591]
+              - generic [ref=f1e595]:
+                - generic [ref=f1e596]:
+                  - img "Lively" [ref=f1e598]
+                  - generic [ref=f1e599]:
+                    - link "Customer Success Manager" [ref=f1e600] [cursor=pointer]:
+                      - /url: /jobs/lively-c1bimsvj/customer-success-manager-j1mtjw8o
+                    - generic [ref=f1e602]: Lively
+                - generic [ref=f1e603]:
+                  - generic [ref=f1e604]:
+                    - text: 70k - 90k USD
+                    - generic [ref=f1e605]: /year
+                  - list [ref=f1e606]:
+                    - listitem [ref=f1e607]:
+                      - generic [ref=f1e610]: Remote
+                    - listitem [ref=f1e611]:
+                      - button "North America +1 more" [ref=f1e615] [cursor=pointer]
+                    - listitem [ref=f1e616]:
+                      - generic [ref=f1e619]: Full-time
+          - article [ref=f1e620]:
+            - generic [ref=f1e621]:
+              - generic [ref=f1e623]:
+                - generic [ref=f1e624]:
+                  - generic [ref=f1e625]: 2 days ago
+                  - button "remote - North America +1 more" [ref=f1e626] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f1e631]
+              - generic [ref=f1e635]:
+                - generic [ref=f1e636]:
+                  - img "SugarAI" [ref=f1e638]
+                  - generic [ref=f1e639]:
+                    - link "Sales - Account Executive, Business Development, Customer Success, Channel" [ref=f1e640] [cursor=pointer]:
+                      - /url: /jobs/sugarai-c12sw6ob/sales-account-executive-business-development-customer-success-channel-j13fb41c
+                    - generic [ref=f1e642]: SugarAI
+                - list [ref=f1e644]:
+                  - listitem [ref=f1e645]:
+                    - generic [ref=f1e648]: Remote
+                  - listitem [ref=f1e649]:
+                    - button "North America +1 more" [ref=f1e653] [cursor=pointer]
+                  - listitem [ref=f1e654]:
+                    - generic [ref=f1e657]: Full-time
+        - link "Explore all jobs" [ref=f1e660] [cursor=pointer]:
+          - /url: /jobs/all
+    - generic [ref=f1e664]:
+      - img "laptop-ai-interviews" [ref=f1e666]
+      - generic [ref=f1e668]:
+        - generic [ref=f1e669]:
+          - generic [ref=f1e670]:
+            - generic [ref=f1e671]: "1"
+            - generic [ref=f1e672]: Create a profile
+            - generic [ref=f1e673]: Define your preferences of where and how you want to work in your next job.
+          - generic [ref=f1e675]:
+            - generic [ref=f1e676]: "2"
+            - generic [ref=f1e677]: Take an interview
+            - generic [ref=f1e678]: Join an AI interview to improve your job interview skills and know what you can add to your profile to standout to employers.
+          - generic [ref=f1e680]:
+            - generic [ref=f1e681]: "3"
+            - generic [ref=f1e682]: Be found
+            - generic [ref=f1e683]: Make your profile visible to employers and get matched to opportunities.
+        - generic [ref=f1e684]: One profile. One interview. Thousands of opportunities.
+        - link "Create profile" [ref=f1e686] [cursor=pointer]:
+          - /url: /jobs/sign-up
+    - generic [ref=f1e691]:
+      - generic [ref=f1e692]:
+        - generic [ref=f1e693]:
+          - generic [ref=f1e695]:
+            - generic [ref=f1e696]: Powered by
+            - img "Apriora logo" [ref=f1e697]
+          - heading "AI interviews to boost your profile" [level=2] [ref=f1e698]
+          - generic [ref=f1e699]: Alex (AI) can provide you with feedback on your job interview skills and also suggest what to include in your Remote profile, to standout to employers.
+        - generic [ref=f1e700]:
+          - generic [ref=f1e701]: Join a video call with Alex (AI) in a 2-way natural conversation
+          - generic [ref=f1e706]: After the call, Alex will provide you feedback on your interview skills and suggest what to include in your profile
+          - generic [ref=f1e711]: Review your feedback and select what you want to add to your profile
+        - generic [ref=f1e717]:
+          - generic [ref=f1e718]: Get started by creating your profile and then join a video call with Alex (AI).
+          - generic [ref=f1e719]:
+            - link "Create profile" [ref=f1e720] [cursor=pointer]:
+              - /url: /jobs/sign-up
+            - link "Browse jobs" [ref=f1e723] [cursor=pointer]:
+              - /url: /jobs/all
+      - img "laptop-ai-interviews" [ref=f1e727]
+    - generic [ref=f1e728]:
+      - generic [ref=f1e731]:
+        - img "person-on-chair" [ref=f1e732]
+        - generic [ref=f1e733]:
+          - generic [ref=f1e734]: Live anywhere, work everywhere.
+          - link "Sign up for free" [ref=f1e735] [cursor=pointer]:
+            - /url: /jobs/sign-up
+      - contentinfo [ref=f1e739]:
+        - generic [ref=f1e740]:
+          - generic [ref=f1e741]:
+            - img "remote.com/jobs" [ref=f1e742]
+            - link [ref=f1e744] [cursor=pointer]:
+              - /url: https://www.producthunt.com/posts/remote-talent?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-remote-talent
+              - img "Remote Talent - Find the best remote jobs on the planet | Product Hunt" [ref=f1e745]
+          - generic [ref=f1e746]:
+            - generic [ref=f1e747]:
+              - generic [ref=f1e748]: Company
+              - list [ref=f1e749]:
+                - listitem [ref=f1e750]:
+                  - link "About Remote" [ref=f1e751] [cursor=pointer]:
+                    - /url: https://remote.com/about
+                - listitem [ref=f1e753]:
+                  - link "Careers" [ref=f1e754] [cursor=pointer]:
+                    - /url: https://remote.com/careers
+                - listitem [ref=f1e756]:
+                  - link "Support" [ref=f1e757] [cursor=pointer]:
+                    - /url: https://support.remote.com/hc/en-us
+                - listitem [ref=f1e759]:
+                  - link "Contact us" [ref=f1e760] [cursor=pointer]:
+                    - /url: https://remote.com/contact-us
+            - generic [ref=f1e762]:
+              - generic [ref=f1e763]: For job seekers
+              - list [ref=f1e764]:
+                - listitem [ref=f1e765]:
+                  - link "Sign up with Remote Jobs" [ref=f1e766] [cursor=pointer]:
+                    - /url: /jobs/sign-up
+                - listitem [ref=f1e768]:
+                  - link "Browse remote jobs" [ref=f1e769] [cursor=pointer]:
+                    - /url: /jobs/all
+            - generic [ref=f1e771]:
+              - generic [ref=f1e772]: Remote work
+              - list [ref=f1e773]:
+                - listitem [ref=f1e774]:
+                  - link "Remote jobs by category" [ref=f1e775] [cursor=pointer]:
+                    - /url: /jobs/types-of-remote-jobs
+          - generic [ref=f1e777]:
+            - generic [ref=f1e778]: Copyright © 2024. Remote Technology, Inc. All rights reserved.
+            - list [ref=f1e780]:
+              - listitem [ref=f1e781]:
+                - link "Privacy Policy" [ref=f1e782] [cursor=pointer]:
+                  - /url: https://remote.com/privacy-policy
+              - listitem [ref=f1e784]:
+                - link "Cookie Policy" [ref=f1e785] [cursor=pointer]:
+                  - /url: https://remote.com/cookie-policy
+              - listitem [ref=f1e787]:
+                - link "Terms of Use" [ref=f1e788] [cursor=pointer]:
+                  - /url: https://remote.com/terms-of-use
+              - list [ref=f1e790]:
+                - listitem [ref=f1e791]:
+                  - link [ref=f1e792] [cursor=pointer]:
+                    - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+                    - img "Youtube logo" [ref=f1e793]
+                - listitem [ref=f1e794]:
+                  - link [ref=f1e795] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/company/remote.com/
+                    - img "Linkedin logo" [ref=f1e796]
+                - listitem [ref=f1e797]:
+                  - link [ref=f1e798] [cursor=pointer]:
+                    - /url: https://twitter.com/remote
+                    - img "Twitter logo" [ref=f1e799]
+                - listitem [ref=f1e800]:
+                  - link [ref=f1e801] [cursor=pointer]:
+                    - /url: https://www.instagram.com/remote/
+                    - img "Instagram logo" [ref=f1e802]
+  - alert [ref=f1e803]

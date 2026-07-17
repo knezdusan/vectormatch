@@ -20,6 +20,7 @@
 // consistent, so we extract <item> blocks and per-field content with targeted
 // regex — no new dependency needed.
 
+import { scanTagsRegex } from "../job-normalizer";
 import {
   type DirectFetchResult,
   type DirectIngestionJob,
@@ -85,7 +86,15 @@ export async function fetchWeWorkRemotelyJobs(
       const { companyName, jobTitle } = splitTitle(item.title);
       const categoryTags = mapCategory(item.category);
       const description = parseDescription(item.description);
-      const tags = [...categoryTags];
+
+      // Directive 13, B3.2: Extract technology-specific tags from the job title
+      // and description using the canonical tag regex scanner. Previously, the
+      // WWR adapter only used category-based tags ("frontend", "backend") which
+      // are too generic for the stack-disjoint gate — jobs with "react" in the
+      // title were getting tags=["frontend"] and being rejected as stack-disjoint
+      // because "frontend" is not in the JS family constant array.
+      const textTags = scanTagsRegex(`${jobTitle} ${description}`);
+      const tags = [...new Set([...categoryTags, ...textTags])];
 
       // Apply persona tech filter
       if (!techFilter({ tags, title: jobTitle, description })) {

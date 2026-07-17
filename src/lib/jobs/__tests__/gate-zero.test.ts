@@ -606,11 +606,23 @@ describe("Gate 0 National-Security Filter — isNationalSecurityJob", () => {
     ).toBe(true);
   });
 
-  it("detects 'E-Verify' in description", () => {
+  // Directive 12, Step 2.4: e-verify is now context-dependent.
+  // Bare e-verify (without clearance context) should NOT trigger — it appears
+  // in nearly every US company's standard legal compliance text.
+  it("does NOT flag bare 'E-Verify' without clearance context (Directive 12 tune)", () => {
     expect(
       isNationalSecurityJob(
         "Developer",
-        "This employer participates in E-Verify.",
+        "This employer participates in E-Verify. We are an equal opportunity employer.",
+      ),
+    ).toBe(false);
+  });
+
+  it("DOES flag 'E-Verify' when clearance context is present", () => {
+    expect(
+      isNationalSecurityJob(
+        "Developer",
+        "This position requires security clearance. This employer participates in E-Verify.",
       ),
     ).toBe(true);
   });

@@ -51,6 +51,13 @@ ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
+# Install Playwright Chromium browser (Directive 13, B1: Wellfound adapter).
+# The browser binary is ~300MB but is required for the Wellfound direct-ingestion
+# adapter which uses Playwright to bypass Cloudflare captcha. Installed in the
+# builder stage so it can be copied to the runner without the full node_modules.
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+RUN npx playwright install --with-deps chromium
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 3: Runner (minimal production image)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -66,6 +73,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Install curl for Coolify's healthcheck probe (node:24-slim ships without it).
 # Coolify runs its own healthcheck via curl/wget, separate from the Dockerfile
 # HEALTHCHECK directive. Run as root before USER node.
+# Also install Playwright Chromium dependencies (Directive 13, B1: Wellfound adapter).
+# Playwright needs shared libraries for headless Chromium — installed via the
+# built-in `playwright install-deps` command which pulls the minimal set.
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -80,6 +90,11 @@ RUN mkdir -p .next && chown node:node .next
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 # Static chunks (CSS, JS) served from .next/static.
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+# Playwright Chromium browser binary (Directive 13, B1: Wellfound adapter).
+# Copied from the builder stage where it was installed.
+COPY --from=builder --chown=node:node /app/.playwright ./.playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
 
 # Switch to non-root user only after all root-requiring filesystem steps.
 USER node

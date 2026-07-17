@@ -235,12 +235,41 @@ async function probeSlug(
 // ── Retry queue ──────────────────────────────────────────────────────────────
 
 /**
+ * Validate a company name before adding to the retry queue.
+ * (Directive 12, Step 4.2): Rejects garbage entries — URLs, code snippets,
+ * emoji, non-alpha strings, and strings too short to be a company name.
+ */
+function isValidCompanyName(name: string): boolean {
+  if (!name || name.length < 3) return false;
+  // Must contain at least 2 alphabetic characters
+  const alphaCount = (name.match(/[A-Za-z]/g) || []).length;
+  if (alphaCount < 2) return false;
+  // Reject URLs
+  if (/^(https?:\/\/|www\.)/i.test(name)) return false;
+  if (/\.com\//i.test(name)) return false;
+  // Reject code syntax
+  if (/async|await|=>|function\s*\(/i.test(name)) return false;
+  // Reject version strings
+  if (/^v\d+\.\d+/i.test(name)) return false;
+  return true;
+}
+
+/**
  * Add a company to the slugger retry queue. The company will be retried
- * after 30 days (then 60, then 90 — companies may configure ATS later,
+ * after 7 days (then 14, then 30 — companies may configure ATS later,
  * especially post-funding).
+ *
+ * (Directive 12, Step 4.2): Validation gate added — garbage entries (URLs,
+ * code snippets, emoji) are rejected before insertion. Backoff shortened
+ * from 30/60/90 to 7/14/30 days.
  */
 export async function addToRetryQueue(input: SluggerInput): Promise<void> {
-  const retryDelayDays = 30;
+  // Validation gate — reject garbage before insertion
+  if (!isValidCompanyName(input.companyName)) {
+    return; // Silently skip — garbage entries don't belong in the retry queue
+  }
+
+  const retryDelayDays = 7; // shortened from 30 (Directive 12)
   const nextRetryAt = new Date();
   nextRetryAt.setDate(nextRetryAt.getDate() + retryDelayDays);
 

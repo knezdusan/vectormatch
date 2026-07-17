@@ -1,0 +1,552 @@
+- generic [ref=f1e3]:
+  - navigation [ref=f1e4]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]:
+        - link [ref=f1e9] [cursor=pointer]:
+          - /url: /
+          - img "Y Combinator" [ref=f1e10]
+        - text: 
+        - generic [ref=f1e11]:
+          - link "Work at a Startup" [ref=f1e12] [cursor=pointer]:
+            - /url: /
+          - link "Startup Jobs" [ref=f1e13] [cursor=pointer]:
+            - /url: /jobs
+          - link "Education" [ref=f1e14] [cursor=pointer]:
+            - /url: /events
+          - link "How it Works" [ref=f1e15] [cursor=pointer]:
+            - /url: /about
+      - link "Log In" [ref=f1e17] [cursor=pointer]:
+        - /url: https://account.ycombinator.com/magic?continue=https%3A%2F%2Fwww.workatastartup.com%2Fjobs%2Fl%2Fsoftware-engineer
+  - generic [ref=f1e18]:
+    - generic [ref=f1e19]:
+      - generic [ref=f1e20]:
+        - heading "Software Engineer jobs at Y Combinator startups" [level=1] [ref=f1e21]
+        - paragraph [ref=f1e22]: Find open roles and connect with founders and hiring teams of over 1,000 vetted, funded Y Combinator startups.
+        - link "Create Profile ›" [ref=f1e24] [cursor=pointer]:
+          - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication&defaults%5BsignUpActive%5D=true
+      - generic [ref=f1e26]:
+        - link "Engineering" [ref=f1e28] [cursor=pointer]:
+          - /url: /jobs/l/software-engineer
+        - generic [ref=f1e29]:
+          - generic [ref=f1e30]: "|"
+          - link "Design" [ref=f1e31] [cursor=pointer]:
+            - /url: /jobs/l/designer
+        - generic [ref=f1e32]:
+          - generic [ref=f1e33]: "|"
+          - link "Recruiting" [ref=f1e34] [cursor=pointer]:
+            - /url: /jobs/l/recruiting
+        - generic [ref=f1e35]:
+          - generic [ref=f1e36]: "|"
+          - link "Science" [ref=f1e37] [cursor=pointer]:
+            - /url: /jobs/l/science
+        - generic [ref=f1e38]:
+          - generic [ref=f1e39]: "|"
+          - link "Product" [ref=f1e40] [cursor=pointer]:
+            - /url: /jobs/l/product-manager
+        - generic [ref=f1e41]:
+          - generic [ref=f1e42]: "|"
+          - link "Operations" [ref=f1e43] [cursor=pointer]:
+            - /url: /jobs/l/operations
+        - generic [ref=f1e44]:
+          - generic [ref=f1e45]: "|"
+          - link "Sales" [ref=f1e46] [cursor=pointer]:
+            - /url: /jobs/l/sales-manager
+        - generic [ref=f1e47]:
+          - generic [ref=f1e48]: "|"
+          - link "Marketing" [ref=f1e49] [cursor=pointer]:
+            - /url: /jobs/l/marketing
+        - generic [ref=f1e50]:
+          - generic [ref=f1e51]: "|"
+          - link "Legal" [ref=f1e52] [cursor=pointer]:
+            - /url: /jobs/l/legal
+        - generic [ref=f1e53]:
+          - generic [ref=f1e54]: "|"
+          - link "Finance" [ref=f1e55] [cursor=pointer]:
+            - /url: /jobs/l/finance
+      - separator [ref=f1e56]
+      - generic [ref=f1e59]:
+        - textbox "Describe your ideal job (e.g., \"ML engineer at an early-stage AI startup, remote, strong equity\")" [ref=f1e60]
+        - button "Search" [ref=f1e62]
+      - generic [ref=f1e64]:
+        - generic [ref=f1e65] [cursor=pointer]:
+          - generic [ref=f1e66]:
+            - img "OneSignal" [ref=f1e69]
+            - link "OneSignal (S11) • Engage customers through personalized omni-channel messaging" [ref=f1e72]:
+              - /url: /companies/onesignal
+              - generic [ref=f1e73]:
+                - generic [ref=f1e74]: OneSignal (S11)
+                - generic [ref=f1e75]: •
+                - text: Engage customers through personalized omni-channel messaging
+          - link "Senior Software Engineer, Journeys Team (Fullstack)" [ref=f1e77]:
+            - /url: /jobs/72052
+          - generic [ref=f1e78]:
+            - paragraph [ref=f1e79]: Fulltime United States (Remote) / Remote (US) Full stack
+            - link "Apply" [ref=f1e80]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D72052&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=76
+        - generic [ref=f1e81] [cursor=pointer]:
+          - generic [ref=f1e82]:
+            - img "OneSignal" [ref=f1e85]
+            - link "OneSignal (S11) • Engage customers through personalized omni-channel messaging" [ref=f1e88]:
+              - /url: /companies/onesignal
+              - generic [ref=f1e89]:
+                - generic [ref=f1e90]: OneSignal (S11)
+                - generic [ref=f1e91]: •
+                - text: Engage customers through personalized omni-channel messaging
+          - link "Senior Software Engineer, Email Team" [ref=f1e93]:
+            - /url: /jobs/92753
+          - generic [ref=f1e94]:
+            - paragraph [ref=f1e95]: Fulltime United States - Remote / Remote (US) Full stack
+            - link "Apply" [ref=f1e96]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D92753&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=76
+        - generic [ref=f1e97] [cursor=pointer]:
+          - generic [ref=f1e98]:
+            - img "Hive" [ref=f1e101]
+            - link "Hive (S14) • Marketing automation for event promoters (email, sms, ads, CRM)" [ref=f1e104]:
+              - /url: /companies/hive
+              - generic [ref=f1e105]:
+                - generic [ref=f1e106]: Hive (S14)
+                - generic [ref=f1e107]: •
+                - text: Marketing automation for event promoters (email, sms, ads, CRM)
+          - link "Senior Software Developer" [ref=f1e109]:
+            - /url: /jobs/93806
+          - generic [ref=f1e110]:
+            - paragraph [ref=f1e111]: Fulltime Remote Full stack $124K - $188K CAD
+            - link "Apply" [ref=f1e112]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D93806&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=714
+        - generic [ref=f1e113] [cursor=pointer]:
+          - generic [ref=f1e114]:
+            - img "Noora Health" [ref=f1e117]
+            - link "Noora Health (W14) • Training patients and their families with health skills" [ref=f1e120]:
+              - /url: /companies/noora-health
+              - generic [ref=f1e121]:
+                - generic [ref=f1e122]: Noora Health (W14)
+                - generic [ref=f1e123]: •
+                - text: Training patients and their families with health skills
+          - link "Lead, Engineer" [ref=f1e125]:
+            - /url: /jobs/94543
+          - generic [ref=f1e126]:
+            - paragraph [ref=f1e127]: Fulltime Bengaluru, KA, IN / Bengaluru, Karnataka, IN Backend
+            - link "Apply" [ref=f1e128]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D94543&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=585
+        - generic [ref=f1e129] [cursor=pointer]:
+          - generic [ref=f1e130]:
+            - img "Noora Health" [ref=f1e133]
+            - link "Noora Health (W14) • Training patients and their families with health skills" [ref=f1e136]:
+              - /url: /companies/noora-health
+              - generic [ref=f1e137]:
+                - generic [ref=f1e138]: Noora Health (W14)
+                - generic [ref=f1e139]: •
+                - text: Training patients and their families with health skills
+          - link "Chief Technology Officer" [ref=f1e141]:
+            - /url: /jobs/96713
+          - generic [ref=f1e142]:
+            - paragraph [ref=f1e143]: Fulltime Bengaluru, KA, IN / Bengaluru, Karnataka, IN / Remote Engineering manager
+            - link "Apply" [ref=f1e144]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D96713&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=585
+        - generic [ref=f1e145] [cursor=pointer]:
+          - generic [ref=f1e146]:
+            - img "Huscarl" [ref=f1e149]
+            - link "Huscarl (P26) • AI-native actuary enabling self-insurance for corporations" [ref=f1e152]:
+              - /url: /companies/huscarl
+              - generic [ref=f1e153]:
+                - generic [ref=f1e154]: Huscarl (P26)
+                - generic [ref=f1e155]: •
+                - text: AI-native actuary enabling self-insurance for corporations
+          - link "Member of technical staff – Paris" [ref=f1e157]:
+            - /url: /jobs/95471
+          - generic [ref=f1e158]:
+            - paragraph [ref=f1e159]: Fulltime Paris, IDF, FR / Paris, Île-de-France, FR Full stack €60K - €90K EUR
+            - link "Apply" [ref=f1e160]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D95471&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31564
+        - generic [ref=f1e161] [cursor=pointer]:
+          - generic [ref=f1e162]:
+            - img "Astraea" [ref=f1e165]
+            - link "Astraea (P26) • AI Operating System for Clinical Development" [ref=f1e168]:
+              - /url: /companies/astraea
+              - generic [ref=f1e169]:
+                - generic [ref=f1e170]: Astraea (P26)
+                - generic [ref=f1e171]: •
+                - text: AI Operating System for Clinical Development
+          - link "Founding Engineer" [ref=f1e173]:
+            - /url: /jobs/96164
+          - generic [ref=f1e174]:
+            - paragraph [ref=f1e175]: Fulltime San Francisco, CA, US Full stack $150K - $300K
+            - link "Apply" [ref=f1e176]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D96164&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31534
+        - generic [ref=f1e177] [cursor=pointer]:
+          - generic [ref=f1e178]:
+            - img "Asendia AI" [ref=f1e181]
+            - link "Asendia AI (P26) • AI recruiters for staffing agencies" [ref=f1e184]:
+              - /url: /companies/asendia-ai
+              - generic [ref=f1e185]:
+                - generic [ref=f1e186]: Asendia AI (P26)
+                - generic [ref=f1e187]: •
+                - text: AI recruiters for staffing agencies
+          - link "Product Engineer" [ref=f1e189]:
+            - /url: /jobs/97298
+          - generic [ref=f1e190]:
+            - paragraph [ref=f1e191]: Fulltime San Francisco, CA, US / Remote (DE; New York, NY, US; Toronto, ON, CA; Toronto, Ontario, CA) Machine learning $150K - $225K
+            - link "Apply" [ref=f1e192]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D97298&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31528
+        - generic [ref=f1e193] [cursor=pointer]:
+          - generic [ref=f1e194]:
+            - img "AgentPhone" [ref=f1e197]
+            - link "AgentPhone (P26) • Phone Numbers for AI Agents" [ref=f1e200]:
+              - /url: /companies/agentphone
+              - generic [ref=f1e201]:
+                - generic [ref=f1e202]: AgentPhone (P26)
+                - generic [ref=f1e203]: •
+                - text: Phone Numbers for AI Agents
+          - link "Founding Engineer" [ref=f1e205]:
+            - /url: /jobs/98603
+          - generic [ref=f1e206]:
+            - paragraph [ref=f1e207]: Fulltime New York, NY, US / San Francisco, CA, US Full stack $140K - $250K
+            - link "Apply" [ref=f1e208]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D98603&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31524
+        - generic [ref=f1e209] [cursor=pointer]:
+          - generic [ref=f1e210]:
+            - img "Ardent" [ref=f1e213]
+            - link "Ardent (P26) • Database sandboxes for Agents" [ref=f1e216]:
+              - /url: /companies/ardent
+              - generic [ref=f1e217]:
+                - generic [ref=f1e218]: Ardent (P26)
+                - generic [ref=f1e219]: •
+                - text: Database sandboxes for Agents
+          - link "Founding Engineer - Infrastructure (Staff)" [ref=f1e221]:
+            - /url: /jobs/95705
+          - generic [ref=f1e222]:
+            - paragraph [ref=f1e223]: Fulltime San Francisco, CA, US Backend $150K - $200K
+            - link "Apply" [ref=f1e224]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D95705&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31475
+        - generic [ref=f1e225] [cursor=pointer]:
+          - generic [ref=f1e226]:
+            - img "KelAI" [ref=f1e229]
+            - 'link "KelAI (P26) • The AI Quant: Autonomous Alpha Engine for Funds and Traders." [ref=f1e232]':
+              - /url: /companies/kelai
+              - generic [ref=f1e233]:
+                - generic [ref=f1e234]: KelAI (P26)
+                - generic [ref=f1e235]: •
+                - text: "The AI Quant: Autonomous Alpha Engine for Funds and Traders."
+          - link "Quant Researcher" [ref=f1e237]:
+            - /url: /jobs/99249
+          - generic [ref=f1e238]:
+            - paragraph [ref=f1e239]: Fulltime New York, NY, US Data science $150K - $200K
+            - link "Apply" [ref=f1e240]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D99249&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31393
+        - generic [ref=f1e241] [cursor=pointer]:
+          - generic [ref=f1e242]:
+            - img "KelAI" [ref=f1e245]
+            - 'link "KelAI (P26) • The AI Quant: Autonomous Alpha Engine for Funds and Traders." [ref=f1e248]':
+              - /url: /companies/kelai
+              - generic [ref=f1e249]:
+                - generic [ref=f1e250]: KelAI (P26)
+                - generic [ref=f1e251]: •
+                - text: "The AI Quant: Autonomous Alpha Engine for Funds and Traders."
+          - link "Applied AI Engineer" [ref=f1e253]:
+            - /url: /jobs/99248
+          - generic [ref=f1e254]:
+            - paragraph [ref=f1e255]: Fulltime New York, NY, US Machine learning $130K - $215K
+            - link "Apply" [ref=f1e256]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D99248&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31393
+        - generic [ref=f1e257] [cursor=pointer]:
+          - generic [ref=f1e258]:
+            - img "PerfectBit, Inc." [ref=f1e261]
+            - link "PerfectBit, Inc. (P26) • Correct by construction AI training data" [ref=f1e264]:
+              - /url: /companies/perfectbit-inc
+              - generic [ref=f1e265]:
+                - generic [ref=f1e266]: PerfectBit, Inc. (P26)
+                - generic [ref=f1e267]: •
+                - text: Correct by construction AI training data
+          - link "Hiring Research Scientists and Research Engineers at PerfectBit" [ref=f1e269]:
+            - /url: /jobs/96987
+          - generic [ref=f1e270]:
+            - paragraph [ref=f1e271]: Fulltime San Francisco, CA, US Machine learning $100K - $300K
+            - link "Apply" [ref=f1e272]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D96987&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31333
+        - generic [ref=f1e273] [cursor=pointer]:
+          - generic [ref=f1e274]:
+            - img "Vela" [ref=f1e277]
+            - link "Vela (W26) • AI Agents For Complex Scheduling Coordination" [ref=f1e280]:
+              - /url: /companies/vela
+              - generic [ref=f1e281]:
+                - generic [ref=f1e282]: Vela (W26)
+                - generic [ref=f1e283]: •
+                - text: AI Agents For Complex Scheduling Coordination
+          - link "Founding Engineer @ Vela | Solving Scheduling" [ref=f1e285]:
+            - /url: /jobs/94537
+          - generic [ref=f1e286]:
+            - paragraph [ref=f1e287]: Fulltime San Francisco, CA, US Full stack $110K - $300K
+            - link "Apply" [ref=f1e288]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D94537&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31264
+        - generic [ref=f1e289] [cursor=pointer]:
+          - generic [ref=f1e290]:
+            - img "Vela" [ref=f1e293]
+            - link "Vela (W26) • AI Agents For Complex Scheduling Coordination" [ref=f1e296]:
+              - /url: /companies/vela
+              - generic [ref=f1e297]:
+                - generic [ref=f1e298]: Vela (W26)
+                - generic [ref=f1e299]: •
+                - text: AI Agents For Complex Scheduling Coordination
+          - link "Founding Engineer @ Vela | Solving Scheduling | India" [ref=f1e301]:
+            - /url: /jobs/95576
+          - generic [ref=f1e302]:
+            - paragraph [ref=f1e303]: Fulltime IN / Remote (IN) Full stack ₹2M - ₹6M INR
+            - link "Apply" [ref=f1e304]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D95576&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31264
+        - generic [ref=f1e305] [cursor=pointer]:
+          - generic [ref=f1e306]:
+            - img "Superset" [ref=f1e309]
+            - link "Superset (P26) • Building the platform for software factories" [ref=f1e312]:
+              - /url: /companies/superset
+              - generic [ref=f1e313]:
+                - generic [ref=f1e314]: Superset (P26)
+                - generic [ref=f1e315]: •
+                - text: Building the platform for software factories
+          - link "Founding Engineer" [ref=f1e317]:
+            - /url: /jobs/91489
+          - generic [ref=f1e318]:
+            - paragraph [ref=f1e319]: Fulltime San Francisco, CA, US Full stack $175K - $225K
+            - link "Apply" [ref=f1e320]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D91489&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31222
+        - generic [ref=f1e321] [cursor=pointer]:
+          - generic [ref=f1e322]:
+            - img "Pocket" [ref=f1e325]
+            - link "Pocket (W26) • Take Notes in the Real World" [ref=f1e328]:
+              - /url: /companies/pocket
+              - generic [ref=f1e329]:
+                - generic [ref=f1e330]: Pocket (W26)
+                - generic [ref=f1e331]: •
+                - text: Take Notes in the Real World
+          - link "Research Engineer - Voice Intelligence" [ref=f1e333]:
+            - /url: /jobs/97381
+          - generic [ref=f1e334]:
+            - paragraph [ref=f1e335]: Fulltime San Francisco, CA, US Full stack $200K - $300K
+            - link "Apply" [ref=f1e336]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D97381&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31214
+        - generic [ref=f1e337] [cursor=pointer]:
+          - generic [ref=f1e338]:
+            - img "Pocket" [ref=f1e341]
+            - link "Pocket (W26) • Take Notes in the Real World" [ref=f1e344]:
+              - /url: /companies/pocket
+              - generic [ref=f1e345]:
+                - generic [ref=f1e346]: Pocket (W26)
+                - generic [ref=f1e347]: •
+                - text: Take Notes in the Real World
+          - link "Engineering Generalist - Product Impact (Full Stack)" [ref=f1e349]:
+            - /url: /jobs/97380
+          - generic [ref=f1e350]:
+            - paragraph [ref=f1e351]: Fulltime San Francisco, CA, US Full stack $200K - $300K
+            - link "Apply" [ref=f1e352]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D97380&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31214
+        - generic [ref=f1e353] [cursor=pointer]:
+          - generic [ref=f1e354]:
+            - img "Seeing Systems" [ref=f1e357]
+            - link "Seeing Systems (W26) • Modular AI-Commanded Drones for Defence" [ref=f1e360]:
+              - /url: /companies/seeing-systems
+              - generic [ref=f1e361]:
+                - generic [ref=f1e362]: Seeing Systems (W26)
+                - generic [ref=f1e363]: •
+                - text: Modular AI-Commanded Drones for Defence
+          - link "Software Engineering Intern" [ref=f1e365]:
+            - /url: /jobs/94623
+          - generic [ref=f1e366]:
+            - paragraph [ref=f1e367]: Intern London, England, GB / Christchurch, England, GB Full stack £4.5K - £7.5K GBP / monthly
+            - link "Apply" [ref=f1e368]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D94623&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31180
+        - generic [ref=f1e369] [cursor=pointer]:
+          - generic [ref=f1e370]:
+            - img "Seeing Systems" [ref=f1e373]
+            - link "Seeing Systems (W26) • Modular AI-Commanded Drones for Defence" [ref=f1e376]:
+              - /url: /companies/seeing-systems
+              - generic [ref=f1e377]:
+                - generic [ref=f1e378]: Seeing Systems (W26)
+                - generic [ref=f1e379]: •
+                - text: Modular AI-Commanded Drones for Defence
+          - link "Mechanical Hardware Engineer" [ref=f1e381]:
+            - /url: /jobs/98786
+          - generic [ref=f1e382]:
+            - paragraph [ref=f1e383]: Fulltime London, England, GB Hardware £30K - £45K GBP
+            - link "Apply" [ref=f1e384]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D98786&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31180
+        - generic [ref=f1e385] [cursor=pointer]:
+          - generic [ref=f1e386]:
+            - img "Cardboard" [ref=f1e389]
+            - link "Cardboard (W26) • Agentic video editor" [ref=f1e392]:
+              - /url: /companies/cardboard
+              - generic [ref=f1e393]:
+                - generic [ref=f1e394]: Cardboard (W26)
+                - generic [ref=f1e395]: •
+                - text: Agentic video editor
+          - link "Founding Design Engineer" [ref=f1e397]:
+            - /url: /jobs/95573
+          - generic [ref=f1e398]:
+            - paragraph [ref=f1e399]: Fulltime Bengaluru, KA, IN / Bengaluru, Karnataka, IN Frontend ₹3M - ₹7.5M INR
+            - link "Apply" [ref=f1e400]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D95573&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31178
+        - generic [ref=f1e401] [cursor=pointer]:
+          - generic [ref=f1e402]:
+            - img "Ventura" [ref=f1e405]
+            - link "Ventura (W26) • AI Workforce for Distributors and Manufacturers" [ref=f1e408]:
+              - /url: /companies/ventura
+              - generic [ref=f1e409]:
+                - generic [ref=f1e410]: Ventura (W26)
+                - generic [ref=f1e411]: •
+                - text: AI Workforce for Distributors and Manufacturers
+          - link "Founding Engineer" [ref=f1e413]:
+            - /url: /jobs/93338
+          - generic [ref=f1e414]:
+            - paragraph [ref=f1e415]: Fulltime San Francisco, CA, US Full stack $140K - $220K
+            - link "Apply" [ref=f1e416]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D93338&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31156
+        - generic [ref=f1e417] [cursor=pointer]:
+          - generic [ref=f1e418]:
+            - img "Zatanna" [ref=f1e421]
+            - link "Zatanna (W26) • Turning all software into agent-first APIs" [ref=f1e424]:
+              - /url: /companies/zatanna
+              - generic [ref=f1e425]:
+                - generic [ref=f1e426]: Zatanna (W26)
+                - generic [ref=f1e427]: •
+                - text: Turning all software into agent-first APIs
+          - link "Founding Engineer" [ref=f1e429]:
+            - /url: /jobs/98458
+          - generic [ref=f1e430]:
+            - paragraph [ref=f1e431]: Fulltime San Francisco, CA, US Backend $140K - $220K
+            - link "Apply" [ref=f1e432]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D98458&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31131
+        - generic [ref=f1e433] [cursor=pointer]:
+          - generic [ref=f1e434]:
+            - img "Lance" [ref=f1e437]
+            - link "Lance (W26) • AI Agents That Run Hotel Operations." [ref=f1e440]:
+              - /url: /companies/lance
+              - generic [ref=f1e441]:
+                - generic [ref=f1e442]: Lance (W26)
+                - generic [ref=f1e443]: •
+                - text: AI Agents That Run Hotel Operations.
+          - link "Founding Solutions Engineer" [ref=f1e445]:
+            - /url: /jobs/92563
+          - generic [ref=f1e446]:
+            - paragraph [ref=f1e447]: Fulltime San Francisco, CA, US Full stack $100K - $120K
+            - link "Apply" [ref=f1e448]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D92563&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31089
+        - generic [ref=f1e449] [cursor=pointer]:
+          - generic [ref=f1e450]:
+            - img "Lance" [ref=f1e453]
+            - link "Lance (W26) • AI Agents That Run Hotel Operations." [ref=f1e456]:
+              - /url: /companies/lance
+              - generic [ref=f1e457]:
+                - generic [ref=f1e458]: Lance (W26)
+                - generic [ref=f1e459]: •
+                - text: AI Agents That Run Hotel Operations.
+          - link "Founding Software Engineer" [ref=f1e461]:
+            - /url: /jobs/92562
+          - generic [ref=f1e462]:
+            - paragraph [ref=f1e463]: Fulltime San Francisco, CA, US Full stack $100K - $170K
+            - link "Apply" [ref=f1e464]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D92562&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31089
+        - generic [ref=f1e465] [cursor=pointer]:
+          - generic [ref=f1e466]:
+            - img "Payna" [ref=f1e469]
+            - link "Payna (W26) • AI Licensing Agent for Regulated Industries" [ref=f1e472]:
+              - /url: /companies/payna
+              - generic [ref=f1e473]:
+                - generic [ref=f1e474]: Payna (W26)
+                - generic [ref=f1e475]: •
+                - text: AI Licensing Agent for Regulated Industries
+          - link "Software Engineer - Full Time" [ref=f1e477]:
+            - /url: /jobs/97487
+          - generic [ref=f1e478]:
+            - paragraph [ref=f1e479]: Fulltime San Francisco, CA, US Full stack $150K - $180K
+            - link "Apply" [ref=f1e480]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D97487&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31066
+        - generic [ref=f1e481] [cursor=pointer]:
+          - generic [ref=f1e482]:
+            - img "Ploy" [ref=f1e485]
+            - link "Ploy (P26) • Ploy turns your website into your company's growth engine." [ref=f1e488]:
+              - /url: /companies/ploy
+              - generic [ref=f1e489]:
+                - generic [ref=f1e490]: Ploy (P26)
+                - generic [ref=f1e491]: •
+                - text: Ploy turns your website into your company's growth engine.
+          - link "Founding Engineer" [ref=f1e493]:
+            - /url: /jobs/93359
+          - generic [ref=f1e494]:
+            - paragraph [ref=f1e495]: Fulltime San Francisco, CA, US Full stack $150K - $250K
+            - link "Apply" [ref=f1e496]:
+              - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication%3Fsignup_job_id%3D93359&defaults%5BsignUpActive%5D=true&defaults%5Bwaas_company%5D=31041
+      - separator [ref=f1e497]
+      - generic [ref=f1e498]:
+        - paragraph [ref=f1e499]: Hundreds of YC startups are hiring. Sign up to see more.
+        - link "Sign up to see more ›" [ref=f1e500] [cursor=pointer]:
+          - /url: https://account.ycombinator.com/authenticate?continue=https%3A%2F%2Fwww.workatastartup.com%2Fapplication&defaults%5BsignUpActive%5D=true
+    - contentinfo [ref=f1e501]:
+      - generic [ref=f1e502]:
+        - link [ref=f1e504] [cursor=pointer]:
+          - /url: /
+          - img "Y Combinator" [ref=f1e505]
+        - generic [ref=f1e506]:
+          - heading "Work at a Startup" [level=3] [ref=f1e507]
+          - link "Jobs" [ref=f1e508] [cursor=pointer]:
+            - /url: /jobs
+          - link "Internships" [ref=f1e509] [cursor=pointer]:
+            - /url: /internships
+          - link "Events" [ref=f1e510] [cursor=pointer]:
+            - /url: /events
+          - link "How it works" [ref=f1e511] [cursor=pointer]:
+            - /url: /about
+          - link "Sign in" [ref=f1e512] [cursor=pointer]:
+            - /url: /application
+          - heading "Y Combinator" [level=3] [ref=f1e513]
+          - link "About YC" [ref=f1e514] [cursor=pointer]:
+            - /url: https://www.ycombinator.com/about/
+          - link "Press" [ref=f1e515] [cursor=pointer]:
+            - /url: https://www.ycombinator.com/press/
+          - link "Privacy & Terms" [ref=f1e516] [cursor=pointer]:
+            - /url: https://www.ycombinator.com/legal/
+          - link "Contact" [ref=f1e517] [cursor=pointer]:
+            - /url: mailto:workatastartup@ycombinator.com
+        - generic [ref=f1e518]:
+          - heading "Jobs by Role" [level=3] [ref=f1e519]
+          - link "Software Engineer Jobs" [ref=f1e520] [cursor=pointer]:
+            - /url: /jobs/l/software-engineer
+          - link "Design & UI/UX Jobs" [ref=f1e521] [cursor=pointer]:
+            - /url: /jobs/l/designer
+          - link "Product Manager Jobs" [ref=f1e522] [cursor=pointer]:
+            - /url: /jobs/l/product-manager
+          - link "Sales Jobs" [ref=f1e523] [cursor=pointer]:
+            - /url: /jobs/l/sales-manager
+          - link "Marketing Jobs" [ref=f1e524] [cursor=pointer]:
+            - /url: /jobs/l/marketing
+          - link "Support Jobs" [ref=f1e525] [cursor=pointer]:
+            - /url: /jobs/l/support
+          - link "Operations Jobs" [ref=f1e526] [cursor=pointer]:
+            - /url: /jobs/l/operations
+        - generic [ref=f1e527]:
+          - heading "Jobs by Location" [level=3] [ref=f1e528]
+          - link "Software Engineer Jobs in San Francisco" [ref=f1e529] [cursor=pointer]:
+            - /url: /jobs/san-francisco/software-engineer
+          - link "Product Manager Jobs in San Francisco" [ref=f1e530] [cursor=pointer]:
+            - /url: /jobs/san-francisco/product-manager
+          - link "Software Engineer Jobs in New York" [ref=f1e531] [cursor=pointer]:
+            - /url: /jobs/new-york/software-engineer
+          - link "Product Manager Jobs in New York" [ref=f1e532] [cursor=pointer]:
+            - /url: /jobs/new-york/product-manager
+          - link "Software Engineer Jobs in Los Angeles" [ref=f1e533] [cursor=pointer]:
+            - /url: /jobs/los-angeles/software-engineer
+          - link "Product Manager Jobs in Los Angeles" [ref=f1e534] [cursor=pointer]:
+            - /url: /jobs/los-angeles/product-manager
+        - generic [ref=f1e535]:
+          - heading "Remote Jobs" [level=3] [ref=f1e536]
+          - link "Remote Software Engineer Jobs" [ref=f1e537] [cursor=pointer]:
+            - /url: /jobs/r/software-engineer
+          - link "Remote Design & UI/UX Jobs" [ref=f1e538] [cursor=pointer]:
+            - /url: /jobs/r/designer
+          - link "Remote Product Manager Jobs" [ref=f1e539] [cursor=pointer]:
+            - /url: /jobs/r/product-manager
+          - link "Remote Sales Jobs" [ref=f1e540] [cursor=pointer]:
+            - /url: /jobs/r/sales-manager
+          - link "Remote Marketing Jobs" [ref=f1e541] [cursor=pointer]:
+            - /url: /jobs/r/marketing
+          - link "Remote Support Jobs" [ref=f1e542] [cursor=pointer]:
+            - /url: /jobs/r/support
+          - link "Remote Operations Jobs" [ref=f1e543] [cursor=pointer]:
+            - /url: /jobs/r/operations

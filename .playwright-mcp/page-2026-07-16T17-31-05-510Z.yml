@@ -1,0 +1,272 @@
+- generic [active] [ref=f44e1]:
+  - generic [ref=f44e2]:
+    - banner [ref=f44e3]:
+      - link "Go to Remote" [ref=f44e5] [cursor=pointer]:
+        - /url: https://remote.com
+      - generic [ref=f44e11]:
+        - link "Homepage" [ref=f44e13] [cursor=pointer]:
+          - /url: /jobs
+          - img "remote.com/jobs" [ref=f44e14]
+        - navigation "Main" [ref=f44e15]:
+          - list [ref=f44e16]:
+            - listitem [ref=f44e17]:
+              - link "Sign up" [ref=f44e18] [cursor=pointer]:
+                - /url: /jobs/sign-up
+            - listitem [ref=f44e21]:
+              - link "Log in" [ref=f44e22] [cursor=pointer]:
+                - /url: /jobs/sign-in
+    - main [ref=f44e25]:
+      - generic [ref=f44e28]:
+        - generic [ref=f44e31]:
+          - img "Proxify" [ref=f44e33]
+          - generic [ref=f44e34]:
+            - button "Log in or sign up to save jobs" [disabled] [ref=f44e35]
+            - generic [ref=f44e38]:
+              - button "Share job" [ref=f44e39] [cursor=pointer]
+              - link "Apply" [ref=f44e44] [cursor=pointer]:
+                - /url: https://career.proxify.io/apply?utm_source=remotecom&utm_medium=job_posting&utm_campaign=senior_frontend&source=remote.com&utm_source=remote.com&ref=remote.com
+        - generic [ref=f44e50]:
+          - generic [ref=f44e51]:
+            - generic [ref=f44e53]:
+              - heading "Senior Frontend Developer (React.js)" [level=1] [ref=f44e54]
+              - generic [ref=f44e55]: Proxify
+            - generic [ref=f44e57]:
+              - generic [ref=f44e58]:
+                - text: 4k - 8k EUR
+                - generic [ref=f44e59]: /month
+              - list [ref=f44e60]:
+                - listitem [ref=f44e61]:
+                  - generic [ref=f44e64]: Remote
+                - listitem [ref=f44e65]:
+                  - generic [ref=f44e68]: Anywhere
+                - listitem [ref=f44e71]:
+                  - generic [ref=f44e74]: Contract
+          - generic [ref=f44e75]:
+            - textbox [ref=f44e79]:
+              - paragraph [ref=f44e80]:
+                - strong [ref=f44e81]: "About us:"
+              - paragraph [ref=f44e82]
+              - paragraph [ref=f44e83]: Talent has no borders. Proxify's mission is to connect top developers around the world with opportunities they deserve. So, it doesn't matter where you are; we are here to help you fast-track your independent career in the right direction.
+              - paragraph [ref=f44e84]: Since our launch, Proxify's developers have successfully worked with 1200+ happy clients to build their products and growth features. 5000+ talented developers trust Proxify and its network to fulfil their dreams and objectives.
+              - paragraph [ref=f44e85]: Proxify is shaped by a global network of supportive, talented developers interested in remote full-time jobs. Our Glassdoor (4.5/5) and Trustpilot (4.8/5) ratings reflect the trust developers place in us and our commitment to our members' success.
+              - paragraph [ref=f44e86]
+              - heading [level=3] [ref=f44e87]:
+                - strong [ref=f44e88]: The Mission
+              - paragraph [ref=f44e89]:
+                - text: We are looking for a
+                - strong [ref=f44e90]: Senior Frontend Developer (React.js)
+                - text: on behalf of one of our high-growth client teams to lead the architecture, optimization, and scaling of their user-facing web applications. In this role, you will be responsible for transforming complex product designs into highly interactive, modular, and pixel-perfect digital experiences. You are a perfect candidate if you are growth-oriented, you love what you do, and you enjoy working on new ideas to develop exciting products.
+              - paragraph [ref=f44e91]
+              - heading [level=3] [ref=f44e92]:
+                - strong [ref=f44e93]: What We Are Looking For
+              - list [ref=f44e94]:
+                - listitem [ref=f44e95]:
+                  - paragraph [ref=f44e96]:
+                    - text: 5+ years of professional engineering experience, with 3+ years focused deeply on building scale-ready applications with
+                    - strong [ref=f44e97]: React.js
+                    - text: and
+                    - strong [ref=f44e98]: TypeScript
+                    - text: .
+                - listitem [ref=f44e99]:
+                  - paragraph [ref=f44e100]:
+                    - text: Expert-level understanding of state management ecosystems, knowing exactly when to utilize global tools (
+                    - strong [ref=f44e101]: Redux Toolkit, Zustand
+                    - text: ) versus server-cache managers (
+                    - strong [ref=f44e102]: React Query/ZandStack Query
+                    - text: ) and native Context.
+                - listitem [ref=f44e103]:
+                  - paragraph [ref=f44e104]:
+                    - text: Deep familiarity with modern React frameworks, specifically
+                    - strong [ref=f44e105]: Next.js
+                    - text: ", including a strong functional understanding of Server-Side Rendering (SSR), Static Site Generation (SSG), and React Server Components (RSC)."
+                - listitem [ref=f44e106]:
+                  - paragraph [ref=f44e107]: Proven track record of identifying and fixing web performance bottlenecks—handling layout shifts (CLS), minimizing bundle sizes via code-splitting, optimizing re-renders, and mastering Core Web Vitals.
+                - listitem [ref=f44e108]:
+                  - paragraph [ref=f44e109]:
+                    - text: A strong commitment to automated testing, utilizing tools like
+                    - strong [ref=f44e110]: Jest, React Testing Library, and Cypress/Playwright
+                    - text: to maintain high regression confidence.
+                - listitem [ref=f44e111]:
+                  - paragraph [ref=f44e112]:
+                    - text: Exceptional eye for UI polish and layout implementation, with a solid commitment to semantic HTML and web accessibility standards (
+                    - strong [ref=f44e113]: WCAG/ARIA
+                    - text: ).
+              - paragraph [ref=f44e114]
+              - heading [level=3] [ref=f44e115]:
+                - strong [ref=f44e116]: Nice-to-Have & Plus Skills
+              - list [ref=f44e117]:
+                - listitem [ref=f44e118]:
+                  - paragraph [ref=f44e119]: Experience with monorepo setups (Turborepo, Nx) or distributed micro-frontend architectures.
+                - listitem [ref=f44e120]:
+                  - paragraph [ref=f44e121]: Exposure to modern CSS paradigms (Tailwind CSS, CSS Modules) and managing enterprise-grade design systems.
+                - listitem [ref=f44e122]:
+                  - paragraph [ref=f44e123]: Background in backend integration, web sockets, or serverless functions (Node.js).
+                - listitem [ref=f44e124]:
+                  - paragraph [ref=f44e125]: Familiarity with continuous integration and continuous deployment pipelines (CI/CD) for single-page applications.
+              - paragraph [ref=f44e126]
+              - heading [level=3] [ref=f44e127]:
+                - strong [ref=f44e128]: Key Responsibilities
+              - list [ref=f44e129]:
+                - listitem [ref=f44e130]:
+                  - paragraph [ref=f44e131]: Design and develop scalable, reusable, and secure component architectures and custom React hooks that accelerate overall development speed.
+                - listitem [ref=f44e132]:
+                  - paragraph [ref=f44e133]: Audit and refactor legacy code blocks to optimize Core Web Vitals, payload sizes, and client-side rendering pipelines.
+                - listitem [ref=f44e134]:
+                  - paragraph [ref=f44e135]: Interface directly with Backend and Product teams to define clean REST or GraphQL API schemas, ensuring efficient data orchestration.
+                - listitem [ref=f44e136]:
+                  - paragraph [ref=f44e137]: Lead by example through rigorous code reviews, driving typing standards, linting rules, and design pattern uniformity across the team.
+                - listitem [ref=f44e138]:
+                  - paragraph [ref=f44e139]: Act as an internal sounding board for modern frontend tooling, assisting junior and mid-level developers in refining their React and engineering skills.
+              - paragraph [ref=f44e140]
+              - paragraph [ref=f44e141]
+              - paragraph [ref=f44e142]:
+                - strong [ref=f44e143]: "What we offer:"
+              - paragraph [ref=f44e144]
+              - paragraph [ref=f44e145]:
+                - strong [ref=f44e146]: Get paid, not played
+              - paragraph [ref=f44e147]: No more unreliable clients. Enjoy on-time monthly payments with flexible withdrawal options.
+              - paragraph [ref=f44e148]
+              - paragraph [ref=f44e149]:
+                - strong [ref=f44e150]: Predictable project hours
+              - paragraph [ref=f44e151]: Enjoy a harmonious work-life balance with consistent 8-hour working days with clients.
+              - paragraph [ref=f44e152]
+              - paragraph [ref=f44e153]:
+                - strong [ref=f44e154]: Flex days, so you can recharge
+              - paragraph [ref=f44e155]: Enjoy up to 24 flex days off per year without losing pay, for full-time positions found through Proxify.
+              - paragraph [ref=f44e156]
+              - paragraph [ref=f44e157]:
+                - strong [ref=f44e158]: Career-accelerating positions at cutting-edge companies
+              - paragraph [ref=f44e159]: Discover exclusive long-term remote positions at the world's most exciting companies.
+              - paragraph [ref=f44e160]
+              - paragraph [ref=f44e161]:
+                - strong [ref=f44e162]: Hand-picked opportunities, just for you
+              - paragraph [ref=f44e163]: Skip the typical recruitment roadblocks and biases with personally matched positions.
+              - paragraph [ref=f44e164]
+              - paragraph [ref=f44e165]:
+                - strong [ref=f44e166]: One seamless process, multiple opportunities
+              - paragraph [ref=f44e167]: A one-time contracting process for endless opportunities, with no extra assessments.
+              - paragraph [ref=f44e168]
+              - paragraph [ref=f44e169]:
+                - strong [ref=f44e170]: Compensation
+              - paragraph [ref=f44e171]: Enjoy the same pay, every month with positions landed through Proxify.
+            - complementary [ref=f44e172]:
+              - generic [ref=f44e174]:
+                - generic [ref=f44e175]: Senior Frontend Developer (React.js)
+                - generic [ref=f44e179]:
+                  - generic [ref=f44e180]: fully remote
+                  - generic [ref=f44e183]:
+                    - generic [ref=f44e184]:
+                      - term [ref=f44e185]: Workplace
+                      - definition [ref=f44e186]:
+                        - generic [ref=f44e189]: Remote
+                    - generic [ref=f44e190]:
+                      - term [ref=f44e191]:
+                        - generic [ref=f44e192]:
+                          - generic [ref=f44e193]: Location
+                          - button "View all locations" [ref=f44e194] [cursor=pointer]
+                      - definition [ref=f44e195]:
+                        - generic [ref=f44e198]: Anywhere
+                    - generic [ref=f44e201]:
+                      - term [ref=f44e202]: Work authorization sponsorship
+                      - definition [ref=f44e203]:
+                        - generic [ref=f44e209]: Not open to sponsorship
+                    - generic [ref=f44e210]:
+                      - term [ref=f44e211]: Job type
+                      - definition [ref=f44e212]:
+                        - generic [ref=f44e215]: Contract
+                    - generic [ref=f44e216]:
+                      - term [ref=f44e217]: Pay
+                      - definition [ref=f44e218]:
+                        - generic [ref=f44e219]: 4k - 8k EUR/month
+                    - generic [ref=f44e220]:
+                      - term [ref=f44e221]: Published on
+                      - definition [ref=f44e222]:
+                        - generic [ref=f44e223]: Jul 6, 2026
+                    - link "Apply" [ref=f44e224] [cursor=pointer]:
+                      - /url: https://career.proxify.io/apply?utm_source=remotecom&utm_medium=job_posting&utm_campaign=senior_frontend&source=remote.com&utm_source=remote.com&ref=remote.com
+            - complementary [ref=f44e229]:
+              - generic [ref=f44e232]:
+                - generic [ref=f44e233]:
+                  - img "Proxify" [ref=f44e235]
+                  - generic [ref=f44e236]: Proxify
+                - generic [ref=f44e237]: Website
+                - link "career.proxify.io/" [ref=f44e238] [cursor=pointer]:
+                  - /url: https://career.proxify.io/
+                - link "View company" [ref=f44e240] [cursor=pointer]:
+                  - /url: /jobs/proxify-c114ohln
+            - button "Report this job" [ref=f44e245] [cursor=pointer]
+    - generic [ref=f44e250]:
+      - generic [ref=f44e253]:
+        - img "person-on-chair" [ref=f44e254]
+        - generic [ref=f44e255]:
+          - generic [ref=f44e256]: Live anywhere, work everywhere.
+          - link "Sign up for free" [ref=f44e257] [cursor=pointer]:
+            - /url: /jobs/sign-up
+      - contentinfo [ref=f44e261]:
+        - generic [ref=f44e262]:
+          - generic [ref=f44e263]:
+            - img "remote.com/jobs" [ref=f44e264]
+            - link [ref=f44e266] [cursor=pointer]:
+              - /url: https://www.producthunt.com/posts/remote-talent?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-remote-talent
+              - img "Remote Talent - Find the best remote jobs on the planet | Product Hunt" [ref=f44e267]
+          - generic [ref=f44e268]:
+            - generic [ref=f44e269]:
+              - generic [ref=f44e270]: Company
+              - list [ref=f44e271]:
+                - listitem [ref=f44e272]:
+                  - link "About Remote" [ref=f44e273] [cursor=pointer]:
+                    - /url: https://remote.com/about
+                - listitem [ref=f44e275]:
+                  - link "Careers" [ref=f44e276] [cursor=pointer]:
+                    - /url: https://remote.com/careers
+                - listitem [ref=f44e278]:
+                  - link "Support" [ref=f44e279] [cursor=pointer]:
+                    - /url: https://support.remote.com/hc/en-us
+                - listitem [ref=f44e281]:
+                  - link "Contact us" [ref=f44e282] [cursor=pointer]:
+                    - /url: https://remote.com/contact-us
+            - generic [ref=f44e284]:
+              - generic [ref=f44e285]: For job seekers
+              - list [ref=f44e286]:
+                - listitem [ref=f44e287]:
+                  - link "Sign up with Remote Jobs" [ref=f44e288] [cursor=pointer]:
+                    - /url: /jobs/sign-up
+                - listitem [ref=f44e290]:
+                  - link "Browse remote jobs" [ref=f44e291] [cursor=pointer]:
+                    - /url: /jobs/all
+            - generic [ref=f44e293]:
+              - generic [ref=f44e294]: Remote work
+              - list [ref=f44e295]:
+                - listitem [ref=f44e296]:
+                  - link "Remote jobs by category" [ref=f44e297] [cursor=pointer]:
+                    - /url: /jobs/types-of-remote-jobs
+          - generic [ref=f44e299]:
+            - generic [ref=f44e300]: Copyright © 2024. Remote Technology, Inc. All rights reserved.
+            - list [ref=f44e302]:
+              - listitem [ref=f44e303]:
+                - link "Privacy Policy" [ref=f44e304] [cursor=pointer]:
+                  - /url: https://remote.com/privacy-policy
+              - listitem [ref=f44e306]:
+                - link "Cookie Policy" [ref=f44e307] [cursor=pointer]:
+                  - /url: https://remote.com/cookie-policy
+              - listitem [ref=f44e309]:
+                - link "Terms of Use" [ref=f44e310] [cursor=pointer]:
+                  - /url: https://remote.com/terms-of-use
+              - list [ref=f44e312]:
+                - listitem [ref=f44e313]:
+                  - link [ref=f44e314] [cursor=pointer]:
+                    - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+                    - img "Youtube logo" [ref=f44e315]
+                - listitem [ref=f44e316]:
+                  - link [ref=f44e317] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/company/remote.com/
+                    - img "Linkedin logo" [ref=f44e318]
+                - listitem [ref=f44e319]:
+                  - link [ref=f44e320] [cursor=pointer]:
+                    - /url: https://twitter.com/remote
+                    - img "Twitter logo" [ref=f44e321]
+                - listitem [ref=f44e322]:
+                  - link [ref=f44e323] [cursor=pointer]:
+                    - /url: https://www.instagram.com/remote/
+                    - img "Instagram logo" [ref=f44e324]
+  - alert [ref=f44e325]

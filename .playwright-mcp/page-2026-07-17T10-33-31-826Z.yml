@@ -1,0 +1,649 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e2]:
+    - banner [ref=f3e3]:
+      - link "Go to Remote" [ref=f3e5] [cursor=pointer]:
+        - /url: https://remote.com
+      - generic [ref=f3e11]:
+        - link "Homepage" [ref=f3e13] [cursor=pointer]:
+          - /url: /jobs
+          - img "remote.com/jobs" [ref=f3e14]
+        - navigation "Main" [ref=f3e15]:
+          - list [ref=f3e16]:
+            - listitem [ref=f3e17]:
+              - link "Sign up" [ref=f3e18] [cursor=pointer]:
+                - /url: /jobs/sign-up
+            - listitem [ref=f3e21]:
+              - link "Log in" [ref=f3e22] [cursor=pointer]:
+                - /url: /jobs/sign-in
+    - main [ref=f3e25]:
+      - generic [ref=f3e27]:
+        - search [ref=f3e32]:
+          - textbox "Search by job title" [ref=f3e33]
+          - button "Search" [ref=f3e34] [cursor=pointer]
+          - generic [ref=f3e38]:
+            - generic [ref=f3e40]:
+              - log [ref=f3e42]
+              - button "Job type" [ref=f3e43] [cursor=pointer]
+            - generic [ref=f3e51]:
+              - log [ref=f3e53]
+              - button "Workplace" [ref=f3e54] [cursor=pointer]
+            - button "Country or timezone" [ref=f3e62] [cursor=pointer]
+            - generic [ref=f3e70]:
+              - log [ref=f3e72]
+              - button "Seniority" [ref=f3e73] [cursor=pointer]
+            - button "Pay" [ref=f3e80] [cursor=pointer]
+            - generic [ref=f3e88]:
+              - log [ref=f3e90]
+              - button "Travel" [ref=f3e91] [cursor=pointer]
+        - generic [ref=f3e101]:
+          - log [ref=f3e103]
+          - button "Most recent" [ref=f3e104] [cursor=pointer]
+        - generic [ref=f3e111]:
+          - article [ref=f3e112]:
+            - generic [ref=f3e113]:
+              - generic [ref=f3e115]:
+                - generic [ref=f3e116]:
+                  - generic [ref=f3e117]: 8 days ago
+                  - button "remote - GMT-6 to GMT-4 only" [ref=f3e118] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e123]
+              - generic [ref=f3e127]:
+                - generic [ref=f3e128]:
+                  - img "Synergy Injury Relief PLLC" [ref=f3e130]
+                  - generic [ref=f3e131]:
+                    - link "Spanish Medical Interpreter" [ref=f3e132] [cursor=pointer]:
+                      - /url: /jobs/synergy-injury-relief-pllc-c1t4j3ey/spanish-medical-interpreter-j133hpn2
+                    - generic [ref=f3e134]: Synergy Injury Relief PLLC
+                - generic [ref=f3e135]:
+                  - generic [ref=f3e136]:
+                    - text: 2 - 4 USD
+                    - generic [ref=f3e137]: /year
+                  - list [ref=f3e138]:
+                    - listitem [ref=f3e139]:
+                      - generic [ref=f3e142]: Quick apply
+                    - listitem [ref=f3e143]:
+                      - generic [ref=f3e146]: Remote
+                    - listitem [ref=f3e147]:
+                      - generic [ref=f3e150]: GMT-6 to GMT-4
+                    - listitem [ref=f3e151]:
+                      - generic [ref=f3e154]: Full-time
+          - article [ref=f3e155]:
+            - generic [ref=f3e156]:
+              - generic [ref=f3e158]:
+                - generic [ref=f3e159]:
+                  - generic [ref=f3e160]: 11 days ago
+                  - generic [ref=f3e161]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e163]
+              - generic [ref=f3e167]:
+                - generic [ref=f3e168]:
+                  - img "Proxify" [ref=f3e170]
+                  - generic [ref=f3e171]:
+                    - link "Senior Backend Developer (Python/Django)" [ref=f3e172] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-backend-developer-python-django-j12wcpci
+                    - generic [ref=f3e174]: Proxify
+                - generic [ref=f3e175]:
+                  - generic [ref=f3e176]:
+                    - text: 3k - 6k EUR
+                    - generic [ref=f3e177]: /month
+                  - list [ref=f3e178]:
+                    - listitem [ref=f3e179]:
+                      - generic [ref=f3e182]: Remote
+                    - listitem [ref=f3e183]:
+                      - generic [ref=f3e186]: Anywhere
+                    - listitem [ref=f3e189]:
+                      - generic [ref=f3e192]: Contract
+          - article [ref=f3e193]:
+            - generic [ref=f3e194]:
+              - generic [ref=f3e196]:
+                - generic [ref=f3e197]:
+                  - generic [ref=f3e198]: 11 days ago
+                  - generic [ref=f3e199]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e201]
+              - generic [ref=f3e205]:
+                - generic [ref=f3e206]:
+                  - img "Proxify" [ref=f3e208]
+                  - generic [ref=f3e209]:
+                    - link "Senior DevOps Engineer (Azure)" [ref=f3e210] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-devops-engineer-azure-j11znpnd
+                    - generic [ref=f3e212]: Proxify
+                - generic [ref=f3e213]:
+                  - generic [ref=f3e214]:
+                    - text: 3k - 7k EUR
+                    - generic [ref=f3e215]: /month
+                  - list [ref=f3e216]:
+                    - listitem [ref=f3e217]:
+                      - generic [ref=f3e220]: Remote
+                    - listitem [ref=f3e221]:
+                      - generic [ref=f3e224]: Anywhere
+                    - listitem [ref=f3e227]:
+                      - generic [ref=f3e230]: Contract
+          - article [ref=f3e231]:
+            - generic [ref=f3e232]:
+              - generic [ref=f3e234]:
+                - generic [ref=f3e235]:
+                  - generic [ref=f3e236]: 11 days ago
+                  - generic [ref=f3e237]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e239]
+              - generic [ref=f3e243]:
+                - generic [ref=f3e244]:
+                  - img "Proxify" [ref=f3e246]
+                  - generic [ref=f3e247]:
+                    - link "Senior Sharepoint Developer" [ref=f3e248] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-sharepoint-developer-j11kaqv4
+                    - generic [ref=f3e250]: Proxify
+                - generic [ref=f3e251]:
+                  - generic [ref=f3e252]:
+                    - text: 4k - 8k EUR
+                    - generic [ref=f3e253]: /month
+                  - list [ref=f3e254]:
+                    - listitem [ref=f3e255]:
+                      - generic [ref=f3e258]: Remote
+                    - listitem [ref=f3e259]:
+                      - generic [ref=f3e262]: Anywhere
+                    - listitem [ref=f3e265]:
+                      - generic [ref=f3e268]: Contract
+          - article [ref=f3e269]:
+            - generic [ref=f3e270]:
+              - generic [ref=f3e272]:
+                - generic [ref=f3e273]:
+                  - generic [ref=f3e274]: 11 days ago
+                  - generic [ref=f3e275]: fully remote
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e277]
+              - generic [ref=f3e281]:
+                - generic [ref=f3e282]:
+                  - img "Proxify" [ref=f3e284]
+                  - generic [ref=f3e285]:
+                    - link "Senior Frontend Developer (React.js)" [ref=f3e286] [cursor=pointer]:
+                      - /url: /jobs/proxify-c114ohln/senior-frontend-developer-react-js-j124ckja
+                    - generic [ref=f3e288]: Proxify
+                - generic [ref=f3e289]:
+                  - generic [ref=f3e290]:
+                    - text: 4k - 8k EUR
+                    - generic [ref=f3e291]: /month
+                  - list [ref=f3e292]:
+                    - listitem [ref=f3e293]:
+                      - generic [ref=f3e296]: Remote
+                    - listitem [ref=f3e297]:
+                      - generic [ref=f3e300]: Anywhere
+                    - listitem [ref=f3e303]:
+                      - generic [ref=f3e306]: Contract
+          - article [ref=f3e307]:
+            - generic [ref=f3e308]:
+              - generic [ref=f3e310]:
+                - generic [ref=f3e311]:
+                  - generic [ref=f3e312]: 21 days ago
+                  - generic [ref=f3e313]: remote - South Africa only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e315]
+              - generic [ref=f3e319]:
+                - generic [ref=f3e320]:
+                  - img "Tru7 Group" [ref=f3e322]
+                  - generic [ref=f3e323]:
+                    - link "Accounts Assistant" [ref=f3e324] [cursor=pointer]:
+                      - /url: /jobs/tru7-group-c1cx0bjv/accounts-assistant-j1uupe1j
+                    - generic [ref=f3e326]: Tru7 Group
+                - generic [ref=f3e327]:
+                  - generic [ref=f3e328]:
+                    - text: 10k - 15k USD
+                    - generic [ref=f3e329]: /year
+                  - list [ref=f3e330]:
+                    - listitem [ref=f3e331]:
+                      - generic [ref=f3e334]: Quick apply
+                    - listitem [ref=f3e335]:
+                      - generic [ref=f3e338]: Remote
+                    - listitem [ref=f3e339]:
+                      - generic [ref=f3e342]: South Africa only
+                    - listitem [ref=f3e343]:
+                      - generic [ref=f3e346]: Full-time
+          - article [ref=f3e347]:
+            - generic [ref=f3e348]:
+              - generic [ref=f3e350]:
+                - generic [ref=f3e351]:
+                  - generic [ref=f3e352]: 21 days ago
+                  - generic [ref=f3e353]: remote - South Africa only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e355]
+              - generic [ref=f3e359]:
+                - generic [ref=f3e360]:
+                  - img "Tru7 Group" [ref=f3e362]
+                  - generic [ref=f3e363]:
+                    - link "Purchase Ledger Clerk" [ref=f3e364] [cursor=pointer]:
+                      - /url: /jobs/tru7-group-c1cx0bjv/purchase-ledger-clerk-j1hbgnso
+                    - generic [ref=f3e366]: Tru7 Group
+                - generic [ref=f3e367]:
+                  - generic [ref=f3e368]:
+                    - text: 10k - 15k USD
+                    - generic [ref=f3e369]: /year
+                  - list [ref=f3e370]:
+                    - listitem [ref=f3e371]:
+                      - generic [ref=f3e374]: Quick apply
+                    - listitem [ref=f3e375]:
+                      - generic [ref=f3e378]: Remote
+                    - listitem [ref=f3e379]:
+                      - generic [ref=f3e382]: South Africa only
+                    - listitem [ref=f3e383]:
+                      - generic [ref=f3e386]: Full-time
+          - article [ref=f3e387]:
+            - generic [ref=f3e388]:
+              - generic [ref=f3e390]:
+                - generic [ref=f3e391]:
+                  - generic [ref=f3e392]: 1 month ago
+                  - button "remote - GMT-6 to GMT-4 only" [ref=f3e393] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e398]
+              - generic [ref=f3e402]:
+                - generic [ref=f3e403]:
+                  - img "Synergy Injury Relief PLLC" [ref=f3e405]
+                  - generic [ref=f3e406]:
+                    - link "Procedure Coordinator" [ref=f3e407] [cursor=pointer]:
+                      - /url: /jobs/synergy-injury-relief-pllc-c1t4j3ey/procedure-coordinator-j1z22m8z
+                    - generic [ref=f3e409]: Synergy Injury Relief PLLC
+                - generic [ref=f3e410]:
+                  - generic [ref=f3e411]:
+                    - text: 2 - 5 USD
+                    - generic [ref=f3e412]: /hour
+                  - list [ref=f3e413]:
+                    - listitem [ref=f3e414]:
+                      - generic [ref=f3e417]: Quick apply
+                    - listitem [ref=f3e418]:
+                      - generic [ref=f3e421]: Remote
+                    - listitem [ref=f3e422]:
+                      - generic [ref=f3e425]: GMT-6 to GMT-4
+                    - listitem [ref=f3e426]:
+                      - generic [ref=f3e429]: Full-time
+          - article [ref=f3e430]:
+            - generic [ref=f3e431]:
+              - generic [ref=f3e433]:
+                - generic [ref=f3e434]:
+                  - generic [ref=f3e435]: 1 month ago
+                  - generic [ref=f3e436]: frequent travel
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e438]
+              - generic [ref=f3e442]:
+                - generic [ref=f3e443]:
+                  - img "KAL ATM Software GmbH" [ref=f3e445]
+                  - generic [ref=f3e446]:
+                    - link "Business Development Manager" [ref=f3e447] [cursor=pointer]:
+                      - /url: /jobs/kal-atm-software-gmbh-c1tdeje2/business-development-manager-j1xr2ywa
+                    - generic [ref=f3e449]: KAL ATM Software GmbH
+                - generic [ref=f3e450]:
+                  - generic [ref=f3e451]:
+                    - text: 55k - 65k CAD
+                    - generic [ref=f3e452]: /year
+                  - list [ref=f3e453]:
+                    - listitem [ref=f3e454]:
+                      - generic [ref=f3e457]: Quick apply
+                    - listitem [ref=f3e458]:
+                      - generic [ref=f3e461]: Hybrid
+                    - listitem [ref=f3e462]:
+                      - generic [ref=f3e465]: Toronto, Canada
+                    - listitem [ref=f3e466]:
+                      - generic [ref=f3e469]: Full-time
+          - article [ref=f3e470]:
+            - generic [ref=f3e471]:
+              - generic [ref=f3e473]:
+                - generic [ref=f3e474]:
+                  - generic [ref=f3e475]: 2 months ago
+                  - generic [ref=f3e476]: occasional travel
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e478]
+              - generic [ref=f3e482]:
+                - generic [ref=f3e483]:
+                  - img "Quectel" [ref=f3e485]
+                  - generic [ref=f3e486]:
+                    - link "Automotive Software Application Engineer" [ref=f3e487] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/automotive-software-application-engineer-j1148305
+                    - generic [ref=f3e489]: Quectel
+                - list [ref=f3e491]:
+                  - listitem [ref=f3e492]:
+                    - generic [ref=f3e495]: Quick apply
+                  - listitem [ref=f3e496]:
+                    - generic [ref=f3e499]: On-site
+                  - listitem [ref=f3e500]:
+                    - generic [ref=f3e503]: Bayan Lepas, Malaysia
+                  - listitem [ref=f3e504]:
+                    - generic [ref=f3e507]: Full-time
+          - article [ref=f3e508]:
+            - generic [ref=f3e509]:
+              - generic [ref=f3e511]:
+                - generic [ref=f3e512]:
+                  - generic [ref=f3e513]: 2 months ago
+                  - generic [ref=f3e514]: frequent travel
+                  - generic [ref=f3e516]: remote - Israel only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e518]
+              - generic [ref=f3e522]:
+                - generic [ref=f3e523]:
+                  - img "Quectel" [ref=f3e525]
+                  - generic [ref=f3e526]:
+                    - link "Regional Sales Manager - Israel" [ref=f3e527] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/regional-sales-manager-israel-j1mrf41c
+                    - generic [ref=f3e529]: Quectel
+                - list [ref=f3e531]:
+                  - listitem [ref=f3e532]:
+                    - generic [ref=f3e535]: Quick apply
+                  - listitem [ref=f3e536]:
+                    - generic [ref=f3e539]: Remote
+                  - listitem [ref=f3e540]:
+                    - generic [ref=f3e543]: Israel only
+                  - listitem [ref=f3e544]:
+                    - generic [ref=f3e547]: Full-time
+          - article [ref=f3e548]:
+            - generic [ref=f3e549]:
+              - generic [ref=f3e551]:
+                - generic [ref=f3e552]:
+                  - generic [ref=f3e553]: 2 months ago
+                  - generic [ref=f3e554]: frequent travel
+                  - generic [ref=f3e556]: remote - Europe only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e558]
+              - generic [ref=f3e562]:
+                - generic [ref=f3e563]:
+                  - img "Quectel" [ref=f3e565]
+                  - generic [ref=f3e566]:
+                    - link "Antenna Sales Manager" [ref=f3e567] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/antenna-sales-manager-j1ql40gb
+                    - generic [ref=f3e569]: Quectel
+                - list [ref=f3e571]:
+                  - listitem [ref=f3e572]:
+                    - generic [ref=f3e575]: Remote
+                  - listitem [ref=f3e576]:
+                    - generic [ref=f3e579]: Europe only
+                  - listitem [ref=f3e580]:
+                    - generic [ref=f3e583]: Full-time
+          - article [ref=f3e584]:
+            - generic [ref=f3e585]:
+              - generic [ref=f3e587]:
+                - generic [ref=f3e588]:
+                  - generic [ref=f3e589]: 2 months ago
+                  - generic [ref=f3e590]: frequent travel
+                  - button "remote - Belgium +1 more" [ref=f3e592] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e597]
+              - generic [ref=f3e601]:
+                - generic [ref=f3e602]:
+                  - img "Quectel" [ref=f3e604]
+                  - generic [ref=f3e605]:
+                    - link "Regional Sales Manager - Benelux" [ref=f3e606] [cursor=pointer]:
+                      - /url: /jobs/quectel-c1156591/regional-sales-manager-benelux-j12h74my
+                    - generic [ref=f3e608]: Quectel
+                - list [ref=f3e610]:
+                  - listitem [ref=f3e611]:
+                    - generic [ref=f3e614]: Remote
+                  - listitem [ref=f3e615]:
+                    - button "Belgium +1 more" [ref=f3e619] [cursor=pointer]
+                  - listitem [ref=f3e620]:
+                    - generic [ref=f3e623]: Full-time
+          - article [ref=f3e624]:
+            - generic [ref=f3e625]:
+              - generic [ref=f3e627]:
+                - generic [ref=f3e628]:
+                  - generic [ref=f3e629]: 2 months ago
+                  - button "remote - Argentina +5 more" [ref=f3e630] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e635]
+              - generic [ref=f3e639]:
+                - generic [ref=f3e640]:
+                  - img "Laborde Earles Law Firm,LLC" [ref=f3e642]
+                  - generic [ref=f3e643]:
+                    - link "Legal Assistant (Intake/Case Closer)" [ref=f3e644] [cursor=pointer]:
+                      - /url: /jobs/laborde-earles-law-firm-llc-c1pyv6u2/legal-assistant-intake-case-closer-j12ovrp4
+                    - generic [ref=f3e646]: Laborde Earles Law Firm,LLC
+                - generic [ref=f3e647]:
+                  - generic [ref=f3e648]:
+                    - text: 4 - 6 USD
+                    - generic [ref=f3e649]: /hour
+                  - list [ref=f3e650]:
+                    - listitem [ref=f3e651]:
+                      - generic [ref=f3e654]: Remote
+                    - listitem [ref=f3e655]:
+                      - button "Argentina +5 more" [ref=f3e659] [cursor=pointer]
+                    - listitem [ref=f3e660]:
+                      - generic [ref=f3e663]: Full-time
+          - article [ref=f3e664]:
+            - generic [ref=f3e665]:
+              - generic [ref=f3e667]:
+                - generic [ref=f3e668]:
+                  - generic [ref=f3e669]: 2 months ago
+                  - button "remote - GMT-6 to GMT-4 only" [ref=f3e670] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e675]
+              - generic [ref=f3e679]:
+                - generic [ref=f3e680]:
+                  - img "Synergy Injury Relief PLLC" [ref=f3e682]
+                  - generic [ref=f3e683]:
+                    - link "Patient Care Coordinator" [ref=f3e684] [cursor=pointer]:
+                      - /url: /jobs/synergy-injury-relief-pllc-c1t4j3ey/patient-care-coordinator-j17x9x4f
+                    - generic [ref=f3e686]: Synergy Injury Relief PLLC
+                - generic [ref=f3e687]:
+                  - generic [ref=f3e688]:
+                    - text: 2 - 4 USD
+                    - generic [ref=f3e689]: /hour
+                  - list [ref=f3e690]:
+                    - listitem [ref=f3e691]:
+                      - generic [ref=f3e694]: Quick apply
+                    - listitem [ref=f3e695]:
+                      - generic [ref=f3e698]: Remote
+                    - listitem [ref=f3e699]:
+                      - generic [ref=f3e702]: GMT-6 to GMT-4
+                    - listitem [ref=f3e703]:
+                      - generic [ref=f3e706]: Full-time
+          - article [ref=f3e707]:
+            - generic [ref=f3e708]:
+              - generic [ref=f3e710]:
+                - generic [ref=f3e711]:
+                  - generic [ref=f3e712]: 3 months ago
+                  - button "remote - GMT-8 to GMT-4 only" [ref=f3e713] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e718]
+              - generic [ref=f3e722]:
+                - generic [ref=f3e723]:
+                  - img "Reputation Resolutions" [ref=f3e725]
+                  - generic [ref=f3e726]:
+                    - link "Sales Operations Assistant" [ref=f3e727] [cursor=pointer]:
+                      - /url: /jobs/reputation-resolutions-c1cdbs9e/sales-operations-assistant-j1u01hdu
+                    - generic [ref=f3e729]: Reputation Resolutions
+                - list [ref=f3e731]:
+                  - listitem [ref=f3e732]:
+                    - generic [ref=f3e735]: Quick apply
+                  - listitem [ref=f3e736]:
+                    - generic [ref=f3e739]: Remote
+                  - listitem [ref=f3e740]:
+                    - generic [ref=f3e743]: GMT-8 to GMT-4
+                  - listitem [ref=f3e744]:
+                    - generic [ref=f3e747]: Contract
+          - article [ref=f3e748]:
+            - generic [ref=f3e749]:
+              - generic [ref=f3e751]:
+                - generic [ref=f3e752]:
+                  - generic [ref=f3e753]: 3 months ago
+                  - button "remote - GMT-11 to GMT-1 only" [ref=f3e754] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e759]
+              - generic [ref=f3e763]:
+                - generic [ref=f3e764]:
+                  - img "Reputation Resolutions" [ref=f3e766]
+                  - generic [ref=f3e767]:
+                    - link "Partner Operations Support Specialist" [ref=f3e768] [cursor=pointer]:
+                      - /url: /jobs/reputation-resolutions-c1cdbs9e/partner-operations-support-specialist-j18cxiv9
+                    - generic [ref=f3e770]: Reputation Resolutions
+                - generic [ref=f3e771]:
+                  - generic [ref=f3e772]:
+                    - text: 5 - 7 USD
+                    - generic [ref=f3e773]: /hour
+                  - list [ref=f3e774]:
+                    - listitem [ref=f3e775]:
+                      - generic [ref=f3e778]: Quick apply
+                    - listitem [ref=f3e779]:
+                      - generic [ref=f3e782]: Remote
+                    - listitem [ref=f3e783]:
+                      - generic [ref=f3e786]: GMT-11 to GMT-1
+                    - listitem [ref=f3e787]:
+                      - generic [ref=f3e790]: Contract
+          - article [ref=f3e791]:
+            - generic [ref=f3e792]:
+              - generic [ref=f3e794]:
+                - generic [ref=f3e795]:
+                  - generic [ref=f3e796]: 4 months ago
+                  - generic [ref=f3e797]: occasional travel
+                  - button "remote - GMT+0 to GMT+4 only" [ref=f3e799] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e804]
+              - generic [ref=f3e808]:
+                - generic [ref=f3e809]:
+                  - img "Kendrion Group" [ref=f3e811]
+                  - generic [ref=f3e812]:
+                    - link "Global Network Engineer [M/F/X]" [ref=f3e813] [cursor=pointer]:
+                      - /url: /jobs/kendrion-group-c1xglxrk/global-network-engineer-m-f-x-j1ctdweg
+                    - generic [ref=f3e815]: Kendrion Group
+                - generic [ref=f3e816]:
+                  - generic [ref=f3e817]:
+                    - text: 40k - 80k EUR
+                    - generic [ref=f3e818]: /year
+                  - list [ref=f3e819]:
+                    - listitem [ref=f3e820]:
+                      - generic [ref=f3e823]: Quick apply
+                    - listitem [ref=f3e824]:
+                      - generic [ref=f3e827]: Remote
+                    - listitem [ref=f3e828]:
+                      - generic [ref=f3e831]: GMT+0 to GMT+4
+                    - listitem [ref=f3e832]:
+                      - generic [ref=f3e835]: Full-time
+          - article [ref=f3e836]:
+            - generic [ref=f3e837]:
+              - generic [ref=f3e839]:
+                - generic [ref=f3e840]:
+                  - generic [ref=f3e841]: 4 months ago
+                  - generic [ref=f3e842]: remote - Latin America only
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e844]
+              - generic [ref=f3e848]:
+                - generic [ref=f3e849]:
+                  - img "EWTN" [ref=f3e851]
+                  - generic [ref=f3e852]:
+                    - link "Engineering, Native App" [ref=f3e853] [cursor=pointer]:
+                      - /url: /jobs/ewtn-c15kyqza/engineering-native-app-j10n3cyx
+                    - generic [ref=f3e855]: EWTN
+                - list [ref=f3e857]:
+                  - listitem [ref=f3e858]:
+                    - generic [ref=f3e861]: Quick apply
+                  - listitem [ref=f3e862]:
+                    - generic [ref=f3e865]: Remote
+                  - listitem [ref=f3e866]:
+                    - generic [ref=f3e869]: Latin America only
+                  - listitem [ref=f3e870]:
+                    - generic [ref=f3e873]: Full-time
+          - article [ref=f3e874]:
+            - generic [ref=f3e875]:
+              - generic [ref=f3e877]:
+                - generic [ref=f3e878]:
+                  - generic [ref=f3e879]: 5 months ago
+                  - button "remote - GMT-9 to GMT-3 only" [ref=f3e880] [cursor=pointer]
+                - button "Log in or sign up to save jobs" [disabled] [ref=f3e885]
+              - generic [ref=f3e889]:
+                - generic [ref=f3e890]:
+                  - img "Reputation Resolutions" [ref=f3e892]
+                  - generic [ref=f3e893]:
+                    - link "Online Reputation Account Manager" [ref=f3e894] [cursor=pointer]:
+                      - /url: /jobs/reputation-resolutions-c1cdbs9e/online-reputation-account-manager-j183sbch
+                    - generic [ref=f3e896]: Reputation Resolutions
+                - generic [ref=f3e897]:
+                  - generic [ref=f3e898]:
+                    - text: 20 - 25 USD
+                    - generic [ref=f3e899]: /hour
+                  - list [ref=f3e900]:
+                    - listitem [ref=f3e901]:
+                      - generic [ref=f3e904]: Quick apply
+                    - listitem [ref=f3e905]:
+                      - generic [ref=f3e908]: Remote
+                    - listitem [ref=f3e909]:
+                      - generic [ref=f3e912]: GMT-9 to GMT-3
+                    - listitem [ref=f3e913]:
+                      - generic [ref=f3e916]: Contract
+        - navigation "Pagination" [ref=f3e917]:
+          - list [ref=f3e918]:
+            - listitem
+            - listitem [ref=f3e919]:
+              - link "Page 1 is your current page" [ref=f3e920] [cursor=pointer]:
+                - /url: /jobs/all?page=1
+                - text: "1"
+            - listitem [ref=f3e921]:
+              - link "Page 2" [ref=f3e922] [cursor=pointer]:
+                - /url: /jobs/all?page=2
+                - text: "2"
+            - listitem [ref=f3e923]:
+              - link "Page 3" [ref=f3e924] [cursor=pointer]:
+                - /url: /jobs/all?page=3
+                - text: "3"
+            - listitem [ref=f3e925]:
+              - link "Page 4" [ref=f3e926] [cursor=pointer]:
+                - /url: /jobs/all?page=4
+                - text: "4"
+            - listitem [ref=f3e927]:
+              - button "..." [ref=f3e928] [cursor=pointer]
+            - listitem [ref=f3e929]:
+              - link "Page 266" [ref=f3e930] [cursor=pointer]:
+                - /url: /jobs/all?page=266
+                - text: "266"
+            - listitem [ref=f3e931]:
+              - button "Next page" [ref=f3e932] [cursor=pointer]
+    - generic [ref=f3e935]:
+      - generic [ref=f3e938]:
+        - img "person-on-chair" [ref=f3e939]
+        - generic [ref=f3e940]:
+          - generic [ref=f3e941]: Live anywhere, work everywhere.
+          - link "Sign up for free" [ref=f3e942] [cursor=pointer]:
+            - /url: /jobs/sign-up
+      - contentinfo [ref=f3e946]:
+        - generic [ref=f3e947]:
+          - generic [ref=f3e948]:
+            - img "remote.com/jobs" [ref=f3e949]
+            - link [ref=f3e951] [cursor=pointer]:
+              - /url: https://www.producthunt.com/posts/remote-talent?utm_source=badge-top-post-badge&utm_medium=badge&utm_souce=badge-remote-talent
+              - img "Remote Talent - Find the best remote jobs on the planet | Product Hunt" [ref=f3e952]
+          - generic [ref=f3e953]:
+            - generic [ref=f3e954]:
+              - generic [ref=f3e955]: Company
+              - list [ref=f3e956]:
+                - listitem [ref=f3e957]:
+                  - link "About Remote" [ref=f3e958] [cursor=pointer]:
+                    - /url: https://remote.com/about
+                - listitem [ref=f3e960]:
+                  - link "Careers" [ref=f3e961] [cursor=pointer]:
+                    - /url: https://remote.com/careers
+                - listitem [ref=f3e963]:
+                  - link "Support" [ref=f3e964] [cursor=pointer]:
+                    - /url: https://support.remote.com/hc/en-us
+                - listitem [ref=f3e966]:
+                  - link "Contact us" [ref=f3e967] [cursor=pointer]:
+                    - /url: https://remote.com/contact-us
+            - generic [ref=f3e969]:
+              - generic [ref=f3e970]: For job seekers
+              - list [ref=f3e971]:
+                - listitem [ref=f3e972]:
+                  - link "Sign up with Remote Jobs" [ref=f3e973] [cursor=pointer]:
+                    - /url: /jobs/sign-up
+                - listitem [ref=f3e975]:
+                  - link "Browse remote jobs" [ref=f3e976] [cursor=pointer]:
+                    - /url: /jobs/all
+            - generic [ref=f3e978]:
+              - generic [ref=f3e979]: Remote work
+              - list [ref=f3e980]:
+                - listitem [ref=f3e981]:
+                  - link "Remote jobs by category" [ref=f3e982] [cursor=pointer]:
+                    - /url: /jobs/types-of-remote-jobs
+          - generic [ref=f3e984]:
+            - generic [ref=f3e985]: Copyright © 2024. Remote Technology, Inc. All rights reserved.
+            - list [ref=f3e987]:
+              - listitem [ref=f3e988]:
+                - link "Privacy Policy" [ref=f3e989] [cursor=pointer]:
+                  - /url: https://remote.com/privacy-policy
+              - listitem [ref=f3e991]:
+                - link "Cookie Policy" [ref=f3e992] [cursor=pointer]:
+                  - /url: https://remote.com/cookie-policy
+              - listitem [ref=f3e994]:
+                - link "Terms of Use" [ref=f3e995] [cursor=pointer]:
+                  - /url: https://remote.com/terms-of-use
+              - list [ref=f3e997]:
+                - listitem [ref=f3e998]:
+                  - link [ref=f3e999] [cursor=pointer]:
+                    - /url: https://www.youtube.com/channel/UCPJsrP8zyttajAybEMQBNgA
+                    - img "Youtube logo" [ref=f3e1000]
+                - listitem [ref=f3e1001]:
+                  - link [ref=f3e1002] [cursor=pointer]:
+                    - /url: https://www.linkedin.com/company/remote.com/
+                    - img "Linkedin logo" [ref=f3e1003]
+                - listitem [ref=f3e1004]:
+                  - link [ref=f3e1005] [cursor=pointer]:
+                    - /url: https://twitter.com/remote
+                    - img "Twitter logo" [ref=f3e1006]
+                - listitem [ref=f3e1007]:
+                  - link [ref=f3e1008] [cursor=pointer]:
+                    - /url: https://www.instagram.com/remote/
+                    - img "Instagram logo" [ref=f3e1009]
+  - alert [ref=f3e1010]

@@ -25,6 +25,11 @@ export const applicant = pgTable("applicant", {
     .references(() => user.id, { onDelete: "cascade" }),
 
   isOnboarded: boolean("is_onboarded").default(false),
+
+  // Gate 4: GitHub login, written only by the Better Auth GitHub OAuth callback.
+  // Used for mutual-path hooks and identity-based refusal keying.
+  githubHandle: text("github_handle"),
+
   country: text("country"), // ISO 3166-1 alpha-2
   canWorkUsHours: boolean("can_work_us_hours"),
 

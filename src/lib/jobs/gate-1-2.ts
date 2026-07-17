@@ -271,19 +271,24 @@ export async function runGateSQLRouter(
                 AND (COALESCE(location_name, '') ~* ';' OR COALESCE(location_name, '') ~* '^[a-z].*,\s*[a-z]' OR length(trim(COALESCE(location_name, ''))) < 50)
               )
              ) AS is_fenced,
-             -- Directive 11 Fix 2: National-security keyword gate (SQL backstop)
-             -- Rejects jobs with security clearance, ITAR, DoD, US citizenship, etc.
-             -- Uses \m (start of word) and \M (end of word) for word boundaries
-             -- to prevent false positives (e.g., "ear" matching "year", "itar" matching "avatar")
+             -- Directive 11 Fix 2 + Directive 12 Step 2.4: National-security keyword gate
+             -- Hard-fence keywords always trigger (clearance, export control, defense agencies)
+             -- Context-dependent keywords (e-verify, background check, public trust) only
+             -- trigger if clearance context is also present. This fixes the ~25% false-rejection
+             -- rate caused by e-verify appearing in every US company's standard legal text.
              (title ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
               OR title ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
-              OR title ~* '(\mitar\M|\mear\M|export control|\mdod\M|department of defense|defense contract)'
+              OR title ~* '(\mitar\M|export control|\mdod\M|department of defense|defense contract)'
               OR title ~* '(national security|homeland security|intelligence community)'
               OR COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
               OR COALESCE(normalized_text, '') ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
-              OR COALESCE(normalized_text, '') ~* '(\mitar\M|\mear\M|export control|\mdod\M|department of defense|defense contract)'
+              OR COALESCE(normalized_text, '') ~* '(\mitar\M|export control|\mdod\M|department of defense|defense contract)'
               OR COALESCE(normalized_text, '') ~* '(national security|homeland security|intelligence community)'
-              OR COALESCE(normalized_text, '') ~* '(e-verify|everify|public trust|polygraph|counterintelligence)'
+              -- Context-dependent: e-verify/background-check only if clearance context present
+              OR (
+                COALESCE(normalized_text, '') ~* '(e-verify|everify|public trust|polygraph|counterintelligence|background investigation)'
+                AND COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance|\mitar\M|export control|\mdod\M|department of defense|defense contract|national security|homeland security|intelligence community)'
+              )
              ) AS is_natsec,
              -- Directive 11 Fix 3: QA role gate (SQL backstop)
              -- Rejects QA/SDET/test-automation roles that aren't developer positions
