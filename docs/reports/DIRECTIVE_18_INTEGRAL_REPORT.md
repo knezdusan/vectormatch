@@ -11,7 +11,7 @@
 
 **The matcher was the blocker. Four distinct breaks identified, localized, and fixed.**
 
-The system is NOT at a market cap. The corpus receives 30-40 genuinely-global web-dev jobs/day, and the dashboard delivered ZERO across three mainstream-stack personas in 24h. That gap was the matching pipeline destroying qualified jobs between corpus and dashboard. This directive opened it.
+The system is NOT at a market cap. The corpus receives 30-40 genuinely-global web-dev jobs/day, and the dashboard delivered ZERO across three mainstream-stack personas in 24h. That gap was the matching pipeline destroying qualified jobs between corpus and dashboard. This directive opened it. 
 
 ---
 
