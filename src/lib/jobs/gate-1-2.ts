@@ -35,7 +35,9 @@ import {
   GATE_ROUTER_LIMIT,
   GATE1_MIN_OVERLAP,
   GATE1_WEIGHT,
+  GATE2_HARD_CEILING,
   GATE2_MAX_COSINE_DISTANCE,
+  GATE2_RANK_ONLY,
   GATE2_WEIGHT,
 } from "@/lib/jobs/matching-config";
 
@@ -311,7 +313,15 @@ export async function runGateSQLRouter(
     WHERE
       ${gate1Clause}
       ${minOverlapClause}
-      AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
+      -- D18 Gate Re-architecture: Gate 2 is now a RANK signal, not a GATE.
+      -- In rank-only mode (default), the cosine distance threshold is widened
+      -- to GATE2_HARD_CEILING (0.75) — jobs that pass hard filters + stack match
+      -- are ALL inserted, ordered by semantic distance. This eliminates the
+      -- "cosine cliff" where perfect matches at 0.5036 were rejected for being
+      -- 0.0036 over the threshold.
+      -- In gate mode (GATE2_RANK_ONLY=false), the original GATE2_MAX_COSINE_DISTANCE
+      -- threshold is used as a hard exclusion.
+      AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_RANK_ONLY ? GATE2_HARD_CEILING : GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
       AND jm.remote_scope = 'global'
       AND NOT jm.is_fenced

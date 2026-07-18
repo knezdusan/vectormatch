@@ -55,6 +55,33 @@ export const GATE2_MAX_COSINE_DISTANCE = Number(
 );
 
 /**
+ * D18 Gate Re-architecture: When true, Gate 2 (cosine distance) becomes a
+ * RANK signal instead of a GATE (exclusion). Jobs that pass hard filters
+ * (scope, fence, natsec, qa) + stack match (tag overlap + stack-disjoint)
+ * are ALL inserted into match_queue, ordered by semantic distance.
+ *
+ * This eliminates the "cosine cliff" problem where perfect matches at
+ * distance 0.5036 were rejected for being 0.0036 over the threshold.
+ * The threshold becomes a soft ceiling for Gate 3 prioritization, not
+ * a hard exclusion.
+ *
+ * The GATE2_MAX_COSINE_DISTANCE still serves as a wide safety net —
+ * jobs above GATE2_HARD_CEILING (default 0.75) are excluded even in
+ * rank-only mode, to prevent truly unrelated jobs from entering the queue.
+ */
+export const GATE2_RANK_ONLY = process.env.GATE2_RANK_ONLY !== "false";
+
+/**
+ * Hard ceiling for cosine distance — even in rank-only mode, jobs above
+ * this distance are excluded. This prevents truly unrelated jobs from
+ * entering the queue. 0.75 = similarity > 0.25, which is a very permissive
+ * floor that still excludes completely unrelated content.
+ */
+export const GATE2_HARD_CEILING = Number(
+  process.env.GATE2_HARD_CEILING ?? 0.75,
+);
+
+/**
  * Minimum number of must-have tag overlaps required for a job to pass Gate 1.
  *
  * A persona with must_have_tags = [typescript, nextjs, react, nodejs, prompt-engineering]

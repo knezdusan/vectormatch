@@ -2648,6 +2648,37 @@ export const jobIngestedHandler = inngest.createFunction(
       });
 
       if (idempotencyDecision.action === "skip") {
+        // D18 Idempotency Trap Fix: If the job is already normalized but has
+        // NO match_queue entries, the gate router was never run (the handler
+        // crashed after Step 4 but before Step 5 on a previous invocation).
+        // Instead of skipping entirely, route the job to the gate router.
+        if (jobRow.status === "active" && jobRow.normalizedAt !== null) {
+          // Fetch embedding + tags to run the gate router directly
+          const { job: jobSchema } = await import("@/db/schemas/jobs/job");
+          const fullJob = await db
+            .select({
+              id: jobSchema.id,
+              extractedTags: jobSchema.extractedTags,
+              jobEmbedding: jobSchema.jobEmbedding,
+            })
+            .from(jobSchema)
+            .where(eq(jobSchema.id, jobId))
+            .limit(1);
+
+          if (
+            fullJob.length > 0 &&
+            fullJob[0].jobEmbedding !== null &&
+            fullJob[0].extractedTags &&
+            fullJob[0].extractedTags.length > 0
+          ) {
+            return {
+              action: "route-only" as const,
+              job: jobRow,
+              tags: fullJob[0].extractedTags,
+              embedding: fullJob[0].jobEmbedding as unknown as number[],
+            };
+          }
+        }
         return {
           action: "skip" as const,
           reason: idempotencyDecision.reason,
@@ -2656,6 +2687,46 @@ export const jobIngestedHandler = inngest.createFunction(
 
       return { action: "normalize" as const, job: jobRow };
     });
+
+    // D18: If the job is already normalized but was never routed (idempotency
+    // trap), skip normalization and go directly to gate routing.
+    if (decision.action === "route-only") {
+      // Skip Steps 2-4.5, go directly to Step 5 (gate router).
+      const candidates = await step.run(
+        "gate-1-2-router-recovery",
+        async () => {
+          const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
+          return runGateSQLRouter(
+            jobId,
+            decision.tags,
+            decision.embedding ?? [],
+          );
+        },
+      );
+
+      if (candidates.length > 0) {
+        await step.sendEvent(
+          `fan-out-gate-3-recovery-${jobId}`,
+          candidates.map((c) => ({
+            id: `gate-3-recovery-${c.matchQueueId}`,
+            name: "match/gate-3-evaluate",
+            data: {
+              matchQueueId: c.matchQueueId,
+              jobId,
+              personaId: c.personaId,
+              applicantId: c.applicantId,
+            },
+          })),
+        );
+      }
+
+      return {
+        jobId,
+        recoveryRouted: true,
+        candidates: candidates.length,
+        queued: candidates.length,
+      };
+    }
 
     if (decision.action === "skip") {
       return { skipped: true, reason: decision.reason, jobId };

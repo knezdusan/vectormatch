@@ -1,0 +1,1796 @@
+{
+  "timestamp": "2026-07-18T11:05:41.285Z",
+  "directive": "D18",
+  "part": "A — Bypass Test",
+  "persona": {
+    "id": "381ab6fe-ee04-4dd6-bc03-3136f231112b",
+    "label": "Next.js / AI Full-Stack Engineer",
+    "tags": [
+      "typescript",
+      "nextjs",
+      "react",
+      "nodejs",
+      "prompt-engineering"
+    ]
+  },
+  "gate2Threshold": 0.55,
+  "gate1MinOverlap": 2,
+  "totalJobs": 35,
+  "breakCounts": {
+    "gate2": 22,
+    "CANDIDATE_SELECTION — all gates pass but not in match_queue": 7,
+    "dedup": 2,
+    "natsec": 1,
+    "gate1": 3
+  },
+  "cosineDistribution": {
+    "min": "0.3683",
+    "max": "0.8427",
+    "median": "0.5814",
+    "lt_0.40": 1,
+    "0.40-0.45": 0,
+    "0.45-0.50": 4,
+    "0.50-0.55": 6,
+    "0.55-0.60": 16,
+    "ge_0.60": 8
+  },
+  "rows": [
+    {
+      "jobId": "80b5d517-45ba-4172-8f0f-235e188ce391",
+      "title": "Pasito (YC S22) - Fullstack Software Engineer",
+      "atsSlug": "silver",
+      "atsSource": "ashby",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "nextjs",
+        "typescript",
+        "nodejs"
+      ],
+      "cosineDistance": 0.5672122959525987,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5672 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "7b71f25d-7e53-47d1-a917-3a8a4070232a",
+      "title": "Product Engineer",
+      "atsSlug": "runway-ml",
+      "atsSource": "ashby",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "typescript",
+        "react",
+        "nodejs"
+      ],
+      "cosineDistance": 0.5156634089591516,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.5157 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "223fd6a3-12f3-474d-8277-ae222e454f1b",
+      "title": "Senior AI Engineer",
+      "atsSlug": "ruby-labs",
+      "atsSource": "ashby",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "nextjs",
+        "typescript",
+        "nodejs"
+      ],
+      "cosineDistance": 0.4726841308539468,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.4727 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "a54f25ea-cd51-4cc5-9694-9e2251dd88f3",
+      "title": "Senior Fullstack Engineer - Growth",
+      "atsSlug": "overflow",
+      "atsSource": "ashby",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "nodejs",
+        "react",
+        "typescript"
+      ],
+      "cosineDistance": 0.5585187286334559,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5585 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "235b3d78-f7fa-4269-9a91-f57a5e34e908",
+      "title": "Senior Software Engineer",
+      "atsSlug": "alarmcom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "react",
+        "nodejs",
+        "typescript"
+      ],
+      "cosineDistance": 0.6018293417887751,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.6018 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "2900f7a7-adc9-4f1d-a504-b2e2dca8f0ef",
+      "title": "Senior Software Engineer",
+      "atsSlug": "amplify",
+      "atsSource": "ashby",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "react",
+        "typescript",
+        "nodejs"
+      ],
+      "cosineDistance": 0.5461821382352946,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.5462 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "cc773b0d-16a1-49b9-8668-44dc10eb2e02",
+      "title": "Software Engineer 3, Documentation Platform",
+      "atsSlug": "mongodb",
+      "atsSource": "greenhouse",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "typescript",
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.541655494968867,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.5417 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "6ee2d630-780a-450f-b8e4-b086630795d8",
+      "title": "Software Engineer 3, Documentation Platform",
+      "atsSlug": "mongodb",
+      "atsSource": "greenhouse",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "typescript",
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.6148322407055368,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.6148 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "20edc4fd-9fdc-446f-874c-0b643d0811e1",
+      "title": "Software Engineer II",
+      "atsSlug": "alarmcom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "react",
+        "nodejs",
+        "typescript"
+      ],
+      "cosineDistance": 0.6139143282984953,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.6139 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "7e1a12cd-7683-4aed-b962-fbfb958fde08",
+      "title": "Sr. Software Engineer (Node)",
+      "atsSlug": "evry-health",
+      "atsSource": "lever",
+      "tagOverlap": 3,
+      "overlappingTags": [
+        "react",
+        "nextjs",
+        "nodejs"
+      ],
+      "cosineDistance": 0.3683424344856806,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=3 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.3683 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "3 tags overlap"
+        },
+        "dedup": {
+          "pass": false,
+          "reason": "duplicate approved match exists"
+        }
+      },
+      "inMatchQueue": true,
+      "matchQueueStatus": "approved",
+      "reachesDashboard": false,
+      "breakPoint": "dedup"
+    },
+    {
+      "jobId": "ae4e1da7-7cae-4b35-b742-9075e878eb9c",
+      "title": "Backend Senior Software Engineer (Control Plane & Orchestration)",
+      "atsSlug": "simspace-corporation",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "react"
+      ],
+      "cosineDistance": 0.5604943019594961,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5605 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "1c41b4a1-d479-4a82-8e43-7babeb410df5",
+      "title": "Backend Software Engineer (Internet Services Simulation)",
+      "atsSlug": "simspace-corporation",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "react"
+      ],
+      "cosineDistance": 0.5799466289010969,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5799 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "9f729878-e04d-484b-a1a2-1157ebe81cec",
+      "title": "Control Plane Engineer ",
+      "atsSlug": "supabase",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "nodejs"
+      ],
+      "cosineDistance": 0.5429620412001978,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.5430 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "b2c4e2d6-3b99-4020-a979-8b997e1e02a1",
+      "title": "Developer Advocate 🥑",
+      "atsSlug": "searchapi",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nodejs"
+      ],
+      "cosineDistance": 0.5743011436313199,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5743 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "e9860782-e719-4b22-9431-f865329ab268",
+      "title": "Engineering Manager (Core UI)",
+      "atsSlug": "simspace-corporation",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "react"
+      ],
+      "cosineDistance": 0.5126339235158854,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.5126 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "3b2ab35f-6f2b-442c-99b2-7dc3db748a1a",
+      "title": "Greenhouse - Software Engineer (Python and/or TypeScript)",
+      "atsSlug": "silver",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "react"
+      ],
+      "cosineDistance": 0.608124972425037,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.6081 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "3897c800-546d-41df-80c6-6c69e51c07cd",
+      "title": "Senior AI Software Engineer, Product",
+      "atsSlug": "brightwheel",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "typescript"
+      ],
+      "cosineDistance": 0.5784567217479637,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5785 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "518c0f14-b269-40b1-83cb-eebaddad37f4",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901624194791958,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "24bb950a-db5a-43d9-96b5-d466fe44c75b",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901555246999906,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "86b16f7b-e91e-49d0-827b-e8f6d349d48b",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901624194791958,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "b649acde-51a6-433f-9851-50d90aa73b05",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5830687136332912,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5831 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "0e14f227-1e04-4b52-8999-da59ce1c9f48",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901555246999906,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "ae244f07-1c76-49f2-b899-2e6aa599b499",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901555246999906,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "e4b8dfca-c957-4361-b605-eb2cf132ad68",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901033219951275,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5901 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "d2afb1ec-a55d-4cb9-962d-e153411e8ee5",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901624194791958,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "7c16700e-fc3d-47d5-982c-5b773c4341c4",
+      "title": "Senior Backend Engineer",
+      "atsSlug": "remotecom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "nextjs"
+      ],
+      "cosineDistance": 0.5901624194791958,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5902 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "b60c388e-01de-4571-abb1-c047aed58b5d",
+      "title": "Senior Software Engineer",
+      "atsSlug": "alarmcom",
+      "atsSource": "greenhouse",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "react"
+      ],
+      "cosineDistance": 0.6036585900968017,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.6037 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "a5f86b9c-04b4-4d4b-815c-b251ac1bf7fd",
+      "title": "Senior Software Engineer - Fullstack",
+      "atsSlug": "honkforhelp",
+      "atsSource": "lever",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "typescript"
+      ],
+      "cosineDistance": 0.4979563203241877,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.4980 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": false,
+          "reason": "duplicate approved match exists"
+        }
+      },
+      "inMatchQueue": true,
+      "matchQueueStatus": "approved",
+      "reachesDashboard": false,
+      "breakPoint": "dedup"
+    },
+    {
+      "jobId": "1679f8a0-eefa-44e3-96b2-3d2af7da47e6",
+      "title": "Senior Software Engineer - Fullstack, US Remote",
+      "atsSlug": "brigit",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "typescript"
+      ],
+      "cosineDistance": 0.49219456487512614,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.4922 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "CANDIDATE_SELECTION — all gates pass but not in match_queue"
+    },
+    {
+      "jobId": "82074c57-83b7-4df5-97ef-996d869d4217",
+      "title": "Senior Software Engineer, Full Stack",
+      "atsSlug": "payabli",
+      "atsSource": "ashby",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "typescript"
+      ],
+      "cosineDistance": 0.581384526970047,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.5814 ≥ 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "7a4eca85-d3be-4f04-8ad6-1362bd593f69",
+      "title": "Mid-Level Full-Stack Software Engineer (Infrastructure/DevOps)",
+      "atsSlug": "redhorsecorp",
+      "atsSource": "lever",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "typescript",
+        "nodejs"
+      ],
+      "cosineDistance": 0.48125758116030526,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.4813 < 0.55"
+        },
+        "fence": {
+          "pass": true,
+          "reason": "not fenced"
+        },
+        "natsec": {
+          "pass": false,
+          "reason": "natsec keywords detected"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "natsec"
+    },
+    {
+      "jobId": "c8ec173a-43ee-40c7-9385-11d7d0175448",
+      "title": "Full Stack Engineer, Data Services",
+      "atsSlug": "vytalize%20health",
+      "atsSource": "ashby",
+      "tagOverlap": 1,
+      "overlappingTags": [
+        "react"
+      ],
+      "cosineDistance": 0.5213201127582906,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": false,
+          "reason": "overlap=1 < 2"
+        },
+        "gate2": {
+          "pass": true,
+          "reason": "dist=0.5213 < 0.55"
+        },
+        "fence": {
+          "pass": false,
+          "reason": "fenced: Remote"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "1 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate1"
+    },
+    {
+      "jobId": "f0778aff-e5f8-4bcc-9f4e-009841e13c3b",
+      "title": "COURIER",
+      "atsSlug": "remoteok_direct",
+      "atsSource": "remoteok_direct",
+      "tagOverlap": 1,
+      "overlappingTags": [
+        "react"
+      ],
+      "cosineDistance": 0.81210587560223,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": false,
+          "reason": "overlap=1 < 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.8121 ≥ 0.55"
+        },
+        "fence": {
+          "pass": false,
+          "reason": "fenced: Nassau, "
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "1 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate1"
+    },
+    {
+      "jobId": "36ffc964-5b49-4cd5-962b-3fb27eaecbc3",
+      "title": "Project Manager",
+      "atsSlug": "remoteok_direct",
+      "atsSource": "remoteok_direct",
+      "tagOverlap": 2,
+      "overlappingTags": [
+        "react",
+        "typescript"
+      ],
+      "cosineDistance": 0.7017514930609414,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": true,
+          "reason": "overlap=2 ≥ 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.7018 ≥ 0.55"
+        },
+        "fence": {
+          "pass": false,
+          "reason": "fenced: "
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "2 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate2"
+    },
+    {
+      "jobId": "41d6abba-232f-442a-9e75-e1b23c9bd44a",
+      "title": "Trabaja como canguro Ayuda con los deberes",
+      "atsSlug": "remoteok_direct",
+      "atsSource": "remoteok_direct",
+      "tagOverlap": 1,
+      "overlappingTags": [
+        "react"
+      ],
+      "cosineDistance": 0.8426689895381531,
+      "gates": {
+        "preFilter": {
+          "pass": true,
+          "reason": "active + global + embedded"
+        },
+        "gate1": {
+          "pass": false,
+          "reason": "overlap=1 < 2"
+        },
+        "gate2": {
+          "pass": false,
+          "reason": "dist=0.8427 ≥ 0.55"
+        },
+        "fence": {
+          "pass": false,
+          "reason": "fenced: MÃ¡laga, MÃ¡laga, AndalucÃ­a, EspaÃ±a"
+        },
+        "natsec": {
+          "pass": true,
+          "reason": "not natsec"
+        },
+        "qa": {
+          "pass": true,
+          "reason": "not QA"
+        },
+        "stackDisjoint": {
+          "pass": true,
+          "reason": "1 tags overlap"
+        },
+        "dedup": {
+          "pass": true,
+          "reason": "no duplicate approved"
+        }
+      },
+      "inMatchQueue": false,
+      "matchQueueStatus": null,
+      "reachesDashboard": false,
+      "breakPoint": "gate1"
+    }
+  ]
+}
