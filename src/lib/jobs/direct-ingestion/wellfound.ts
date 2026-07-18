@@ -198,8 +198,8 @@ async function fetchViaFlareSolverrPath(
             companyName,
             normalizedText: description,
             extractedTags: tags,
-            applyUrl: href ? `https://wellfound.com${href}` : null,
-            jobUrl: href ? `https://wellfound.com${href}` : null,
+            applyUrl: href ? new URL(href, "https://wellfound.com").href : null,
+            jobUrl: href ? new URL(href, "https://wellfound.com").href : null,
             locationName: parsed.location,
             workplaceType: parsed.workplaceType,
             employmentType: normalizeEmploymentType(
@@ -385,8 +385,12 @@ async function fetchViaPlaywright(
             companyName: card.company,
             normalizedText: description,
             extractedTags: tags,
-            applyUrl: job.href ? `https://wellfound.com${job.href}` : null,
-            jobUrl: job.href ? `https://wellfound.com${job.href}` : null,
+            applyUrl: job.href
+              ? new URL(job.href, "https://wellfound.com").href
+              : null,
+            jobUrl: job.href
+              ? new URL(job.href, "https://wellfound.com").href
+              : null,
             locationName: parsed.location,
             workplaceType: parsed.workplaceType,
             employmentType: normalizeEmploymentType(

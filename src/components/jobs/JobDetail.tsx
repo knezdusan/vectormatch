@@ -88,6 +88,37 @@ function getRemoteScopeBadge(remoteScope: string | null) {
   return null;
 }
 
+function resolveExternalUrl(
+  url: string | null | undefined,
+  base: string | null | undefined,
+): string | null {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith("http://") && trimmed.indexOf("http://", 7) !== -1) {
+    return trimmed.slice(trimmed.indexOf("http://", 7));
+  }
+  if (trimmed.startsWith("https://") && trimmed.indexOf("https://", 8) !== -1) {
+    return trimmed.slice(trimmed.indexOf("https://", 8));
+  }
+
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    try {
+      return new URL(trimmed).href;
+    } catch {
+      return null;
+    }
+  }
+
+  if (!base) return null;
+  try {
+    return new URL(trimmed, base).href;
+  } catch {
+    return null;
+  }
+}
+
 export async function JobDetail({ params }: JobDetailProps) {
   const { id } = await params;
   const session = await getAuthSession();
@@ -110,11 +141,16 @@ export async function JobDetail({ params }: JobDetailProps) {
   const hostedBoardUrl = ATS_ENDPOINTS[
     job.atsSource as keyof typeof ATS_ENDPOINTS
   ]?.hostedBoard(job.atsSlug);
-  const jobUrl =
+  const rawJobUrl =
     job.jobUrl ??
     extractJobUrl(job.atsSource, job.rawJson) ??
     job.applyUrl ??
     hostedBoardUrl;
+  const jobUrl = resolveExternalUrl(rawJobUrl, hostedBoardUrl) ?? rawJobUrl;
+
+  const resolvedApplyUrl = job.applyUrl
+    ? (resolveExternalUrl(job.applyUrl, jobUrl) ?? jobUrl)
+    : null;
 
   const jobContent = extractJobContent(
     job.atsSource,
@@ -189,10 +225,10 @@ export async function JobDetail({ params }: JobDetailProps) {
               ) : (
                 <span />
               )}
-              {job.applyUrl && (
+              {resolvedApplyUrl && (
                 <Button size="sm" className="gap-1.5" asChild>
                   <a
-                    href={job.applyUrl}
+                    href={resolvedApplyUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >

@@ -147,8 +147,12 @@ export async function fetchRemoteComJobs(
           companyName: parsed.company,
           normalizedText: description,
           extractedTags: tags,
-          applyUrl: job.href ? `https://remote.com${job.href}` : null,
-          jobUrl: job.href ? `https://remote.com${job.href}` : null,
+          applyUrl: job.href
+            ? new URL(job.href, "https://remote.com").href
+            : null,
+          jobUrl: job.href
+            ? new URL(job.href, "https://remote.com").href
+            : null,
           locationName: parsed.location,
           workplaceType: "remote",
           employmentType: normalizeEmploymentType(
