@@ -66,7 +66,8 @@ export const hnAlgoliaSeeder = inngest.createFunction(
   {
     id: "seeder-hn-algolia",
     name: "HN Algolia Delta Seeder",
-    triggers: [{ cron: "0 0 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — discovery source, not needed for daily pulse.
+    triggers: [],
   },
   async ({ step }) => {
     // Only run during the first 7 days of each month — the HN "Who is hiring"
@@ -363,13 +364,12 @@ export const batchPollTier = inngest.createFunction(
     id: "poller-batch-poll-tier",
     name: "Batch Poll Tier",
     triggers: [
-      { cron: "0 */2 * * *" }, // every 2h — hot tier (yielding tier, promptness front line)
-      // D1: Probation polling PAUSED for rest of current compute cycle.
-      // 3,985 companies, ~0.89 CU-hrs/day, zero yielded — pausing loses no measurable supply.
-      // Re-enable after cycle reset by uncommenting the line below:
-      // { cron: "0 */12 * * *" }, // every 12h — probation tier
-      { cron: "0 */24 * * *" }, // every 24h — standard tier (4.7K companies, biggest burn)
-      { cron: "0 3 * * 1" }, // weekly Monday 3am — dormant tier
+      // D17 A2: FROZEN until Aug 1 — ATS polling is the biggest burn lever.
+      // The daily pulse is: direct job boards + match generation only.
+      // Re-enable after Aug 1 reset with the consolidated 2x/day schedule.
+      // { cron: "0 0,4 * * *" },
+      // { cron: "0 4 * * *" },
+      // { cron: "0 3 * * 1" },
     ],
     concurrency: { limit: 5 },
   },
@@ -925,7 +925,8 @@ export const tierRecalc = inngest.createFunction(
   {
     id: "poller-tier-recalc",
     name: "Tier Recalculation",
-    triggers: [{ cron: "0 4 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy backfill, not needed for daily pulse.
+    triggers: [],
   },
   async ({ step }) => {
     const { recalculateTiers } = await import("@/lib/jobs/poller/tier-queries");
@@ -985,7 +986,8 @@ export const probationEmbeddingBackfill = inngest.createFunction(
   {
     id: "probation-embedding-backfill",
     name: "Probation Embedding Backfill",
-    triggers: [{ cron: "15 4 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy backfill.
+    triggers: [],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1135,11 +1137,8 @@ export const qualityFlywheelRecalc = inngest.createFunction(
   {
     id: "quality-flywheel-recalc",
     name: "Quality Flywheel Recalculation",
-    // Sprint 3 Task 8: staggered to 04:30 UTC (30 min after tierRecalc at
-    // 04:00) to avoid race conditions on the company.tier column — both
-    // functions read/write tier and concurrent execution caused
-    // non-deterministic final state.
-    triggers: [{ cron: "30 4 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy recalc.
+    triggers: [],
   },
   async ({ step }) => {
     const { recalculateQualityScores } = await import(
@@ -1187,7 +1186,8 @@ export const layoffSignalChecker = inngest.createFunction(
   {
     id: "layoff-signal-checker",
     name: "Layoff Signal Checker",
-    triggers: [{ cron: "0 5 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — not needed for daily pulse.
+    triggers: [],
   },
   async ({ step }) => {
     const { checkLayoffSignals } = await import(
@@ -1245,7 +1245,8 @@ export const aggressiveCleanup = inngest.createFunction(
   {
     id: "aggressive-cleanup",
     name: "Aggressive Cleanup (G8)",
-    triggers: [{ cron: "0 2 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy cleanup.
+    triggers: [],
   },
   async ({ step }) => {
     const {
@@ -1455,7 +1456,8 @@ export const staleCleanup = inngest.createFunction(
   {
     id: "poller-stale-cleanup",
     name: "Stale Job Cleanup",
-    triggers: [{ cron: "0 3 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy cleanup.
+    triggers: [],
   },
   async ({ step }) => {
     const { markStaleJobs } = await import("@/lib/jobs/poller/job-repository");
@@ -1509,7 +1511,8 @@ export const companyRevivalSweep = inngest.createFunction(
   {
     id: "poller-company-revival",
     name: "Company Revival Sweep",
-    triggers: [{ cron: "0 5 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy sweep.
+    triggers: [],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1603,12 +1606,8 @@ export const normalizationRetrySweep = inngest.createFunction(
   {
     id: "poller-normalization-retry",
     name: "Normalization Retry Sweep",
-    // Every 4 hours — the daily schedule (0 6 * * *) was too slow to clear
-    // normalization backlogs. With a 2000-job limit per run and 4h cadence,
-    // throughput is 4000/day (2 runs × 2000), enough to keep up with peak
-    // ingestion bursts (e.g. 3634 jobs from a single Greenhouse poll).
-    // N1: was every 4h (6 runs/day), widened to every 12h to reduce CU burn.
-    triggers: [{ cron: "0 */12 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy normalization backfill.
+    triggers: [],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -2219,7 +2218,8 @@ export const nightlyResurrectionSweep = inngest.createFunction(
   {
     id: "nightly-resurrection-sweep",
     name: "Nightly Resurrection Sweep (v2 Remote-Scope)",
-    triggers: [{ cron: "0 3 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy sweep.
+    triggers: [],
   },
   async ({ step }) => {
     const { sql, eq } = await import("drizzle-orm");
@@ -2411,7 +2411,8 @@ export const nightlyStaleClassificationSweep = inngest.createFunction(
   {
     id: "nightly-stale-classification-sweep",
     name: "Nightly Stale Classification Sweep",
-    triggers: [{ cron: "30 3 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy sweep.
+    triggers: [],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -3252,7 +3253,8 @@ export const jobSummaryBackfill = inngest.createFunction(
   {
     id: "job-summary-backfill",
     name: "Job Summary Backfill Sweep",
-    triggers: [{ cron: "0 4 * * *" }], // daily (D1: was 6h, widened for compute cycle)
+    // D17 A2: FROZEN until Aug 1 — heavy LLM backfill.
+    triggers: [],
   },
   async ({ step }) => {
     const jobs = await step.run("find-jobs-without-summary", async () => {
@@ -3642,11 +3644,9 @@ export const pendingQueueSweep = inngest.createFunction(
   {
     id: "pending-queue-sweep",
     name: "Pending Queue Sweep",
-    // Sprint 3 Task 9: reduced from every 15 min (2,880 runs/month) to every
-    // 30 min (1,440 runs/month) — halves Inngest execution cost. Users check
-    // daily, not hourly; a 6h feedback delay is acceptable.
-    // D1: was every 2h, widened to every 6h for compute cycle.
-    triggers: [{ cron: "0 */6 * * *" }],
+    // D16 B1: Consolidated to 1 daily window (6am) — was every 6h.
+    // Users check daily, not hourly; a daily feedback sweep is sufficient.
+    triggers: [{ cron: "0 6 * * *" }],
   },
   async ({ step }) => {
     const result = await step.run("find-pending", async () => {
@@ -4327,7 +4327,8 @@ export const cleanupOrphanedCvUploads = inngest.createFunction(
   {
     id: "cleanup-orphaned-cv-uploads",
     name: "Cleanup Orphaned CV Uploads",
-    triggers: [{ cron: "0 3 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — not needed for daily pulse.
+    triggers: [],
   },
   async ({ step }) => {
     const result = await step.run("delete-abandoned-uploads", async () => {
@@ -4370,7 +4371,8 @@ export const staleJobVerifier = inngest.createFunction(
   {
     id: "stale-job-verifier",
     name: "Stale Job Verifier",
-    triggers: [{ cron: "0 6 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — heavy verification sweep.
+    triggers: [],
   },
   async ({ step }) => {
     // Step 1: Get all approved matches from the last 30 days
@@ -4632,7 +4634,8 @@ export const dailySourceD1BraveSearch = inngest.createFunction(
   {
     id: "daily-source-brave-search",
     name: "Daily Source — Brave Search",
-    triggers: [{ cron: "0 0,14 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const apiKey = process.env.BRAVE_SEARCH_API_KEY;
@@ -4686,7 +4689,8 @@ export const dailySourceD2HnAlgolia = inngest.createFunction(
   {
     id: "daily-source-hn-algolia",
     name: "Daily Source — HN Algolia",
-    triggers: [{ cron: "0 1,16 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runHnAlgoliaDailySeeder } = await import(
@@ -4718,7 +4722,8 @@ export const dailySourceD3RedditRss = inngest.createFunction(
   {
     id: "daily-source-reddit-rss",
     name: "Daily Source — Reddit RSS",
-    triggers: [{ cron: "0 2,18 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runRedditRssSeeder } = await import(
@@ -4748,7 +4753,8 @@ export const dailySourceD4RemoteJobBoards = inngest.createFunction(
   {
     id: "daily-source-remote-job-boards",
     name: "Daily Source — Remote Job Boards",
-    triggers: [{ cron: "0 3 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — overlaps with direct-job-board-ingestion.
+    triggers: [],
   },
   async ({ step }) => {
     const { runRemoteJobBoardsSeeder } = await import(
@@ -4780,7 +4786,8 @@ export const dailySourceD5WwrRss = inngest.createFunction(
   {
     id: "daily-source-wwr-rss",
     name: "Daily Source — We Work Remotely RSS",
-    triggers: [{ cron: "0 4 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — overlaps with direct-job-board-ingestion.
+    triggers: [],
   },
   async ({ step }) => {
     const { runWwrRssSeeder } = await import(
@@ -4810,7 +4817,8 @@ export const dailySourceD6CertStream = inngest.createFunction(
   {
     id: "daily-source-certstream",
     name: "Daily Source — CertStream",
-    triggers: [{ cron: "0 10 * * *" }],
+    // D17 A2: FROZEN until Aug 1 — WebSocket yields 0 certificates (broken).
+    triggers: [],
   },
   async ({ step }) => {
     const { runCertStreamProcessor } = await import(
@@ -4842,7 +4850,8 @@ export const dailySourceD7FundingSignal = inngest.createFunction(
   {
     id: "daily-source-funding-signal",
     name: "Daily Source — Funding Signal",
-    triggers: [{ cron: "0 11 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runFundingSignalSeeder } = await import(
@@ -4874,7 +4883,8 @@ export const dailySourceD8ProductHunt = inngest.createFunction(
   {
     id: "daily-source-producthunt",
     name: "Daily Source — Product Hunt",
-    triggers: [{ cron: "0 5 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runProductHuntDailySeeder } = await import(
@@ -4906,7 +4916,8 @@ export const dailySourceD9EngineeringBlogs = inngest.createFunction(
   {
     id: "daily-source-engineering-blogs",
     name: "Daily Source — Engineering Blogs RSS",
-    triggers: [{ cron: "0 6 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runEngineeringBlogsRssSeeder } = await import(
@@ -4938,7 +4949,8 @@ export const dailySourceD10GithubTrending = inngest.createFunction(
   {
     id: "daily-source-github-trending",
     name: "Daily Source — GitHub Trending",
-    triggers: [{ cron: "0 7 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runGithubTrendingSeeder } = await import(
@@ -4970,7 +4982,8 @@ export const dailySourceD11TechNewsRss = inngest.createFunction(
   {
     id: "daily-source-tech-news-rss",
     name: "Daily Source — Tech News RSS",
-    triggers: [{ cron: "0 8 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runTechNewsRssSeeder } = await import(
@@ -5000,7 +5013,8 @@ export const dailySourceD12NpmRegistry = inngest.createFunction(
   {
     id: "daily-source-npm-registry",
     name: "Daily Source — NPM Registry",
-    triggers: [{ cron: "0 9 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runNpmRegistrySeeder } = await import(
@@ -5030,7 +5044,8 @@ export const dailySourceD13MetaAds = inngest.createFunction(
   {
     id: "daily-source-meta-ads",
     name: "Daily Source — Meta Ads Library",
-    triggers: [{ cron: "0 12 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runMetaAdsSeeder } = await import(
@@ -5075,7 +5090,8 @@ export const v2FundingSignalRss = inngest.createFunction(
   {
     id: "v2-funding-signal-rss",
     name: "v2 Funding-Signal RSS Seeder",
-    triggers: [{ cron: "0 13 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runFundingSignalRssSeeder } = await import(
@@ -5110,7 +5126,8 @@ export const v2GithubEventsProbe = inngest.createFunction(
   {
     id: "v2-github-events-probe",
     name: "v2 GitHub Events API Probe Seeder",
-    triggers: [{ cron: "0 14 * * *" }],
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runGithubEventsProbeSeeder } = await import(
@@ -5158,7 +5175,8 @@ export const v2FrontendJobScanner = inngest.createFunction(
   {
     id: "v2-frontend-job-scanner",
     name: "v2 Frontend Job Scanner",
-    triggers: [{ cron: "0 14 * * *" }], // daily (D1: was 6h, widened for compute cycle)
+    // D17 A2: FROZEN until Aug 1.
+    triggers: [],
   },
   async ({ step }) => {
     const { runFrontendJobScannerDaily } = await import(
@@ -5630,7 +5648,8 @@ export const storageMonitor = inngest.createFunction(
   {
     id: "storage-monitor",
     name: "Storage Monitor",
-    triggers: [{ cron: "0 */6 * * *" }], // every 6h (N1: was hourly, storage doesn't spike that fast)
+    // D17 A2: FROZEN until Aug 1 — sub-daily monitor keeping endpoint awake.
+    triggers: [],
   },
   async ({ step, logger }) => {
     const status = await step.run("check-storage-alerts", async () => {
@@ -5684,7 +5703,8 @@ export const pipelineHealthMonitor = inngest.createFunction(
   {
     id: "pipeline-health-monitor",
     name: "Pipeline Health Monitor",
-    triggers: [{ cron: "0 */6 * * *" }], // every 6h (D1: was 2h, widened for compute cycle)
+    // D17 A2: FROZEN until Aug 1 — sub-daily monitor keeping endpoint awake.
+    triggers: [],
   },
   async ({ step, logger }) => {
     // Step 1: Collect all pipeline health metrics
@@ -5771,7 +5791,8 @@ export const emergencyStoragePurge = inngest.createFunction(
     name: "Emergency Storage Purge — Tiered Job Deletion",
     triggers: [
       { event: "purge/emergency-storage" },
-      { cron: "0 */6 * * *" }, // check every 6h if purge is needed (D1: was 2h, storage doesn't spike that fast)
+      // D17 A2: FROZEN until Aug 1 — sub-daily check keeping endpoint awake.
+      // { cron: "0 */6 * * *" },
     ],
   },
   async ({ event, step, logger }) => {
@@ -5932,7 +5953,8 @@ export const inngestHealthMonitor = inngest.createFunction(
   {
     id: "inngest-health-monitor",
     name: "Inngest Health Monitor",
-    triggers: [{ cron: "0 */2 * * *" }], // every 2h (D1: was 30 min, widened for compute cycle)
+    // D17 A2: FROZEN until Aug 1 — every 2h monitor keeping endpoint awake.
+    triggers: [],
   },
   async ({ step, logger }) => {
     // Step 1: Get Coolify container status

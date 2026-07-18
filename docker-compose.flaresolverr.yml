@@ -1,0 +1,29 @@
+# FlareSolverr — Cloudflare Bypass Proxy for Wellfound
+#
+# Deploy this as a Coolify service:
+# 1. Go to Coolify → VectorMatch project → New Resource → Docker Compose
+# 2. Paste this file content
+# 3. Set the service name to "flaresolverr"
+# 4. Deploy
+#
+# The Wellfound adapter will automatically detect FlareSolverr at
+# http://flaresolverr:8191/v1 (or via FLARESOLVERR_URL env var) and
+# use it to bypass Cloudflare challenges.
+#
+# Resource usage: ~200MB RAM, minimal CPU (only active during Wellfound fetch)
+
+services:
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=info
+      - TZ=UTC
+    ports:
+      - "8191:8191"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8191/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

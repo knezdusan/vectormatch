@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-07-17T19:02:18.461Z",
+  "windowDays": 7,
+  "windowStart": "2026-07-10T19:02:16.839Z",
+  "windowEnd": "2026-07-17T19:02:16.839Z",
+  "funnel": {
+    "domainsSeen": 0,
+    "careersRelevant": 0,
+    "slugResolved": 0,
+    "v3Passed": 0,
+    "enrollable": 0
+  },
+  "certstreamCompanies": [],
+  "ingestionLogs": [
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-17T08:01:02.727Z"
+    },
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-16T08:01:02.630Z"
+    },
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-15T08:01:02.482Z"
+    },
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-14T08:01:02.291Z"
+    },
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-13T08:01:01.877Z"
+    },
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-12T08:01:01.874Z"
+    },
+    {
+      "type": "seed",
+      "status": "success",
+      "source": "certstream",
+      "items_processed": 0,
+      "items_inserted": 0,
+      "error_message": null,
+      "created_at": "2026-07-11T08:01:01.617Z"
+    }
+  ],
+  "cronRunning": true,
+  "discoverySourceEnumHasCertstream": false,
+  "seederDiscoverySourceWritten": "hn_algolia",
+  "findings": [
+    "ingestion_log: 7 certstream run(s) in last 7 days; items_processed=0, items_inserted=0.",
+    "certstream cron observed at ~08:01 UTC daily (Inngest cron '0 3 * * *'); first run in window=Sat Jul 11 2026 10:01:01 GMT+0200 (Central European Summer Time), last=Fri Jul 17 2026 10:01:02 GMT+0200 (Central European Summer Time)."
+  ],
+  "funnelBreaks": [
+    "discovery_source enum has NO 'certstream' value — the seeder cannot tag companies as certstream-discovered via discovery_source. It falls back to writing 'hn_algolia' and only records certstream provenance in discovery_context.",
+    "certstream-processor.ts:335 hard-codes discoverySource: 'hn_algolia' instead of a certstream source. Querying company by discovery_source ILIKE '%certstream%' returns 0 rows — the certstream channel is invisible in the discovery_source column.",
+    "All 7 certstream runs reported items_processed=0 (totalCertificates=0). The CertStream WebSocket (wss://certstream.calidog.io/) is collecting 0 certificate_update messages per 60s window — the funnel is empty at the very top, before career-page filtering or CNAME resolution. Likely cause: the WebSocket connects but closes immediately without streaming messages (defaultCollectFromCertStream resolves with an empty array on ws.onclose), or the upstream CertStream service is unavailable. No error is surfaced because onclose is treated as a successful (empty) collection.",
+    "Zero companies in the company table with certstream provenance (discovery_context ILIKE 'certstream%') in the last 7 days. The funnel is empty at the top — either the cron never ran, the WebSocket produced no ATS-CNAME matches, or matches were written under 'hn_algolia' with no 'certstream:' context prefix.",
+    "probeStackProfileV3 (fingerprint-v3.ts:354) is defined but never called anywhere in the codebase. The slugger only runs countGateZeroJobs (v2 absolute web-dev gate). The 'v3-passed' stage is therefore NOT actually executed in the certstream path — the count above is a proxy (non-dormant/non-dead tier)."
+  ]
+}

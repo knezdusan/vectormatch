@@ -1,0 +1,538 @@
+{
+  "timestamp": "2026-07-17T15:23:55.237Z",
+  "directive": "D16-PartC",
+  "summary": {
+    "totalQueries": 30,
+    "totalResults": 46,
+    "uniqueCompaniesFound": 12,
+    "companiesWithGe2WebDev": 3,
+    "companiesWithGe1Global": 0,
+    "trueGlobalRate": 0,
+    "totalGlobalJobs": 0,
+    "totalJobsProbed": 161
+  },
+  "phrases": [
+    "work from anywhere in the world",
+    "open to candidates worldwide",
+    "remote (worldwide)",
+    "fully remote, worldwide",
+    "we hire globally"
+  ],
+  "atsDomains": [
+    "greenhouse.io",
+    "lever.co",
+    "ashbyhq.com",
+    "smartrecruiters.com",
+    "workable.com",
+    "recruitee.com"
+  ],
+  "enterpriseBrandsExcluded": [
+    "google",
+    "amazon",
+    "microsoft",
+    "apple",
+    "meta",
+    "stripe",
+    "coinbase",
+    "twilio",
+    "shopify",
+    "salesforce",
+    "adobe",
+    "netflix",
+    "spotify",
+    "uber",
+    "airbnb",
+    "dropbox",
+    "slack",
+    "atlassian",
+    "github",
+    "gitlab",
+    "datadog",
+    "cloudflare",
+    "vercel",
+    "mongodb"
+  ],
+  "queryResults": [
+    {
+      "query": "\"work from anywhere in the world\" site:greenhouse.io",
+      "phrase": "work from anywhere in the world",
+      "atsDomain": "greenhouse.io",
+      "atsSource": "greenhouse",
+      "resultsCount": 2,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"work from anywhere in the world\" site:lever.co",
+      "phrase": "work from anywhere in the world",
+      "atsDomain": "lever.co",
+      "atsSource": "lever",
+      "resultsCount": 4,
+      "jobPostUrls": 4,
+      "error": null
+    },
+    {
+      "query": "\"work from anywhere in the world\" site:ashbyhq.com",
+      "phrase": "work from anywhere in the world",
+      "atsDomain": "ashbyhq.com",
+      "atsSource": "ashby",
+      "resultsCount": 2,
+      "jobPostUrls": 2,
+      "error": null
+    },
+    {
+      "query": "\"work from anywhere in the world\" site:smartrecruiters.com",
+      "phrase": "work from anywhere in the world",
+      "atsDomain": "smartrecruiters.com",
+      "atsSource": "smartrecruiters",
+      "resultsCount": 2,
+      "jobPostUrls": 2,
+      "error": null
+    },
+    {
+      "query": "\"work from anywhere in the world\" site:workable.com",
+      "phrase": "work from anywhere in the world",
+      "atsDomain": "workable.com",
+      "atsSource": "workable",
+      "resultsCount": 2,
+      "jobPostUrls": 2,
+      "error": null
+    },
+    {
+      "query": "\"work from anywhere in the world\" site:recruitee.com",
+      "phrase": "work from anywhere in the world",
+      "atsDomain": "recruitee.com",
+      "atsSource": "recruitee",
+      "resultsCount": 4,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"open to candidates worldwide\" site:greenhouse.io",
+      "phrase": "open to candidates worldwide",
+      "atsDomain": "greenhouse.io",
+      "atsSource": "greenhouse",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"open to candidates worldwide\" site:lever.co",
+      "phrase": "open to candidates worldwide",
+      "atsDomain": "lever.co",
+      "atsSource": "lever",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"open to candidates worldwide\" site:ashbyhq.com",
+      "phrase": "open to candidates worldwide",
+      "atsDomain": "ashbyhq.com",
+      "atsSource": "ashby",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"open to candidates worldwide\" site:smartrecruiters.com",
+      "phrase": "open to candidates worldwide",
+      "atsDomain": "smartrecruiters.com",
+      "atsSource": "smartrecruiters",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"open to candidates worldwide\" site:workable.com",
+      "phrase": "open to candidates worldwide",
+      "atsDomain": "workable.com",
+      "atsSource": "workable",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"open to candidates worldwide\" site:recruitee.com",
+      "phrase": "open to candidates worldwide",
+      "atsDomain": "recruitee.com",
+      "atsSource": "recruitee",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"remote (worldwide)\" site:greenhouse.io",
+      "phrase": "remote (worldwide)",
+      "atsDomain": "greenhouse.io",
+      "atsSource": "greenhouse",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"remote (worldwide)\" site:lever.co",
+      "phrase": "remote (worldwide)",
+      "atsDomain": "lever.co",
+      "atsSource": "lever",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"remote (worldwide)\" site:ashbyhq.com",
+      "phrase": "remote (worldwide)",
+      "atsDomain": "ashbyhq.com",
+      "atsSource": "ashby",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"remote (worldwide)\" site:smartrecruiters.com",
+      "phrase": "remote (worldwide)",
+      "atsDomain": "smartrecruiters.com",
+      "atsSource": "smartrecruiters",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"remote (worldwide)\" site:workable.com",
+      "phrase": "remote (worldwide)",
+      "atsDomain": "workable.com",
+      "atsSource": "workable",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"remote (worldwide)\" site:recruitee.com",
+      "phrase": "remote (worldwide)",
+      "atsDomain": "recruitee.com",
+      "atsSource": "recruitee",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"fully remote, worldwide\" site:greenhouse.io",
+      "phrase": "fully remote, worldwide",
+      "atsDomain": "greenhouse.io",
+      "atsSource": "greenhouse",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"fully remote, worldwide\" site:lever.co",
+      "phrase": "fully remote, worldwide",
+      "atsDomain": "lever.co",
+      "atsSource": "lever",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"fully remote, worldwide\" site:ashbyhq.com",
+      "phrase": "fully remote, worldwide",
+      "atsDomain": "ashbyhq.com",
+      "atsSource": "ashby",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"fully remote, worldwide\" site:smartrecruiters.com",
+      "phrase": "fully remote, worldwide",
+      "atsDomain": "smartrecruiters.com",
+      "atsSource": "smartrecruiters",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"fully remote, worldwide\" site:workable.com",
+      "phrase": "fully remote, worldwide",
+      "atsDomain": "workable.com",
+      "atsSource": "workable",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"fully remote, worldwide\" site:recruitee.com",
+      "phrase": "fully remote, worldwide",
+      "atsDomain": "recruitee.com",
+      "atsSource": "recruitee",
+      "resultsCount": 10,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"we hire globally\" site:greenhouse.io",
+      "phrase": "we hire globally",
+      "atsDomain": "greenhouse.io",
+      "atsSource": "greenhouse",
+      "resultsCount": 1,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"we hire globally\" site:lever.co",
+      "phrase": "we hire globally",
+      "atsDomain": "lever.co",
+      "atsSource": "lever",
+      "resultsCount": 1,
+      "jobPostUrls": 1,
+      "error": null
+    },
+    {
+      "query": "\"we hire globally\" site:ashbyhq.com",
+      "phrase": "we hire globally",
+      "atsDomain": "ashbyhq.com",
+      "atsSource": "ashby",
+      "resultsCount": 16,
+      "jobPostUrls": 16,
+      "error": null
+    },
+    {
+      "query": "\"we hire globally\" site:smartrecruiters.com",
+      "phrase": "we hire globally",
+      "atsDomain": "smartrecruiters.com",
+      "atsSource": "smartrecruiters",
+      "resultsCount": 1,
+      "jobPostUrls": 1,
+      "error": null
+    },
+    {
+      "query": "\"we hire globally\" site:workable.com",
+      "phrase": "we hire globally",
+      "atsDomain": "workable.com",
+      "atsSource": "workable",
+      "resultsCount": 0,
+      "jobPostUrls": 0,
+      "error": null
+    },
+    {
+      "query": "\"we hire globally\" site:recruitee.com",
+      "phrase": "we hire globally",
+      "atsDomain": "recruitee.com",
+      "atsSource": "recruitee",
+      "resultsCount": 1,
+      "jobPostUrls": 0,
+      "error": null
+    }
+  ],
+  "companies": [
+    {
+      "slug": "waveapps",
+      "atsSource": "lever",
+      "company": "Wave HQ",
+      "totalJobs": 9,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "jobgether",
+      "atsSource": "lever",
+      "company": "Jobgether",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": "The operation was aborted due to timeout",
+      "sampleTitles": [],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "super.com",
+      "atsSource": "ashby",
+      "company": "Senior Growth Manager, Lifecycle Management @ Super.com",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "what3words",
+      "atsSource": "ashby",
+      "company": "Ulaanbaatar, Mongolia @ what3words",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "Gcore",
+      "atsSource": "smartrecruiters",
+      "company": "Gcore is looking for a Technical Support Engineer (Edge Network / Night Shift) i",
+      "totalJobs": 14,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Software Engineer (Golang)"
+      ],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "gcore",
+      "atsSource": "smartrecruiters",
+      "company": "Gcore is looking for a Customer Support Specialist (Day Shift) in ., ., Poland",
+      "totalJobs": 14,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Software Engineer (Golang)"
+      ],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "wifi-tribe",
+      "atsSource": "workable",
+      "company": "WiFi Tribe",
+      "totalJobs": 5,
+      "webDevJobs": 1,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [
+        "Tech Lead & Business Ops (Digital Nomad Job)"
+      ],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "staygenki",
+      "atsSource": "workable",
+      "company": "Genki",
+      "totalJobs": 5,
+      "webDevJobs": 2,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Lead Web Engineer",
+        "Mid-Level Backend Developer"
+      ],
+      "discoveredVia": [
+        "work from anywhere in the world"
+      ]
+    },
+    {
+      "slug": "Ionicpartners",
+      "atsSource": "lever",
+      "company": "Ionic Partners",
+      "totalJobs": 14,
+      "webDevJobs": 4,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "AI-Native Software Engineering Director (OTE $100,000/year U",
+        "AI-Native Software Engineering Director (OTE $100,000/year U",
+        "AI-Native Software Engineering Director (OTE $100,000/year U"
+      ],
+      "discoveredVia": [
+        "we hire globally"
+      ]
+    },
+    {
+      "slug": "supabase",
+      "atsSource": "ashby",
+      "company": "GSI Partnership Lead @ Supabase",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [],
+      "discoveredVia": [
+        "we hire globally"
+      ]
+    },
+    {
+      "slug": "oneleet",
+      "atsSource": "ashby",
+      "company": "Backend Engineer @ Oneleet",
+      "totalJobs": 0,
+      "webDevJobs": 0,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 0,
+      "passed": false,
+      "error": null,
+      "sampleTitles": [],
+      "discoveredVia": [
+        "we hire globally"
+      ]
+    },
+    {
+      "slug": "AristaNetworks",
+      "atsSource": "smartrecruiters",
+      "company": "Arista Networks is looking for a Software Engineer, Network Systems in Bengaluru",
+      "totalJobs": 100,
+      "webDevJobs": 32,
+      "globalJobs": 0,
+      "globalWebDevJobs": 0,
+      "remoteJobs": 2,
+      "passed": true,
+      "error": null,
+      "sampleTitles": [
+        "Senior C++ Software Engineer - Remote - Greece, Spain, Hunga",
+        "Software Engineer - Platform Team - Greece",
+        "Graduate Software Engineer, EOS - Sydney"
+      ],
+      "discoveredVia": [
+        "we hire globally"
+      ]
+    }
+  ]
+}

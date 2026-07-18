@@ -71,6 +71,182 @@ export async function fetchWellfoundJobs(
   }) => boolean,
   maxPages: number = DEFAULT_MAX_PAGES,
 ): Promise<WellfoundFetchResult> {
+  // D17 C2: Try FlareSolverr first (Cloudflare bypass proxy). If unavailable
+  // or it fails, fall back to direct Playwright (which will likely time out
+  // on the Cloudflare challenge page, but keeps backward compatibility).
+  try {
+    const { isFlareSolverrAvailable, fetchViaFlareSolverr } = await import(
+      "./flaresolverr-client"
+    );
+    const available = await isFlareSolverrAvailable();
+    if (available) {
+      return await fetchViaFlareSolverrPath(
+        maxJobs,
+        techFilter,
+        maxPages,
+        fetchViaFlareSolverr,
+      );
+    }
+  } catch (e) {
+    console.warn(
+      `[wellfound] FlareSolverr path failed: ${e instanceof Error ? e.message : String(e)}`,
+    );
+  }
+
+  // Fallback: direct Playwright (will likely hit Cloudflare wall)
+  return await fetchViaPlaywright(maxJobs, techFilter, maxPages);
+}
+
+/**
+ * Fetch Wellfound jobs via FlareSolverr (Cloudflare bypass) + cheerio HTML parsing.
+ */
+async function fetchViaFlareSolverrPath(
+  maxJobs: number,
+  techFilter: (job: {
+    tags: string[];
+    title: string;
+    description: string;
+  }) => boolean,
+  maxPages: number,
+  fetchFn: (
+    url: string,
+    maxTimeout?: number,
+  ) => Promise<{ html: string; status: number }>,
+): Promise<WellfoundFetchResult> {
+  const { load } = await import("cheerio");
+  const allJobs: DirectIngestionJob[] = [];
+  const employerMap = new Map<string, WellfoundEmployer>();
+
+  for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+    const url = pageNum === 1 ? BASE_URL : `${BASE_URL}?page=${pageNum}`;
+
+    try {
+      const { html, status } = await fetchFn(url, 60000);
+      if (status !== 200) {
+        console.warn(
+          `[wellfound:flaresolverr] Page ${pageNum} returned status ${status}`,
+        );
+        break;
+      }
+
+      const $ = load(html);
+      const cards = $('[data-testid="startup-header"]');
+
+      if (cards.length === 0) {
+        // No more jobs or Cloudflare challenge page
+        const title = $("title").text().trim();
+        if (
+          title.toLowerCase().includes("cloudflare") ||
+          title.toLowerCase().includes("challenge")
+        ) {
+          console.warn(
+            `[wellfound:flaresolverr] Page ${pageNum} still showing Cloudflare challenge`,
+          );
+          break;
+        }
+        break; // no more results
+      }
+
+      cards.each((_, card) => {
+        const $card = $(card);
+        const companyLink = $card.find('a[href*="/company/"]').first();
+        const companyName = $card.find("h2").first().text().trim();
+        const companyHref = companyLink.attr("href") || null;
+        const desc =
+          $card.find("span.text-xs.text-neutral-1000").first().text().trim() ||
+          null;
+        const size =
+          $card.find("span.text-xs.italic").first().text().trim() || null;
+
+        const cardParent = $card.closest("div.rounded.border");
+        const jobLinks = cardParent.find('a[href*="/jobs/"]');
+
+        // Harvest employer
+        if (companyName && companyHref && !employerMap.has(companyName)) {
+          employerMap.set(companyName, {
+            companyName,
+            companyHref,
+            description: desc,
+            size,
+          });
+        }
+
+        jobLinks.each((_, jl) => {
+          const $jl = $(jl);
+          const jobDiv = $jl.closest("div.w-full.pb-1").length
+            ? $jl.closest("div.w-full.pb-1")
+            : $jl.parent();
+          const jobText = jobDiv.text().trim() || "";
+          const title = $jl.text().trim() || "";
+          const href = $jl.attr("href") || "";
+
+          const parsed = parseJobText(jobText);
+          const fullTitle = title || parsed.title;
+          const textTags = scanTagsRegex(fullTitle);
+          const tags = [...new Set([...textTags])];
+          const description = buildDescription(
+            { company: companyName, description: desc, size },
+            { title: fullTitle, href, jobText },
+            parsed,
+          );
+
+          if (!techFilter({ tags, title: fullTitle, description })) return;
+
+          allJobs.push({
+            externalJobId: extractJobId(href),
+            title: fullTitle,
+            companyName,
+            normalizedText: description,
+            extractedTags: tags,
+            applyUrl: href ? `https://wellfound.com${href}` : null,
+            jobUrl: href ? `https://wellfound.com${href}` : null,
+            locationName: parsed.location,
+            workplaceType: parsed.workplaceType,
+            employmentType: normalizeEmploymentType(
+              parsed.employmentType ?? undefined,
+            ),
+            remoteScope: inferRemoteScope(parsed.location, parsed.remoteType),
+            locationCountries: null,
+            compensationMin: parsed.salaryMin,
+            compensationMax: parsed.salaryMax,
+            compensationCurrency: parsed.salaryMin !== null ? "USD" : null,
+            experienceMinYears: parsed.expMinYears,
+            experienceMaxYears: parsed.expMaxYears,
+            publishedAt: parsePostedDate(parsed.posted),
+          });
+        });
+      });
+
+      if (allJobs.length >= maxJobs) break;
+    } catch (e) {
+      console.warn(
+        `[wellfound:flaresolverr] Failed to load page ${pageNum}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      break;
+    }
+  }
+
+  return {
+    success: true,
+    jobs: allJobs.slice(0, maxJobs),
+    totalAvailable: allJobs.length,
+    employers: Array.from(employerMap.values()),
+  };
+}
+
+/**
+ * Fetch Wellfound jobs via direct Playwright (original path — likely blocked
+ * by Cloudflare in production, kept as fallback).
+ */
+async function fetchViaPlaywright(
+  maxJobs: number,
+  techFilter: (job: {
+    tags: string[];
+    title: string;
+    description: string;
+  }) => boolean,
+  maxPages: number,
+): Promise<WellfoundFetchResult> {
   let browser = null;
   try {
     // Lazy import — Playwright is only available in environments with browser binaries

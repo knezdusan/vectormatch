@@ -43,8 +43,15 @@
 // rate from 1.6% (1/62) toward the TDD target of 2–4%. The 0.48 threshold
 // was over-filtering borderline-but-acceptable matches. Made env-configurable
 // so further tuning does not require a redeploy.
+//
+// D16 G2 (July 17 2026): Loosened from 0.50 → 0.55 based on threshold
+// simulation. At 0.50, only 3 matches from 347 global+embedded jobs × 3
+// personas. At 0.55, 20 matches (6.7x increase) — all high-quality web-dev
+// roles (Node, Full-stack, Frontend, AI Engineer) matching TS/React/Next
+// personas. The 0.50→0.55 bucket contains genuinely relevant roles that
+// were being over-filtered. Founder-approved.
 export const GATE2_MAX_COSINE_DISTANCE = Number(
-  process.env.GATE2_MAX_COSINE_DISTANCE ?? 0.5,
+  process.env.GATE2_MAX_COSINE_DISTANCE ?? 0.55,
 );
 
 /**

@@ -243,57 +243,54 @@ export async function runGateSQLRouter(
   // catches jobs that were ingested before the Position 0 fence gate was added.
   // The regex checks for: US state codes, country names, "US Remote" patterns,
   // and region terms (EMEA, APAC, etc.) in the title and location strings.
+  // D17 C5: Gate flags are now materialized as columns (is_fenced, is_natsec,
+  // is_qa) on the job table, populated at ingestion and re-normalization. This
+  // replaces the per-query inline regex CTE — a direct compute saving under the
+  // 24-minute regime. The inline regex is kept as a fallback for jobs that
+  // haven't been backfilled yet (is_fenced IS NULL).
   const query = sql`
     WITH job_meta AS (
       SELECT ats_slug, title, remote_scope, location_name,
-             (title ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
-              OR title ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
-              OR title ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
-              OR title ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
-              OR title ~* 'Remote\s+within\s+'
-              OR title ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
-              OR COALESCE(location_name, '') ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
-              OR COALESCE(location_name, '') ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
-              OR COALESCE(location_name, '') ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
-              OR COALESCE(location_name, '') ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
-              OR COALESCE(location_name, '') ~* 'Remote\s+within\s+'
-              OR COALESCE(location_name, '') ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
-              OR COALESCE(location_name, '') ~* 'Remote\s*,\s*[A-Za-z]{2}\b'
-              OR COALESCE(location_name, '') ~* '(European Union|NAMER|EMEA|APAC|LATAM|North America|South America|Middle East|Balkans|Eastern Europe|Western Europe|Nordics|Scandinavia|DACH|Benelux)'
-              OR COALESCE(location_name, '') ~* '(United States|USA|Canada|Argentina|Brazil|Colombia|Mexico|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|England|Scotland|Wales|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Kenya|Egypt|Morocco|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
-              -- Standalone "US" as location (very short string)
-              OR (length(trim(COALESCE(location_name, ''))) <= 5 AND COALESCE(location_name, '') ~* '\mus\M')
-              -- Directive 11 Fix 1 extension: Specific city detection
-              -- If location has no remote keyword and is not empty, it's a specific city → fence
-              OR (
-                COALESCE(location_name, '') != ''
-                AND COALESCE(location_name, '') !~* '(remote|anywhere|worldwide|global|distributed|any location)'
-                AND (COALESCE(location_name, '') ~* ';' OR COALESCE(location_name, '') ~* '^[a-z].*,\s*[a-z]' OR length(trim(COALESCE(location_name, ''))) < 50)
-              )
-             ) AS is_fenced,
-             -- Directive 11 Fix 2 + Directive 12 Step 2.4: National-security keyword gate
-             -- Hard-fence keywords always trigger (clearance, export control, defense agencies)
-             -- Context-dependent keywords (e-verify, background check, public trust) only
-             -- trigger if clearance context is also present. This fixes the ~25% false-rejection
-             -- rate caused by e-verify appearing in every US company's standard legal text.
-             (title ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
-              OR title ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
-              OR title ~* '(\mitar\M|export control|\mdod\M|department of defense|defense contract)'
-              OR title ~* '(national security|homeland security|intelligence community)'
-              OR COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
-              OR COALESCE(normalized_text, '') ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
-              OR COALESCE(normalized_text, '') ~* '(\mitar\M|export control|\mdod\M|department of defense|defense contract)'
-              OR COALESCE(normalized_text, '') ~* '(national security|homeland security|intelligence community)'
-              -- Context-dependent: e-verify/background-check only if clearance context present
-              OR (
-                COALESCE(normalized_text, '') ~* '(e-verify|everify|public trust|polygraph|counterintelligence|background investigation)'
-                AND COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance|\mitar\M|export control|\mdod\M|department of defense|defense contract|national security|homeland security|intelligence community)'
-              )
-             ) AS is_natsec,
-             -- Directive 11 Fix 3: QA role gate (SQL backstop)
-             -- Rejects QA/SDET/test-automation roles that aren't developer positions
-             (title ~* '(qa engineer|qa automation|quality assurance|software engineer in test|software development engineer in test|sdet|test automation engineer|automation tester|test engineer|qa lead|quality engineer)'
-             ) AS is_qa
+             COALESCE(is_fenced, (
+               title ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
+               OR title ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+               OR title ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
+               OR title ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+               OR title ~* 'Remote\s+within\s+'
+               OR title ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+               OR COALESCE(location_name, '') ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
+               OR COALESCE(location_name, '') ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+               OR COALESCE(location_name, '') ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
+               OR COALESCE(location_name, '') ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+               OR COALESCE(location_name, '') ~* 'Remote\s+within\s+'
+               OR COALESCE(location_name, '') ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+               OR COALESCE(location_name, '') ~* 'Remote\s*,\s*[A-Za-z]{2}\b'
+               OR COALESCE(location_name, '') ~* '(European Union|NAMER|EMEA|APAC|LATAM|North America|South America|Middle East|Balkans|Eastern Europe|Western Europe|Nordics|Scandinavia|DACH|Benelux)'
+               OR COALESCE(location_name, '') ~* '(United States|USA|Canada|Argentina|Brazil|Colombia|Mexico|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|England|Scotland|Wales|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Kenya|Egypt|Morocco|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
+               OR (length(trim(COALESCE(location_name, ''))) <= 5 AND COALESCE(location_name, '') ~* '\mus\M')
+               OR (
+                 COALESCE(location_name, '') != ''
+                 AND COALESCE(location_name, '') !~* '(remote|anywhere|worldwide|global|distributed|any location)'
+                 AND (COALESCE(location_name, '') ~* ';' OR COALESCE(location_name, '') ~* '^[a-z].*,\s*[a-z]' OR length(trim(COALESCE(location_name, ''))) < 50)
+               )
+             ), false) AS is_fenced,
+             COALESCE(is_natsec, (
+               title ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
+               OR title ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
+               OR title ~* '(\mitar\M|export control|\mdod\M|department of defense|defense contract)'
+               OR title ~* '(national security|homeland security|intelligence community)'
+               OR COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance)'
+               OR COALESCE(normalized_text, '') ~* '(us citizen|u\.s\. citizen|us citizenship|must be a us citizen)'
+               OR COALESCE(normalized_text, '') ~* '(\mitar\M|export control|\mdod\M|department of defense|defense contract)'
+               OR COALESCE(normalized_text, '') ~* '(national security|homeland security|intelligence community)'
+               OR (
+                 COALESCE(normalized_text, '') ~* '(e-verify|everify|public trust|polygraph|counterintelligence|background investigation)'
+                 AND COALESCE(normalized_text, '') ~* '(security clearance|top secret|ts/sci|secret clearance|clearance required|active clearance|\mitar\M|export control|\mdod\M|department of defense|defense contract|national security|homeland security|intelligence community)'
+               )
+             ), false) AS is_natsec,
+             COALESCE(is_qa, (
+               title ~* '(qa engineer|qa automation|quality assurance|software engineer in test|software development engineer in test|sdet|test automation engineer|automation tester|test engineer|qa lead|quality engineer)'
+             ), false) AS is_qa
       FROM job WHERE id = ${jobId}::uuid
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
