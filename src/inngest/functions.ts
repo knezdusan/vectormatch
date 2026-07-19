@@ -2764,6 +2764,11 @@ export const jobIngestedHandler = inngest.createFunction(
     // (regex-only). The deterministic multi-probe at Step 4.4 may upgrade
     // "unknown" to fenced — if so, the embedding is nulled post-hoc.
     let embedding: number[] | null = null;
+    // D19: Declare gate flags at outer scope so the write-normalization step
+    // can access them. Assigned inside the `if (normalized)` block below.
+    let isFenced = false;
+    let isNatsec = false;
+    let isQa = false;
     if (normalization.status === "normalized") {
       // Check if the company is on probation — defer embedding if so.
       const companyTier = await step.run("check-company-tier", async () => {
@@ -2793,9 +2798,27 @@ export const jobIngestedHandler = inngest.createFunction(
         return rows[0]?.remoteScope ?? "unknown";
       });
 
-      const isFenced = ["country_fenced", "region_fenced", "onsite"].includes(
+      isFenced = ["country_fenced", "region_fenced", "onsite"].includes(
         jobRemoteScope ?? "unknown",
       );
+
+      // D19: Compute materialized gate flags at normalization time so the
+      // gate-1-2.ts COALESCE fallback is only needed for un-scanned rows.
+      // Without this, is_fenced stays NULL (the D19 default) and the regex
+      // fallback runs per-query — undoing the D17 C5 compute saving.
+      isNatsec = await step.run("check-natsec", async () => {
+        const { isNationalSecurityJob } = await import("@/lib/jobs/gate-zero");
+        return isNationalSecurityJob(
+          decision.job.title,
+          normalization.fullText,
+        );
+      });
+
+      // QA detection: check if the job title matches QA/test engineering patterns
+      isQa =
+        /\b(qa engineer|qa automation|quality assurance|software engineer in test|software development engineer in test|sdet|test automation engineer|automation tester|test engineer|qa lead|quality engineer)\b/i.test(
+          decision.job.title,
+        );
 
       if (companyTier === "probation") {
         // Skip embedding — job is stored as normalized without a vector.
@@ -2837,6 +2860,11 @@ export const jobIngestedHandler = inngest.createFunction(
             shortDescription: normalization.summary,
             // Persist the original listing URL before rawJson is nullified.
             jobUrl: normalization.jobUrl ?? null,
+            // D19: Materialize gate flags at normalization time. Prevents the
+            // COALESCE regex fallback from running per-query for un-scanned rows.
+            isFenced,
+            isNatsec,
+            isQa,
             // status stays 'active' — normalizedAt indicates normalization done
           })
           .where(eq(job.id, jobId));

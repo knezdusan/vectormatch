@@ -144,6 +144,16 @@ export const job = pgTable(
     // retryInFlightSweeper cron after 10min of inactivity (zombie-write
     // prevention for process death / hung HTTP clients).
     retryInFlight: boolean("retry_in_flight").notNull().default(false),
+    // D17 C5 / D19: Materialized gate flags. Set at ingestion/normalization time
+    // by the fence/natsec/QA classifiers. NULL = not yet scanned (the gate-1-2
+    // query's COALESCE regex fallback runs for these). FALSE = scanned, confirmed
+    // not fenced/natsec/QA. TRUE = scanned, confirmed fenced/natsec/QA.
+    // D19 fix: changed default from FALSE to NULL (defaultNone) — the FALSE
+    // default made the COALESCE(is_fenced, <regex>, false) fallback dead code
+    // because COALESCE never reached the regex for un-backfilled rows.
+    isFenced: boolean("is_fenced"),
+    isNatsec: boolean("is_natsec"),
+    isQa: boolean("is_qa"),
     // Monotonic counter incremented on every retry attempt. Stamped into the
     // attempt's context. Any persist carrying generation ≤ clearedGeneration
     // is rejected as a zombie write.

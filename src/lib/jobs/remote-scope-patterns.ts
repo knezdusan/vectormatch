@@ -482,6 +482,31 @@ export const COUNTRY_FENCED_HIGH: readonly ScopeSignal[] = [
     confidence: "high",
     allowedCountries: ["US"],
   },
+  // D19: E-Verify + federal work-eligibility language → country_fenced(US).
+  // Removed from NATSEC bare keywords in D12 (39% over-fence) because e-verify
+  // appears in nearly every US company's compliance text. But it was never
+  // added to the FENCE classifier where it belongs — e-verify is a US-specific
+  // work-authorization requirement, not a security-clearance signal.
+  {
+    pattern: /\be-?verify\b/i,
+    scope: "country_fenced",
+    confidence: "high",
+    allowedCountries: ["US"],
+  },
+  {
+    pattern:
+      /\beligibility\s+to\s+work\s+in\s+(?:the\s+)?(?:u\.?s\.?a?\.?|united\s+states)\b/i,
+    scope: "country_fenced",
+    confidence: "high",
+    allowedCountries: ["US"],
+  },
+  {
+    pattern:
+      /\bauthorized\s+to\s+work\s+in\s+(?:the\s+)?(?:u\.?s\.?a?\.?|united\s+states)\b/i,
+    scope: "country_fenced",
+    confidence: "high",
+    allowedCountries: ["US"],
+  },
   ...countryFencedPatterns(["us", "usa", "u\\.s\\.?", "united states"], "US"),
   ...countryFencedPatterns(
     ["uk", "u\\.k\\.?", "united kingdom", "england", "britain"],
