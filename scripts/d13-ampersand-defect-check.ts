@@ -482,7 +482,7 @@ async function main() {
     `SELECT ${tagsArraySql} && ${stackFamilyJs} as raw_overlap`,
   );
   console.log(
-    `  Raw SQL approach: ${tagsArraySql} && JS family = ${rawResult.rows[0].raw_overlap}`,
+    `  Raw SQL approach: ${tagsArraySql} && JS family = ${rawResult[0].raw_overlap}`,
   );
 
   // And this is the parameterized approach (what we use above)
@@ -493,7 +493,7 @@ async function main() {
     `  Parameterized approach: same tags && JS family = ${paramResult[0].param_overlap}`,
   );
 
-  if (rawResult.rows[0].raw_overlap !== paramResult[0].param_overlap) {
+  if (rawResult[0].raw_overlap !== paramResult[0].param_overlap) {
     console.log(
       `  *** MISMATCH: raw and parameterized approaches give different results! ***`,
     );

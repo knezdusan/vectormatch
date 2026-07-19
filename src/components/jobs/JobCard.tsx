@@ -24,7 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { PublicJobRow } from "@/lib/jobs/public-queries";
+import type { PublicJobRow } from "@/lib/jobs/public-queries-types";
 import { TooltipInfo } from "./TooltipInfo";
 
 interface JobCardProps {

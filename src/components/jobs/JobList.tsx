@@ -26,12 +26,12 @@ import type {
   JobFilters,
   JobSortOption,
   PublicJobRow,
-} from "@/lib/jobs/public-queries";
+} from "@/lib/jobs/public-queries-types";
 import {
   EMPLOYMENT_TYPE_OPTIONS,
   JOB_SORT_OPTIONS,
   WORKPLACE_FILTER_OPTIONS,
-} from "@/lib/jobs/public-queries";
+} from "@/lib/jobs/public-queries-types";
 import { JobCard } from "./JobCard";
 import { TooltipInfo } from "./TooltipInfo";
 
