@@ -49,6 +49,13 @@
     "inngest": {
       "transport": "HTTP",
       "url": "http://127.0.0.1:8288/mcp"
+    },
+    "coolify": {
+      "url": "${COOLIFY_BASE_URL}/mcp",
+      "transport": "http",
+      "headers": {
+        "Authorization": "Bearer ${COOLIFY_MCP_TOKEN}"
+      }
     }
   },
   "exclude": [

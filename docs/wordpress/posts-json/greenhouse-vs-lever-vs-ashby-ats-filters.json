@@ -1,0 +1,170 @@
+{
+  "meta": {
+    "topic": "Greenhouse vs. Lever vs. Ashby: The Filter Mechanics Recruiters Don’t Explain",
+    "category": "ATS & Hiring Systems",
+    "tags": ["Greenhouse", "Lever", "Ashby", "ATS", "Resume"],
+    "title": "Greenhouse vs. Lever vs. Ashby: The Filter Mechanics Recruiters Don’t Explain",
+    "seo_title": "Greenhouse vs Lever vs Ashby ATS: Filter Mechanics Explained (2026)",
+    "meta_description": "Discover how Greenhouse, Lever, and Ashby actually filter and rank developer resumes. Learn parsing differences, recruiter views, pipeline stages, and tactics to get seen faster in 2026.",
+    "slug": "greenhouse-vs-lever-vs-ashby-ats-filters",
+    "primary_keyword": "Greenhouse vs Lever vs Ashby",
+    "secondary_keywords": [
+      "ATS filters",
+      "resume parsing",
+      "recruiter pipeline",
+      "candidate ranking"
+    ],
+    "schema_types": ["Article", "FAQPage"],
+    "estimated_word_count": 2100,
+    "reading_time_minutes": 9
+  },
+  "hero": {
+    "subtitle": "Three popular ATS platforms used by tech companies — but their hidden mechanics determine whether your application surfaces or sinks.",
+    "direct_answer": "Greenhouse, Lever, and Ashby do not use secret auto-reject scores that bury qualified developers. Recruiters primarily see candidates sorted by application date and pipeline stage, then apply keyword searches and filters on parsed profiles. Greenhouse excels at structured parsing and scorecards; Lever emphasizes full-text search and CRM nurturing; Ashby leverages AI summaries and customizable analytics. Understanding each system's parsing and recruiter workflow is key to bypassing filters and landing in the right pipeline stage."
+  },
+  "key_takeaways": [
+    "No universal hidden ATS score exists across these platforms — recruiters sort by date/stage and search keywords",
+    "Greenhouse parses structured fields aggressively for scorecards; clean DOCX with standard headers wins",
+    "Lever relies on full-text relevance and tags; detailed bullet achievements help",
+    "Ashby uses AI for candidate summaries and criteria matching; quantified impact statements shine",
+    "Tailor your resume per ATS while prioritizing human-readable clarity to survive initial reviews"
+  ],
+  "content_html": "<h2>Why Greenhouse, Lever, and Ashby Matter in 2026</h2>\n<p>Greenhouse, Lever, and Ashby power hiring at thousands of tech companies, from startups to scale-ups. For web developers, these ATS platforms control visibility. Recruiters don’t manually review every resume. They rely on parsed data, pipeline stages, and targeted searches. Misunderstand the mechanics and your tailored application disappears into the void.</p>\n<p>Real pain points from developer forums and recruiter discussions show applications vanishing due to poor parsing or mismatched keywords. This post breaks down the actual filter mechanics based on official behaviors and practitioner insights. [[IMAGE:comparison-diagram]]</p>\n<p>No magic score rejects you automatically. But failing to appear in recruiter searches does the same thing.</p>\n[[CTA:mid]]\n<h2>How Greenhouse Filters and Processes Candidates</h2>\n<p>Greenhouse does not auto-reject based on a hidden score. Recruiters see a pipeline view sorted primarily by application date within stages like Application Review. They use structured scorecards, keyword filters, and parsed fields to evaluate candidates.</p>\n<p>Parsing is sophisticated. Greenhouse extracts skills, experience, and education into structured fields. Recruiters search these fields or use custom questions as knockout filters. Clean, standard-formatted resumes parse best — preferably DOCX with clear section headers (Experience, Skills). Multi-column layouts or non-standard dates often break extraction.</p>\n<h3>Pipeline Stages and Recruiter View</h3>\n<p>Applications land in Application Review. Recruiters advance strong ones to Recruiter Screen or assessments. Scorecards map directly to job requirements. Your parsed profile populates these, making precise skill mentions and quantified achievements critical.</p>\n<p>Internal links to other posts: optimize for <a href=\"/blog/workday-ranks-candidates-pipeline-stage\">Workday pipeline stages</a> similarly.</p>\n<h2>Lever’s Full-Text Search and CRM Mechanics</h2>\n<p>Lever prioritizes recruiter search across full resume text and tags. No dominant auto-score; candidates appear in pipelines sorted by date or custom filters. Strong CRM features let recruiters nurture passive talent.</p>\n<p>Parsing stores the full document for broad keyword matching. Recruiters tag candidates and filter by skills, location, or previous interactions. Detailed, achievement-focused bullets improve relevance in searches. Cover letters can help flag high-potential profiles.</p>\n<h3>Key Differences for Developers</h3>\n<p>Lever surfaces candidates via keyword density and semantic matches, especially post-Gem AI integrations for ranking suggestions. Mirror job description language naturally without stuffing.</p>\n[[IMAGE:lever-parsing]]\n<h2>Ashby’s AI-Driven Summaries and Custom Views</h2>\n<p>Ashby offers highly customizable recruiter dashboards with AI-assisted summaries and criteria matching. Default views are flexible; recruiters build filters based on job requirements. AI helps generate candidate overviews highlighting fit.</p>\n<p>Parsing benefits from clear, quantified content. AI emphasizes results over keywords alone. Short application forms focus attention on your CV and portfolio. Take-homes often serve as the real filter after initial review.</p>\n<h3>Analytics and Rediscovery Features</h3>\n<p>Ashby shines in data-driven hiring with reports and talent rediscovery. Past strong candidates get resurfaced via AI. Make your profile memorable with specific impacts that AI can match to new roles.</p>\n[[CTA:howto]]\n<h2>Comparison Table: Parsing, Filters, and Recruiter Reality</h2>\n<table>\n<thead>\n<tr><th>Aspect</th><th>Greenhouse</th><th>Lever</th><th>Ashby</th></tr>\n</thead>\n<tbody>\n<tr><td>Default Sort</td><td>Date + Stage</td><td>Date + Stage</td><td>Customizable</td></tr>\n<tr><td>Parsing Strength</td><td>Structured fields, scorecards</td><td>Full-text search</td><td>AI summaries</td></tr>\n<tr><td>Recruiter Tools</td><td>Knockout questions, detailed analytics</td><td>CRM nurturing, tags</td><td>AI criteria match, dashboards</td></tr>\n<tr><td>Best Resume Tips</td><td>Clean DOCX, standard dates</td><td>Keyword-rich bullets</td><td>Quantified achievements</td></tr>\n</tbody>\n</table>\n<p>External citations support these mechanics from ATS documentation and recruiter reports.</p>",
+  "cta_blocks": [
+    {
+      "id": "hero",
+      "copy": "See which ATS filters my stack passes first →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "reduce rejections",
+      "placement_note": "After hero direct answer"
+    },
+    {
+      "id": "mid",
+      "copy": "Get a résumé parse report for target ATS roles →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "gain opportunities",
+      "placement_note": "After Greenhouse section"
+    },
+    {
+      "id": "howto",
+      "copy": "Match me with roles that bypass ATS black holes →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "save time",
+      "placement_note": "After comparison"
+    },
+    {
+      "id": "closing",
+      "copy": "Upload my CV and get direct pitches that fit →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "increase fit",
+      "placement_note": "Final CTA"
+    }
+  ],
+  "images": [
+    {
+      "id": "hero",
+      "role": "hero",
+      "alt_text": "Comparison infographic of Greenhouse, Lever, and Ashby ATS pipelines on dark background",
+      "caption": "Greenhouse, Lever, Ashby recruiter views side-by-side",
+      "description": "A clean diagram contrasting the three ATS platforms' candidate pipelines, parsing outputs, and recruiter dashboards using VectorMatch brand colors.",
+      "generation_prompt": "Create a professional technical diagram comparing Greenhouse, Lever, and Ashby ATS: three columns showing pipeline stages, parsing icons, and recruiter search views. Dark background #16161e, accents in #7c3aed, #8b5cf6, #34d399. Include icons for resume, filters, AI. Minimalist developer style, no people.",
+      "suggested_search_query": "ATS comparison diagram Greenhouse Lever Ashby",
+      "candidate_url": null,
+      "url_verified": false
+    },
+    {
+      "id": "comparison-diagram",
+      "role": "diagram",
+      "alt_text": "Diagram of ATS filter mechanics for developers",
+      "caption": "How resumes flow through each platform",
+      "description": "Visual breakdown of parsing and filtering differences.",
+      "generation_prompt": "Technical flowchart showing resume upload to recruiter view for Greenhouse (structured), Lever (search), Ashby (AI). Dark theme with purple and emerald accents. Include common failure points like bad parsing.",
+      "suggested_search_query": "ATS resume parsing flowchart",
+      "candidate_url": null,
+      "url_verified": false
+    },
+    {
+      "id": "lever-parsing",
+      "role": "inline",
+      "alt_text": "Lever ATS full text search illustration",
+      "caption": "Lever emphasizes searchable resume content",
+      "description": "Illustration highlighting full-text matching in Lever.",
+      "generation_prompt": "Minimalist diagram of Lever ATS showing full resume text search with keyword highlights. Dark background, brand colors, code-like resume snippet.",
+      "suggested_search_query": "Lever ATS recruiter dashboard screenshot",
+      "candidate_url": null,
+      "url_verified": false
+    }
+  ],
+  "faq": [
+    {
+      "question": "Do Greenhouse, Lever, or Ashby use hidden scores to auto-reject candidates?",
+      "answer": "No. None of these platforms default to a single hidden rejection score visible to recruiters. They sort by application date and pipeline stage. Recruiters then search and filter parsed data. Automated elements assist but humans decide advances."
+    },
+    {
+      "question": "Which format works best for resumes across these ATS?",
+      "answer": "DOCX generally parses most reliably, especially for Greenhouse. Use standard headings, clear dates (Month Year), and single-column layouts. Avoid tables, headers/footers, and graphics that break extraction. Test with tools where possible."
+    },
+    {
+      "question": "How important are keywords vs. achievements in these systems?",
+      "answer": "Keywords help discovery in searches, but achievements and structure matter more for human review and AI summaries. Mirror job description language naturally. Quantify impacts to stand out in scorecards or AI matches."
+    },
+    {
+      "question": "Can I check my application status in these ATS?",
+      "answer": "Limited visibility. Greenhouse may offer a candidate portal with basic status. Lever and Ashby provide little to no candidate-facing tracking. Silence after 2-3 weeks often signals no movement."
+    },
+    {
+      "question": "How does VectorMatch help with these ATS?",
+      "answer": "VectorMatch's 3-Gate funnel analyzes your profile against real role requirements, bypassing many ATS pitfalls by enabling direct pitches to teams. Upload your CV once and match intelligently."
+    }
+  ],
+  "conclusion": {
+    "summary_html": "<p>Greenhouse favors structured, scorable profiles. Lever rewards searchable, detailed content and relationships. Ashby leverages AI clarity and customization. Master the mechanics common to all — clean parsing and relevance — while adapting per platform. The real differentiator remains demonstrating genuine fit through your work.</p><p>Stop guessing which filters you pass. Let AI matching surface opportunities that align.</p>",
+    "closing_cta_id": "closing"
+  },
+  "author_box": {
+    "byline": "VectorMatch Team",
+    "html": "<p>The VectorMatch Team builds the 3-Gate matching funnel to connect web developers with high-fit roles, cutting through ATS noise with vector similarity and LLM reasoning. We've parsed thousands of opportunities across major platforms.</p><p><a href=\"https://vectormatch.dev\">Learn more about how it works</a>.</p>"
+  },
+  "research_appendix": {
+    "communities_consulted": [
+      "r/cscareerquestions",
+      "r/ExperiencedDevs",
+      "Hacker News hiring threads",
+      "LinkedIn recruiter discussions"
+    ],
+    "social_sources": ["Recruiter perspectives on X and LinkedIn"],
+    "key_insights": [
+      "Default sorting is date/pipeline-based across platforms",
+      "Parsing quality determines search visibility more than scores",
+      "AI assistance is growing but human review dominates"
+    ],
+    "notable_quotes": [
+      {
+        "quote": "The default view is by date, not by score.",
+        "source": "ATS Verification blog",
+        "url": "https://atsverification.com/blog/how-recruiters-sort-candidates-ats-2026/"
+      }
+    ],
+    "sources": [
+      {
+        "title": "How Recruiters Actually Sort Candidates in the ATS (2026)",
+        "publisher": "ATS Verification",
+        "url": "https://atsverification.com/blog/how-recruiters-sort-candidates-ats-2026/",
+        "used_for": "Default sorting and no hidden score mechanics"
+      },
+      {
+        "title": "Parsing Differences Between Major ATS Platforms",
+        "publisher": "Hiring Exposed",
+        "url": "https://hiringexposed.com/guides/the-ats-decoded/02-parsing-differences/",
+        "used_for": "Greenhouse structured parsing vs Lever full-text"
+      },
+      {
+        "title": "Greenhouse vs Lever vs Ashby comparisons",
+        "publisher": "Various (RemoteStack, RoleWorth)",
+        "url": "https://remotestack.in/blog/greenhouse-vs-lever-vs-ashby-ats-comparison",
+        "used_for": "Platform differences and applicant tips"
+      }
+    ],
+    "uniqueness_statement": "This post synthesizes 2026-specific practitioner insights on parsing and recruiter workflows into a developer-focused comparison with actionable per-ATS tactics and original synthesis of community pain points, going beyond generic feature matrices."
+  }
+}

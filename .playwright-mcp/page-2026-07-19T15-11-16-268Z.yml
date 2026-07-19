@@ -1,0 +1,71 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - generic [ref=f1e3]:
+      - link "Vector••Match Blog" [ref=f1e4] [cursor=pointer]:
+        - /url: https://vectormatch.dev/blog/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - navigation "Primary" [ref=f1e12]:
+        - link "Jobs" [ref=f1e13] [cursor=pointer]:
+          - /url: https://vectormatch.dev/jobs?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "How it works" [ref=f1e14] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#how
+        - link "For Developers" [ref=f1e15] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#pitch
+        - link "Blog" [ref=f1e16] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - generic [ref=f1e17]:
+        - link "Log in" [ref=f1e18] [cursor=pointer]:
+          - /url: https://vectormatch.dev/auth?tab=signin&wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "Get Started" [ref=f1e19] [cursor=pointer]:
+          - /url: https://vectormatch.dev/auth?tab=signup&wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+  - main [ref=f1e20]:
+    - article [ref=f1e21]:
+      - heading [level=2] [ref=f1e22]:
+        - 'link "How Workday Ranks Candidates: No Hidden Auto-Reject Score" [ref=f1e23] [cursor=pointer]':
+          - /url: https://vectormatch.dev/blog/workday-ranks-candidates-pipeline-stage/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - generic [ref=f1e24]:
+        - time [ref=f1e25]: July 17, 2026
+        - generic [ref=f1e26]: ·
+        - generic [ref=f1e27]: ATS & Hiring Systems
+      - paragraph [ref=f1e29]: Workday doesn’t auto-reject with a hidden score. Learn how recruiters actually rank candidates by pipeline stage and AI—and how to get seen.
+  - contentinfo [ref=f1e30]:
+    - generic [ref=f1e31]:
+      - generic [ref=f1e32]:
+        - generic [ref=f1e33]:
+          - link "Vector••Match" [ref=f1e34] [cursor=pointer]:
+            - /url: https://vectormatch.dev/blog/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - paragraph [ref=f1e42]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+        - generic [ref=f1e43]:
+          - generic [ref=f1e44]:
+            - heading "Product" [level=2] [ref=f1e45]
+            - link "How it works" [ref=f1e46] [cursor=pointer]:
+              - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#how
+            - link "For Developers" [ref=f1e47] [cursor=pointer]:
+              - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#pitch
+            - link "VectorMatch" [ref=f1e48] [cursor=pointer]:
+              - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - generic [ref=f1e49]:
+            - heading "Company" [level=2] [ref=f1e50]
+            - link "Blog" [ref=f1e51] [cursor=pointer]:
+              - /url: https://vectormatch.dev/blog?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "About" [ref=f1e52] [cursor=pointer]:
+              - /url: https://vectormatch.dev/about?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "Contact" [ref=f1e53] [cursor=pointer]:
+              - /url: https://vectormatch.dev/contact?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - generic [ref=f1e54]:
+            - heading "Legal" [level=2] [ref=f1e55]
+            - link "Privacy" [ref=f1e56] [cursor=pointer]:
+              - /url: https://vectormatch.dev/privacy?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "Terms" [ref=f1e57] [cursor=pointer]:
+              - /url: https://vectormatch.dev/terms?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "B2B Compliance" [ref=f1e58] [cursor=pointer]:
+              - /url: https://vectormatch.dev/compliance?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - generic [ref=f1e59]:
+        - generic [ref=f1e60]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+        - generic [ref=f1e61]: Built for developers, by developers.
+  - generic [ref=f1e62]:
+    - generic [ref=f1e63]: WPVibe Draft Preview
+    - generic [ref=f1e65]: Changes are only visible to you. The live site is unaffected.
+    - link "End Preview" [ref=f1e66] [cursor=pointer]:
+      - /url: /blog/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF&wpvibe_stop_preview=1
+    - link "View Live Site" [ref=f1e67] [cursor=pointer]:
+      - /url: https://vectormatch.dev/blog/

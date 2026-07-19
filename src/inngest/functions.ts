@@ -10,6 +10,7 @@
 //
 // See docs/reports/inngest-agent-resources.md for patterns and debugging.
 
+import { rawSql } from "@/db/db";
 import type { Gate3Context } from "@/lib/jobs/gate-3";
 import { shouldSkipEmergencyPurge } from "@/lib/jobs/storage-check";
 import { inngest } from "./client";
@@ -6387,11 +6388,8 @@ export const recallAuditCron = inngest.createFunction(
 
     // Step 1: Sample jobs rejected by each gate in the past week
     const samples = await step.run("sample-rejected-jobs", async () => {
-      const { neon } = await import("@neondatabase/serverless");
-      const sql = neon(process.env.DATABASE_URL!);
-
       // Fence gate rejects (jobs with country fences in location)
-      const fenceRejects = await sql`
+      const fenceRejects = await rawSql`
         SELECT id, title, ats_slug, location_name, normalized_text, 'fence' as gate
         FROM job
         WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
@@ -6405,7 +6403,7 @@ export const recallAuditCron = inngest.createFunction(
       `;
 
       // Natsec gate rejects
-      const natsecRejects = await sql`
+      const natsecRejects = await rawSql`
         SELECT id, title, ats_slug, location_name, normalized_text, 'natsec' as gate
         FROM job
         WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
@@ -6416,7 +6414,7 @@ export const recallAuditCron = inngest.createFunction(
       `;
 
       // QA gate rejects
-      const qaRejects = await sql`
+      const qaRejects = await rawSql`
         SELECT id, title, ats_slug, location_name, normalized_text, 'qa' as gate
         FROM job
         WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
@@ -6600,10 +6598,7 @@ export const falseGlobalScopeSampler = inngest.createFunction(
     const SAMPLE_SIZE = 50;
 
     const samples = await step.run("sample-global-jobs", async () => {
-      const { neon } = await import("@neondatabase/serverless");
-      const sql = neon(process.env.DATABASE_URL!);
-
-      const suspects = await sql`
+      const suspects = await rawSql`
         SELECT id, title, ats_slug, location_name, workplace_type,
                normalized_text, detected_at
         FROM job
@@ -6619,7 +6614,7 @@ export const falseGlobalScopeSampler = inngest.createFunction(
       const remaining = SAMPLE_SIZE - suspects.length;
       let controlGroup: typeof suspects = [];
       if (remaining > 0) {
-        controlGroup = await sql`
+        controlGroup = await rawSql`
           SELECT id, title, ats_slug, location_name, workplace_type,
                  normalized_text, detected_at
           FROM job

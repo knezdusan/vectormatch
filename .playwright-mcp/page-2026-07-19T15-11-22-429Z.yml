@@ -1,0 +1,224 @@
+- generic [active] [ref=f2e1]:
+  - banner [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - link "Vector••Match Blog" [ref=f2e4] [cursor=pointer]:
+        - /url: https://vectormatch.dev/blog/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - navigation "Primary" [ref=f2e12]:
+        - link "Jobs" [ref=f2e13] [cursor=pointer]:
+          - /url: https://vectormatch.dev/jobs?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "How it works" [ref=f2e14] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#how
+        - link "For Developers" [ref=f2e15] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#pitch
+        - link "Blog" [ref=f2e16] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - generic [ref=f2e17]:
+        - link "Log in" [ref=f2e18] [cursor=pointer]:
+          - /url: https://vectormatch.dev/auth?tab=signin&wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "Get Started" [ref=f2e19] [cursor=pointer]:
+          - /url: https://vectormatch.dev/auth?tab=signup&wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+  - main [ref=f2e20]:
+    - article [ref=f2e21]:
+      - generic [ref=f2e22]:
+        - link "ATS & Hiring Systems" [ref=f2e23] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog/category/ats-hiring-systems/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - 'heading "How Workday Ranks Candidates: No Hidden Auto-Reject Score" [level=1] [ref=f2e24]'
+        - generic [ref=f2e25]:
+          - time [ref=f2e26]: July 17, 2026
+          - generic [ref=f2e27]: ·
+          - generic [ref=f2e28]: stacionari
+          - generic [ref=f2e29]: ·
+          - generic [ref=f2e30]: 7 min read
+      - figure [ref=f2e34]:
+        - img "Workday recruiter dashboard showing candidate pipeline stages" [ref=f2e35]
+      - generic [ref=f2e36]:
+        - paragraph [ref=f2e37]: Stop worrying about a secret ATS score that doesn’t exist. Here’s what recruiters actually see when they open Workday.
+        - paragraph [ref=f2e38]: Workday does not assign a single hidden score that auto-rejects applicants. Recruiters view candidates sorted by pipeline stage (Applied, Screening, Interview) and can use AI-powered ranking from HiredScore to prioritize, but they can still pull up any resume. The real filter is knockout questions—not a secret algorithm.
+        - link "See which roles pass your ATS filters first →" [ref=f2e40] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - generic [ref=f2e41]:
+          - heading "What You’ll Learn" [level=2] [ref=f2e42]
+          - list [ref=f2e43]:
+            - listitem [ref=f2e44]:
+              - generic [ref=f2e45]: ✓
+              - generic [ref=f2e46]: Workday has no universal hidden score that auto-rejects your resume.
+            - listitem [ref=f2e47]:
+              - generic [ref=f2e48]: ✓
+              - generic [ref=f2e49]: Recruiters see candidates grouped by pipeline stage, not a single rank.
+            - listitem [ref=f2e50]:
+              - generic [ref=f2e51]: ✓
+              - generic [ref=f2e52]: HiredScore AI helps prioritize, but humans still review qualified applicants.
+            - listitem [ref=f2e53]:
+              - generic [ref=f2e54]: ✓
+              - generic [ref=f2e55]: Knockout questions are the only true auto-reject mechanism in Workday.
+            - listitem [ref=f2e56]:
+              - generic [ref=f2e57]: ✓
+              - generic [ref=f2e58]: Tailoring your resume to job descriptions improves your visibility in recruiter searches.
+        - navigation "Table of contents" [ref=f2e59]:
+          - paragraph [ref=f2e60]: On this page
+          - list [ref=f2e61]:
+            - listitem [ref=f2e62]:
+              - link "Why Workday’s ranking system matters in 2026" [ref=f2e63] [cursor=pointer]:
+                - /url: "#why-workdays-ranking-system-matters-in-2026"
+            - listitem [ref=f2e64]:
+              - link "What do recruiters actually see when they open Workday?" [ref=f2e65] [cursor=pointer]:
+                - /url: "#what-do-recruiters-actually-see-when-they-open-workday"
+            - listitem [ref=f2e66]:
+              - link "Does Workday use AI to rank candidates?" [ref=f2e67] [cursor=pointer]:
+                - /url: "#does-workday-use-ai-to-rank-candidates"
+            - listitem [ref=f2e68]:
+              - link "What about the “hidden score” myth?" [ref=f2e69] [cursor=pointer]:
+                - /url: "#what-about-the-hidden-score-myth"
+            - listitem [ref=f2e70]:
+              - link "What auto-rejects you in Workday—and how to get seen" [ref=f2e71] [cursor=pointer]:
+                - /url: "#what-auto-rejects-you-in-workday-and-how-to-get-seen"
+        - heading "Why Workday’s ranking system matters in 2026" [level=2] [ref=f2e72]
+        - paragraph [ref=f2e73]:
+          - text: Workday is used by the majority of Fortune 500 companies and has rolled out
+          - link "AI agents that automatically source, rank, and recommend candidates" [ref=f2e74] [cursor=pointer]:
+            - /url: https://www.forbes.com/councils/forbescoachescouncil/2026/03/19/why-your-resume-isnt-making-it-past-the-new-ai-gatekeepers/
+          - text: to hiring managers. Understanding how this ranking actually works—not the myths—can mean the difference between being seen and being invisible. Workday’s ranking is not a black-box death sentence; it’s a prioritization tool.
+        - heading "What do recruiters actually see when they open Workday?" [level=2] [ref=f2e75]
+        - paragraph [ref=f2e76]: Recruiters see candidates organized by pipeline stage—Applied, Screening, Interview, Offer, Hire—not by a single numeric score. The default view is a list of applicants sorted by stage and application date, with the ability to filter and sort by various fields. There is no giant “auto-reject” button powered by a secret score.
+        - paragraph [ref=f2e77]:
+          - text: "Every ATS gives recruiters two primary views: the candidate view (full history at that company) and the requisition view (all applicants for a specific job). Recruiters typically work in the requisition view, reviewing applicants one by one. They can sort by any column—name, stage, source, or even an AI-generated priority score if the company has enabled it. But the key point:"
+          - strong [ref=f2e78]: they can see everyone
+          - text: . No one is hidden unless a knockout question was failed.
+        - 'figure "The requisition view: recruiters can sort by any column, including AI priority. Photo: Jakub Żerdzicki on Unsplash" [ref=f2e79]':
+          - img "Workday requisition view showing candidate list and sorting options" [ref=f2e80]
+        - heading "Does Workday use AI to rank candidates?" [level=2] [ref=f2e82]
+        - paragraph [ref=f2e83]:
+          - text: Yes, but ranking is not rejection. Workday uses
+          - link "HiredScore, an AI-powered candidate ranking tool it acquired in 2024" [ref=f2e84] [cursor=pointer]:
+            - /url: https://www.forbes.com/councils/forbescoachescouncil/2026/03/19/why-your-resume-isnt-making-it-past-the-new-ai-gatekeepers/
+          - text: ", to assign priority scores and recommend top candidates to recruiters. This AI helps recruiters focus on the most relevant applicants first, but it does not automatically reject lower-ranked candidates."
+        - paragraph [ref=f2e85]:
+          - text: HiredScore analyzes resumes against job descriptions, looking for skills, experience, and other signals. It then assigns a “grade” or priority score that appears in the recruiter’s view. Recruiters can use this to sort candidates, but they can also ignore it and review applicants in any order they choose. As one recruiter put it,
+          - link "“My ATS ranks them high-mid-low-unclassified. But I find the rating category it assigns very unreliable”" [ref=f2e86] [cursor=pointer]:
+            - /url: https://www.reddit.com/r/recruiting/comments/1bw5pmn/does_your_ats_really_parse_throughfilter_resumes/
+          - text: . The AI is a suggestion, not a judge.
+        - paragraph [ref=f2e87]: Workday’s Illuminate platform, which includes a Recruiter Agent, claims to boost recruiter capacity by 54%. But even with AI, the final decision to move a candidate forward or reject them rests with a human.
+        - 'figure "How Workday’s ranking works: parse → match → prioritize → human review. Photo: maks_d on Unsplash" [ref=f2e88]':
+          - img "Flowchart showing how Workday ranks candidates using HiredScore AI" [ref=f2e89]
+        - heading "What about the “hidden score” myth?" [level=2] [ref=f2e91]
+        - paragraph [ref=f2e92]:
+          - text: There is no secret algorithm in Workday that assigns a single score and auto-rejects you if it’s too low.
+          - link "Real hiring systems like Workday, Lever, and Greenhouse don’t give candidates scores" [ref=f2e93] [cursor=pointer]:
+            - /url: https://www.linkedin.com/posts/elvis-levi_youve-spent-hours-perfecting-your-resume-activity-7381184007079890944-8L1H
+          - text: —they parse and rank internally. Those 72% or 86% “match ratings” you see online are just keyword counters from third-party tools, not something recruiters ever see.
+        - paragraph [ref=f2e94]: The myth persists because of a few reasons. First, vendors market AI-driven ranking, which sounds like a robot judging you. Second, recruiters and candidates misinterpret “ranked lists” as “rejected candidates”. Third, the career-advice industry has profited from fear—selling templates and resume rewrites based on the idea that you must “beat the ATS”.
+        - paragraph [ref=f2e95]:
+          - text: As one recruiter explained,
+          - link "“An ATS is a filing cabinet. That’s it. It doesn’t make decisions”" [ref=f2e96] [cursor=pointer]:
+            - /url: https://huntr.co/blog/how-applicant-tracking-systems-work
+          - text: . The real problem isn’t a hidden score; it’s that your resume might not be visible because it lacks the keywords recruiters search for, or because you failed a knockout question.
+        - heading "What auto-rejects you in Workday—and how to get seen" [level=2] [ref=f2e97]
+        - paragraph [ref=f2e98]: The only true auto-reject mechanism in Workday is knockout questions—hard requirements like work authorization, specific certifications, or location constraints. If you answer “no” to a knockout question, your application is automatically disqualified and never reaches a human.
+        - paragraph [ref=f2e99]: Knockout questions are configured by the employer and are usually binary (yes/no) or multiple-choice. They are not part of the ranking system; they are a separate filter that sits before any human review. Miss one, and you’re out—no appeal, no second look. This is the real gatekeeper, not a hidden score.
+        - 'figure "Knockout questions are the only true auto-reject mechanism in Workday. Photo: Artem Sapegin on Unsplash" [ref=f2e100]':
+          - img "Workday application form with knockout questions highlighted" [ref=f2e101]
+        - paragraph [ref=f2e103]:
+          - text: "To get seen, focus on what actually matters:"
+          - link "tailoring your resume to the job description" [ref=f2e104] [cursor=pointer]:
+            - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - text: ", using natural keywords, and answering knockout questions correctly. Workday’s parser extracts text from your resume and matches it against the requisition. If your resume contains the right skills and experience, you’ll surface in recruiter searches."
+        - paragraph [ref=f2e105]: "Avoid common pitfalls: complex formatting, tables, headers/footers, and hidden text. Workday’s parser can struggle with these, and if it can’t read your resume cleanly, you might be scored at zero and become invisible. Use a clean, single-column layout with standard section titles. And always, always answer knockout questions truthfully—they are the only thing that can truly auto-reject you."
+        - link "Get a résumé parse report for your target roles →" [ref=f2e107] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - paragraph [ref=f2e108]:
+          - text: Referrals also bypass much of the ranking system. If an employee refers you, your application is often flagged and moved to the top of the recruiter’s queue.
+          - link "Networking isn’t just about getting a job; it’s about skipping the queue entirely" [ref=f2e109] [cursor=pointer]:
+            - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - text: .
+        - generic [ref=f2e110]:
+          - heading "Frequently Asked Questions" [level=2] [ref=f2e111]
+          - generic [ref=f2e112]:
+            - generic [ref=f2e113]:
+              - heading "Does Workday have a hidden score that auto-rejects candidates?" [level=3] [ref=f2e114]
+              - paragraph [ref=f2e115]: No. Workday does not have a single hidden score that automatically rejects candidates. It uses AI-powered ranking (HiredScore) to help recruiters prioritize, but recruiters can still view and consider all qualified applicants. The only auto-reject mechanism is knockout questions.
+              - paragraph
+            - generic [ref=f2e116]:
+              - heading "What do recruiters see when they look at candidates in Workday?" [level=3] [ref=f2e117]
+              - paragraph [ref=f2e118]: Recruiters see a list of candidates organized by pipeline stage (Applied, Screening, Interview, Offer, Hire). They can sort by various fields, including an AI-generated priority score if enabled. They can click on any candidate to view their full application and resume.
+              - paragraph
+            - generic [ref=f2e119]:
+              - heading "How does Workday’s AI ranking work?" [level=3] [ref=f2e120]
+              - paragraph [ref=f2e121]: Workday uses HiredScore, an AI tool that analyzes resumes against job descriptions to assign a priority score based on skills, experience, and other signals. This score helps recruiters focus on the most relevant candidates first, but it does not automatically reject anyone.
+              - paragraph
+            - generic [ref=f2e122]:
+              - heading "What actually gets my resume rejected in Workday?" [level=3] [ref=f2e123]
+              - paragraph [ref=f2e124]: The only thing that truly auto-rejects your application in Workday is failing a knockout question—such as not having work authorization or a required certification. Otherwise, your resume is visible to recruiters, though it may be buried if it lacks relevant keywords.
+              - paragraph
+            - generic [ref=f2e125]:
+              - heading "How can I improve my chances of being seen in Workday?" [level=3] [ref=f2e126]
+              - paragraph [ref=f2e127]: Tailor your resume to each job description with natural keywords, avoid complex formatting (tables, headers/footers), and always answer knockout questions correctly. A clean, single-column layout with standard section titles ensures the parser can read your resume cleanly and surface you in recruiter searches. Referrals also help bypass the ranking queue entirely.
+              - paragraph
+            - paragraph
+        - paragraph [ref=f2e128]: "Workday’s ranking system is not a secret judge that auto-rejects you. It’s a prioritization tool that helps recruiters manage high volumes of applications. The real gatekeeper is knockout questions—and your resume’s visibility depends on how well it matches the job description. Stop worrying about a hidden score and start focusing on what actually matters: tailoring your resume, using clear formatting, and answering those knockout questions correctly."
+        - paragraph [ref=f2e129]: If you’re tired of playing the ATS game, VectorMatch helps you skip it entirely. Our 3-Gate matching funnel connects you directly to decision-makers for roles that actually fit your skills—no black boxes, no hidden scores.
+        - link "Get direct pitches, not ATS black holes →" [ref=f2e131] [cursor=pointer]:
+          - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - generic [ref=f2e133]:
+          - generic [ref=f2e134]:
+            - paragraph [ref=f2e135]: VectorMatch Team
+            - paragraph [ref=f2e136]:
+              - text: VectorMatch is an AI-driven job-matching platform that helps developers skip the ATS black hole and pitch directly to decision-makers. Our 3-Gate matching funnel (tag screening → vector similarity → LLM reasoning) surfaces high-fit, often hidden, roles—including remote and B2B/global contracts.
+              - link "Learn more" [ref=f2e137] [cursor=pointer]:
+                - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+              - text: .
+            - paragraph
+          - paragraph
+      - generic [ref=f2e138]:
+        - link "#AI" [ref=f2e139] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog/tag/ai/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "#ATS" [ref=f2e140] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog/tag/ats/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "#Networking" [ref=f2e141] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog/tag/networking/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "#Resume" [ref=f2e142] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog/tag/resume/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+        - link "#Workday" [ref=f2e143] [cursor=pointer]:
+          - /url: https://vectormatch.dev/blog/tag/workday/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+    - navigation [ref=f2e144]
+  - contentinfo [ref=f2e145]:
+    - generic [ref=f2e146]:
+      - generic [ref=f2e147]:
+        - generic [ref=f2e148]:
+          - link "Vector••Match" [ref=f2e149] [cursor=pointer]:
+            - /url: https://vectormatch.dev/blog/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - paragraph [ref=f2e157]: The AI-powered job agent for web developers. Skip the gatekeepers, pitch directly, and get hired on your terms.
+        - generic [ref=f2e158]:
+          - generic [ref=f2e159]:
+            - heading "Product" [level=2] [ref=f2e160]
+            - link "How it works" [ref=f2e161] [cursor=pointer]:
+              - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#how
+            - link "For Developers" [ref=f2e162] [cursor=pointer]:
+              - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF#pitch
+            - link "VectorMatch" [ref=f2e163] [cursor=pointer]:
+              - /url: https://vectormatch.dev/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - generic [ref=f2e164]:
+            - heading "Company" [level=2] [ref=f2e165]
+            - link "Blog" [ref=f2e166] [cursor=pointer]:
+              - /url: https://vectormatch.dev/blog?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "About" [ref=f2e167] [cursor=pointer]:
+              - /url: https://vectormatch.dev/about?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "Contact" [ref=f2e168] [cursor=pointer]:
+              - /url: https://vectormatch.dev/contact?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+          - generic [ref=f2e169]:
+            - heading "Legal" [level=2] [ref=f2e170]
+            - link "Privacy" [ref=f2e171] [cursor=pointer]:
+              - /url: https://vectormatch.dev/privacy?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "Terms" [ref=f2e172] [cursor=pointer]:
+              - /url: https://vectormatch.dev/terms?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+            - link "B2B Compliance" [ref=f2e173] [cursor=pointer]:
+              - /url: https://vectormatch.dev/compliance?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF
+      - generic [ref=f2e174]:
+        - generic [ref=f2e175]: © 2026 VectorMatch. You focus on coding. VectorMatch handles the rest.
+        - generic [ref=f2e176]: Built for developers, by developers.
+  - generic [ref=f2e177]:
+    - generic [ref=f2e178]: WPVibe Draft Preview
+    - generic [ref=f2e180]: Changes are only visible to you. The live site is unaffected.
+    - link "End Preview" [ref=f2e181] [cursor=pointer]:
+      - /url: /blog/workday-ranks-candidates-pipeline-stage/?wpvibe_preview=buEKfbh6kVe4hELJIJkF6lHkk4Hv5AjF&wpvibe_stop_preview=1
+    - link "View Live Site" [ref=f2e182] [cursor=pointer]:
+      - /url: https://vectormatch.dev/blog/

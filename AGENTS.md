@@ -387,6 +387,31 @@ This project has **Google BigQuery MCP** integration for public dataset analysis
 
 **When to invoke**: Use for Module B development, market analysis, and when you need to query public datasets. Always use `mcp_list_tools` first to discover available tools before calling `mcp_call_tool`.
 
+## Coolify MCP (Infrastructure Operations)
+
+VectorMatch is hosted on a Hetzner VPS managed by Coolify. The Coolify MCP server is registered in `.devin/config.json` and provides read-only access to the production infrastructure.
+
+**Available Tools**:
+- `get_infrastructure_overview`: High-level summary of all servers, projects, applications, databases, and services — start here
+- `list_servers` / `get_server`: List or inspect the Coolify host server
+- `list_projects`: List Coolify projects
+- `list_applications` / `get_application`: List or inspect the VectorMatch Next.js application
+- `list_databases` / `get_database`: List or inspect databases (e.g., Redis)
+- `list_services` / `get_service`: List or inspect services (e.g., Inngest, FlareSolverr, WordPress)
+
+**When to Use Coolify MCP**:
+- Investigating production health, status, or configuration of the VectorMatch app, Inngest, Redis, or other Coolify-managed services
+- Answering questions about the current deployment, FQDN, health checks, or resource limits
+- Discovering infrastructure context before making code or deployment decisions
+
+**Important Rules**:
+- The built-in Coolify MCP server is **read-only**. Do not attempt to restart, stop, or modify resources through the MCP server.
+- Some `get_*` responses include `_actions` hints (e.g., `restart`, `stop`). These are metadata only and are not callable MCP tools with this server.
+- For any mutating operations (start/stop/restart services), use the existing `src/lib/coolify/client.ts` Server Actions (`getInngestStatus`, `startInngest`, `stopInngest`, `restartInngest`) or the Coolify dashboard.
+- Always use `mcp_list_tools` first to discover the exact available tools before calling `mcp_call_tool`.
+
+**Configuration**: See `.devin/config.json` for the `coolify` entry. It uses `COOLIFY_BASE_URL` and `COOLIFY_MCP_TOKEN` from the environment. If `COOLIFY_MCP_TOKEN` is not set, use `COOLIFY_API_TOKEN` and update the config accordingly. Ensure the Coolify API token has `read` permission only.
+
 ## Corpus Alignment Backfill Scripts
 
 These one-time scripts activate the v2 corpus expansion enforcement layer. All support `--dry-run` (default, no writes) and `--apply` (persist) flags.

@@ -31,7 +31,7 @@ export interface CleanupStepResult {
 
 /**
  * Coerce a Drizzle `db.execute` result into a row count. Drizzle returns
- * `rowCount` for DELETE/UPDATE on the neon-serverless driver, but the field
+ * `rowCount` for DELETE/UPDATE on the node-postgres driver, but the field
  * may be `null` or `undefined` on some driver paths — default to 0 in that
  * case so the ingestion log always has a numeric metric.
  */

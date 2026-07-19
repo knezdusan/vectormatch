@@ -82,7 +82,7 @@ export function sumYearsFromRanges(ranges: DateRange[]): number {
 
 /**
  * Drizzle transaction object type, derived from the live `db` instance so it
- * stays correct regardless of whether we use neon-http or neon-serverless.
+ * stays correct regardless of which pg driver we use (node-postgres).
  */
 export type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
