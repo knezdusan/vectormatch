@@ -3993,6 +3993,27 @@ export const matchBulkReprocess = inngest.createFunction(
     });
 
     if (jobIds.length === 0) {
+      // Write ingestion log even when nothing to do — this is why the function
+      // previously appeared "dead" (zero logs in the ingestionLog table). The
+      // Inngest server showed 51 runs, but the app's admin dashboard showed
+      // nothing because no ingestion log was written.
+      await step.run("write-log-empty", async () => {
+        const { writeIngestionLog } = await import(
+          "@/lib/jobs/poller/ingestion-log"
+        );
+        return writeIngestionLog({
+          type: "tier_recalc",
+          status: "success",
+          source: "match_bulk_reprocess",
+          itemsProcessed: 0,
+          itemsInserted: 0,
+          itemsUpdated: 0,
+          itemsRejected: 0,
+          itemsSkipped: 0,
+          startedAt: new Date(),
+          finishedAt: new Date(),
+        });
+      });
       return {
         reprocessed: 0,
         candidates: 0,
@@ -4225,6 +4246,30 @@ export const matchBulkReprocess = inngest.createFunction(
       totalCandidates += batchResult.count;
       totalGate05Rejected += batchResult.gate05Rejected;
     }
+
+    // Write ingestion log so the run is visible in the admin ingestion
+    // dashboard. Without this, the function appears "dead" even though it
+    // executes daily — the only trace was in the Inngest server's own logs.
+    // itemsInserted = candidates fanned out to Gate 3 (the useful output).
+    // itemsRejected = jobs tombstoned by Gate 0.5 hard-blocker pre-filter.
+    // itemsSkipped = jobs that passed Gate 0.5 but yielded no Gate 1+2 candidates.
+    await step.run("write-log", async () => {
+      const { writeIngestionLog } = await import(
+        "@/lib/jobs/poller/ingestion-log"
+      );
+      return writeIngestionLog({
+        type: "tier_recalc",
+        status: totalCandidates > 0 ? "success" : "partial",
+        source: "match_bulk_reprocess",
+        itemsProcessed: jobIds.length,
+        itemsInserted: totalCandidates,
+        itemsUpdated: 0,
+        itemsRejected: totalGate05Rejected,
+        itemsSkipped: jobIds.length - totalCandidates - totalGate05Rejected,
+        startedAt: new Date(),
+        finishedAt: new Date(),
+      });
+    });
 
     return {
       reprocessed: jobIds.length,
