@@ -1851,6 +1851,9 @@ export const directJobBoardIngestion = inngest.createFunction(
       board: string;
       success: boolean;
       ingested: number;
+      // D20 JOB 1.1: New jobs routed to the gate stack via job/ingested emit.
+      // Distinct from `ingested` (which includes updates to existing jobs).
+      newRouted: number;
       error: string | null;
     }> = [];
 
@@ -1890,9 +1893,17 @@ export const directJobBoardIngestion = inngest.createFunction(
     };
 
     /**
-     * Fetch + upsert + record result for a single direct-ingestion board.
-     * Eliminates the 49-line fetch→map→filter→upsert→push duplication across
-     * Himalayas, RemoteOK, Arbeitnow, Remotive, and WeWorkRemotely.
+     * Fetch + upsert + emit job/ingested + record result for a single
+     * direct-ingestion board. Eliminates the 49-line fetch→map→filter→upsert→push
+     * duplication across Himalayas, RemoteOK, Arbeitnow, Remotive, and
+     * WeWorkRemotely.
+     *
+     * D20 JOB 1.1: Now captures `newJobIds` from `upsertDirectJobs` and emits
+     * `job/ingested` per new job — wiring direct-board jobs into the gate
+     * router for the first time. Previously this helper upserted and returned
+     * without emitting, so direct-board jobs stopped at the corpus (zero
+     * match_queue contributions, forever). The `jobIngestedHandler` D18
+     * route-only recovery path handles already-normalized jobs idempotently.
      */
     const ingestBoard = async (
       boardName: string,
@@ -1916,6 +1927,7 @@ export const directJobBoardIngestion = inngest.createFunction(
             board: boardName,
             success: true,
             ingested: 0,
+            newRouted: 0,
             error: `fetched ${result.jobs.length} jobs but all filtered by filterExcluded`,
           });
           return;
@@ -1931,10 +1943,35 @@ export const directJobBoardIngestion = inngest.createFunction(
             );
           },
         );
+        // D20 JOB 1.1: Emit job/ingested for each NEW job so the
+        // jobIngestedHandler runs the gate router. Updated jobs (already
+        // normalized) are skipped by the handler's idempotency guard, so
+        // re-ingestion of unchanged boards is cheap. Mirrors the Phalanx
+        // poller pattern (lines 892-908).
+        if (upsertResult.newJobIds.length > 0) {
+          await step.sendEvent(
+            `emit-job-ingested-${stepIdPrefix}`,
+            upsertResult.newJobIds.map((jobId) => ({
+              id: `job-ingested-${jobId}-${Date.now()}`,
+              name: "job/ingested",
+              data: {
+                jobId,
+                atsSource: boardSource,
+                atsSlug: boardSource,
+                // externalJobId and title omitted — handler fetches from DB.
+                isNew: true,
+              },
+            })),
+          );
+        }
         boardResults.push({
           board: boardName,
           success: true,
           ingested: upsertResult.totalUpserted,
+          // D20 JOB 1.1: Track new jobs routed to the gate stack for the
+          // final log — ends the era of "ingested but never routed" silent
+          // zeros for direct boards.
+          newRouted: upsertResult.newJobIds.length,
           error: null,
         });
       } else if (!result.success) {
@@ -1942,6 +1979,7 @@ export const directJobBoardIngestion = inngest.createFunction(
           board: boardName,
           success: false,
           ingested: 0,
+          newRouted: 0,
           error: result.error,
         });
       } else {
@@ -1950,6 +1988,7 @@ export const directJobBoardIngestion = inngest.createFunction(
           board: boardName,
           success: true,
           ingested: 0,
+          newRouted: 0,
           error: `0 jobs passed filter (totalAvailable: ${result.totalAvailable})`,
         });
       }
@@ -2062,10 +2101,30 @@ export const directJobBoardIngestion = inngest.createFunction(
           embedFn,
         );
       });
+      // D20 JOB 1.1: Emit job/ingested for new Wellfound jobs (same fix as
+      // ingestBoard — see lines 1944-1967). Wellfound is inline (not using
+      // ingestBoard) because of its dual-function employer harvest, but the
+      // routing emit is identical.
+      if (upsertResult.newJobIds.length > 0) {
+        await step.sendEvent(
+          "emit-job-ingested-wellfound",
+          upsertResult.newJobIds.map((jobId) => ({
+            id: `job-ingested-${jobId}-${Date.now()}`,
+            name: "job/ingested",
+            data: {
+              jobId,
+              atsSource: "wellfound",
+              atsSlug: "wellfound",
+              isNew: true,
+            },
+          })),
+        );
+      }
       boardResults.push({
         board: "Wellfound",
         success: true,
         ingested: upsertResult.totalUpserted,
+        newRouted: upsertResult.newJobIds.length,
         error: null,
       });
     } else if (!wellfoundResult.success) {
@@ -2073,6 +2132,7 @@ export const directJobBoardIngestion = inngest.createFunction(
         board: "Wellfound",
         success: false,
         ingested: 0,
+        newRouted: 0,
         error: wellfoundResult.error,
       });
     }
@@ -2122,10 +2182,29 @@ export const directJobBoardIngestion = inngest.createFunction(
           embedFn,
         );
       });
+      // D20 JOB 1.1: Emit job/ingested for new Remote.com jobs (same fix as
+      // ingestBoard). Remote.com is inline (not using ingestBoard) because of
+      // its Playwright fetch wrapper, but the routing emit is identical.
+      if (upsertResult.newJobIds.length > 0) {
+        await step.sendEvent(
+          "emit-job-ingested-remotecom",
+          upsertResult.newJobIds.map((jobId) => ({
+            id: `job-ingested-${jobId}-${Date.now()}`,
+            name: "job/ingested",
+            data: {
+              jobId,
+              atsSource: "remotecom",
+              atsSlug: "remotecom",
+              isNew: true,
+            },
+          })),
+        );
+      }
       boardResults.push({
         board: "Remote.com",
         success: true,
         ingested: upsertResult.totalUpserted,
+        newRouted: upsertResult.newJobIds.length,
         error: null,
       });
     } else if (!remotecomResult.success) {
@@ -2133,6 +2212,7 @@ export const directJobBoardIngestion = inngest.createFunction(
         board: "Remote.com",
         success: false,
         ingested: 0,
+        newRouted: 0,
         error: remotecomResult.error,
       });
     }
@@ -2147,16 +2227,25 @@ export const directJobBoardIngestion = inngest.createFunction(
 
     // ── Write ingestion log ─────────────────────────────────────────────────
     const totalIngested = boardResults.reduce((sum, r) => sum + r.ingested, 0);
+    // D20 JOB 1.1: Total new jobs routed to the gate stack — the metric that
+    // was missing for direct boards. If this is 0 across all boards, either
+    // every job was an update (re-ingestion of unchanged board) or the emit
+    // broke. Non-zero on a fresh board = the pipe is connected.
+    const totalNewRouted = boardResults.reduce(
+      (sum, r) => sum + (r.newRouted ?? 0),
+      0,
+    );
     const anyErrors = boardResults.some((r) => !r.success);
     const anyZeroJobBoards = boardResults.some(
       (r) => r.success && r.ingested === 0,
     );
 
     // D16 G1: Per-board breakdown in the log — ends the era of silent zeros.
+    // D20 JOB 1.1: Now includes newRouted count per board (ingested|routed).
     const boardBreakdown = boardResults
       .map(
         (r) =>
-          `${r.board}=${r.ingested}${r.error ? `(${r.error.slice(0, 80)})` : ""}`,
+          `${r.board}=${r.ingested}|new=${r.newRouted ?? 0}${r.error ? `(${r.error.slice(0, 80)})` : ""}`,
       )
       .join("; ");
 
@@ -2183,6 +2272,10 @@ export const directJobBoardIngestion = inngest.createFunction(
     return {
       boards: boardResults,
       totalIngested,
+      // D20 JOB 1.1: Expose the routed count so callers (and the Inngest
+      // dashboard) can see the first-ever match contribution from direct
+      // boards. This is the number that proves the pipe is connected.
+      totalNewRouted,
     };
   },
 );
