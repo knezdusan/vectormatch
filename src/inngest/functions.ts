@@ -67,8 +67,9 @@ export const hnAlgoliaSeeder = inngest.createFunction(
   {
     id: "seeder-hn-algolia",
     name: "HN Algolia Delta Seeder",
-    // D17 A2: FROZEN until Aug 1 — discovery source, not needed for daily pulse.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly cadence. Discovery source, not
+    // latency-sensitive. HN Algolia seeds companies from "Who's Hiring" posts.
+    triggers: [{ cron: "0 10 * * 1" }],
   },
   async ({ step }) => {
     // Only run during the first 7 days of each month — the HN "Who is hiring"
@@ -365,12 +366,12 @@ export const batchPollTier = inngest.createFunction(
     id: "poller-batch-poll-tier",
     name: "Batch Poll Tier",
     triggers: [
-      // D17 A2: FROZEN until Aug 1 — ATS polling is the biggest burn lever.
-      // The daily pulse is: direct job boards + match generation only.
-      // Re-enable after Aug 1 reset with the consolidated 2x/day schedule.
-      // { cron: "0 0,4 * * *" },
-      // { cron: "0 4 * * *" },
-      // { cron: "0 3 * * 1" },
+      // D20 JOB 3 Wave 1: UNFROZEN — Neon burn constraint is gone (VPS
+      // self-hosted Postgres). Hourly polling was the original D11 promise;
+      // every 3rd hour (8x/day) is the politeness-bounded cadence the founder
+      // signed off on. The rate-limiter (maxConcurrent:1, minTime:500 per ATS
+      // source) caps actual request rate regardless of cron frequency.
+      { cron: "0 */3 * * *" },
     ],
     concurrency: { limit: 5 },
   },
@@ -926,8 +927,10 @@ export const tierRecalc = inngest.createFunction(
   {
     id: "poller-tier-recalc",
     name: "Tier Recalculation",
-    // D17 A2: FROZEN until Aug 1 — heavy backfill, not needed for daily pulse.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly cadence (was daily under Neon, but
+    // weekly is sufficient now that the corpus is stable). Tier rebucketing
+    // is not latency-sensitive.
+    triggers: [{ cron: "0 3 * * 0" }],
   },
   async ({ step }) => {
     const { recalculateTiers } = await import("@/lib/jobs/poller/tier-queries");
@@ -987,8 +990,9 @@ export const probationEmbeddingBackfill = inngest.createFunction(
   {
     id: "probation-embedding-backfill",
     name: "Probation Embedding Backfill",
-    // D17 A2: FROZEN until Aug 1 — heavy backfill.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Sat 04:00). Heavy embedding backfill
+    // for probation companies. Not latency-sensitive.
+    triggers: [{ cron: "0 4 * * 6" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1138,8 +1142,8 @@ export const qualityFlywheelRecalc = inngest.createFunction(
   {
     id: "quality-flywheel-recalc",
     name: "Quality Flywheel Recalculation",
-    // D17 A2: FROZEN until Aug 1 — heavy recalc.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Sun 05:00). Heavy quality recalc.
+    triggers: [{ cron: "0 5 * * 0" }],
   },
   async ({ step }) => {
     const { recalculateQualityScores } = await import(
@@ -1187,8 +1191,8 @@ export const layoffSignalChecker = inngest.createFunction(
   {
     id: "layoff-signal-checker",
     name: "Layoff Signal Checker",
-    // D17 A2: FROZEN until Aug 1 — not needed for daily pulse.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 08:00. Low-cost layoff signal check.
+    triggers: [{ cron: "0 8 * * *" }],
   },
   async ({ step }) => {
     const { checkLayoffSignals } = await import(
@@ -1246,8 +1250,8 @@ export const aggressiveCleanup = inngest.createFunction(
   {
     id: "aggressive-cleanup",
     name: "Aggressive Cleanup (G8)",
-    // D17 A2: FROZEN until Aug 1 — heavy cleanup.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Sun 02:00). Heavy cleanup.
+    triggers: [{ cron: "0 2 * * 0" }],
   },
   async ({ step }) => {
     const {
@@ -1457,8 +1461,8 @@ export const staleCleanup = inngest.createFunction(
   {
     id: "poller-stale-cleanup",
     name: "Stale Job Cleanup",
-    // D17 A2: FROZEN until Aug 1 — heavy cleanup.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Mon 02:00). Heavy cleanup.
+    triggers: [{ cron: "0 2 * * 1" }],
   },
   async ({ step }) => {
     const { markStaleJobs } = await import("@/lib/jobs/poller/job-repository");
@@ -1512,8 +1516,8 @@ export const companyRevivalSweep = inngest.createFunction(
   {
     id: "poller-company-revival",
     name: "Company Revival Sweep",
-    // D17 A2: FROZEN until Aug 1 — heavy sweep.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Tue 02:00). Heavy sweep.
+    triggers: [{ cron: "0 2 * * 2" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1607,8 +1611,8 @@ export const normalizationRetrySweep = inngest.createFunction(
   {
     id: "poller-normalization-retry",
     name: "Normalization Retry Sweep",
-    // D17 A2: FROZEN until Aug 1 — heavy normalization backfill.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Wed 02:00). Heavy normalization backfill.
+    triggers: [{ cron: "0 2 * * 3" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -1720,7 +1724,13 @@ export const directJobBoardIngestion = inngest.createFunction(
   {
     id: "direct-job-board-ingestion",
     name: "Direct Job Board Ingestion",
-    triggers: [{ cron: "0 5 * * *" }],
+    triggers: [
+      // D20 JOB 3 Wave 1: UPGRADED from daily 05:00 to 4x/day (every 6 hours).
+      // Neon burn constraint is gone; delivery latency matters now. The JOB
+      // 1.1 routing fix means new direct-board jobs now reach the gate stack
+      // via job/ingested emit — 4x/day keeps fresh supply flowing.
+      { cron: "0 1,7,13,19 * * *" },
+    ],
     concurrency: { limit: 1 },
   },
   async ({ step }) => {
@@ -2312,8 +2322,8 @@ export const nightlyResurrectionSweep = inngest.createFunction(
   {
     id: "nightly-resurrection-sweep",
     name: "Nightly Resurrection Sweep (v2 Remote-Scope)",
-    // D17 A2: FROZEN until Aug 1 — heavy sweep.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Thu 02:00). Heavy sweep.
+    triggers: [{ cron: "0 2 * * 4" }],
   },
   async ({ step }) => {
     const { sql, eq } = await import("drizzle-orm");
@@ -2505,8 +2515,8 @@ export const nightlyStaleClassificationSweep = inngest.createFunction(
   {
     id: "nightly-stale-classification-sweep",
     name: "Nightly Stale Classification Sweep",
-    // D17 A2: FROZEN until Aug 1 — heavy sweep.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Fri 02:00). Heavy sweep.
+    triggers: [{ cron: "0 2 * * 5" }],
   },
   async ({ step }) => {
     const { sql } = await import("drizzle-orm");
@@ -3446,8 +3456,8 @@ export const jobSummaryBackfill = inngest.createFunction(
   {
     id: "job-summary-backfill",
     name: "Job Summary Backfill Sweep",
-    // D17 A2: FROZEN until Aug 1 — heavy LLM backfill.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — weekly (Sat 06:00). Heavy LLM backfill.
+    triggers: [{ cron: "0 6 * * 6" }],
   },
   async ({ step }) => {
     const jobs = await step.run("find-jobs-without-summary", async () => {
@@ -4565,8 +4575,8 @@ export const cleanupOrphanedCvUploads = inngest.createFunction(
   {
     id: "cleanup-orphaned-cv-uploads",
     name: "Cleanup Orphaned CV Uploads",
-    // D17 A2: FROZEN until Aug 1 — not needed for daily pulse.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 09:00. Low-cost cleanup.
+    triggers: [{ cron: "0 9 * * *" }],
   },
   async ({ step }) => {
     const result = await step.run("delete-abandoned-uploads", async () => {
@@ -4609,8 +4619,8 @@ export const staleJobVerifier = inngest.createFunction(
   {
     id: "stale-job-verifier",
     name: "Stale Job Verifier",
-    // D17 A2: FROZEN until Aug 1 — heavy verification sweep.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 10:00. Heavy verification sweep.
+    triggers: [{ cron: "0 10 * * *" }],
   },
   async ({ step }) => {
     // Step 1: Get all approved matches from the last 30 days
@@ -4872,8 +4882,8 @@ export const dailySourceD1BraveSearch = inngest.createFunction(
   {
     id: "daily-source-brave-search",
     name: "Daily Source — Brave Search",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 12:00. Discovery source (advisor-named).
+    triggers: [{ cron: "0 12 * * *" }],
   },
   async ({ step }) => {
     const apiKey = process.env.BRAVE_SEARCH_API_KEY;
@@ -4927,8 +4937,11 @@ export const dailySourceD2HnAlgolia = inngest.createFunction(
   {
     id: "daily-source-hn-algolia",
     name: "Daily Source — HN Algolia",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 06:00. This is the daily companion to
+    // `seeder-hn-algolia` (which runs monthly in the first 7 days). The seeder
+    // does the monthly delta; this does daily polling for new HN comments.
+    // Together they produced 745 companies + 1144 jobs (hn_algolia source).
+    triggers: [{ cron: "0 6 * * *" }],
   },
   async ({ step }) => {
     const { runHnAlgoliaDailySeeder } = await import(
@@ -5088,8 +5101,8 @@ export const dailySourceD7FundingSignal = inngest.createFunction(
   {
     id: "daily-source-funding-signal",
     name: "Daily Source — Funding Signal",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 11:00. Discovery source (advisor-named).
+    triggers: [{ cron: "0 11 * * *" }],
   },
   async ({ step }) => {
     const { runFundingSignalSeeder } = await import(
@@ -5121,8 +5134,8 @@ export const dailySourceD8ProductHunt = inngest.createFunction(
   {
     id: "daily-source-producthunt",
     name: "Daily Source — Product Hunt",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 05:00. Discovery source (advisor-named).
+    triggers: [{ cron: "0 5 * * *" }],
   },
   async ({ step }) => {
     const { runProductHuntDailySeeder } = await import(
@@ -5413,8 +5426,10 @@ export const v2FrontendJobScanner = inngest.createFunction(
   {
     id: "v2-frontend-job-scanner",
     name: "v2 Frontend Job Scanner",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D20 JOB 3 Wave 2: UNFROZEN — daily 07:00. This is the ONLY frozen
+    // discovery source that actually enrolled companies: 12 companies,
+    // 9 with active jobs, 25 total jobs in the corpus. It works.
+    triggers: [{ cron: "0 7 * * *" }],
   },
   async ({ step }) => {
     const { runFrontendJobScannerDaily } = await import(
@@ -6863,5 +6878,94 @@ Key distinction: Does the JD text EXPLICITLY say the worker can be anywhere (e.g
     });
 
     return summary;
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D20 JOB 5.1: Backup alert handler — receives backup/failed and backup/succeeded
+// events from the VPS cron job (scripts/ops/backup-pg.sh). Makes backup status
+// visible in the Inngest dashboard as green/red runs. No cron trigger — purely
+// event-driven. The VPS cron emits the events via the Inngest event API.
+// ─────────────────────────────────────────────────────────────────────────────
+export const backupAlertHandler = inngest.createFunction(
+  {
+    id: "backup-alert-handler",
+    name: "Postgres Backup Alert",
+    triggers: [{ event: "backup/failed" }, { event: "backup/succeeded" }],
+  },
+  async ({ event, logger }) => {
+    const isFailure = event.name === "backup/failed";
+
+    if (isFailure) {
+      const reason = (event.data as { reason?: string }).reason ?? "unknown";
+      const timestamp = (event.data as { timestamp?: string }).timestamp ?? "";
+      logger.error(`Postgres backup FAILED at ${timestamp}: ${reason}`);
+      return {
+        status: "failed",
+        reason,
+        timestamp,
+        alert: "BACKUP FAILURE — check /var/log/vectormatch-backup.log on VPS",
+      };
+    }
+
+    const data = event.data as {
+      timestamp?: string;
+      gcs_uri?: string;
+      size_bytes?: number;
+      duration_seconds?: number;
+    };
+    logger.info(
+      `Postgres backup succeeded: ${data.gcs_uri} (${data.size_bytes ?? 0} bytes in ${data.duration_seconds ?? 0}s)`,
+    );
+    return {
+      status: "succeeded",
+      timestamp: data.timestamp,
+      gcsUri: data.gcs_uri,
+      sizeBytes: data.size_bytes,
+      durationSeconds: data.duration_seconds,
+    };
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// D20 JOB 5.2: Resource alert handler — receives resource/alert events from
+// the VPS resource monitor (scripts/ops/resource-monitor.sh). Makes disk/RAM
+// alerts visible in the Inngest dashboard. No cron trigger — purely event-
+// driven. The VPS cron emits events only when thresholds are crossed.
+// ─────────────────────────────────────────────────────────────────────────────
+export const resourceAlertHandler = inngest.createFunction(
+  {
+    id: "resource-alert-handler",
+    name: "VPS Resource Alert",
+    triggers: [{ event: "resource/alert" }],
+  },
+  async ({ event, logger }) => {
+    const data = event.data as {
+      severity?: string;
+      metric?: string;
+      value?: string;
+      threshold?: string;
+      details?: string;
+      timestamp?: string;
+    };
+    const severity = data.severity ?? "unknown";
+    const metric = data.metric ?? "unknown";
+    const value = data.value ?? "unknown";
+    const details = data.details ?? "";
+
+    if (severity === "critical") {
+      logger.error(`CRITICAL: ${metric} at ${value} — ${details}`);
+    } else {
+      logger.warn(`WARNING: ${metric} at ${value} — ${details}`);
+    }
+
+    return {
+      severity,
+      metric,
+      value,
+      threshold: data.threshold,
+      details,
+      timestamp: data.timestamp,
+    };
   },
 );

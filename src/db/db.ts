@@ -10,9 +10,12 @@
 // Connection strategy:
 //   - Standard TCP connection to the self-hosted Postgres on the same VPS
 //     (Docker network, sub-millisecond latency, no cold starts).
-//   - Pool `max: 20`: gives headroom for concurrent Inngest steps. With the
+//   - Pool `max: 30`: matches the jobIngestedHandler concurrency (25) plus
+//     headroom for concurrent gate3Evaluator (10) and sweep crons. With the
 //     stateless step pattern, connections are acquired/released at step
-//     boundaries, not held across LLM calls.
+//     boundaries, not held across LLM calls. Postgres max_connections=100
+//     leaves ample headroom (30 app + 5 background + Coolify DB shares the
+//     server but not the instance).
 //
 // ── Lazy initialization (Module E — Coolify/Docker standalone deployment) ──
 // The Pool is NOT created at module import time. During Next.js static
@@ -54,7 +57,7 @@ function getPool(): Pool {
     throw new Error("DATABASE_URL environment variable is not set");
   }
 
-  _pool = new Pool({ connectionString: databaseUrl, max: 20 });
+  _pool = new Pool({ connectionString: databaseUrl, max: 30 });
   return _pool;
 }
 

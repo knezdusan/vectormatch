@@ -23,6 +23,8 @@ import { inngest } from "@/inngest/client";
 import {
   aggregatorJobHandler,
   aggressiveCleanup,
+  // D20 JOB 5.1: Backup alert handler
+  backupAlertHandler,
   batchPollTier,
   batchSourceB1Workable,
   batchSourceB2BraveSearch,
@@ -75,6 +77,8 @@ import {
   probationEmbeddingBackfill,
   qualityFlywheelRecalc,
   recallAuditCron,
+  // D20 JOB 5.2: Resource alert handler
+  resourceAlertHandler,
   sluggerRetryProcessor,
   staleCleanup,
   staleJobVerifier,
@@ -177,5 +181,9 @@ export const { GET, POST, PUT } = serve({
     directJobBoardIngestion,
     falseGlobalScopeSampler,
     recallAuditCron,
+    // D20 JOB 5.1: Backup alert handler
+    backupAlertHandler,
+    // D20 JOB 5.2: Resource alert handler
+    resourceAlertHandler,
   ],
 });

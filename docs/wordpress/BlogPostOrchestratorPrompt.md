@@ -244,10 +244,13 @@ Decision order for each inline image (role "inline"/"diagram"):
     When you do use an Unsplash photo, add attribution to the caption: "Photo: {photographer} on Unsplash".
 
 4d. HERO / FEATURED IMAGE (role "hero"):
-  - Prefer a branded cover: if no strongly relevant photo exists, generate a branded SVG cover
-    (dark gradient background with the post title + category, brand colors) and upload it as the featured image.
-    A branded cover is on-brand and reads better in the blog index and social cards than a random stock photo.
-  - Only use an Unsplash hero photo when it is clearly relevant to the topic.
+  - PRIMARY: generate the hero with DALL-E 3. Use images[0].generation_prompt plus a brand-style prefix.
+    The prefix must be: "Dark-mode technical illustration for a web developer blog. Deep charcoal background #16161e, purple accents #7c3aed and #8b5cf6, emerald accent #34d399. Minimalist flat style, no text, no logos, no readable words, no people, clean vector shapes. "
+    Call the OpenAI Images API: model="dall-e-3", size="1792x1024", quality="standard", n=1, response_format="url".
+    DALL-E returns a temporary public URL (valid ~60 minutes). Pass it immediately to upload_media so WPVibe downloads and imports it into the WordPress media library.
+  - FALLBACK: if DALL-E is unavailable, the prompt is rejected by the content policy, or the generated image is off-brand, use search_images with images[0].suggested_search_query and upload the best Unsplash match. Only use a photo when it is clearly relevant; otherwise fall back to a branded SVG cover.
+  - Upload call: upload_media {site_url: "https://vectormatch.dev/blog", url: <generated_url>, title: <post title>, alt_text: <images[0].alt_text>}. Capture the returned attachment_id as hero_media_id for Step 6.
+  - THEME DEPENDENCY: the current theme's single.php must call the_post_thumbnail() for the featured image to display. If the front-end still shows a placeholder, apply the single.php snippet in the repo docs or ask the user for the theme file.
 
 4e. After uploading each image, record the WordPress media ID and URL:
   - Hero/featured image → set as featured_media (Step 6).
@@ -295,6 +298,7 @@ STEP 7 — VERIFY THE DRAFT
 1. Fetch the draft post HTML: get_page_html on the preview URL (https://vectormatch.dev/blog/?p={post_id}&preview=true).
 2. Check that:
    - The title renders as H1.
+   - The hero/featured image renders (requires single.php to call the_post_thumbnail()).
    - The hero subtitle and direct answer appear.
    - The key takeaways box renders with the card styling.
    - All CTA buttons render with the gradient style (.btn-brand).
