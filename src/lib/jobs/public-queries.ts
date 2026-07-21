@@ -316,8 +316,7 @@ export async function getPublicJobs(
 
 /**
  * Get a single public job by ID.
- * Only returns active jobs with a non-empty shortDescription (same filter as
- * getPublicJobs). Returns null if not found or not active.
+ * Only returns active jobs. Returns null if not found or not active.
  */
 export async function getPublicJobById(
   jobId: string,
@@ -362,14 +361,7 @@ export async function getPublicJobById(
         company,
         sql`${job.atsSource}::text = ${company.atsSource}::text AND ${job.atsSlug} = ${company.atsSlug}`,
       )
-      .where(
-        and(
-          eq(job.id, jobId),
-          eq(job.status, "active"),
-          sql`${job.shortDescription} IS NOT NULL`,
-          sql`${job.shortDescription} <> ''`,
-        ),
-      )
+      .where(and(eq(job.id, jobId), eq(job.status, "active")))
       .limit(1);
 
     if (rows.length === 0) return null;

@@ -261,8 +261,7 @@ function parseJobPosting(nodes: Record<string, unknown>[]): ParsedJobPosting {
 
 function classifyDeclaredScope(parsed: ParsedJobPosting): DeclaredScope {
   if (!parsed.found) return "NO_COVERAGE";
-  const isTelecommute =
-    parsed.jobLocationType?.toUpperCase() === "TELECOMMUTE";
+  const isTelecommute = parsed.jobLocationType?.toUpperCase() === "TELECOMMUTE";
   if (isTelecommute) {
     if (parsed.applicantLocationRequirements.length === 0) {
       return "DECLARED_GLOBAL";
@@ -474,20 +473,14 @@ async function main() {
       agreements,
     },
     scopeBreakdown: byScope,
-    declaredScopeBreakdown: results.reduce<Record<string, number>>(
-      (acc, r) => {
-        acc[r.declaredScope] = (acc[r.declaredScope] ?? 0) + 1;
-        return acc;
-      },
-      {},
-    ),
-    comparisonBreakdown: results.reduce<Record<string, number>>(
-      (acc, r) => {
-        acc[r.comparison] = (acc[r.comparison] ?? 0) + 1;
-        return acc;
-      },
-      {},
-    ),
+    declaredScopeBreakdown: results.reduce<Record<string, number>>((acc, r) => {
+      acc[r.declaredScope] = (acc[r.declaredScope] ?? 0) + 1;
+      return acc;
+    }, {}),
+    comparisonBreakdown: results.reduce<Record<string, number>>((acc, r) => {
+      acc[r.comparison] = (acc[r.comparison] ?? 0) + 1;
+      return acc;
+    }, {}),
     results,
   };
 

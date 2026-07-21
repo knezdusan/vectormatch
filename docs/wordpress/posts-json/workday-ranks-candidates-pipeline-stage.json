@@ -8,7 +8,13 @@
     "meta_description": "Workday doesn't auto-reject with a hidden score. Learn how recruiters actually rank candidates by pipeline stage and AI—and how to get seen.",
     "slug": "workday-ranks-candidates-pipeline-stage",
     "primary_keyword": "Workday ranks candidates",
-    "secondary_keywords": ["Workday ATS ranking", "recruiter view Workday", "candidate pipeline stage", "HiredScore AI", "ATS auto-reject myth"],
+    "secondary_keywords": [
+      "Workday ATS ranking",
+      "recruiter view Workday",
+      "candidate pipeline stage",
+      "HiredScore AI",
+      "ATS auto-reject myth"
+    ],
     "schema_types": ["Article", "FAQPage"],
     "estimated_word_count": 1850,
     "reading_time_minutes": 7

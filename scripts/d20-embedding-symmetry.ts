@@ -35,7 +35,10 @@ async function embed(text: string): Promise<number[]> {
 }
 
 async function main() {
-  const client = new Client({ connectionString: DB_URL, connectionTimeoutMillis: 10000 });
+  const client = new Client({
+    connectionString: DB_URL,
+    connectionTimeoutMillis: 10000,
+  });
   await client.connect();
 
   // ── Step 1: Embed 18 active unfenced jobs without embeddings ───────────
@@ -67,7 +70,9 @@ async function main() {
       console.log(`  ✓ ${job.id} | ${job.title.substring(0, 50)}`);
     } catch (e) {
       failed++;
-      console.error(`  ✗ ${job.id} | ${job.title.substring(0, 50)} | ${e.message}`);
+      console.error(
+        `  ✗ ${job.id} | ${job.title.substring(0, 50)} | ${e.message}`,
+      );
     }
     // Rate limit: ~5 req/s
     await new Promise((r) => setTimeout(r, 200));
@@ -76,7 +81,9 @@ async function main() {
   console.log(`\nEmbedded: ${embedded}, Failed: ${failed}`);
 
   // ── Step 2: Null embeddings on fenced jobs (wasted storage) ────────────
-  console.log("\nStep 2: Nulling embeddings on fenced jobs (wasted storage)...");
+  console.log(
+    "\nStep 2: Nulling embeddings on fenced jobs (wasted storage)...",
+  );
   const { rowCount: nulled } = await client.query(`
     UPDATE job SET job_embedding = NULL
     WHERE job_embedding IS NOT NULL
@@ -101,7 +108,9 @@ async function main() {
   console.log(`With embedding: ${s.with_emb}`);
   console.log(`Without embedding: ${s.no_emb}`);
   console.log(`Fenced with embedding (should be 0): ${s.fenced_with_emb}`);
-  console.log(`Active unfenced without embedding (should be 0): ${s.active_unfenced_no_emb}`);
+  console.log(
+    `Active unfenced without embedding (should be 0): ${s.active_unfenced_no_emb}`,
+  );
 
   await client.end();
 }

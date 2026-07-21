@@ -55,7 +55,9 @@ function expectFailure(r: any): { error: string } {
 // Get the mocked page object so we can control evaluate responses
 const playwright = await import("playwright");
 const mockBrowser = playwright.chromium;
-const mockPage = (await (mockBrowser.launch as any)()).newContext().then((c: any) => c.newPage());
+const mockPage = (await (mockBrowser.launch as any)())
+  .newContext()
+  .then((c: any) => c.newPage());
 
 describe("Wellfound adapter", () => {
   beforeEach(() => {
@@ -99,7 +101,9 @@ describe("Wellfound adapter", () => {
     expect(job.title).toBe("Senior React Engineer");
     expect(job.companyName).toBe("TestCo");
     expect(job.externalJobId).toBe("123-senior-react-engineer");
-    expect(job.applyUrl).toBe("https://wellfound.com/jobs/123-senior-react-engineer");
+    expect(job.applyUrl).toBe(
+      "https://wellfound.com/jobs/123-senior-react-engineer",
+    );
     expect(job.compensationMin).toBe(120000);
     expect(job.compensationMax).toBe(160000);
     expect(job.compensationCurrency).toBe("USD");
@@ -148,7 +152,8 @@ describe("Wellfound adapter", () => {
           {
             title: "Engineer",
             href: "/jobs/789-engineer",
-            jobText: "EngineerFull-timeRemote only • Remote (Worldwide)1 week ago",
+            jobText:
+              "EngineerFull-timeRemote only • Remote (Worldwide)1 week ago",
           },
         ],
       },
@@ -160,7 +165,9 @@ describe("Wellfound adapter", () => {
     expect(expectSuccess(result).employers).toBeDefined();
     expect(expectSuccess(result).employers).toHaveLength(1);
     expect(expectSuccess(result).employers![0].companyName).toBe("HarvestCo");
-    expect(expectSuccess(result).employers![0].companyHref).toBe("/company/harvestco");
+    expect(expectSuccess(result).employers![0].companyHref).toBe(
+      "/company/harvestco",
+    );
   });
 
   it("applies tech filter to reject non-matching jobs", async () => {
@@ -175,20 +182,25 @@ describe("Wellfound adapter", () => {
           {
             title: "Python Data Engineer",
             href: "/jobs/111-python-data-engineer",
-            jobText: "Python Data EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
+            jobText:
+              "Python Data EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
           },
           {
             title: "React Frontend Engineer",
             href: "/jobs/222-react-frontend-engineer",
-            jobText: "React Frontend EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
+            jobText:
+              "React Frontend EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
           },
         ],
       },
     ]);
 
     // Tech filter that only accepts React jobs
-    const reactOnlyFilter = (j: { tags: string[]; title: string; description: string }) =>
-      j.tags.includes("react") || /react/i.test(j.title);
+    const reactOnlyFilter = (j: {
+      tags: string[];
+      title: string;
+      description: string;
+    }) => j.tags.includes("react") || /react/i.test(j.title);
 
     const result = await fetchWellfoundJobs(100, reactOnlyFilter, 1);
 
@@ -210,7 +222,8 @@ describe("Wellfound adapter", () => {
           {
             title: "React Engineer",
             href: "/jobs/p1-react-engineer",
-            jobText: "React EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
+            jobText:
+              "React EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
           },
         ],
       },
@@ -226,7 +239,8 @@ describe("Wellfound adapter", () => {
           {
             title: "Vue Engineer",
             href: "/jobs/p2-vue-engineer",
-            jobText: "Vue EngineerFull-timeRemote only • Remote (Everywhere)2 days ago",
+            jobText:
+              "Vue EngineerFull-timeRemote only • Remote (Everywhere)2 days ago",
           },
         ],
       },
@@ -253,7 +267,8 @@ describe("Wellfound adapter", () => {
           {
             title: "Engineer",
             href: "/jobs/only-engineer",
-            jobText: "EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
+            jobText:
+              "EngineerFull-timeRemote only • Remote (Everywhere)1 day ago",
           },
         ],
       },
@@ -293,7 +308,9 @@ describe("Wellfound adapter", () => {
 
   it("returns error when browser launch fails", async () => {
     const { chromium } = await import("playwright");
-    (chromium.launch as any).mockRejectedValueOnce(new Error("Browser not installed"));
+    (chromium.launch as any).mockRejectedValueOnce(
+      new Error("Browser not installed"),
+    );
 
     const result = await fetchWellfoundJobs(100, () => true, 1);
 
@@ -313,7 +330,8 @@ describe("Wellfound adapter", () => {
           {
             title: "Engineer",
             href: "/jobs/salary-test",
-            jobText: "EngineerFull-time$80k – $150k • No equityRemote only • United States2 years of exp1 week ago",
+            jobText:
+              "EngineerFull-time$80k – $150k • No equityRemote only • United States2 years of exp1 week ago",
           },
         ],
       },

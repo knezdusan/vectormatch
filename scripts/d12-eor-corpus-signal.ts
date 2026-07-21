@@ -57,12 +57,22 @@ async function main() {
       count(*) FILTER (WHERE status = 'active') as active
     FROM job
   `;
-  const baselineGlobalRate = (Number(baseline[0].global) / Number(baseline[0].total) * 100).toFixed(1);
-  console.log(`\nBaseline: ${baseline[0].total} total jobs, ${baseline[0].global} global (${baselineGlobalRate}%)`);
+  const baselineGlobalRate = (
+    (Number(baseline[0].global) / Number(baseline[0].total)) *
+    100
+  ).toFixed(1);
+  console.log(
+    `\nBaseline: ${baseline[0].total} total jobs, ${baseline[0].global} global (${baselineGlobalRate}%)`,
+  );
 
   if (Number(eorJobs[0].total) > 0) {
-    const eorGlobalRate = (Number(eorJobs[0].global) / Number(eorJobs[0].total) * 100).toFixed(1);
-    console.log(`EOR jobs global rate: ${eorGlobalRate}% vs baseline ${baselineGlobalRate}%`);
+    const eorGlobalRate = (
+      (Number(eorJobs[0].global) / Number(eorJobs[0].total)) *
+      100
+    ).toFixed(1);
+    console.log(
+      `EOR jobs global rate: ${eorGlobalRate}% vs baseline ${baselineGlobalRate}%`,
+    );
   }
 
   // 3. remotecom specifically — the contradiction
@@ -80,8 +90,12 @@ async function main() {
     FROM job
     WHERE ats_slug = 'remotecom' OR ats_slug ILIKE '%remotecom%'
   `;
-  console.log(`remotecom jobs: ${remotecom[0].total} total, ${remotecom[0].active} active`);
-  console.log(`  Global: ${remotecom[0].global}, Fenced: ${remotecom[0].fenced}, Onsite: ${remotecom[0].onsite}`);
+  console.log(
+    `remotecom jobs: ${remotecom[0].total} total, ${remotecom[0].active} active`,
+  );
+  console.log(
+    `  Global: ${remotecom[0].global}, Fenced: ${remotecom[0].fenced}, Onsite: ${remotecom[0].onsite}`,
+  );
   console.log(`  Embedded: ${remotecom[0].embedded}`);
   console.log(`  Unique titles: ${remotecom[0].unique_titles}`);
 
@@ -95,7 +109,9 @@ async function main() {
   `;
   console.log("\nSample remotecom jobs:");
   for (const j of remotecomSample) {
-    console.log(`  [${j.status}] ${j.title?.slice(0, 60)} | scope=${j.remote_scope} | loc=${j.location_name}`);
+    console.log(
+      `  [${j.status}] ${j.title?.slice(0, 60)} | scope=${j.remote_scope} | loc=${j.location_name}`,
+    );
   }
 
   // 4. Check if remotecom is in the company table and its tier
@@ -106,7 +122,9 @@ async function main() {
   `;
   console.log("\nremotecom in company table:");
   for (const c of remotecomCompany) {
-    console.log(`  ${c.ats_slug}: tier=${c.tier}, jobs=${c.active_job_count}, last_polled=${c.last_polled_at?.toISOString()?.slice(0, 10) ?? "never"}`);
+    console.log(
+      `  ${c.ats_slug}: tier=${c.tier}, jobs=${c.active_job_count}, last_polled=${c.last_polled_at?.toISOString()?.slice(0, 10) ?? "never"}`,
+    );
   }
 
   // 5. Check the "31 addressable" claim from the retro-triage
@@ -119,7 +137,9 @@ async function main() {
     AND remote_scope = 'global'
     AND job_embedding IS NOT NULL
   `;
-  console.log(`\nremotecom addressable (active + global + embedded): ${addressable[0].cnt}`);
+  console.log(
+    `\nremotecom addressable (active + global + embedded): ${addressable[0].cnt}`,
+  );
 
   // 6. Check for EOR-related companies in the company table
   const eorCompanies = await sql`
@@ -130,7 +150,9 @@ async function main() {
   `;
   console.log("\nEOR-related companies in registry:");
   for (const c of eorCompanies) {
-    console.log(`  ${c.ats_slug} (${c.company_name}): tier=${c.tier}, jobs=${c.active_job_count}`);
+    console.log(
+      `  ${c.ats_slug} (${c.company_name}): tier=${c.tier}, jobs=${c.active_job_count}`,
+    );
   }
 
   console.log("\n=== DONE ===");

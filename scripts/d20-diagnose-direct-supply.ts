@@ -45,8 +45,13 @@ async function main() {
     GROUP BY ats_source
     ORDER BY c DESC
   `);
-  console.log("\n=== Q1: All direct-ingestion-related ats_source values in corpus ===");
-  for (const row of allSources.rows as Array<{ ats_source: string; c: number }>) {
+  console.log(
+    "\n=== Q1: All direct-ingestion-related ats_source values in corpus ===",
+  );
+  for (const row of allSources.rows as Array<{
+    ats_source: string;
+    c: number;
+  }>) {
     console.log(`  ${row.ats_source.padEnd(25)} ${row.c}`);
   }
 
@@ -65,7 +70,9 @@ async function main() {
     GROUP BY ats_source
     ORDER BY active_total DESC
   `);
-  console.log("\n=== Q2: Embedding + tags + normalization gap for active direct jobs ===");
+  console.log(
+    "\n=== Q2: Embedding + tags + normalization gap for active direct jobs ===",
+  );
   console.log(
     "source".padEnd(22) +
       "active".padStart(7) +
@@ -115,7 +122,9 @@ async function main() {
     remote_scope: string;
     c: number;
   }>) {
-    console.log(`  ${row.ats_source.padEnd(22)} ${row.remote_scope.padEnd(18)} ${row.c}`);
+    console.log(
+      `  ${row.ats_source.padEnd(22)} ${row.remote_scope.padEnd(18)} ${row.c}`,
+    );
   }
 
   // Q4: Sample 5 stranded jobs to see what they look like

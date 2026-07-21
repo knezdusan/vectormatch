@@ -5,7 +5,10 @@ const sql = neon(process.env.DATABASE_URL!);
 async function main() {
   const jobs = [
     { slug: "ruby-labs", title: "Senior AI Engineer" },
-    { slug: "brigit", title: "Senior Software Engineer - Fullstack, US Remote" },
+    {
+      slug: "brigit",
+      title: "Senior Software Engineer - Fullstack, US Remote",
+    },
     { slug: "brigit", title: "Software Engineer - Fullstack, US Remote" },
     { slug: "zenrows", title: "Staff Frontend Engineer" },
     { slug: "ruby-labs", title: "Senior React Native Developer" },
@@ -50,9 +53,15 @@ async function main() {
       AND mq.status = 'approved'
     `;
 
-    let thDedup: Array<{ id: string; persona_id: string; status: string; title: string; ats_slug: string }> = [];
+    let thDedup: Array<{
+      id: string;
+      persona_id: string;
+      status: string;
+      title: string;
+      ats_slug: string;
+    }> = [];
     if (j.text_hash) {
-      thDedup = await sql`
+      thDedup = (await sql`
         SELECT mq2.id, mq2.persona_id, mq2.status, j3.title, j3.ats_slug
         FROM match_queue mq2
         JOIN job j3 ON mq2.job_id = j3.id
@@ -60,7 +69,7 @@ async function main() {
         AND j3.text_hash IS NOT NULL
         AND mq2.status = 'approved'
         AND mq2.job_id != ${j.id}::uuid
-      ` as typeof thDedup;
+      `) as typeof thDedup;
     }
 
     // Check applicant_company_block
@@ -74,11 +83,18 @@ async function main() {
     console.log("  scope:", j.remote_scope, "| text_hash:", j.text_hash);
     console.log("  tags:", j.extracted_tags?.slice(0, 10));
     for (const d of dists) {
-      const overlap = j.extracted_tags?.filter((t: string) => d.must_have_tags?.includes(t)) || [];
+      const overlap =
+        j.extracted_tags?.filter((t: string) =>
+          d.must_have_tags?.includes(t),
+        ) || [];
       console.log(
-        "  →", d.persona_label,
-        "| dist:", Number(d.dist).toFixed(4),
-        "| overlap:", overlap.length, overlap,
+        "  →",
+        d.persona_label,
+        "| dist:",
+        Number(d.dist).toFixed(4),
+        "| overlap:",
+        overlap.length,
+        overlap,
       );
     }
     console.log("  match_queue:", mq.length, "entries");
@@ -111,12 +127,23 @@ async function main() {
   `;
   if (zenrows.length > 0) {
     const z = zenrows[0];
-    const nodeTags = ["typescript", "nextjs", "react", "nodejs", "prompt-engineering"];
-    const overlap = z.extracted_tags.filter((t: string) => nodeTags.includes(t));
+    const nodeTags = [
+      "typescript",
+      "nextjs",
+      "react",
+      "nodejs",
+      "prompt-engineering",
+    ];
+    const overlap = z.extracted_tags.filter((t: string) =>
+      nodeTags.includes(t),
+    );
     console.log("Zenrows Staff Frontend Engineer:");
     console.log("  tags:", z.extracted_tags);
     console.log("  Node overlap:", overlap.length, overlap);
-    console.log("  GATE1_MIN_OVERLAP = 2 →", overlap.length >= 2 ? "PASS" : "FAIL");
+    console.log(
+      "  GATE1_MIN_OVERLAP = 2 →",
+      overlap.length >= 2 ? "PASS" : "FAIL",
+    );
   }
 }
 

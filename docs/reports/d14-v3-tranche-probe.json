@@ -728,9 +728,7 @@
       "remoteJobs": 8,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Senior Solutions Consultant"
-      ]
+      "sampleTitles": ["Senior Solutions Consultant"]
     },
     {
       "slug": "nationalpublicradioinc",
@@ -873,9 +871,7 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Junior/Mid Software Engineer"
-      ]
+      "sampleTitles": ["Junior/Mid Software Engineer"]
     },
     {
       "slug": "magnetforensics",
@@ -1042,9 +1038,7 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Back-end Developer"
-      ]
+      "sampleTitles": ["Back-end Developer"]
     },
     {
       "slug": "Gotipath",
@@ -1056,9 +1050,7 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Software Engineer"
-      ]
+      "sampleTitles": ["Software Engineer"]
     },
     {
       "slug": "Nexthink",
@@ -1146,10 +1138,7 @@
       "remoteJobs": 0,
       "passed": true,
       "error": null,
-      "sampleTitles": [
-        "Frontend Engineer",
-        "Backend Engineer"
-      ]
+      "sampleTitles": ["Frontend Engineer", "Backend Engineer"]
     },
     {
       "slug": "Intuitive",
@@ -1313,9 +1302,7 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Lessonspace Senior Backend Engineer"
-      ]
+      "sampleTitles": ["Lessonspace Senior Backend Engineer"]
     },
     {
       "slug": "climax-studios",
@@ -1343,9 +1330,7 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Digital Product Associate"
-      ]
+      "sampleTitles": ["Digital Product Associate"]
     },
     {
       "slug": "raspberrypi",
@@ -1396,9 +1381,7 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Technical Engineer (m/w/d)"
-      ]
+      "sampleTitles": ["Technical Engineer (m/w/d)"]
     },
     {
       "slug": "epignosis",

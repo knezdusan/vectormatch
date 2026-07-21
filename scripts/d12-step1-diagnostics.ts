@@ -35,7 +35,9 @@ async function main() {
     WHERE status NOT IN ('rejected')
     AND stale_at IS NULL
   `;
-  console.log(`Dashboard-visible (non-rejected, non-stale): ${dashboardVisible[0].cnt}\n`);
+  console.log(
+    `Dashboard-visible (non-rejected, non-stale): ${dashboardVisible[0].cnt}\n`,
+  );
 
   // Check if there's a persona filter on the dashboard
   const matchesByPersona = await sql`
@@ -48,7 +50,9 @@ async function main() {
   `;
   console.log("Matches by persona + status:");
   for (const r of matchesByPersona)
-    console.log(`  ${r.persona_name} (${r.persona_id.slice(0, 8)}): ${r.status} = ${r.cnt}`);
+    console.log(
+      `  ${r.persona_name} (${r.persona_id.slice(0, 8)}): ${r.status} = ${r.cnt}`,
+    );
   console.log();
 
   // ── 1.3: List the matches ───────────────────────────────────────────────
@@ -88,7 +92,9 @@ async function main() {
     console.log(`    Remote scope: ${m.remote_scope ?? "null"}`);
     console.log(`    Workplace type: ${m.workplace_type ?? "null"}`);
     console.log(`    Overlap score: ${m.overlap_score}`);
-    console.log(`    Cosine distance: ${m.cosine_distance?.toFixed(4) ?? "null"}`);
+    console.log(
+      `    Cosine distance: ${m.cosine_distance?.toFixed(4) ?? "null"}`,
+    );
     console.log(`    LLM verdict: ${m.llm_verdict ?? "pending"}`);
     console.log(`    LLM confidence: ${m.llm_confidence ?? "null"}`);
     console.log(`    Job tags: ${JSON.stringify(m.extracted_tags)}`);
@@ -145,7 +151,9 @@ async function main() {
     SELECT count(*) as cnt FROM job
     WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
   `;
-  console.log(`Active + embedded + global: ${totalGlobalEmbedded[0].cnt} (this is the funnel input)\n`);
+  console.log(
+    `Active + embedded + global: ${totalGlobalEmbedded[0].cnt} (this is the funnel input)\n`,
+  );
 
   // Now count how many each gate would reject
   // Gate 1: Fence backstop
@@ -189,13 +197,51 @@ async function main() {
   // This is harder in pure SQL — we need to check each job against each persona
   // For now, count jobs that have NO JS-family tags (the most common persona family)
   const jsFamilyTags = [
-    "typescript", "javascript", "react", "nextjs", "nodejs", "vue", "nuxt",
-    "express", "graphql", "tailwindcss", "svelte", "sveltekit", "remix",
-    "gatsby", "astro", "solidjs", "preact", "angular", "ember", "backbone",
-    "jquery", "vite", "webpack", "babel", "esbuild", "rollup", "parcel",
-    "redux", "mobx", "zustand", "recoil", "tanstack", "react-query",
-    "prisma", "drizzle", "trpc", "hono", "elysia", "fastify", "koa",
-    "nestjs", "typeorm", "sequelize", "mongoose", "mongodb",
+    "typescript",
+    "javascript",
+    "react",
+    "nextjs",
+    "nodejs",
+    "vue",
+    "nuxt",
+    "express",
+    "graphql",
+    "tailwindcss",
+    "svelte",
+    "sveltekit",
+    "remix",
+    "gatsby",
+    "astro",
+    "solidjs",
+    "preact",
+    "angular",
+    "ember",
+    "backbone",
+    "jquery",
+    "vite",
+    "webpack",
+    "babel",
+    "esbuild",
+    "rollup",
+    "parcel",
+    "redux",
+    "mobx",
+    "zustand",
+    "recoil",
+    "tanstack",
+    "react-query",
+    "prisma",
+    "drizzle",
+    "trpc",
+    "hono",
+    "elysia",
+    "fastify",
+    "koa",
+    "nestjs",
+    "typeorm",
+    "sequelize",
+    "mongoose",
+    "mongodb",
   ];
 
   const noJsTags = await sql`
@@ -203,7 +249,9 @@ async function main() {
     WHERE status = 'active' AND job_embedding IS NOT NULL AND remote_scope = 'global'
     AND NOT (extracted_tags && ARRAY[${jsFamilyTags}]::text[])
   `;
-  console.log(`Jobs with zero JS-family tags (stack-disjoint for JS persona): ${noJsTags[0].cnt}`);
+  console.log(
+    `Jobs with zero JS-family tags (stack-disjoint for JS persona): ${noJsTags[0].cnt}`,
+  );
 
   // Gate 5: Distance + overlap (cosine > 0.5 or overlap < 2)
   // This depends on persona embeddings — we'll count how many of the remaining
@@ -220,7 +268,9 @@ async function main() {
       WHERE mq.job_id = j.id AND mq.persona_id = p.id
     )
   `;
-  console.log(`Jobs with no persona within cosine < 0.5: ${distanceOverlapRejected[0].cnt} (approximate — excludes already-matched)`);
+  console.log(
+    `Jobs with no persona within cosine < 0.5: ${distanceOverlapRejected[0].cnt} (approximate — excludes already-matched)`,
+  );
 
   // Surviving jobs (input to matching)
   const survivingJobs = await sql`
@@ -244,7 +294,9 @@ async function main() {
     AND NOT (title ~* '(qa engineer|qa automation|quality assurance|software engineer in test|software development engineer in test|sdet|test automation engineer|automation tester|test engineer|qa lead|quality engineer)')
   `;
   console.log(`Jobs surviving all SQL backstops: ${survivingJobs[0].cnt}`);
-  console.log(`(These go into Gate 1+2 tag overlap + cosine distance matching)\n`);
+  console.log(
+    `(These go into Gate 1+2 tag overlap + cosine distance matching)\n`,
+  );
 
   // ── 4.1: slugger_retry by discovery_source ──────────────────────────────
   console.log("── 4.1: slugger_retry by discovery_source ──\n");
@@ -296,7 +348,9 @@ async function main() {
     WHERE status = 'active'
   `;
   console.log(`Active jobs with text_hash: ${textHashStatus[0].with_hash}`);
-  console.log(`Active jobs without text_hash: ${textHashStatus[0].without_hash}`);
+  console.log(
+    `Active jobs without text_hash: ${textHashStatus[0].without_hash}`,
+  );
   console.log(`Total active: ${textHashStatus[0].total}\n`);
 
   // Check for duplicates by text_hash
@@ -311,17 +365,24 @@ async function main() {
     ORDER BY cnt DESC
     LIMIT 20
   `;
-  console.log(`Duplicate groups (same text_hash, active jobs): ${duplicates.length}`);
+  console.log(
+    `Duplicate groups (same text_hash, active jobs): ${duplicates.length}`,
+  );
   for (const d of duplicates) {
-    console.log(`  hash=${d.text_hash.slice(0, 12)}... count=${d.cnt} slugs=${JSON.stringify(d.slugs)}`);
-    console.log(`    titles: ${JSON.stringify(d.titles?.map((t: string) => t?.slice(0, 50)))}`);
+    console.log(
+      `  hash=${d.text_hash.slice(0, 12)}... count=${d.cnt} slugs=${JSON.stringify(d.slugs)}`,
+    );
+    console.log(
+      `    titles: ${JSON.stringify(d.titles?.map((t: string) => t?.slice(0, 50)))}`,
+    );
   }
   console.log();
 
   // ── Neon storage ────────────────────────────────────────────────────────
   console.log("── Neon storage (for ledger) ──\n");
 
-  const storage = await sql`SELECT pg_database_size(current_database()) as size_bytes`;
+  const storage =
+    await sql`SELECT pg_database_size(current_database()) as size_bytes`;
   const sizeMb = Number(storage[0].size_bytes) / (1024 * 1024);
   console.log(`pg_database_size: ${sizeMb.toFixed(1)} MB`);
   console.log(`Limit: 512 MB (Neon free tier)`);

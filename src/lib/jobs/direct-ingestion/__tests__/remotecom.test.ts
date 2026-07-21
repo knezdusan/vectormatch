@@ -54,7 +54,9 @@ function expectFailure(r: any): { error: string } {
 
 const playwright = await import("playwright");
 const mockBrowser = playwright.chromium;
-const mockPagePromise = (mockBrowser.launch as any)().then((b: any) => b.newContext().then((c: any) => c.newPage()));
+const mockPagePromise = (mockBrowser.launch as any)().then((b: any) =>
+  b.newContext().then((c: any) => c.newPage()),
+);
 
 describe("Remote.com adapter", () => {
   beforeEach(() => {
@@ -89,7 +91,9 @@ describe("Remote.com adapter", () => {
     const job = expectSuccess(result).jobs[0];
     expect(job.title).toBe("Senior Frontend Developer (React.js)");
     expect(job.companyName).toBe("Proxify");
-    expect(job.externalJobId).toBe("senior-frontend-developer-react-js-j124ckja");
+    expect(job.externalJobId).toBe(
+      "senior-frontend-developer-react-js-j124ckja",
+    );
     expect(job.applyUrl).toBe(
       "https://remote.com/jobs/proxify-c114ohln/senior-frontend-developer-react-js-j124ckja",
     );
@@ -156,14 +160,19 @@ describe("Remote.com adapter", () => {
     ]);
 
     // Tech filter that only accepts React jobs
-    const reactOnlyFilter = (j: { tags: string[]; title: string; description: string }) =>
-      j.tags.includes("react") || /react/i.test(j.title);
+    const reactOnlyFilter = (j: {
+      tags: string[];
+      title: string;
+      description: string;
+    }) => j.tags.includes("react") || /react/i.test(j.title);
 
     const result = await fetchRemoteComJobs(100, reactOnlyFilter, 1);
 
     expect(result.success).toBe(true);
     expect(expectSuccess(result).jobs).toHaveLength(1);
-    expect(expectSuccess(result).jobs[0].title).toBe("Senior Frontend Developer (React.js)");
+    expect(expectSuccess(result).jobs[0].title).toBe(
+      "Senior Frontend Developer (React.js)",
+    );
   });
 
   it("handles multiple pages", async () => {
@@ -226,7 +235,9 @@ describe("Remote.com adapter", () => {
 
   it("returns error when browser launch fails", async () => {
     const { chromium } = await import("playwright");
-    (chromium.launch as any).mockRejectedValueOnce(new Error("Browser not installed"));
+    (chromium.launch as any).mockRejectedValueOnce(
+      new Error("Browser not installed"),
+    );
 
     const result = await fetchRemoteComJobs(100, () => true, 1);
 

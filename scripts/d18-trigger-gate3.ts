@@ -21,7 +21,9 @@ async function main() {
     ORDER BY mq.cosine_distance ASC
   `;
 
-  console.log(`=== Triggering Gate 3 for ${pending.length} pending candidates ===`);
+  console.log(
+    `=== Triggering Gate 3 for ${pending.length} pending candidates ===`,
+  );
   console.log();
 
   if (pending.length === 0) {
@@ -47,7 +49,9 @@ async function main() {
     const batch = events.slice(i, i + BATCH);
     try {
       await inngest.send(batch);
-      console.log(`  Sent batch ${Math.floor(i / BATCH) + 1}: ${batch.length} events`);
+      console.log(
+        `  Sent batch ${Math.floor(i / BATCH) + 1}: ${batch.length} events`,
+      );
       for (const e of batch) {
         const row = pending[i + (e === events[i] ? 0 : 0)];
       }
@@ -69,7 +73,9 @@ async function main() {
   }
 
   console.log();
-  console.log("Gate 3 events sent. The Inngest Gate 3 evaluator will process them.");
+  console.log(
+    "Gate 3 events sent. The Inngest Gate 3 evaluator will process them.",
+  );
   console.log("Check the dashboard in a few minutes for approved matches.");
 }
 

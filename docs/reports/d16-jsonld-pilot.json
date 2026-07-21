@@ -247,9 +247,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Anywhere"
-      ],
+      "applicantLocationRequirements": ["Anywhere"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Anywhere, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -265,9 +263,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Spain"
-      ],
+      "applicantLocationRequirements": ["Spain"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Spain, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -283,9 +279,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Poland"
-      ],
+      "applicantLocationRequirements": ["Poland"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Poland, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -301,9 +295,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Anywhere"
-      ],
+      "applicantLocationRequirements": ["Anywhere"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Anywhere, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -319,9 +311,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Portugal"
-      ],
+      "applicantLocationRequirements": ["Portugal"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Portugal, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -337,9 +327,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Anywhere"
-      ],
+      "applicantLocationRequirements": ["Anywhere"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Anywhere, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -355,9 +343,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Argentina"
-      ],
+      "applicantLocationRequirements": ["Argentina"],
       "jobLocation": "Buenos Aires, Argentina",
       "httpStatus": 200,
       "error": null
@@ -581,9 +567,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "United States"
-      ],
+      "applicantLocationRequirements": ["United States"],
       "jobLocation": "miami, florida, United States",
       "httpStatus": 200,
       "error": null
@@ -775,9 +759,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "United States"
-      ],
+      "applicantLocationRequirements": ["United States"],
       "jobLocation": "Kansas , Kansas, United States",
       "httpStatus": 200,
       "error": null
@@ -793,9 +775,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "United States"
-      ],
+      "applicantLocationRequirements": ["United States"],
       "jobLocation": "Kansas , Kansas, United States",
       "httpStatus": 200,
       "error": null
@@ -811,9 +791,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "United States"
-      ],
+      "applicantLocationRequirements": ["United States"],
       "jobLocation": "Kansas , Kansas, United States",
       "httpStatus": 200,
       "error": null
@@ -829,9 +807,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "United States"
-      ],
+      "applicantLocationRequirements": ["United States"],
       "jobLocation": "Kansas , Kansas, United States",
       "httpStatus": 200,
       "error": null
@@ -847,9 +823,7 @@
       "comparison": "FALSE_GLOBAL_CATCH",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "United States"
-      ],
+      "applicantLocationRequirements": ["United States"],
       "jobLocation": "Kansas , Kansas, United States",
       "httpStatus": 200,
       "error": null
@@ -1184,9 +1158,7 @@
       "comparison": "AGREEMENT",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "Canada"
-      ],
+      "applicantLocationRequirements": ["Canada"],
       "jobLocation": "Anywhere, Anywhere, Anywhere, Canada, Anywhere",
       "httpStatus": 200,
       "error": null
@@ -1666,9 +1638,7 @@
       "comparison": "AGREEMENT",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "US"
-      ],
+      "applicantLocationRequirements": ["US"],
       "jobLocation": "Remote, US",
       "httpStatus": 200,
       "error": null
@@ -1684,9 +1654,7 @@
       "comparison": "AGREEMENT",
       "hasJobPosting": true,
       "jobLocationType": "TELECOMMUTE",
-      "applicantLocationRequirements": [
-        "US"
-      ],
+      "applicantLocationRequirements": ["US"],
       "jobLocation": "Remote, US",
       "httpStatus": 200,
       "error": null

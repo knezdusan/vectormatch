@@ -79,7 +79,8 @@ async function main() {
       whereClause = `is_fenced = true AND NOT ${TITLE_FENCE_REGEX} AND NOT ${BODY_FENCE_REGEX}`;
     }
 
-    const sample = await db.execute(sql.raw(`
+    const sample = await db.execute(
+      sql.raw(`
       SELECT
         id,
         title,
@@ -92,7 +93,8 @@ async function main() {
       WHERE ${whereClause}
       ORDER BY RANDOM()
       LIMIT ${SAMPLE_SIZE}
-    `));
+    `),
+    );
 
     console.log(`\n=== ${stratum.toUpperCase()} SAMPLE (10 jobs) ===`);
     console.log(

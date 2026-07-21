@@ -337,9 +337,7 @@
       "passed": false,
       "error": null,
       "sampleTitles": [],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "jobgether",
@@ -353,9 +351,7 @@
       "passed": false,
       "error": "The operation was aborted due to timeout",
       "sampleTitles": [],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "super.com",
@@ -369,9 +365,7 @@
       "passed": false,
       "error": null,
       "sampleTitles": [],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "what3words",
@@ -385,9 +379,7 @@
       "passed": false,
       "error": null,
       "sampleTitles": [],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "Gcore",
@@ -400,12 +392,8 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Software Engineer (Golang)"
-      ],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "sampleTitles": ["Software Engineer (Golang)"],
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "gcore",
@@ -418,12 +406,8 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Software Engineer (Golang)"
-      ],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "sampleTitles": ["Software Engineer (Golang)"],
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "wifi-tribe",
@@ -436,12 +420,8 @@
       "remoteJobs": 0,
       "passed": false,
       "error": null,
-      "sampleTitles": [
-        "Tech Lead & Business Ops (Digital Nomad Job)"
-      ],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "sampleTitles": ["Tech Lead & Business Ops (Digital Nomad Job)"],
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "staygenki",
@@ -454,13 +434,8 @@
       "remoteJobs": 0,
       "passed": true,
       "error": null,
-      "sampleTitles": [
-        "Lead Web Engineer",
-        "Mid-Level Backend Developer"
-      ],
-      "discoveredVia": [
-        "work from anywhere in the world"
-      ]
+      "sampleTitles": ["Lead Web Engineer", "Mid-Level Backend Developer"],
+      "discoveredVia": ["work from anywhere in the world"]
     },
     {
       "slug": "Ionicpartners",
@@ -478,9 +453,7 @@
         "AI-Native Software Engineering Director (OTE $100,000/year U",
         "AI-Native Software Engineering Director (OTE $100,000/year U"
       ],
-      "discoveredVia": [
-        "we hire globally"
-      ]
+      "discoveredVia": ["we hire globally"]
     },
     {
       "slug": "supabase",
@@ -494,9 +467,7 @@
       "passed": false,
       "error": null,
       "sampleTitles": [],
-      "discoveredVia": [
-        "we hire globally"
-      ]
+      "discoveredVia": ["we hire globally"]
     },
     {
       "slug": "oneleet",
@@ -510,9 +481,7 @@
       "passed": false,
       "error": null,
       "sampleTitles": [],
-      "discoveredVia": [
-        "we hire globally"
-      ]
+      "discoveredVia": ["we hire globally"]
     },
     {
       "slug": "AristaNetworks",
@@ -530,9 +499,7 @@
         "Software Engineer - Platform Team - Greece",
         "Graduate Software Engineer, EOS - Sydney"
       ],
-      "discoveredVia": [
-        "we hire globally"
-      ]
+      "discoveredVia": ["we hire globally"]
     }
   ]
 }

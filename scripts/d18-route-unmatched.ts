@@ -138,7 +138,9 @@ async function main() {
       }
     } catch (e) {
       totalErrors++;
-      console.error(`  ERROR: ${job.title?.slice(0, 40)} (${job.ats_slug}): ${e}`);
+      console.error(
+        `  ERROR: ${job.title?.slice(0, 40)} (${job.ats_slug}): ${e}`,
+      );
     }
   }
 

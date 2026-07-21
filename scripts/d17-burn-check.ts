@@ -45,7 +45,9 @@ async function main() {
   );
 
   if (!response.ok) {
-    console.error(`Neon API returned ${response.status}: ${await response.text()}`);
+    console.error(
+      `Neon API returned ${response.status}: ${await response.text()}`,
+    );
     process.exit(1);
   }
 
@@ -59,8 +61,10 @@ async function main() {
   const periodStart = new Date(p.consumption_period_start);
   const periodEnd = new Date(p.consumption_period_end);
   const now = new Date();
-  const daysElapsed = (now.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24);
-  const daysRemaining = (periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  const daysElapsed =
+    (now.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24);
+  const daysRemaining =
+    (periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
 
   const burnRate = cuHrsUsed / daysElapsed; // CU-hrs/day
   const projectedTotal = burnRate * (daysElapsed + daysRemaining);
@@ -72,24 +76,44 @@ async function main() {
 
   console.log("=== D17 Daily Neon Burn Check ===");
   console.log(`Project: ${p.name} (${p.id})`);
-  console.log(`Period: ${periodStart.toISOString().slice(0, 10)} → ${periodEnd.toISOString().slice(0, 10)}`);
-  console.log(`Days elapsed: ${daysElapsed.toFixed(1)} | Days remaining: ${daysRemaining.toFixed(1)}`);
+  console.log(
+    `Period: ${periodStart.toISOString().slice(0, 10)} → ${periodEnd.toISOString().slice(0, 10)}`,
+  );
+  console.log(
+    `Days elapsed: ${daysElapsed.toFixed(1)} | Days remaining: ${daysRemaining.toFixed(1)}`,
+  );
   console.log();
-  console.log(`Compute time: ${p.compute_time_seconds.toLocaleString()} seconds`);
-  console.log(`CU-hrs used: ${cuHrsUsed.toFixed(2)} / ${FREE_TIER_CU_HRS} (${pctUsed.toFixed(1)}%)`);
+  console.log(
+    `Compute time: ${p.compute_time_seconds.toLocaleString()} seconds`,
+  );
+  console.log(
+    `CU-hrs used: ${cuHrsUsed.toFixed(2)} / ${FREE_TIER_CU_HRS} (${pctUsed.toFixed(1)}%)`,
+  );
   console.log(`CU-hrs remaining: ${remaining.toFixed(2)}`);
   console.log();
   console.log(`Burn rate: ${burnRate.toFixed(2)} CU-hrs/day`);
-  console.log(`Projected total at period end: ${projectedTotal.toFixed(2)} CU-hrs`);
-  console.log(`Projected remaining after 1 more day: ${projectedRemaining.toFixed(2)} CU-hrs`);
+  console.log(
+    `Projected total at period end: ${projectedTotal.toFixed(2)} CU-hrs`,
+  );
+  console.log(
+    `Projected remaining after 1 more day: ${projectedRemaining.toFixed(2)} CU-hrs`,
+  );
   console.log();
   if (shouldRunPulse) {
-    console.log(`RECOMMENDATION: RUN today's pulse (estimated cost: ${dailyPulseCost} CU-hrs)`);
-    console.log(`  After pulse: ${(remaining - dailyPulseCost).toFixed(2)} CU-hrs remaining`);
+    console.log(
+      `RECOMMENDATION: RUN today's pulse (estimated cost: ${dailyPulseCost} CU-hrs)`,
+    );
+    console.log(
+      `  After pulse: ${(remaining - dailyPulseCost).toFixed(2)} CU-hrs remaining`,
+    );
   } else {
     console.log(`RECOMMENDATION: SKIP today's pulse — insufficient runway`);
-    console.log(`  Running the pulse would leave only ${(remaining - dailyPulseCost).toFixed(2)} CU-hrs`);
-    console.log(`  A planned pause is not a failure; it's the free tier working as priced.`);
+    console.log(
+      `  Running the pulse would leave only ${(remaining - dailyPulseCost).toFixed(2)} CU-hrs`,
+    );
+    console.log(
+      `  A planned pause is not a failure; it's the free tier working as priced.`,
+    );
   }
 
   // Write JSON report

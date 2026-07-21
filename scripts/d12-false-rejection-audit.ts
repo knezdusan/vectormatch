@@ -13,13 +13,51 @@ import { neon } from "@neondatabase/serverless";
 const sql = neon(process.env.DATABASE_URL!);
 
 const JS_FAMILY_TAGS = [
-  "typescript", "javascript", "react", "nextjs", "nodejs", "vue", "nuxt",
-  "express", "graphql", "tailwindcss", "svelte", "sveltekit", "remix",
-  "gatsby", "astro", "solidjs", "preact", "angular", "ember", "backbone",
-  "jquery", "vite", "webpack", "babel", "esbuild", "rollup", "parcel",
-  "redux", "mobx", "zustand", "recoil", "tanstack", "react-query",
-  "prisma", "drizzle", "trpc", "hono", "elysia", "fastify", "koa",
-  "nestjs", "typeorm", "sequelize", "mongoose", "mongodb",
+  "typescript",
+  "javascript",
+  "react",
+  "nextjs",
+  "nodejs",
+  "vue",
+  "nuxt",
+  "express",
+  "graphql",
+  "tailwindcss",
+  "svelte",
+  "sveltekit",
+  "remix",
+  "gatsby",
+  "astro",
+  "solidjs",
+  "preact",
+  "angular",
+  "ember",
+  "backbone",
+  "jquery",
+  "vite",
+  "webpack",
+  "babel",
+  "esbuild",
+  "rollup",
+  "parcel",
+  "redux",
+  "mobx",
+  "zustand",
+  "recoil",
+  "tanstack",
+  "react-query",
+  "prisma",
+  "drizzle",
+  "trpc",
+  "hono",
+  "elysia",
+  "fastify",
+  "koa",
+  "nestjs",
+  "typeorm",
+  "sequelize",
+  "mongoose",
+  "mongodb",
 ];
 
 async function main() {
@@ -50,7 +88,9 @@ async function main() {
     const j = fenceRejects[i];
     console.log(`[${i + 1}] ${j.ats_slug} — ${j.title?.slice(0, 60)}`);
     console.log(`    location: "${j.location_name}"`);
-    console.log(`    scope: ${j.remote_scope}, workplace: ${j.workplace_type ?? "null"}`);
+    console.log(
+      `    scope: ${j.remote_scope}, workplace: ${j.workplace_type ?? "null"}`,
+    );
     console.log(`    tags: ${JSON.stringify(j.extracted_tags?.slice(0, 10))}`);
     console.log(`    text: ${j.text_snippet?.slice(0, 200)}`);
     console.log();
@@ -91,7 +131,8 @@ async function main() {
     // Find which keyword triggered the match
     const text = (j.text_snippet ?? "").toLowerCase();
     const triggers: string[] = [];
-    if (text.includes("security clearance")) triggers.push("security clearance");
+    if (text.includes("security clearance"))
+      triggers.push("security clearance");
     if (text.includes("top secret")) triggers.push("top secret");
     if (text.includes("ts/sci")) triggers.push("ts/sci");
     if (text.includes("secret clearance")) triggers.push("secret clearance");
@@ -101,16 +142,21 @@ async function main() {
     if (/\bear\b/.test(text)) triggers.push("ear");
     if (text.includes("export control")) triggers.push("export control");
     if (/\bdod\b/.test(text)) triggers.push("dod");
-    if (text.includes("department of defense")) triggers.push("department of defense");
+    if (text.includes("department of defense"))
+      triggers.push("department of defense");
     if (text.includes("defense contract")) triggers.push("defense contract");
     if (text.includes("national security")) triggers.push("national security");
     if (text.includes("homeland security")) triggers.push("homeland security");
-    if (text.includes("intelligence community")) triggers.push("intelligence community");
-    if (text.includes("e-verify") || text.includes("everify")) triggers.push("e-verify");
+    if (text.includes("intelligence community"))
+      triggers.push("intelligence community");
+    if (text.includes("e-verify") || text.includes("everify"))
+      triggers.push("e-verify");
     if (text.includes("public trust")) triggers.push("public trust");
     if (text.includes("polygraph")) triggers.push("polygraph");
-    if (text.includes("counterintelligence")) triggers.push("counterintelligence");
-    if (text.includes("background investigation")) triggers.push("background investigation");
+    if (text.includes("counterintelligence"))
+      triggers.push("counterintelligence");
+    if (text.includes("background investigation"))
+      triggers.push("background investigation");
     console.log(`    TRIGGERS: ${triggers.join(", ")}`);
     console.log(`    text: ${j.text_snippet?.slice(0, 400)}`);
     console.log();
@@ -153,7 +199,9 @@ async function main() {
   }
 
   // ── Gate 4: Stack-disjoint rejects (JS family) ──────────────────────────
-  console.log("═══ GATE 4: STACK-DISJOINT REJECTS (zero JS-family tags, 30 samples) ═══\n");
+  console.log(
+    "═══ GATE 4: STACK-DISJOINT REJECTS (zero JS-family tags, 30 samples) ═══\n",
+  );
 
   const stackRejects = await sql`
     SELECT id, title, ats_slug, location_name, remote_scope,

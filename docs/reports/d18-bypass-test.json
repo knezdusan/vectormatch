@@ -5,13 +5,7 @@
   "persona": {
     "id": "381ab6fe-ee04-4dd6-bc03-3136f231112b",
     "label": "Next.js / AI Full-Stack Engineer",
-    "tags": [
-      "typescript",
-      "nextjs",
-      "react",
-      "nodejs",
-      "prompt-engineering"
-    ]
+    "tags": ["typescript", "nextjs", "react", "nodejs", "prompt-engineering"]
   },
   "gate2Threshold": 0.55,
   "gate1MinOverlap": 2,
@@ -41,11 +35,7 @@
       "atsSlug": "silver",
       "atsSource": "ashby",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "nextjs",
-        "typescript",
-        "nodejs"
-      ],
+      "overlappingTags": ["nextjs", "typescript", "nodejs"],
       "cosineDistance": 0.5672122959525987,
       "gates": {
         "preFilter": {
@@ -92,11 +82,7 @@
       "atsSlug": "runway-ml",
       "atsSource": "ashby",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "typescript",
-        "react",
-        "nodejs"
-      ],
+      "overlappingTags": ["typescript", "react", "nodejs"],
       "cosineDistance": 0.5156634089591516,
       "gates": {
         "preFilter": {
@@ -143,11 +129,7 @@
       "atsSlug": "ruby-labs",
       "atsSource": "ashby",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "nextjs",
-        "typescript",
-        "nodejs"
-      ],
+      "overlappingTags": ["nextjs", "typescript", "nodejs"],
       "cosineDistance": 0.4726841308539468,
       "gates": {
         "preFilter": {
@@ -194,11 +176,7 @@
       "atsSlug": "overflow",
       "atsSource": "ashby",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "nodejs",
-        "react",
-        "typescript"
-      ],
+      "overlappingTags": ["nodejs", "react", "typescript"],
       "cosineDistance": 0.5585187286334559,
       "gates": {
         "preFilter": {
@@ -245,11 +223,7 @@
       "atsSlug": "alarmcom",
       "atsSource": "greenhouse",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "react",
-        "nodejs",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "nodejs", "typescript"],
       "cosineDistance": 0.6018293417887751,
       "gates": {
         "preFilter": {
@@ -296,11 +270,7 @@
       "atsSlug": "amplify",
       "atsSource": "ashby",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "react",
-        "typescript",
-        "nodejs"
-      ],
+      "overlappingTags": ["react", "typescript", "nodejs"],
       "cosineDistance": 0.5461821382352946,
       "gates": {
         "preFilter": {
@@ -347,11 +317,7 @@
       "atsSlug": "mongodb",
       "atsSource": "greenhouse",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "typescript",
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["typescript", "react", "nextjs"],
       "cosineDistance": 0.541655494968867,
       "gates": {
         "preFilter": {
@@ -398,11 +364,7 @@
       "atsSlug": "mongodb",
       "atsSource": "greenhouse",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "typescript",
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["typescript", "react", "nextjs"],
       "cosineDistance": 0.6148322407055368,
       "gates": {
         "preFilter": {
@@ -449,11 +411,7 @@
       "atsSlug": "alarmcom",
       "atsSource": "greenhouse",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "react",
-        "nodejs",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "nodejs", "typescript"],
       "cosineDistance": 0.6139143282984953,
       "gates": {
         "preFilter": {
@@ -500,11 +458,7 @@
       "atsSlug": "evry-health",
       "atsSource": "lever",
       "tagOverlap": 3,
-      "overlappingTags": [
-        "react",
-        "nextjs",
-        "nodejs"
-      ],
+      "overlappingTags": ["react", "nextjs", "nodejs"],
       "cosineDistance": 0.3683424344856806,
       "gates": {
         "preFilter": {
@@ -551,10 +505,7 @@
       "atsSlug": "simspace-corporation",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "react"
-      ],
+      "overlappingTags": ["typescript", "react"],
       "cosineDistance": 0.5604943019594961,
       "gates": {
         "preFilter": {
@@ -601,10 +552,7 @@
       "atsSlug": "simspace-corporation",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "react"
-      ],
+      "overlappingTags": ["typescript", "react"],
       "cosineDistance": 0.5799466289010969,
       "gates": {
         "preFilter": {
@@ -651,10 +599,7 @@
       "atsSlug": "supabase",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "nodejs"
-      ],
+      "overlappingTags": ["typescript", "nodejs"],
       "cosineDistance": 0.5429620412001978,
       "gates": {
         "preFilter": {
@@ -701,10 +646,7 @@
       "atsSlug": "searchapi",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nodejs"
-      ],
+      "overlappingTags": ["react", "nodejs"],
       "cosineDistance": 0.5743011436313199,
       "gates": {
         "preFilter": {
@@ -751,10 +693,7 @@
       "atsSlug": "simspace-corporation",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "react"
-      ],
+      "overlappingTags": ["typescript", "react"],
       "cosineDistance": 0.5126339235158854,
       "gates": {
         "preFilter": {
@@ -801,10 +740,7 @@
       "atsSlug": "silver",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "react"
-      ],
+      "overlappingTags": ["typescript", "react"],
       "cosineDistance": 0.608124972425037,
       "gates": {
         "preFilter": {
@@ -851,10 +787,7 @@
       "atsSlug": "brightwheel",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "typescript"],
       "cosineDistance": 0.5784567217479637,
       "gates": {
         "preFilter": {
@@ -901,10 +834,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901624194791958,
       "gates": {
         "preFilter": {
@@ -951,10 +881,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901555246999906,
       "gates": {
         "preFilter": {
@@ -1001,10 +928,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901624194791958,
       "gates": {
         "preFilter": {
@@ -1051,10 +975,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5830687136332912,
       "gates": {
         "preFilter": {
@@ -1101,10 +1022,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901555246999906,
       "gates": {
         "preFilter": {
@@ -1151,10 +1069,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901555246999906,
       "gates": {
         "preFilter": {
@@ -1201,10 +1116,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901033219951275,
       "gates": {
         "preFilter": {
@@ -1251,10 +1163,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901624194791958,
       "gates": {
         "preFilter": {
@@ -1301,10 +1210,7 @@
       "atsSlug": "remotecom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "nextjs"
-      ],
+      "overlappingTags": ["react", "nextjs"],
       "cosineDistance": 0.5901624194791958,
       "gates": {
         "preFilter": {
@@ -1351,10 +1257,7 @@
       "atsSlug": "alarmcom",
       "atsSource": "greenhouse",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "react"
-      ],
+      "overlappingTags": ["typescript", "react"],
       "cosineDistance": 0.6036585900968017,
       "gates": {
         "preFilter": {
@@ -1401,10 +1304,7 @@
       "atsSlug": "honkforhelp",
       "atsSource": "lever",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "typescript"],
       "cosineDistance": 0.4979563203241877,
       "gates": {
         "preFilter": {
@@ -1451,10 +1351,7 @@
       "atsSlug": "brigit",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "typescript"],
       "cosineDistance": 0.49219456487512614,
       "gates": {
         "preFilter": {
@@ -1501,10 +1398,7 @@
       "atsSlug": "payabli",
       "atsSource": "ashby",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "typescript"],
       "cosineDistance": 0.581384526970047,
       "gates": {
         "preFilter": {
@@ -1551,10 +1445,7 @@
       "atsSlug": "redhorsecorp",
       "atsSource": "lever",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "typescript",
-        "nodejs"
-      ],
+      "overlappingTags": ["typescript", "nodejs"],
       "cosineDistance": 0.48125758116030526,
       "gates": {
         "preFilter": {
@@ -1601,9 +1492,7 @@
       "atsSlug": "vytalize%20health",
       "atsSource": "ashby",
       "tagOverlap": 1,
-      "overlappingTags": [
-        "react"
-      ],
+      "overlappingTags": ["react"],
       "cosineDistance": 0.5213201127582906,
       "gates": {
         "preFilter": {
@@ -1650,9 +1539,7 @@
       "atsSlug": "remoteok_direct",
       "atsSource": "remoteok_direct",
       "tagOverlap": 1,
-      "overlappingTags": [
-        "react"
-      ],
+      "overlappingTags": ["react"],
       "cosineDistance": 0.81210587560223,
       "gates": {
         "preFilter": {
@@ -1699,10 +1586,7 @@
       "atsSlug": "remoteok_direct",
       "atsSource": "remoteok_direct",
       "tagOverlap": 2,
-      "overlappingTags": [
-        "react",
-        "typescript"
-      ],
+      "overlappingTags": ["react", "typescript"],
       "cosineDistance": 0.7017514930609414,
       "gates": {
         "preFilter": {
@@ -1749,9 +1633,7 @@
       "atsSlug": "remoteok_direct",
       "atsSource": "remoteok_direct",
       "tagOverlap": 1,
-      "overlappingTags": [
-        "react"
-      ],
+      "overlappingTags": ["react"],
       "cosineDistance": 0.8426689895381531,
       "gates": {
         "preFilter": {

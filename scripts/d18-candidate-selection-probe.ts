@@ -34,16 +34,27 @@ async function main() {
     `;
 
     console.log("Job:", j.title?.slice(0, 50), "| slug:", j.ats_slug);
-    console.log("  status:", j.status, "| scope:", j.remote_scope, "| embed:", j.has_embed);
+    console.log(
+      "  status:",
+      j.status,
+      "| scope:",
+      j.remote_scope,
+      "| embed:",
+      j.has_embed,
+    );
     console.log("  normalized_at:", j.normalized_at);
     console.log("  tags:", j.extracted_tags);
     console.log("  match_queue entries:", mq.length);
     for (const m of mq) {
       console.log(
-        "    → persona:", m.persona_label,
-        "| status:", m.status,
-        "| dist:", m.cosine_distance?.toFixed(4),
-        "| overlap:", m.overlap_score,
+        "    → persona:",
+        m.persona_label,
+        "| status:",
+        m.status,
+        "| dist:",
+        m.cosine_distance?.toFixed(4),
+        "| overlap:",
+        m.overlap_score,
       );
     }
     if (mq.length === 0) {
@@ -136,9 +147,19 @@ async function main() {
     ORDER BY j.updated_at DESC
     LIMIT 20
   `;
-  console.log("Unmatched jobs (active+global+embedded, tag overlap, no match_queue):", unmatched.length);
+  console.log(
+    "Unmatched jobs (active+global+embedded, tag overlap, no match_queue):",
+    unmatched.length,
+  );
   for (const u of unmatched) {
-    console.log("  ", u.title?.slice(0, 50), "| slug:", u.ats_slug, "| node_tags:", u.has_node_tags);
+    console.log(
+      "  ",
+      u.title?.slice(0, 50),
+      "| slug:",
+      u.ats_slug,
+      "| node_tags:",
+      u.has_node_tags,
+    );
   }
 }
 

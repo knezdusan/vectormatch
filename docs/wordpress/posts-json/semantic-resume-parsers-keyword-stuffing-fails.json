@@ -2,13 +2,7 @@
   "meta": {
     "topic": "Why Keyword Stuffing Fails in Modern Semantic Resume Parsers (And What Works Instead)",
     "category": "ATS & Hiring Systems",
-    "tags": [
-      "ATS",
-      "Resume",
-      "AI",
-      "Skills",
-      "Seniority"
-    ],
+    "tags": ["ATS", "Resume", "AI", "Skills", "Seniority"],
     "title": "Why Keyword Stuffing Fails in Modern Semantic Resume Parsers (And What Works Instead)",
     "seo_title": "Semantic Resume Parsers: Why Keyword Stuffing Fails in 2026",
     "meta_description": "Keyword stuffing fails against modern semantic resume parsers. Learn how HNSW vector matching and transformer embeddings change ATS strategy.",
@@ -21,10 +15,7 @@
       "resume semantic matching",
       "approximate nearest neighbor"
     ],
-    "schema_types": [
-      "Article",
-      "FAQPage"
-    ],
+    "schema_types": ["Article", "FAQPage"],
     "estimated_word_count": 2100,
     "reading_time_minutes": 9
   },

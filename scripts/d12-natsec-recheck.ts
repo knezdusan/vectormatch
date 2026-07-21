@@ -50,8 +50,12 @@ async function main() {
 
   console.log(`New natsec rejects (after tuning): ${newRejects}`);
   console.log(`Jobs now PASSING (previously false-rejected): ${nowPasses}`);
-  console.log(`False-rejection rate before: ${(nowPasses / oldNatsecRejects.length * 100).toFixed(1)}%`);
-  console.log(`False-rejection rate after: 0% (by construction — new function is stricter)\n`);
+  console.log(
+    `False-rejection rate before: ${((nowPasses / oldNatsecRejects.length) * 100).toFixed(1)}%`,
+  );
+  console.log(
+    `False-rejection rate after: 0% (by construction — new function is stricter)\n`,
+  );
 
   console.log("Jobs now passing (previously false-rejected):");
   for (const j of nowPassingJobs) console.log(`  ${j}`);

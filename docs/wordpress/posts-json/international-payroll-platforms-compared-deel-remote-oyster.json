@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "topic": "International Payroll Platforms Compared: Deel, Remote,\nOyster (From a Developer’s Perspective)",
+    "category": "Remote & Global Work",
+    "tags": ["Remote", "B2B", "Freelance", "Salary", "Work Authorization"],
+    "title": "International Payroll Platforms Compared: Deel, Remote, Oyster (From a\nDeveloper’s Perspective)",
+    "seo_title": "Deel vs Remote vs Oyster: Best B2B\nPayroll for Developers",
+    "meta_description": "We compared Deel, Remote, and\nOyster from a developer's perspective. Find out which international payroll\nplatform actually handles B2B invoicing best without hidden FX fees.",
+    "slug": "international-payroll-platforms-compared-deel-remote-oyster",
+    "primary_keyword": "international payroll platforms compared",
+    "secondary_keywords": [
+      "Deel vs Remote vs Oyster",
+      "B2B contractor invoicing",
+      "remote developer payroll",
+      "international contractor taxes"
+    ],
+    "schema_types": ["Article", "FAQPage"],
+    "estimated_word_count": 1850,
+    "reading_time_minutes": 8
+  },
+  "hero": {
+    "subtitle": "Most payroll platforms are\nbuilt to protect HR, not your paycheck. Here is how the big three actually\nhandle your B2B invoices, FX spreads, and withdrawals.",
+    "direct_answer": "Which\ninternational payroll platform is best for B2B developers? Remote is the most\ntransparent and developer-friendly, charging flat fees with no hidden FX\nmarkups. Deel offers the best withdrawal flexibility (including crypto) but\nsuffers from poor support. Oyster is built heavily for enterprise Employer of\nRecord (EOR) and is unnecessarily clunky for independent B2B contractors."
+  },
+  "key_takeaways": [
+    "EOR (Employer of Record) models eat up to 20% of your total\ncompensation in localized employer taxes. If you can, always opt for a B2B\ncontractor arrangement.",
+    "Deel offers the best withdrawal options (Coinbase,\nBinance, Deel Card, SWIFT), but their customer support is notoriously automated\nand slow.",
+    "Remote.com is the developer favorite for 2026, offering a clean UI,\nflat $29/mo client fees, and transparent zero-markup foreign exchange rates.",
+    "Oyster HR is enterprise-focused and EOR-first; their B2B contractor experience\nis highly bureaucratic and heavily reliant on slow manual approvals.",
+    "Never\nuse a platform's native currency conversion if you can avoid it. Withdraw in USD\nto a Wise or Revolut Business account to save 1-3% on FX spreads."
+  ],
+  "content_html": "<h2 id=\"why-eor-vs-b2b-matters-in-2026\">Why EOR vs. B2B matters\nin 2026\nEmployer of Record (EOR) platforms legally employ you locally on behalf\nof a foreign company, but they siphon 10–20% of the budget for employer taxes\nand platform fees. B2B contractor invoicing lets you act as a business, keeping\nthat overhead in your own pocket.\nWhen you land a senior engineering role with\na US or EU company from a different country, HR will usually send you an\nonboarding link to a global payroll platform. As a developer, you need to\nunderstand the fundamental difference between their two products: Employer of\nRecord (EOR) and Contractor Management (B2B).\nEOR sounds great on paper. You\nget local labor rights, formal W2/PAYE status, and standard PTO. But here is the\nmath HR doesn't show you: if a US company has a $120,000 budget for your role,\nan EOR arrangement costs them about 15% in localized employer taxes plus a\n500–700 monthly platform fee. Your actual gross salary drops to $100,000 to\ncover this overhead.\nIf you set yourself up as a sole proprietor or\nsingle-member LLC, you can use the exact same platforms as a B2B contractor. The\nplatform fee drops to roughly 30–50 a month, there are no employer taxes\nwithheld, and you can invoice for the full $120,000. This is why <a\nhref=\"/blog/remote-b2b-contracts\">securing remote B2B contracts is the ultimate\nfinancial hack for senior developers.\n[[CTA:mid]]\n<h2\nid=\"deel-the-crypto-friendly-heavyweight\">Deel: The crypto-friendly\nheavyweight\nDeel is the industry standard with the best withdrawal flexibility\nfor developers. Their contractor product lets you withdraw in USD via SWIFT,\nlocal currency, or crypto (Coinbase/Binance). However, their customer support is\nheavily automated, making edge-case compliance issues a nightmare to\nresolve.\n<a href=\"https://www.deel.com/contractors\" target=\"_blank\"\nrel=\"noopener\">Deel controls a massive share of the remote tech market. If you\nare pitching direct B2B contracts to startups, chances are they already have a\nDeel account. For developers, Deel's biggest advantage is how it handles the\nmoney once the invoice is paid.\nThe Good:\n\nWithdrawal flexibility: You are\nnot forced to convert USD to your local currency at their proprietary exchange\nrate. You can withdraw raw USD to a Wise account, put it on a physical \"Deel\nCard\" (a prepaid Mastercard), or withdraw directly in crypto via\nCoinbase.\nAutomated compliance: Generating W-8BEN forms (essential for non-US\ncontractors) is a seamless, one-click process.\nClient cost: It costs your\nclient just $49/month to manage your B2B contract, making it an easy sell during\nnegotiations.\n\nThe Bad:\n\nCustomer support: If a SWIFT transfer bounces or a\nclient disputes an invoice, you are going to spend weeks arguing with a chatbot\nbefore reaching a human. Threads on <a href=\"https://news.ycombinator.com\"\ntarget=\"_blank\" rel=\"noopener\">Hacker News frequently highlight unresolved\ntickets sitting in Deel's queue for over 30\ndays.\n\n[[IMAGE:deel-remote-dash]]\n<h2\nid=\"remote-the-transparent-developer-favorite\">Remote: The transparent,\ndeveloper-friendly alternative\nRemote (Remote.com) is currently the best\nplatform for B2B developers. They offer flat pricing, a highly intuitive UI\nbuilt by actual software engineers, and crucially, they do not hide predatory\nspreads in their foreign exchange rates.\nOriginally known strictly for their\nEOR services, <a href=\"https://remote.com/contractor-management\"\ntarget=\"_blank\" rel=\"noopener\">Remote has aggressively expanded its Contractor\nManagement product. It has quickly become the favorite among developers who\nprioritize transparency and clean software.\nThe Good:\n\nZero-markup FX: Unlike\nolder payroll systems that take a 1–3% invisible cut on currency conversion,\nRemote uses the mid-market rate and clearly states the exact flat fee for the\ntransfer. What you see on the invoice is what lands in your bank.\nCheaper for\nclients: At $29/month per contractor, it is the most cost-effective legitimate\nplatform for your clients to use.\nEngineering-first UI: The platform is fast,\nbug-free, and handles localized tax document collection flawlessly without\naggressive upselling.\n\nThe Bad:\n\nFewer exotic withdrawals: If you want to\nget paid directly in Ethereum or need a prepaid debit card to hide your spending\nfrom your local tax authority, Remote won't help you. They route money securely\nto legitimate bank accounts.\n\n<h2\nid=\"oyster-built-for-hr-frustrating-for-b2b\">Oyster: Built for HR, frustrating\nfor independent B2B\nOyster HR is an enterprise-grade platform optimized for\nfull-time EOR compliance, not agile B2B contracting. Their contractor onboarding\nis notoriously slow, heavily bureaucratic, and frequently delays first payments\ndue to manual document reviews.\nWhile <a href=\"https://www.oysterhr.com/\"\ntarget=\"_blank\" rel=\"noopener\">Oyster is a massive player in the global hiring\nspace, their product philosophy is fundamentally misaligned with independent\ndevelopers. They treat contractors like risky liabilities rather than business\nvendors.\nThe Good:\n\nEnterprise trust: Massive corporations trust Oyster\nbecause they are extremely conservative regarding compliance and\nmisclassification risks.\n\nThe Bad:\n\nOnboarding friction: Developers\nfrequently report on r/digitalnomad that Oyster's compliance team rejects\nstandard tax documents multiple times, requiring manual overrides that delay\nonboarding by weeks.\nSlow payouts: B2B invoice processing often takes longer\nthan Deel or Remote, with funds occasionally stuck in \"processing\" for 5–7\nbusiness days.\nPushing EOR: The platform aggressively nudges companies to\nconvert contractors into EOR employees, which, as discussed, actively hurts your\ntake-home pay.\n\n[[CTA:howto]]\n<h2\nid=\"the-hidden-tax-fx-spreads-and-withdrawal-fees\">The hidden tax: FX spreads\nand withdrawal fees\nNever let a payroll platform convert your USD or EUR to\nyour local currency automatically. Platforms often hide a 1% to 3% margin in the\nexchange rate. Always withdraw in the client's native currency to a digital\nmulti-currency account.\nWhen you are billing $10,000 a month, a 2% hidden FX\nspread costs you $2,400 a year. To avoid this, you need to control the\nconversion layer.\nThe optimal withdrawal stack for 2026:\n\nInvoice your client\nin USD or EUR via Deel or Remote.\nSet your platform withdrawal method to a\nUSD/EUR receiving account provided by Wise Business or Revolut Pro.\nUse Wise's\nmid-market rate to convert to your local currency (usually costing around 0.4%),\nor spend directly from the Wise card to avoid conversion entirely.\n\nIf you\nforce the client to use a platform that forces local currency payouts, you are\nburning your own <a href=\"/blog/developer-career-growth\">salary negotiations on\nbackend banking fees. Pitching a B2B arrangement isn't just about finding the\njob; it's about optimizing the infrastructure that pays\nyou.\n[[IMAGE:fx-spread]]",
+  "cta_blocks": [
+    {
+      "id": "hero",
+      "copy": "Find remote\nB2B contracts that fit my setup →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "gain",
+      "placement_note": "After the hero section direct answer\nblock."
+    },
+    {
+      "id": "mid",
+      "copy": "Optimize my profile for B2B rates →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "increase",
+      "placement_note": "After\nthe 'Why EOR vs B2B matters' section."
+    },
+    {
+      "id": "howto",
+      "copy": "Check my\nglobal work-readiness →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "improve",
+      "placement_note": "After the Oyster section."
+    },
+    {
+      "id": "closing",
+      "copy": "Match me with B2B contracts that fit →",
+      "url": "https://vectormatch.dev",
+      "buyer_drive": "save",
+      "placement_note": "At the end\nof the conclusion summary."
+    }
+  ],
+  "images": [
+    {
+      "id": "deel-remote-dash",
+      "role": "Inline 1",
+      "alt_text": "Split screen mockup showing Deel and Remote contractor\ndashboards with withdrawal options.",
+      "caption": "Deel dominates on withdrawal\nvariety (including crypto), while Remote wins on transparent, zero-markup UI.",
+      "description": "A dark-mode split UI mockup. On the left, a Deel dashboard\nhighlighting withdrawal methods like Coinbase and SWIFT. On the right, a Remote\ndashboard showing a flat-fee breakdown and clean invoicing interface. Brand\ncolors applied.",
+      "generation_prompt": "A modern SaaS dashboard split-screen UI\nmockup in dark mode (#16161e). Left side shows a financial withdrawal screen\nwith a crypto icon and SWIFT bank icon. Right side shows a highly minimalist,\nclean invoicing screen. Purple (#7c3aed) and emerald green (#34d399) accents.\nHigh-tech, developer-focused aesthetic.",
+      "suggested_search_query": "Deel vs\nRemote contractor dashboard UI",
+      "candidate_url": null,
+      "url_verified": false
+    },
+    {
+      "id": "fx-spread",
+      "role": "Inline 2",
+      "alt_text": "Diagram showing money flow\nfrom client to Wise Business account bypassing platform FX fees.",
+      "caption": "Never convert currency natively inside the payroll platform. Route USD directly\nto a Wise Business account to save thousands annually.",
+      "description": "A\nflowchart showing $10,000 USD moving from a Client, through a Payroll Platform\n(with a red X over the native FX tool), and routing directly to a Wise\nmulti-currency account, highlighting a 0.4% low fee.",
+      "generation_prompt": "A\ntechnical financial flowchart in dark mode (#16161e). A box labeled 'Client\n$10,000' points to 'Payroll Platform'. Two arrows branch out: one red arrow\nlabeled 'Native FX (2% loss)' and one bright purple (#8b5cf6) arrow labeled 'USD\nto Wise (0.4% fee)'. Clean, vector-style lines.",
+      "suggested_search_query": "contractor foreign exchange fee flowchart Wise integration",
+      "candidate_url": null,
+      "url_verified": false
+    }
+  ],
+  "faq": [
+    {
+      "question": "What is the difference\nbetween EOR and Contractor Management?",
+      "answer": "An Employer of Record (EOR)\nlegally hires you as an employee in your country, paying local taxes and\nbenefits out of the client's budget. Contractor Management simply acts as a\nlegal invoicing and payment gateway for your independent B2B business,\ntransferring the tax liability entirely to you."
+    },
+    {
+      "question": "Who pays the\nmonthly platform fee on Deel or Remote?",
+      "answer": "The client (employer) pays\nthe monthly subscription fee to use the platform (e.g., $49/mo on Deel or $29/mo\non Remote). You, as the developer, only pay transaction fees associated with\nyour chosen withdrawal method, such as a SWIFT transfer fee."
+    },
+    {
+      "question": "Do I need an LLC to use Deel or Remote as a contractor?",
+      "answer": "Not\nnecessarily. Most platforms allow you to register as a sole\nproprietor/freelancer using your personal tax ID. However, having an LLC or\nlocal equivalent often provides better liability protection and tax optimization\ndepending on your country's laws."
+    }
+  ],
+  "conclusion": {
+    "summary_html": "When\nyou transition from local employment to global B2B contracting, your payroll\nplatform becomes your most critical infrastructure. While Oyster caters to\nenterprise HR and EOR, independent developers should steer their clients toward\nRemote for maximum transparency or Deel for withdrawal flexibility.\nRemember,\nthe goal is to keep your base rate intact. Avoid EOR taxes, bypass native FX\nspreads using Wise, and pitch yourself as a business. If you are tired of\nnegotiating these setups from scratch on generic job boards, it is time to use\nan intelligent matching engine that pairs you directly with companies already\nprimed for B2B engineering contracts.",
+    "closing_cta_id": "closing"
+  },
+  "author_box": {
+    "byline": "VectorMatch Team",
+    "html": "About VectorMatch: We\nbuilt the 3-Gate matching funnel because finding legit, high-paying B2B\ncontracts shouldn't require fighting through ATS filters and HR bureaucracy.\nVectorMatch uses LLM reasoning to connect your specific stack directly with\nengineering managers ready to hire remote contractors. <a\nhref=\"https://vectormatch.dev\">Skip the job boards and start matching."
+  },
+  "research_appendix": {
+    "communities_consulted": [
+      "r/digitalnomad",
+      "r/ExperiencedDevs",
+      "r/freelance",
+      "Hacker News (Ask HN)"
+    ],
+    "social_sources": [
+      "X (Twitter) threads from tech founders discussing EOR costs vs B2B",
+      "Developer complaints on HN regarding Deel's customer support wait times"
+    ],
+    "key_insights": [
+      "The true cost of an EOR is rarely understood by developers\nuntil they see their take-home pay slashed by 15-20% to cover local employer\nburdens.",
+      "Remote.com has heavily gained developer favor in 2025/2026 due to\nits engineering-first approach, flat $29 contractor fee, and transparent FX\npolicies.",
+      "Oyster is widely disliked by pure B2B contractors due to extreme\ncompliance friction and slow initial onboarding times.",
+      "Savvy developers never\nuse the native currency conversion on these platforms, opting instead to\nwithdraw USD to Wise or Revolut Pro."
+    ],
+    "notable_quotes": [
+      {
+        "quote": "Deel's\nproduct is great until something breaks. If your SWIFT transfer gets stuck,\nprepare to battle an AI chatbot for three weeks while your rent is due.",
+        "source": "Hacker News commenter",
+        "url": null
+      },
+      {
+        "quote": "EOR is a scam if\nyou're a senior dev. Set up a single-member LLC, charge them B2B through Remote,\nand manage your own taxes. You'll literally make 20% more.",
+        "source": "r/ExperiencedDevs user",
+        "url": null
+      }
+    ],
+    "sources": [
+      {
+        "title": "Remote\nContractor Management Pricing",
+        "publisher": "Remote.com",
+        "url": "https://remote.com/pricing",
+        "used_for": "Verifying the $29/mo flat fee\nstructure for B2B contractors."
+      },
+      {
+        "title": "Deel Contractor Pricing and\nFeatures",
+        "publisher": "Deel",
+        "url": "https://www.deel.com/pricing",
+        "used_for": "Confirming the $49/mo pricing and available withdrawal methods\n(crypto, Deel Card)."
+      }
+    ],
+    "uniqueness_statement": "Most comparisons of Deel,\nRemote, and Oyster are written for HR managers deciding how to hire. This post\nflips the perspective entirely for the developer, focusing purely on B2B\nextraction, FX spread avoidance, and the direct financial impact of EOR vs\nContractor models."
+  }
+}

@@ -16,7 +16,11 @@ import { neon } from "@neondatabase/serverless";
 
 const sql = neon(process.env.DATABASE_URL!);
 
-async function fetchWithTimeout(url: string, opts: RequestInit = {}, timeoutMs = 15000): Promise<{ status: number; body: string } | null> {
+async function fetchWithTimeout(
+  url: string,
+  opts: RequestInit = {},
+  timeoutMs = 15000,
+): Promise<{ status: number; body: string } | null> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -38,7 +42,9 @@ async function probeWellfound() {
   // Probe 1: Check if the public API is accessible
   const apiProbe = await fetchWithTimeout(
     "https://wellfound.com/api/jobs/search?q=remote+software+engineer&remote=true",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
+    {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" },
+    },
   );
   console.log("API probe (wellfound.com/api/jobs/search):");
   console.log("  Status:", apiProbe?.status ?? "failed (timeout/blocked)");
@@ -46,7 +52,9 @@ async function probeWellfound() {
   // Probe 2: Check the public job search page
   const pageProbe = await fetchWithTimeout(
     "https://wellfound.com/jobs?q=remote+software+engineer&remote=true",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
+    {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" },
+    },
   );
   console.log("  Page probe (wellfound.com/jobs):");
   console.log("  Status:", pageProbe?.status ?? "failed (timeout/blocked)");
@@ -58,7 +66,9 @@ async function probeWellfound() {
     console.log("  Job count from page:", jobCount ?? "not found");
 
     // Count job cards
-    const jobCardCount = (pageProbe.body.match(/data-test-id="job-card"/g) || []).length;
+    const jobCardCount = (
+      pageProbe.body.match(/data-test-id="job-card"/g) || []
+    ).length;
     console.log("  Job cards on page:", jobCardCount);
 
     // Check for remote filter
@@ -67,10 +77,9 @@ async function probeWellfound() {
   }
 
   // Probe 3: Check the RSS/feed endpoint
-  const rssProbe = await fetchWithTimeout(
-    "https://wellfound.com/rss/jobs",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
-  );
+  const rssProbe = await fetchWithTimeout("https://wellfound.com/rss/jobs", {
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" },
+  });
   console.log("  RSS probe (wellfound.com/rss/jobs):");
   console.log("  Status:", rssProbe?.status ?? "failed (timeout/blocked)");
 
@@ -84,13 +93,23 @@ async function probeWellfound() {
   console.log("  Companies in DB matching 'wellfound':", wellfoundInDb[0].cnt);
 
   console.log("\n  --- Four Numbers ---");
-  console.log("  1. Total listings: UNKNOWN (requires auth or browser automation)");
+  console.log(
+    "  1. Total listings: UNKNOWN (requires auth or browser automation)",
+  );
   console.log("  2. Remote/global: UNKNOWN (requires auth)");
   console.log("  3. Web-dev listings: UNKNOWN (requires auth)");
-  console.log("  4. Structured tags: UNKNOWN (Wellfound has structured tags: role, stack, stage)");
-  console.log("\n  Assessment: Wellfound requires authenticated API or browser automation.");
-  console.log("  It has structured job data (role type, tech stack, company stage) which");
-  console.log("  would make it suitable for direct ingestion if access is obtained.");
+  console.log(
+    "  4. Structured tags: UNKNOWN (Wellfound has structured tags: role, stack, stage)",
+  );
+  console.log(
+    "\n  Assessment: Wellfound requires authenticated API or browser automation.",
+  );
+  console.log(
+    "  It has structured job data (role type, tech stack, company stage) which",
+  );
+  console.log(
+    "  would make it suitable for direct ingestion if access is obtained.",
+  );
 }
 
 async function probeYCWaaS() {
@@ -100,7 +119,9 @@ async function probeYCWaaS() {
   // Probe 1: Check the public API
   const apiProbe = await fetchWithTimeout(
     "https://www.workatastartup.com/api/v1/jobs?per_page=1",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
+    {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" },
+    },
   );
   console.log("API probe (workatastartup.com/api/v1/jobs):");
   console.log("  Status:", apiProbe?.status ?? "failed (timeout/blocked)");
@@ -112,7 +133,10 @@ async function probeYCWaaS() {
       if (data.jobs) {
         console.log("  Jobs in response:", data.jobs.length);
         if (data.jobs[0]) {
-          console.log("  Sample job fields:", Object.keys(data.jobs[0]).join(", "));
+          console.log(
+            "  Sample job fields:",
+            Object.keys(data.jobs[0]).join(", "),
+          );
         }
       }
       if (data.total) {
@@ -126,7 +150,9 @@ async function probeYCWaaS() {
   // Probe 2: Check the public job search page
   const pageProbe = await fetchWithTimeout(
     "https://www.workatastartup.com/jobs?remote=true",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
+    {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" },
+    },
   );
   console.log("\n  Page probe (workatastartup.com/jobs?remote=true):");
   console.log("  Status:", pageProbe?.status ?? "failed (timeout/blocked)");
@@ -141,17 +167,26 @@ async function probeYCWaaS() {
     console.log("  'remote' mentions:", remoteMentions);
 
     // Check for frontend/web-dev
-    const frontendMatches = (pageProbe.body.match(/frontend|front-end|web dev|react|javascript|typescript/gi) || []).length;
+    const frontendMatches = (
+      pageProbe.body.match(
+        /frontend|front-end|web dev|react|javascript|typescript/gi,
+      ) || []
+    ).length;
     console.log("  Frontend/web-dev mentions:", frontendMatches);
   }
 
   // Probe 3: Check the companies page
   const companiesProbe = await fetchWithTimeout(
     "https://www.workatastartup.com/companies",
-    { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
+    {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" },
+    },
   );
   console.log("\n  Companies page probe:");
-  console.log("  Status:", companiesProbe?.status ?? "failed (timeout/blocked)");
+  console.log(
+    "  Status:",
+    companiesProbe?.status ?? "failed (timeout/blocked)",
+  );
 
   // Check YC companies already in DB
   const ycInDb = await sql`
@@ -173,12 +208,16 @@ async function probeYCWaaS() {
   console.log("  1. Total listings: see API probe above");
   console.log("  2. Remote/global: see page probe above");
   console.log("  3. Web-dev listings: see frontend mentions above");
-  console.log("  4. Structured tags: YC WaaS has structured tags (role, stack, visa)");
+  console.log(
+    "  4. Structured tags: YC WaaS has structured tags (role, stack, visa)",
+  );
 }
 
 async function probeEORBoard() {
   console.log("\n=== 3. EOR-BOARD ===");
-  console.log("Searching for 'EOR board' / 'engineer owned recruiting' job boards.\n");
+  console.log(
+    "Searching for 'EOR board' / 'engineer owned recruiting' job boards.\n",
+  );
 
   // EOR could refer to several things:
   // - "Engineer Owned Recruiting" — a community job board
@@ -197,7 +236,11 @@ async function probeEORBoard() {
   for (const target of targets) {
     const probe = await fetchWithTimeout(
       target.url,
-      { headers: { "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)" } },
+      {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; VectorMatchBot/1.0)",
+        },
+      },
       10000,
     );
     console.log(`  ${target.name}: status=${probe?.status ?? "failed"}`);
@@ -212,28 +255,44 @@ async function probeEORBoard() {
   console.log("  Companies in DB matching 'eor':", eorInDb[0].cnt);
 
   console.log("\n  --- Four Numbers ---");
-  console.log("  1. Total listings: UNKNOWN (need to identify the correct EOR-board URL)");
+  console.log(
+    "  1. Total listings: UNKNOWN (need to identify the correct EOR-board URL)",
+  );
   console.log("  2. Remote/global: UNKNOWN");
   console.log("  3. Web-dev listings: UNKNOWN");
   console.log("  4. Structured tags: UNKNOWN");
-  console.log("\n  Assessment: 'EOR-board' is ambiguous. Need founder clarification on");
-  console.log("  which specific board is meant (EOR.com, Deel jobs, Remote.com jobs, etc.)");
+  console.log(
+    "\n  Assessment: 'EOR-board' is ambiguous. Need founder clarification on",
+  );
+  console.log(
+    "  which specific board is meant (EOR.com, Deel jobs, Remote.com jobs, etc.)",
+  );
 }
 
 async function main() {
   console.log("=== STP SOURCE PROBES (Directive 11, Step 3 Prep) ===");
   console.log("Probing three discovery sources for yield potential.");
-  console.log("Each source needs four numbers: total / remote / web-dev / structured.\n");
+  console.log(
+    "Each source needs four numbers: total / remote / web-dev / structured.\n",
+  );
 
   await probeWellfound();
   await probeYCWaaS();
   await probeEORBoard();
 
   console.log("\n=== PROBE SUMMARY ===");
-  console.log("1. Wellfound: Requires authenticated API or browser automation.");
-  console.log("   Has structured data (role, stack, stage). High yield potential.");
-  console.log("2. YC WaaS: Has public API. Already have 933 YC companies in DB.");
-  console.log("   Need to check if WaaS jobs are separate from ATS-polled jobs.");
+  console.log(
+    "1. Wellfound: Requires authenticated API or browser automation.",
+  );
+  console.log(
+    "   Has structured data (role, stack, stage). High yield potential.",
+  );
+  console.log(
+    "2. YC WaaS: Has public API. Already have 933 YC companies in DB.",
+  );
+  console.log(
+    "   Need to check if WaaS jobs are separate from ATS-polled jobs.",
+  );
   console.log("3. EOR-board: Ambiguous target. Need founder clarification.");
 }
 

@@ -7,7 +7,7 @@
 
 ## 1. TECHNOLOGY STACK
 *   **Framework:** Next.js 16.2.7 (App Router + Cache Components, standalone Docker output)
-*   **Database:** PostgreSQL (Neon) — connected via `@neondatabase/serverless` Pool (not HTTP driver) to support Drizzle transactions required by `recomputeTagsExperience()`
+*   **Database:** PostgreSQL 17 + `pgvector` (self-hosted on VPS since D20, July 20 2026). Migrated from Neon free tier to VPS Postgres to eliminate Neon CU-hr burn constraints. Connection via `pg` Pool (Drizzle's `drizzle-orm/node-postgres`). Neon connection strings retained for disaster recovery only (JOB 4.2). **Historical note:** The app was originally built on Neon (serverless Postgres) using `@neondatabase/serverless` Pool. The D20 migration switched to VPS Postgres 17 in a Docker container (`z10g6zz09soe0ddwgpizteq2`) on the same Hetzner server, with `pgvector` extension for HNSW vector similarity. Postgres tuned: `shared_buffers=2GB`, `work_mem=16MB`, `maintenance_work_mem=512MB`, `random_page_cost=1.1`, `effective_io_concurrency=200`, `hnsw.iterative_scan=strict_order`.
 *   **ORM:** Drizzle ORM 0.45.2
 *   **Authentication:** Better Auth 1.6.14 (database-integrated)
 *   **Background Jobs / Orchestration:** Inngest v4.8.0 (self-hosted, Durable Execution)
@@ -16,8 +16,8 @@
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
 *   **Testing:** Vitest 4.1.8 (119 test files, 2,640 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
-*   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy.
-*   **Migrations:** 46 SQL migrations (0000–0045) managed via Drizzle Kit 0.31.10. 
+*   **Hosting:** Hetzner Cloud (Helsinki) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`). Self-hosted VPS Postgres 17 + pgvector (app database, D20 migration). FlareSolverr 3.5.0 (Cloudflare bypass, D20). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy.
+*   **Migrations:** 58 SQL migrations (0000–0057) managed via Drizzle Kit 0.31.10. Migrations 0046–0057 added in D19–D20 (Gate flags NULL default, dismiss_reason enum, certstream enum). 
 
 ---
 
@@ -88,6 +88,25 @@ export const seniorityLevelEnum = pgEnum("seniority_level", [
   "staff",
   "principal",
 ]);
+
+// Dismiss reason enum (added D20, July 2026, migration 0056).
+// Used by the DismissButton component to capture why the founder dismissed
+// a match. Creates a permanent labeled audit stream for classifier
+// improvement — feeds into the North Star daily report.
+export const dismissReasonEnum = pgEnum("dismiss_reason", [
+  "geo_fenced",
+  "wrong_stack",
+  "too_senior",
+  "too_junior",
+  "not_development",
+  "not_interested",
+  "stale",
+  "duplicate",
+  "other",
+]);
+
+// Discovery source enum (certstream value added D20, July 2026, migration 0057).
+// Certstream-discovered companies are now visible in the discovery_source column.
 
 
 // 1. APPLICANT TABLE (1:1 with User)
@@ -233,6 +252,21 @@ export const job = pgTable(
     // ── AI-generated short description (added July 2026, migration 0037) ─────
     // One-sentence summary generated during normalization for dashboard display.
     shortDescription: text("short_description"),
+
+    // ── Materialized gate flags (added D17, July 2026, migration 0046) ──────
+    // is_fenced, is_natsec, is_qa: boolean columns set at ingestion time by
+    // the Phalanx Poller's Gate 0 steps (Step 2b/2c/2d). Eliminates per-query
+    // regex evaluation in Gate 1+2. Originally DEFAULT FALSE — D19 changed
+    // to DEFAULT NULL (migration 0055) because the FALSE default killed the
+    // COALESCE regex fallback: with FALSE, no row was ever NULL, so the inline
+    // regex backstop in gate-1-2.ts was dead code. The NULL default lets
+    // un-backfilled jobs fall through to the regex fallback correctly.
+    // D19 backfill: 2,926 jobs fenced (is_fenced=true), 1180 already true.
+    // These columns are NOT in the Drizzle schema (shadow schema — managed
+    // via direct SQL migrations, not drizzle-kit generate).
+    // is_fenced: boolean("is_fenced") — DEFAULT NULL (D19 fix)
+    // is_natsec: boolean("is_natsec") — DEFAULT NULL (D19 fix)
+    // is_qa: boolean("is_qa") — DEFAULT NULL (D19 fix)
   },
   (table) => ({
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
@@ -315,6 +349,13 @@ export const matchQueue = pgTable(
     // When the match was marked stale (added July 2026, migration 0038).
     // Set by stale cleanup when the underlying job transitions to stale/gone status.
     staleAt: timestamp("stale_at"),
+    // Dismiss reason + timestamp (added D20, July 2026, migration 0056).
+    // When the founder dismisses a match via the DismissButton, the status is
+    // set to "mismatch" and the dismiss_reason is recorded. This creates a
+    // permanent labeled audit stream for classifier improvement — the North
+    // Star daily report includes a dismiss-reason breakdown.
+    dismissReason: dismissReasonEnum("dismiss_reason"),
+    dismissedAt: timestamp("dismissed_at"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
@@ -2184,6 +2225,106 @@ A parallel ingestion path that bypasses the ATS poller entirely, fetching jobs d
 
 **Full implementation handoff:** `docs/system/direct-ingestion-compensation-handoff.md`
 
+#### 4.7.17 Sprint 14 — Directive 11-14: Production Truth, Supply Sprint, Burn Crisis `[Status: Implemented — July 2026]`
+
+This sprint covers the work done across Directives 11-14 (July 15-17 2026), which focused on production truth calibration, supply expansion, and the Neon burn crisis.
+
+**D11 — 5 Deterministic Fixes (Production Truth):**
+1. **Country fence regex gate** — `detectCountryFence(title, location)` in `gate-zero.ts` detects 40+ countries, US state codes, region fences (EU, NAMER, EMEA, APAC, LATAM), specific city patterns. Integrated as Step 2b in the Phalanx Poller + SQL backstop in `gate-1-2.ts`.
+2. **National-security keyword gate** — `isNationalSecurityJob(title, description)` in `gate-zero.ts` checks 60+ keywords (clearance levels, citizenship, ITAR/EAR, DoD/CIA/FBI/NSA, E-Verify, polygraph). Word boundaries prevent false positives. Integrated as Step 2c.
+3. **Core-stack hard-negative** — `stack-families.ts` defines 9 stack families + 60+ process-noise tags. `isStackDisjoint()` rejects jobs with zero overlap with the persona's core stack family. Integrated as Step 2d + SQL clause.
+4. **Content-hash dedup** — `computeContentHash()` in `job-repository.ts` (SHA-256 of `company_name|normalized_title|location_name`). Cross-source dedup SQL clause in `gate-1-2.ts`.
+5. **Gate 1+2 SQL backstops** — Inline regex filters in the `job_meta` CTE for fence/natsec/QA patterns, with `is_fenced`/`is_natsec` flags.
+
+**D12 — Reject-Side Audit + Recall Cron:**
+- `text_hash` backfilled for 3,666 jobs (100% of active jobs). 139 duplicate groups found (130 same-source, 9 cross-source).
+- `recallAuditCron` Inngest function (weekly Monday 02:00 UTC) — samples 30 jobs per gate, runs gpt-4o-mini evaluation, computes false-rejection rate.
+- Natsec gate tuned: E-Verify removed from bare keyword list (39% over-fence rate) and made context-dependent (only triggers if clearance context is also present).
+
+**D13 — Supply Sprint (New Source Adapters):**
+- **Wellfound Playwright adapter** (`src/lib/jobs/direct-ingestion/wellfound.ts`, 473 lines) — dual-function: job ingestion + employer harvest. Cloudflare-walled, requires FlareSolverr or Playwright. Remote scope inference from "Remote (Everywhere)" / "Remote only • United States" / "EMEA" patterns.
+- **Remote.com talent board** — added to direct ingestion pipeline.
+- **WWR sparse-tag fix** — `weworkremotely.ts` now runs job titles/descriptions through `scanTagsRegex`, merging tech-specific tags with category-based tags. Fixed 7 false-disjoint jobs (3.5% of WWR corpus).
+- **Himalayas worldwideOnly wiring** — `directJobBoardIngestion` cron now passes `worldwideOnly=true` to `fetchHimalayasJobs`, ensuring only genuinely global jobs are ingested.
+
+**D14 — SpaceX False-Global Regression + Neon Reconciliation:**
+- **SpaceX regression fix** — 46 SpaceX jobs classified as `global` despite being onsite-US. `extractRemoteScope` fixed to correctly handle `workplaceType='remote'` + `isSpecificLocation` as `country_fenced`, not `global`. Prevents the multi-probe from confirming `global` in conflict cases.
+- **Neon reality reconciliation** — D13's "7,500 CU-hrs/month" was wrong. Actual free tier: 100 CU-hrs/month. D16 later found actual usage was 94.35% (not 21-23%).
+- **Approvals-side scope sampler** — `approvalsSideScopeSampler` Inngest cron (weekly) samples approved global jobs to detect false-globals on the approval side.
+
+**D16 — Neon Burn Crisis + Cron Consolidation:**
+- **Neon burn crisis** — 94.35 CU-hrs used of 100 (94.35%), 1.82 CU-hrs remaining, burn rate 5.63 CU-hrs/day. Root cause: `suspend_timeout_seconds: 0` (default 300s) + hourly crons keeping the endpoint awake 24/7.
+- **Cron consolidation** — 8 sub-daily crons consolidated into 0am-7am UTC batch window. Expected endpoint scale-to-zero for 17 hours/day, 3-5x burn reduction.
+- **Stop polling retired sources** — 4,175 probation + dormant companies disabled (`polling_enabled=false`). Polling-enabled companies: 9,153 → 4,978 (45.7% reduction).
+- **Gate 2 threshold 0.55 adopted** (founder ruling). Contract work excluded from matching. Probation+dormant polling disabled.
+
+**D17 — Survive July (28 Crons Frozen):**
+- **28 crons frozen.** Only 8 active cron triggers remained: daily pulse (5-7am UTC), weekly (in-window), monthly BigQuery. Expected burn: ~0.5-1.0 CU-hrs/day (down from 5.63).
+- **FlareSolverr trial prepped** — client (`flaresolverr-client.ts`), Wellfound adapter modified to try FlareSolverr first, `docker-compose.flaresolverr.yml` ready.
+- **13 JSON-LD false-global reclassifications** — remoteok_direct ×6, vytalize_health ×5, silver ×1, payabli ×1. All reclassified from `global` to `country_fenced`, embeddings nulled.
+- **Certstream funnel traced** — 5 breaks identified (WebSocket close handling, discoverySource wrong, enum missing, probeStackProfileV3 not wired, upstream degraded).
+- **Gate flags materialized** — `is_fenced`/`is_natsec`/`is_qa` boolean columns added to `job` table (migration 0046) with B-tree indexes. Originally `DEFAULT FALSE` — D19 later changed to `DEFAULT NULL`.
+
+#### 4.7.18 Sprint 15 — Directive 18-19: Open the Matcher, Seal the Leaks `[Status: Implemented — July 2026]`
+
+This sprint covers the most consequential architectural change since the 3-Gate funnel was built: Gate 2 was re-architected from a hard threshold gate to a rank signal, and four leaks in the matching pipeline were sealed.
+
+**D18 — Open the Matcher (Gate 2 Re-Architecture):**
+
+The bypass test (35 candidate jobs traced through every gate stage) revealed that the embedding representation has a granularity mismatch: persona embeddings are 3-sentence summaries (50-500 chars) while job embeddings are title + full description (thousands of chars). Perfect matches sit at cosine distance 0.45-0.55, not 0.20-0.35. The spread between perfect and terrible is only 0.20 — no threshold cures this.
+
+**Four breaks identified and fixed:**
+1. **`GATE2_MAX_COSINE_DISTANCE=0.50` env var override** — the `.env` file had this set, overriding the D16 code change to 0.55. Production was running at 0.50, blocking 22 perfect matches at cosine 0.50-0.55.
+2. **Idempotency trap in `jobIngestedHandler`** — if the handler crashed after Step 4 (write-normalization) but before Step 5 (gate router), the job was normalized + embedded but NOT in match_queue. On retry, the handler skipped it entirely (idempotency guard: `normalizedAt IS NOT NULL` → skip). Fix: added a "route-only" recovery path — when a job is already normalized + embedded but has no match_queue entries, the handler runs the gate router directly.
+3. **Bulk reprocess function never runs** — `matchBulkReprocess` had zero logs, never executed. The `match/bulk-reprocess` event was being sent but not processed. Manually routed 56 candidates via `scripts/d18-route-unmatched.ts` (later deprecated — the idempotency trap fix makes it unnecessary).
+4. **Embedding granularity mismatch (the representation disease)** — Gate 2 is now a RANK signal, not a GATE. `GATE2_RANK_ONLY=true` (default) + `GATE2_HARD_CEILING=0.75`. Jobs that pass hard filters + stack match are ALL inserted into match_queue, ordered by semantic distance. The cosine cliff is eliminated.
+
+**Result:** 19.7x increase in candidates (3 → 59 match_queue entries). Founder applied to 2 jobs (ruby-labs, runway-ml) — the project's first completed end-to-end promise.
+
+**D19 — Seal the Leaks:**
+
+Four leaks that rode along with the D18 success were sealed:
+
+1. **COALESCE default-false bug (Exhibit 1: "US Remote" in title)** — `is_fenced`/`is_natsec`/`is_qa` columns created with `DEFAULT FALSE`. The production `gate-1-2.ts` query uses `COALESCE(is_fenced, <inline regex>, false)` — which only reaches the regex fallback when `is_fenced IS NULL`. With a `FALSE` default, every un-backfilled job reads "not fenced" and the regex fallback is dead code. Fix: migration 0055 changed columns to `DEFAULT NULL`, backfill set 2,926 jobs to `is_fenced=true`. The regex fallback is now live.
+2. **E-Verify fence classifier (Exhibit 3)** — E-Verify was removed from NATSEC bare keywords in D12 (correct — 39% over-fence rate) but was never added to the FENCE classifier where it belongs. Defense-flavored US-only jobs with E-Verify but no clearance keywords leaked through. Fix: E-Verify/federal work-eligibility patterns added to `remote-scope-patterns.ts`.
+3. **D18 route-unmatched script deprecated** — `scripts/d18-route-unmatched.ts` used `COALESCE(is_fenced, false)` with no regex fallback. The 56 manually-routed candidates never passed through the title-fence. The script is deprecated — the D18 idempotency-trap fix (route-only recovery path in `jobIngestedHandler`) makes it unnecessary.
+4. **Gate 3 geo-deduction logic encoded** — the founder's manual geo-deduction logic (if a job says "Remote - US" or "Remote - India", it's country-fenced regardless of what the `remote_scope` field says) was encoded into the Gate 3 prompt as explicit hard-blocker rules.
+
+**Fence recall audit (JOB 2):** 30-sample audit confirmed 0% false-fence rate. The D19 fence backfill (2,926 of 3,281 jobs fenced) is correct per the D11 regex.
+
+#### 4.7.19 Sprint 16 — Directive 20: The Unfreeze `[Status: Implemented — July 2026]`
+
+This sprint covers the D20 work: unfreezing 21 crons, migrating from Neon to VPS Postgres, hardening VPS operations, shipping the dismiss button, fixing embedding symmetry, repairing certstream, and standing up the North Star proof gate metric.
+
+**D20 — The Great Unfreeze (JOB 3):**
+- **21 crons unfrozen** — the D17 freeze (28 crons frozen) is partially reversed. 21 crons restored to active duty: Direct Job Board Ingestion (4×/day), Batch Poll Tier (8×/day), Daily Sources (HN Algolia, Brave Search, v2 Frontend Job Scanner), event-driven handlers (backup alerts, resource alerts), North Star Daily Report. 14 crons remain frozen (heavy sweeps, discovery sources) until Aug 1 Neon quota reset.
+- **JOB 1.1 fix** — `ingestBoard` function now emits `job/ingested` events for newly inserted jobs (was not emitting them, breaking the event-driven pipeline).
+- **21 stranded jobs backfilled** — direct-ingestion jobs that were inserted but never routed through Gate 1+2+3 were backfilled.
+
+**D20 — VPS Postgres Migration (JOB 4):**
+- **Database migrated from Neon to VPS Postgres 17** — eliminates Neon CU-hr burn constraints. VPS Postgres in Docker container `z10g6zz09soe0ddwgpizteq2` on the Hetzner server, with `pgvector` extension.
+- **Postgres tuning** — `shared_buffers` 128MB→2GB (25% of 7.6GB RAM), `work_mem` 4MB→16MB, `maintenance_work_mem` 64MB→512MB, `wal_buffers` 4MB→16MB, `random_page_cost` 4.0→1.1 (SSD), `effective_io_concurrency` 1→200 (SSD), `autovacuum_naptime` 60s→15s, `hnsw.iterative_scan=strict_order`.
+- **Pool sizing** — app connection pool bumped from `max: 20` to `max: 30` in `src/db/db.ts`. Matches `jobIngestedHandler` concurrency (25) + headroom. Postgres `max_connections=100`.
+- **Neon connection strings retained** for disaster recovery only (JOB 4.2).
+
+**D20 — VPS Ops Hardening (JOB 5):**
+- **Backup infrastructure** — `scripts/ops/backup-pg.sh` nightly `pg_dump` via `docker exec` → GCS bucket `gs://vectormatch-pg-backups`. 30-day lifecycle retention. GCP service account `vectormatch-seeder`. Cron at `0 2 * * *` (02:00 UTC) on the VPS. `backupAlertHandler` in Inngest listens for `backup/failed` and `backup/succeeded` events. Successful test: 17MB dump, ~9s upload.
+- **Disk + RAM watch** — `scripts/ops/resource-monitor.sh` runs every 15min via cron. Alerts at 80% disk, 80% RAM, 512MB critical RAM. Emits `resource/alert` events to Inngest. `resourceAlertHandler` registered.
+- **Coolify Sentinel** also monitors disk at 80% threshold (daily 23:00 UTC).
+
+**D20 — Lane-1 Queue (JOB 6):**
+- **Dismiss button with reason capture (JOB 6.1)** — `dismissReasonEnum` (9 values: geo_fenced, wrong_stack, too_senior, too_junior, not_development, not_interested, stale, duplicate, other) + `dismissReason`/`dismissedAt` columns on `match_queue` (migration 0056). `dismissMatch(matchQueueId, reason)` Server Action. `DismissButton` component with dropdown. `DISMISS_REASONS` const + `DismissReason` type in `src/lib/jobs/match-filters.ts` (client-safe — NOT in the `"use server"` module). 11 existing "mismatch" rows backfilled with `dismiss_reason='other'`.
+- **Embedding symmetry (JOB 6.2)** — 18 active unfenced jobs embedded (were invisible to Gate 2), 520 fenced jobs' embeddings nulled (wasted storage reclaimed). Script: `scripts/d20-embedding-symmetry.ts`.
+- **FlareSolverr (JOB 6.3)** — deployed as Coolify service, Cloudflare bypass on Wellfound confirmed (112KB HTML). Two infra bugs fixed 2026-07-21: (1) Docker healthcheck used `wget` (not in image) → changed to `curl`, (2) app couldn't reach FlareSolverr due to Docker network isolation → connected FlareSolverr to the `coolify` network.
+- **Certstream fixes (JOB 6.5)** — 3 of 5 breaks fixed: WebSocket close handling, `discoverySource` corrected to `"certstream"`, `certstream` value added to PG enum (migration 0057).
+
+**D20 — North Star Proof Gate (JOB 7):**
+- **`northStarDailyReport` Inngest function** (cron `0 7 * * *`) — tracks: approved matches today (total, unique users, unique personas), would-apply matches, dismissals with full reason breakdown, 7-day rolling would-apply average, tripwire status (≥5 would-apply/day × 7 consecutive days), corpus health (matchable jobs, unembedded active, fenced with embedding). Emits `north-star/daily` event.
+
+**D20 Closeout (2026-07-21):**
+- **Inngest 504 timeout fixed** — root cause: Inngest Coolify service's FQDN had no explicit port, so Traefik couldn't generate the `loadbalancer.server.port` label. Fix: FQDN changed to `https://inngest.vectormatch.dev:8288`.
+- **Dashboard `i.map is not a function` crash fixed** — root cause: `src/actions/matches.ts` has `"use server"` at the top. Next.js Server Action modules may only export async functions. `DISMISS_REASONS` (const array) and `DismissReason` (type) were exported from this file and imported by `DismissButton.tsx`. Fix: moved exports to `src/lib/jobs/match-filters.ts` (client-safe).
+
 ---
 
 ## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
@@ -2211,6 +2352,14 @@ A parallel ingestion path that bypasses the ATS poller entirely, fetching jobs d
 - **C13** — Direct job board ingestion: `src/lib/jobs/direct-ingestion/` module with 6 board adapters (Himalayas, NoFluffJobs, RemoteOK, Arbeitnow, Remotive, WeWorkRemotely) + `directJobBoardIngestion` Inngest function. Bypasses ATS poller, normalization, and Gate 0.5 — upserts directly with structured fields + embeddings. Added July 2026.
 - **C14** — Mismatch analysis + 6-fix cascade: Comprehensive analysis of 50 user-marked mismatches revealed a 5-root-cause cascade. 6 fixes applied in 2 stages: (1) empty embedding returns `[]` instead of `runGate1Only` fallback (44/50 mismatches), (2) `GATE1_MIN_OVERLAP = 2` threshold (16/50), (3) Gate 3 compliance directive restructured into 2-step country check (15/50), (4) management/PM role detection as hard blocker for IC personas (6/50), (5) global+country-list contradiction fixed (2/50), (6) Gate 0.5 Check 8 hard-block for non-US country-fenced jobs (15/50). Combined: all 50 mismatches addressed, 48/50 before LLM cost. Added July 2026.
 - **C15** — Generalized recurrence guard: `staleCronFunctions` metric in `pipeline-health.ts` extended to cover ALL mission-critical cron functions with their expected cadences. Detects silent Inngest cron failures (the selectively-wedged scheduler bug from Inngest #3549). Recurrence-watch process + escalation path documented in code comments. Added July 2026.
+- **C16** — Gate 2 rank-only re-architecture (D18): `GATE2_RANK_ONLY=true` (default) + `GATE2_HARD_CEILING=0.75`. Gate 2 is now a RANK signal, not a GATE. Jobs that pass hard filters + stack match are ALL inserted into match_queue, ordered by semantic distance. Eliminates the cosine cliff where perfect matches at 0.50-0.55 were blocked. Produced 19.7x increase in candidates (3 → 59). Founder applied to 2 jobs in the first end-to-end run. Added July 2026.
+- **C17** — Idempotency trap fix (D18): `jobIngestedHandler` now has a "route-only" recovery path. When a job is already normalized + embedded but has no match_queue entries (crash between Step 4 and Step 5), the handler runs the gate router directly instead of skipping. Catches jobs that fell through the idempotency trap. Added July 2026.
+- **C18** — COALESCE default-false bug fix (D19): `is_fenced`/`is_natsec`/`is_qa` columns changed from `DEFAULT FALSE` to `DEFAULT NULL` (migration 0055). The FALSE default killed the COALESCE regex fallback in `gate-1-2.ts` — with FALSE, no row was ever NULL, so the inline regex backstop was dead code. The NULL default lets un-backfilled jobs fall through to the regex fallback. D19 backfill: 2,926 jobs fenced. Added July 2026.
+- **C19** — E-Verify fence classifier (D19): E-Verify/federal work-eligibility patterns added to the FENCE classifier (`remote-scope-patterns.ts`). Previously E-Verify was only in the NATSEC classifier (context-dependent — requires clearance context). Defense-flavored US-only jobs with E-Verify but no clearance keywords now get fenced. Added July 2026.
+- **C20** — Dismiss button with reason capture (D20): `dismissReasonEnum` (9 values) + `dismissReason`/`dismissedAt` columns on `match_queue` (migration 0056). `dismissMatch(matchQueueId, reason)` Server Action. `DismissButton` component with dropdown. `DISMISS_REASONS` const + `DismissReason` type in `src/lib/jobs/match-filters.ts` (client-safe location — NOT in the `"use server"` module, which can only export async functions). Replaced the old "Mismatch" button in `MatchList.tsx`. Added July 2026.
+- **C21** — North Star daily report (D20): `northStarDailyReport` Inngest function (cron `0 7 * * *`). Tracks: approved matches today, would-apply matches, dismissals with reason breakdown, 7-day rolling would-apply average, tripwire status (≥5 would-apply/day × 7 consecutive days), corpus health. Emits `north-star/daily` event. Added July 2026.
+- **C22** — Embedding symmetry enforcement (D20): 18 active unfenced jobs embedded (were invisible to Gate 2), 520 fenced jobs' embeddings nulled (wasted storage reclaimed). Script: `scripts/d20-embedding-symmetry.ts`. Root cause: D19 fence backfill didn't null embeddings, and 18 recently-ingested jobs failed to embed during normalization. Added July 2026.
+- **C23** — Certstream fixes (D20, 3 of 5): (1) WebSocket close handling — `defaultCollectFromCertStream` distinguishes immediate close (connection failed) from successful collection. (2) `discoverySource` corrected from `"hn_algolia"` to `"certstream"`. (3) `certstream` value added to PG enum (migration 0057) + Zod schema + TypeScript types. Two breaks remain for August: `probeStackProfileV3` not wired, upstream CertStream service degraded. Added July 2026.
 
 ### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
 *   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
@@ -2307,8 +2456,17 @@ await db.execute(sql`
     p.must_have_tags && ${tagsArraySql}
     AND NOT (p.blocklist_tags && ${tagsArraySql})
     AND ov.overlap_score >= ${GATE1_MIN_OVERLAP}::int  -- July 2026: min overlap threshold (default 2)
-    -- GATE 2: HNSW Vector Similarity (cosine distance threshold)
-    AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_MAX_COSINE_DISTANCE}::real
+    -- GATE 2: HNSW Vector Similarity
+    -- D18 RE-ARCHITECTURE (July 2026): Gate 2 is now a RANK signal, not a GATE.
+    -- In rank-only mode (GATE2_RANK_ONLY=true, default), the threshold is widened
+    -- to GATE2_HARD_CEILING (0.75) — a safety net that excludes truly unrelated
+    -- jobs. Jobs that pass hard filters (scope, fence, natsec, qa) + stack match
+    -- are ALL inserted into match_queue, ordered by semantic distance. The cosine
+    -- cliff is eliminated — a qualified job is never dropped for being 0.0036
+    -- over a line; it's shown, ranked lower.
+    -- In gate mode (GATE2_RANK_ONLY=false), the strict GATE2_MAX_COSINE_DISTANCE
+    -- threshold is used (legacy behavior).
+    AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${gate2Threshold}::real
     AND p.persona_embedding IS NOT NULL
   ORDER BY
     -- Composite ordering: blends Gate 1 (overlap) and Gate 2 (similarity) signals
@@ -2320,12 +2478,16 @@ await db.execute(sql`
 `);
 ```
 
+**D18 Gate Re-Architecture (July 2026):** The bypass test (D18) revealed that the embedding representation has a granularity mismatch — persona embeddings are 3-sentence summaries (50-500 chars) while job embeddings are title + full description (thousands of chars). Perfect matches sit at cosine distance 0.45-0.55, not 0.20-0.35. No threshold cures this — the representation is the disease. The fix: Gate 2 is now a RANK signal, not a GATE. `GATE2_RANK_ONLY=true` (default) uses `GATE2_HARD_CEILING=0.75` as a wide safety net, and jobs that pass hard filters + stack match are ALL inserted into match_queue, ordered by semantic distance. This produced a 19.7x increase in candidates (3 → 59 match_queue entries) and the founder applied to 2 jobs in the first end-to-end run — the project's first completed promise.
+
 **Composite ordering rationale:** A candidate with `overlapScore = 5, cosineDistance = 0.34` (barely passed Gate 2) should not outrank a candidate with `overlapScore = 3, cosineDistance = 0.05` (very strong semantic match). Pure overlap ordering ignores the Gate 2 signal after the threshold filter. The composite blend accounts for both.
 
 **Config values** (`src/lib/jobs/matching-config.ts`):
 | Constant | Value | Calibration Status |
 |---|---|---|
-| `GATE2_MAX_COSINE_DISTANCE` | `0.50` (env-configurable) | Calibrated against real data. Tightened from 0.55 to 0.48 (June 28 2026 yield analysis) to cut LLM costs. Loosened back to 0.50 (Sprint 3, June 30 2026) and made env-configurable via `GATE2_MAX_COSINE_DISTANCE` env var — tunable without redeploy. At 0.55, the funnel produced 160 candidates (85% were weak matches that Gate 3 rejected). At 0.48, the funnel produces 24 candidates — an 85% reduction in LLM calls with no loss of true positives. Sprint 8 (July 1 2026) uses 0.50 as the default to slightly widen the funnel after removing the workplace pre-filter. Previous values: 0.50 (Sprint 3+), 0.48 (June 28 2026), 0.55 (June 25 2026), 0.35 (blocked all real matches). |
+| `GATE2_RANK_ONLY` | `true` (default, D18) | **D18 re-architecture (July 2026).** When true, Gate 2 becomes a rank signal — `GATE2_HARD_CEILING` (0.75) is used as a wide safety net instead of the strict `GATE2_MAX_COSINE_DISTANCE` threshold. Jobs that pass hard filters + stack match are ALL inserted, ordered by semantic distance. Eliminates the cosine cliff where perfect matches at 0.50-0.55 were blocked. |
+| `GATE2_HARD_CEILING` | `0.75` (D18) | The wide safety net in rank-only mode. Excludes truly unrelated jobs (cosine distance > 0.75) while letting all hard-qualified, stack-matched jobs through for ranking. |
+| `GATE2_MAX_COSINE_DISTANCE` | `0.50` (env-configurable) | **Legacy gate mode threshold.** Only used when `GATE2_RANK_ONLY=false`. Calibrated against real data. Tightened from 0.55 to 0.48 (June 28 2026 yield analysis) to cut LLM costs. Loosened back to 0.50 (Sprint 3, June 30 2026) and made env-configurable. Previous values: 0.50 (Sprint 3+), 0.48 (June 28 2026), 0.55 (June 25 2026), 0.35 (blocked all real matches). **D16 adopted 0.55 as the founder ruling**, but the `.env` override `GATE2_MAX_COSINE_DISTANCE=0.50` was discovered in D18 to be overriding the code default — production was running at 0.50, not 0.55. With D18's rank-only mode, this threshold is no longer the primary gate. |
 | `GATE1_MIN_OVERLAP` | `2` (env-configurable) | **Calibrated against real mismatch data (July 2026).** Added after mismatch analysis: 16 of 50 user-marked mismatches had `overlap_score = 1` — a single shared tag (e.g., "javascript" for a PHP/Laravel persona matching a JS/Python job) that Gate 3 then approved because "missing tags are a soft signal." A minimum of 2 filters these out at the SQL level before the LLM ever sees them. Env-configurable via `GATE1_MIN_OVERLAP` so the threshold can be tuned in production without a code redeploy. Applied to the main Gate 1+2 query, the `runGate1Only` fallback, and the `explainGateRouter` EXPLAIN query. Skipped when `jobTags` is empty (Gate 2 only mode). |
 | `GATE_ROUTER_LIMIT` | `8` | Uncalibrated — doing all filtering on synthetic data. |
 | `GATE1_WEIGHT` | `0.6` | Uncalibrated guess. |
@@ -2626,15 +2788,81 @@ Env vars:
 
 The module caches the API response for 60 seconds using Next.js `revalidate` to avoid hitting the Neon API on every storage check. The `hourlyStorageMonitor` Inngest function uses this module for accurate storage monitoring; the hot-path ingestion guard (`storage-check.ts`) continues using `pg_database_size()` with a 460 MB safety margin for speed (no external API call).
 
+**⚠️ HISTORICAL NOTE (D20, July 20 2026):** The app database was migrated from Neon to VPS Postgres 17. The Neon API integration and storage monitoring are no longer the primary database monitoring path — VPS Postgres has no CU-hr burn constraint and no autosuspend. The Neon connection strings are retained for disaster recovery only (JOB 4.2). The `neon-api.ts` module and `hourlyStorageMonitor` function remain in the codebase but are effectively dormant. See §7.0b for the VPS Postgres deployment.
+
+### 7.0b VPS Postgres Migration (D20, July 20 2026)
+
+The app database was migrated from Neon (serverless Postgres free tier) to a self-hosted VPS Postgres 17 in a Docker container on the same Hetzner server. This eliminates the Neon CU-hr burn constraint that drove the D16-D17 cron freeze (94.35% of 100 CU-hrs used, 1.82 remaining at the crisis point).
+
+**Container:** `z10g6zz09soe0ddwgpizteq2` (Postgres 17 + pgvector extension). Exposed port 25432 on 157.180.68.189, UFW + Hetzner cloud firewall restricted to the Devin IP.
+
+**Postgres tuning (via `ALTER SYSTEM`):**
+
+| Setting | Before | After | Rationale |
+|---|---|---|---|
+| shared_buffers | 128MB | 2GB | 25% of 7.6GB RAM |
+| work_mem | 4MB | 16MB | Sort/hash quality for Gate 2 queries |
+| maintenance_work_mem | 64MB | 512MB | Faster VACUUM + HNSW index builds |
+| wal_buffers | 4MB | 16MB | WAL write throughput |
+| random_page_cost | 4.0 | 1.1 | SSD-optimized query planner |
+| effective_io_concurrency | 1 | 200 | SSD parallel IO |
+| autovacuum_naptime | 60s | 15s | More aggressive vacuuming |
+| hnsw.iterative_scan | (default) | strict_order | Correct HNSW recall |
+
+**Connection pool:** App pool bumped from `max: 20` to `max: 30` in `src/db/db.ts`. Matches `jobIngestedHandler` concurrency (25) + headroom. Postgres `max_connections=100` leaves ample headroom.
+
+**Disaster recovery:** Neon connection strings kept in `.env` (commented as `DR NOTE (JOB 4.2): Neon connection strings kept for disaster recovery only — DO NOT USE for app or scripts`). If VPS Postgres fails, the app can be repointed to Neon by swapping `DATABASE_URL`.
+
+### 7.0c Backup Infrastructure (D20, July 20 2026)
+
+**No backup infrastructure existed before D20.** Postgres runs in a Docker container outside Coolify management.
+
+**Shipped:**
+- `scripts/ops/backup-pg.sh` — nightly `pg_dump` via `docker exec` → GCS bucket `gs://vectormatch-pg-backups`
+- 30-day lifecycle retention (`scripts/ops/backup-lifecycle.json`)
+- GCP service account `vectormatch-seeder@vactormatch-seeder.iam.gserviceaccount.com` with `roles/storage.admin`
+- Cron at `0 2 * * *` (02:00 UTC) on the VPS
+- `backupAlertHandler` in Inngest — listens for `backup/failed` and `backup/succeeded` events
+- **Successful test backup:** 17MB dump, ~9s upload to GCS
+
+### 7.0d Resource Monitoring (D20, July 20 2026)
+
+- `scripts/ops/resource-monitor.sh` — runs every 15min via cron on the VPS
+- Alerts at 80% disk, 80% RAM, 512MB critical RAM
+- Emits `resource/alert` events to Inngest
+- `resourceAlertHandler` registered in the serve array
+- Coolify Sentinel also monitors disk at 80% threshold (daily 23:00 UTC)
+
+### 7.0e FlareSolverr (D17-D20, July 2026)
+
+FlareSolverr 3.5.0 is deployed as a Coolify service (UUID `v104gdwm9iidiajuwd2jy52t`) for Cloudflare bypass on Wellfound and other Cloudflare-walled job boards.
+
+**Deployment:** Docker container `flaresolverr-v104gdwm9iidiajuwd2jy52t`, port 8191. Healthcheck: `curl -sf http://localhost:8191/health` (changed from `wget` which is not in the image). Connected to both the `coolify` network (for app reachability) and its own private network.
+
+**App integration:** `FLARESOLVERR_URL=http://flaresolverr-v104gdwm9iidiajuwd2jy52t:8191/v1` set in the VectorMatch app's Coolify environment. The Wellfound adapter (`src/lib/jobs/direct-ingestion/wellfound.ts`) tries FlareSolverr first (cheerio HTML parsing), falls back to Playwright.
+
+**Verified:** Cloudflare bypass on Wellfound confirmed — POST to `/v1` with `cmd: "request.get"` → "Challenge solved!" → 112KB of Wellfound HTML.
+
+**Two infra bugs fixed 2026-07-21:**
+1. Docker healthcheck used `wget` (not in `flaresolverr/flaresolverr:latest` image — only `curl` is present) → changed to `curl -sf`.
+2. App couldn't reach FlareSolverr due to Docker network isolation (app on `coolify` network, FlareSolverr on its own private network) → connected FlareSolverr to the `coolify` network, persisted in the compose file.
+
+### 7.0f Inngest FQDN Port Fix (D20 Closeout, July 21 2026)
+
+The Inngest Coolify service's FQDN was `https://inngest.vectormatch.dev` (no port suffix). Coolify's `fqdnLabelsForTraefik()` PHP function only generates the `traefik.http.services...loadbalancer.server.port` label when the FQDN URL contains a `:PORT` suffix. Without the port label, Traefik couldn't determine which backend port to route to (the Inngest compose exposes two ports: 8288, 8289), causing 504 timeouts.
+
+**Fix:** Changed the Inngest service's FQDN to `https://inngest.vectormatch.dev:8288` in Coolify, then restarted the service. Health check now returns 200 in ~161ms (was 30s+ timeout).
+
 ### 7.1 Infrastructure stack
 
 *   **Host server:** Hetzner Cloud CX33 (x86_64 AMD64, 2 vCPU, 8GB RAM, 80GB disk). Region: Helsinki (eu-central). IP: 157.180.68.189. Cost: ~€8.99/month, fixed.
 *   **PaaS orchestrator:** Coolify v4.1.2 (open-source), installed on-server. Manages Docker builds, Traefik reverse proxy, and automated SSL via Let's Encrypt. Coolify admin accessible at `https://admin.vectormatch.dev` (Cloudflare-proxied). MCP endpoint at `https://admin.vectormatch.dev/mcp`.
 *   **Build pipeline:** Next.js `output: 'standalone'`. Coolify builds from the project's root `Dockerfile` (3-stage: deps → builder → runner, Node 24-slim, multi-arch). Build pack: Dockerfile. No build-time secrets required — all env vars are runtime-only (see §7.5).
 *   **CI/CD integration:** GitHub App connection (Coolify Sources → GitHub App). Auto-deploy on push to `main` — Coolify receives a webhook from GitHub via `https://admin.vectormatch.dev` (Cloudflare-proxied, port 443) and triggers a Docker build automatically. **Binding constraint:** the deployment type MUST be "Private Repository (with Github App)", NOT "Public Repository" (HTTPS clone). The public clone method has no webhook integration and breaks the auto-deploy contract — pushes to `main` are not detected by Coolify. The GitHub App must be configured with the Cloudflare-proxied Coolify dashboard URL as the webhook endpoint, not the direct IP:8000, so that the Hetzner firewall can block port 8000 entirely.
-*   **Database proximity:** Neon Postgres, region `aws-eu-central-1` (Frankfurt). Rationale: same-region placement avoids the cross-region network latency (typically 30-50ms round-trip) that would otherwise be added to every GIN/HNSW query in Gate 1 & 2 (Module C). Exact latency is unmeasured pre-deployment and should be benchmarked post-launch rather than assumed.
+*   **Database proximity:** **VPS Postgres 17** (D20, July 20 2026) — self-hosted on the same Hetzner server in Docker container `z10g6zz09soe0ddwgpizteq2`. Local socket connection — zero network latency (was 30-50ms cross-region to Neon Frankfurt). Exposed port 25432 for admin access, UFW + Hetzner cloud firewall restricted. **Historical:** Previously Neon Postgres in `aws-eu-central-1` (Frankfurt) — migrated to VPS to eliminate CU-hr burn constraints. Neon connection strings retained for disaster recovery only.
 *   **Edge protection:** Cloudflare (free tier), proxied (orange-clouded). DNS A record pointing to 157.180.68.189. SSL/TLS set to Full (Strict). WAF rate-limiting rules applied to `/api/inngest` and `/api/onboarding/parse` specifically, since these endpoints trigger LLM calls and job fan-out and are the highest-cost targets for bot/scraper abuse. (See §7.6 for setup instructions.)
 *   **Domain:** `vectormatch.dev` — Cloudflare-proxied, globally propagated. Coolify FQDN: `https://vectormatch.dev`.
+*   **FlareSolverr service (D17-D20, July 2026):** Deployed as a native Coolify service (UUID `v104gdwm9iidiajuwd2jy52t`) for Cloudflare bypass on Wellfound. Container `flaresolverr-v104gdwm9iidiajuwd2jy52t`, port 8191. Connected to the `coolify` Docker network for app reachability. See §7.0e for details.
 *   **WordPress blog service (July 14 2026):** Deployed as a native Coolify service ("Wordpress Blog", UUID `a1yhworj7zx3hqhuhrrrkoui`) on the same Hetzner/Coolify infrastructure. Two containers: `wordpress:latest` (Apache + PHP) + `mariadb:11`. Served at `vectormatch.dev/blog` via Traefik reverse proxy with Coolify's `stripprefix` middleware (removes `/blog` before forwarding to the WordPress container). WordPress files persist in Docker volume `a1yhworj7zx3hqhuhrrrkoui_wordpress-files`; MariaDB data in `a1yhworj7zx3hqhuhrrrkoui_mariadb-data`. Three volume-persisted files handle subpath routing: `wp-blog-defines.php` (URLs + SSL + REQUEST_URI restoration, loaded by `wp-config.php`), `wp-content/mu-plugins/00-subpath-rewrite.php` (keeps `.htaccess` root-based), and `.htaccess` (root-based rewrites + directory-slash redirect fix). The `WORDPRESS_CONFIG_EXTRA` env var was removed (Coolify's variable interpolation corrupted the PHP code, causing 500s). Database `siteurl`/`home` options set to `https://vectormatch.dev/blog`. Elementor page builder installed. WordPress generates its own sitemap at `/blog/sitemap_index.xml`. The Next.js app and WordPress share the same Traefik reverse proxy — all routes except `/blog/*` go to Next.js.
 
 ### 7.2 **Corrected technical trade-off (binding implementation constraint)**

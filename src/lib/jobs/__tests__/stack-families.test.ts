@@ -49,24 +49,34 @@ describe("Stack Families — classifyStackFamily", () => {
 
 describe("Stack Families — isStackDisjoint", () => {
   it("returns false when persona is JS and job has JS tags", () => {
-    expect(isStackDisjoint(["typescript", "react"], ["react", "nodejs"])).toBe(false);
+    expect(isStackDisjoint(["typescript", "react"], ["react", "nodejs"])).toBe(
+      false,
+    );
   });
 
   it("returns true when persona is JS and job is Ruby-only", () => {
-    expect(isStackDisjoint(["typescript", "react"], ["ruby", "rails"])).toBe(true);
+    expect(isStackDisjoint(["typescript", "react"], ["ruby", "rails"])).toBe(
+      true,
+    );
   });
 
   it("returns true when persona is JS and job is .NET-only", () => {
-    expect(isStackDisjoint(["typescript", "react"], ["csharp", "dotnet"])).toBe(true);
+    expect(isStackDisjoint(["typescript", "react"], ["csharp", "dotnet"])).toBe(
+      true,
+    );
   });
 
   it("returns true when persona is PHP and job is Java-only", () => {
-    expect(isStackDisjoint(["php", "laravel"], ["java", "spring-boot"])).toBe(true);
+    expect(isStackDisjoint(["php", "laravel"], ["java", "spring-boot"])).toBe(
+      true,
+    );
   });
 
   it("returns false when job has tags from multiple families including persona's", () => {
     // .NET/React job — has both csharp AND react → NOT disjoint from JS persona
-    expect(isStackDisjoint(["typescript", "react"], ["csharp", "react"])).toBe(false);
+    expect(isStackDisjoint(["typescript", "react"], ["csharp", "react"])).toBe(
+      false,
+    );
   });
 
   it("returns false when persona has no identifiable family", () => {
@@ -76,7 +86,9 @@ describe("Stack Families — isStackDisjoint", () => {
 
 describe("Stack Families — isQARole", () => {
   it("detects 'QA Automation Engineer' in title", () => {
-    expect(isQARole("QA Automation Engineer SR", ["playwright", "cypress"])).toBe(true);
+    expect(
+      isQARole("QA Automation Engineer SR", ["playwright", "cypress"]),
+    ).toBe(true);
   });
 
   it("detects 'SDET' in title", () => {
@@ -88,7 +100,9 @@ describe("Stack Families — isQARole", () => {
   });
 
   it("does NOT flag 'Software Engineer' title", () => {
-    expect(isQARole("Senior Software Engineer", ["react", "typescript"])).toBe(false);
+    expect(isQARole("Senior Software Engineer", ["react", "typescript"])).toBe(
+      false,
+    );
   });
 
   it("does NOT flag 'Full Stack Developer' title", () => {
@@ -96,13 +110,21 @@ describe("Stack Families — isQARole", () => {
   });
 
   it("detects QA role from tags alone (3+ QA tags, no dev title)", () => {
-    expect(isQARole("Engineering Role", ["selenium", "cypress", "playwright", "k6"])).toBe(true);
+    expect(
+      isQARole("Engineering Role", ["selenium", "cypress", "playwright", "k6"]),
+    ).toBe(true);
   });
 });
 
 describe("Stack Families — stripProcessNoise", () => {
   it("removes docker, ci-cd, aws", () => {
-    const result = stripProcessNoise(["react", "docker", "ci-cd", "aws", "typescript"]);
+    const result = stripProcessNoise([
+      "react",
+      "docker",
+      "ci-cd",
+      "aws",
+      "typescript",
+    ]);
     expect(result).toEqual(["react", "typescript"]);
   });
 
@@ -122,7 +144,12 @@ describe("Stack Families — stackOverlapScore", () => {
     // Persona: [typescript, react, nextjs]
     // Job: [react, docker, ci-cd, aws]
     // Stack overlap: 1 (react) — not 4 (react + docker + ci-cd + aws)
-    expect(stackOverlapScore(["typescript", "react", "nextjs"], ["react", "docker", "ci-cd", "aws"])).toBe(1);
+    expect(
+      stackOverlapScore(
+        ["typescript", "react", "nextjs"],
+        ["react", "docker", "ci-cd", "aws"],
+      ),
+    ).toBe(1);
   });
 
   it("returns 0 for disjoint stacks", () => {
@@ -130,7 +157,12 @@ describe("Stack Families — stackOverlapScore", () => {
   });
 
   it("returns full overlap for matching stacks", () => {
-    expect(stackOverlapScore(["typescript", "react"], ["typescript", "react", "nextjs"])).toBe(2);
+    expect(
+      stackOverlapScore(
+        ["typescript", "react"],
+        ["typescript", "react", "nextjs"],
+      ),
+    ).toBe(2);
   });
 });
 

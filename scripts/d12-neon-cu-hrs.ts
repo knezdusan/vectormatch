@@ -42,13 +42,23 @@ async function main() {
   const endpoints = project.data?.endpoints ?? [];
   console.log(`Endpoints: ${endpoints.length}`);
   for (const ep of endpoints) {
-    console.log(`  ${ep.id}: type=${ep.type}, host=${ep.host}, current?=${ep.current}`);
-    console.log(`    pooler_enabled=${ep.pooler_enabled}, autoscaling=${JSON.stringify(ep.compute?.autoscaling_limit)}`);
-    console.log(`    provisioned_compute_seconds=${ep.compute?.provisioned_compute_seconds ?? "n/a"}`);
-    console.log(`    active_time_seconds=${ep.compute?.active_time_seconds ?? "n/a"}`);
+    console.log(
+      `  ${ep.id}: type=${ep.type}, host=${ep.host}, current?=${ep.current}`,
+    );
+    console.log(
+      `    pooler_enabled=${ep.pooler_enabled}, autoscaling=${JSON.stringify(ep.compute?.autoscaling_limit)}`,
+    );
+    console.log(
+      `    provisioned_compute_seconds=${ep.compute?.provisioned_compute_seconds ?? "n/a"}`,
+    );
+    console.log(
+      `    active_time_seconds=${ep.compute?.active_time_seconds ?? "n/a"}`,
+    );
     console.log(`    cpu_used_sec=${ep.compute?.cpu_used_sec ?? "n/a"}`);
     console.log(`    compute_seconds=${ep.compute?.compute_seconds ?? "n/a"}`);
-    console.log(`    suspension_seconds=${ep.compute?.suspension_seconds ?? "n/a"}`);
+    console.log(
+      `    suspension_seconds=${ep.compute?.suspension_seconds ?? "n/a"}`,
+    );
   }
   console.log();
 
@@ -67,7 +77,9 @@ async function main() {
     console.log("Consumption data:");
     console.log(JSON.stringify(consumption, null, 2));
   } else {
-    console.log(`Consumption endpoint: ${consumptionRes.status} ${consumptionRes.statusText}`);
+    console.log(
+      `Consumption endpoint: ${consumptionRes.status} ${consumptionRes.statusText}`,
+    );
     const body = await consumptionRes.text();
     console.log(`  body: ${body.slice(0, 500)}`);
   }
@@ -88,7 +100,9 @@ async function main() {
     console.log("Consumption history:");
     console.log(JSON.stringify(billing, null, 2).slice(0, 2000));
   } else {
-    console.log(`Consumption history: ${billingRes.status} ${billingRes.statusText}`);
+    console.log(
+      `Consumption history: ${billingRes.status} ${billingRes.statusText}`,
+    );
     const body = await billingRes.text();
     console.log(`  body: ${body.slice(0, 500)}`);
   }
@@ -96,8 +110,11 @@ async function main() {
 
   // 5. Database-level timing data
   console.log("── Database-level compute info ──");
-  const uptime = await sql`SELECT extract(epoch from (now() - pg_postmaster_start_time())) as uptime_seconds`;
-  console.log(`Postgres uptime: ${uptime[0].uptime_seconds} seconds (${(Number(uptime[0].uptime_seconds) / 3600).toFixed(1)} hours)`);
+  const uptime =
+    await sql`SELECT extract(epoch from (now() - pg_postmaster_start_time())) as uptime_seconds`;
+  console.log(
+    `Postgres uptime: ${uptime[0].uptime_seconds} seconds (${(Number(uptime[0].uptime_seconds) / 3600).toFixed(1)} hours)`,
+  );
 
   // 6. Plan info from API
   const userRes = await fetch("https://console.neon.tech/api/v2/users/me", {
@@ -112,7 +129,9 @@ async function main() {
     console.log(`  Email: ${user.data?.email ?? "n/a"}`);
     console.log(`  Plan: ${user.data?.plan ?? "n/a"}`);
     console.log(`  Projects limit: ${user.data?.projects_limit ?? "n/a"}`);
-    console.log(`  Billing: ${JSON.stringify(user.data?.billing ?? "n/a").slice(0, 200)}`);
+    console.log(
+      `  Billing: ${JSON.stringify(user.data?.billing ?? "n/a").slice(0, 200)}`,
+    );
   }
 
   console.log("\n=== DONE ===");
