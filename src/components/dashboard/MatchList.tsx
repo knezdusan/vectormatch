@@ -18,6 +18,7 @@ import {
   markMatchRead,
   updateMatchStatus,
 } from "@/actions/matches";
+import { DismissButton } from "@/components/dashboard/DismissButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -405,6 +406,10 @@ function MatchCard({ match }: { match: MatchRow }) {
                     </>
                   )}
                 </Button>
+                <DismissButton
+                  matchQueueId={match.matchQueueId}
+                  disabled={pendingAction !== null}
+                />
                 <Button
                   variant="ghost"
                   size="sm"

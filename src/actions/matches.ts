@@ -30,6 +30,21 @@ export type MatchActionState = {
   error?: string;
 };
 
+// D20 JOB 6.1 — Dismiss reason values (mirrors dismiss_reason PG enum).
+// Exported for use in the DismissButton UI component.
+export const DISMISS_REASONS = [
+  "geo_fenced",
+  "wrong_stack",
+  "too_senior",
+  "too_junior",
+  "not_development",
+  "not_interested",
+  "stale",
+  "duplicate",
+  "other",
+] as const;
+export type DismissReason = (typeof DISMISS_REASONS)[number];
+
 // Match statuses that can be set from the dashboard UI (job list or detail page).
 const EDITABLE_MATCH_STATUSES = [
   "approved",
@@ -290,4 +305,62 @@ export async function getBlockedCompanies(): Promise<
     .where(eq(applicantCompanyBlock.userId, session.user.id));
 
   return blocks;
+}
+
+// =============================================================================
+// DISMISS MATCH (D20 JOB 6.1)
+// =============================================================================
+//
+// Dismiss an approved match with a structured reason. Sets status to
+// "mismatch", records the dismiss reason + timestamp, and marks the match
+// as read so it leaves the unread queue.
+//
+// The dismiss reason feeds into the North Star daily report (JOB 7) and
+// creates a permanent labeled audit stream for classifier improvement.
+
+export async function dismissMatch(
+  matchQueueId: string,
+  reason: DismissReason,
+): Promise<MatchActionState> {
+  const session = await getAuthSession();
+  if (!session) {
+    return { success: false, error: "Not authenticated" };
+  }
+
+  if (!matchQueueId || matchQueueId.trim().length === 0) {
+    return { success: false, error: "Match ID is required" };
+  }
+
+  if (!DISMISS_REASONS.includes(reason)) {
+    return { success: false, error: `Invalid dismiss reason: ${reason}` };
+  }
+
+  const result = await db
+    .update(matchQueue)
+    .set({
+      status: "mismatch",
+      dismissReason: reason,
+      dismissedAt: new Date(),
+      isRead: true,
+    })
+    .where(
+      and(
+        eq(matchQueue.id, matchQueueId),
+        eq(matchQueue.applicantId, session.user.id),
+      ),
+    )
+    .returning({ id: matchQueue.id });
+
+  if (result.length === 0) {
+    return {
+      success: false,
+      error: "Match not found or not owned by the current user",
+    };
+  }
+
+  revalidatePath("/dashboard/jobs");
+  revalidatePath(`/dashboard/jobs/${matchQueueId}`);
+  revalidatePath("/dashboard");
+
+  return { success: true };
 }

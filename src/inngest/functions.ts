@@ -5893,6 +5893,169 @@ export const dailyHealthCheck = inngest.createFunction(
   },
 );
 
+// ── North Star Daily Report (D20 JOB 7) ─────────────────────────────────────
+// Runs daily at 07:00 UTC (after the daily health check at 06:00) to track the
+// North Star proof gate metric: approved matches, would-apply tally, and the
+// 7-day tripwire condition (≥5 would-apply/day × 7 consecutive days).
+//
+// The North Star: 3-5 approved/user/day × 3 personas ≈ 9-15 honest approvals/day.
+// The tripwire: ≥5 would-apply matches/day × 7 consecutive days = proof the
+// matcher is delivering value. August 1-14 is the test window.
+//
+// This function emits a `north-star/daily` event with the metrics, which can
+// be consumed by alert handlers or dashboards. The metrics are also logged to
+// the Inngest dashboard for visibility.
+export const northStarDailyReport = inngest.createFunction(
+  {
+    id: "north-star-daily-report",
+    name: "North Star Daily Report — Proof Gate Metric",
+    triggers: [{ cron: "0 7 * * *" }],
+  },
+  async ({ step, logger }) => {
+    // Step 1: Calculate today's metrics
+    const metrics = await step.run("calculate-metrics", async () => {
+      const { db } = await import("@/db/db");
+      const { sql } = await import("drizzle-orm");
+
+      // Today's approved matches (Gate 3 approved today)
+      const approvedToday = await db.execute(sql`
+        SELECT
+          count(*) as total,
+          count(DISTINCT applicant_id) as unique_users,
+          count(DISTINCT persona_id) as unique_personas
+        FROM match_queue
+        WHERE llm_verdict = 'approved'
+          AND evaluated_at >= NOW() - INTERVAL '24 hours'
+      `);
+
+      // Today's would-apply (status=applied, set by founder)
+      const appliedToday = await db.execute(sql`
+        SELECT
+          count(*) as total,
+          count(DISTINCT applicant_id) as unique_users
+        FROM match_queue
+        WHERE status = 'applied'
+          AND created_at >= NOW() - INTERVAL '24 hours'
+      `);
+
+      // Today's dismissals with reason breakdown (D20 JOB 6.1)
+      const dismissalsToday = await db.execute(sql`
+        SELECT
+          count(*) as total,
+          count(*) FILTER (WHERE dismiss_reason = 'geo_fenced') as geo_fenced,
+          count(*) FILTER (WHERE dismiss_reason = 'wrong_stack') as wrong_stack,
+          count(*) FILTER (WHERE dismiss_reason = 'too_senior') as too_senior,
+          count(*) FILTER (WHERE dismiss_reason = 'too_junior') as too_junior,
+          count(*) FILTER (WHERE dismiss_reason = 'not_development') as not_development,
+          count(*) FILTER (WHERE dismiss_reason = 'not_interested') as not_interested,
+          count(*) FILTER (WHERE dismiss_reason = 'stale') as stale,
+          count(*) FILTER (WHERE dismiss_reason = 'duplicate') as duplicate,
+          count(*) FILTER (WHERE dismiss_reason = 'other') as other
+        FROM match_queue
+        WHERE dismiss_reason IS NOT NULL
+          AND dismissed_at >= NOW() - INTERVAL '24 hours'
+      `);
+
+      // 7-day rolling would-apply average + tripwire check
+      const sevenDay = await db.execute(sql`
+        WITH daily_counts AS (
+          SELECT
+            DATE(created_at) as day,
+            count(*) as applied_count
+          FROM match_queue
+          WHERE status = 'applied'
+            AND created_at >= NOW() - INTERVAL '7 days'
+          GROUP BY DATE(created_at)
+        )
+        SELECT
+          count(*) as days_with_applied,
+          COALESCE(sum(applied_count), 0) as total_applied_7d,
+          COALESCE(avg(applied_count), 0) as avg_per_day,
+          count(*) FILTER (WHERE applied_count >= 5) as days_meeting_tripwire
+        FROM daily_counts
+      `);
+
+      // Total active unfenced jobs with embeddings (corpus health)
+      const corpusHealth = await db.execute(sql`
+        SELECT
+          count(*) FILTER (WHERE status = 'active' AND COALESCE(is_fenced, false) = false AND job_embedding IS NOT NULL) as matchable_jobs,
+          count(*) FILTER (WHERE status = 'active' AND COALESCE(is_fenced, false) = false AND job_embedding IS NULL) as unembedded_active,
+          count(*) FILTER (WHERE COALESCE(is_fenced, false) = true AND job_embedding IS NOT NULL) as fenced_with_emb
+        FROM job
+      `);
+
+      const a = approvedToday.rows[0] as
+        | Record<string, number | string>
+        | undefined;
+      const ap = appliedToday.rows[0] as
+        | Record<string, number | string>
+        | undefined;
+      const d = dismissalsToday.rows[0] as
+        | Record<string, number | string>
+        | undefined;
+      const s = sevenDay.rows[0] as Record<string, number | string> | undefined;
+      const ch = corpusHealth.rows[0] as
+        | Record<string, number | string>
+        | undefined;
+
+      return {
+        date: new Date().toISOString().split("T")[0],
+        approvedToday: {
+          total: Number(a?.total ?? 0),
+          uniqueUsers: Number(a?.unique_users ?? 0),
+          uniquePersonas: Number(a?.unique_personas ?? 0),
+        },
+        appliedToday: {
+          total: Number(ap?.total ?? 0),
+          uniqueUsers: Number(ap?.unique_users ?? 0),
+        },
+        dismissalsToday: {
+          total: Number(d?.total ?? 0),
+          geoFenced: Number(d?.geo_fenced ?? 0),
+          wrongStack: Number(d?.wrong_stack ?? 0),
+          tooSenior: Number(d?.too_senior ?? 0),
+          tooJunior: Number(d?.too_junior ?? 0),
+          notDevelopment: Number(d?.not_development ?? 0),
+          notInterested: Number(d?.not_interested ?? 0),
+          stale: Number(d?.stale ?? 0),
+          duplicate: Number(d?.duplicate ?? 0),
+          other: Number(d?.other ?? 0),
+        },
+        sevenDayRolling: {
+          daysWithApplied: Number(s?.days_with_applied ?? 0),
+          totalApplied7d: Number(s?.total_applied_7d ?? 0),
+          avgPerDay: Number(s?.avg_per_day ?? 0).toFixed(2),
+          daysMeetingTripwire: Number(s?.days_meeting_tripwire ?? 0),
+        },
+        corpusHealth: {
+          matchableJobs: Number(ch?.matchable_jobs ?? 0),
+          unembeddedActive: Number(ch?.unembedded_active ?? 0),
+          fencedWithEmb: Number(ch?.fenced_with_emb ?? 0),
+        },
+        // Tripwire: ≥5 would-apply/day × 7 consecutive days
+        tripwireStatus:
+          Number(s?.days_meeting_tripwire ?? 0) >= 7
+            ? "PASS"
+            : `${Number(s?.days_meeting_tripwire ?? 0)}/7 days`,
+      };
+    });
+
+    // Step 2: Emit the north-star/daily event for downstream consumers
+    await step.run("emit-event", async () => {
+      const { inngest } = await import("@/inngest/client");
+      await inngest.send({
+        name: "north-star/daily",
+        data: metrics,
+      });
+      return { emitted: true };
+    });
+
+    logger.info("North Star daily report", metrics);
+
+    return metrics;
+  },
+);
+
 // ── Hourly Storage Monitor (Sprint 8) ───────────────────────────────────────
 // Runs every hour to catch sudden storage spikes and normalization backlogs.
 // It calls the same checkStorageAlerts logic used by the daily health check,

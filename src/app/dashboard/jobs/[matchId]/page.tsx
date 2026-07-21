@@ -7,9 +7,10 @@
 //
 // (MODULE_C_DECISIONS.md §8)
 
-import { AlertTriangle, ArrowLeft, ExternalLink } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { DismissButton } from "@/components/dashboard/DismissButton";
 import { MatchStatusSelect } from "@/components/dashboard/MatchStatusSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -169,8 +170,25 @@ export default async function MatchDetailPage({
             matchQueueId={match.matchQueueId}
             currentStatus={match.status}
           />
+          <DismissButton matchQueueId={match.matchQueueId} />
         </div>
       </div>
+
+      {/* D20 JOB 6.1 — Dismiss reason badge (if dismissed) */}
+      {match.dismissReason && (
+        <div className="flex items-center gap-2 rounded-md border border-muted bg-muted/30 px-3 py-2 text-xs">
+          <X className="size-3.5 text-muted-foreground" />
+          <span className="text-muted-foreground">Dismissed as</span>
+          <Badge variant="secondary" className="font-mono text-xs">
+            {match.dismissReason.replace(/_/g, " ")}
+          </Badge>
+          {match.dismissedAt && (
+            <span className="text-muted-foreground">
+              on {match.dismissedAt.toLocaleDateString()}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Gate 1+2 scores — calibration metrics */}
       <Card className="p-4">

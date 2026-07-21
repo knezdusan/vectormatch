@@ -13,7 +13,7 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import type z from "zod";
 import { applicant } from "./applicant";
-import { rejectionReasonEnum } from "./enums";
+import { dismissReasonEnum, rejectionReasonEnum } from "./enums";
 import { job } from "./job";
 import { persona } from "./persona";
 
@@ -97,6 +97,14 @@ export const matchQueue = pgTable(
     // In-app notification badge (§8). Defaults to false; set true when the
     // user views the match.
     isRead: boolean("is_read").notNull().default(false),
+    // D20 JOB 6.1 — Structured dismiss reason. Set when the user dismisses
+    // an approved match via the DismissButton UI. Distinct from
+    // rejectionReason (which captures Gate 3 LLM verdicts). This captures
+    // the founder's manual cleanup signal — the labeled audit stream for
+    // classifier improvement. Null for matches that have not been dismissed.
+    dismissReason: dismissReasonEnum("dismiss_reason"),
+    // D20 JOB 6.1 — When the user dismissed the match. Null until dismissed.
+    dismissedAt: timestamp("dismissed_at"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => ({
@@ -127,6 +135,11 @@ export const matchQueue = pgTable(
     unreadBadgeIdx: index("match_queue_unread_badge_idx")
       .on(table.applicantId)
       .where(sql`${table.isRead} = false AND ${table.status} = 'approved'`),
+    // D20 JOB 6.1 — Index on dismiss_reason for classifier-improvement
+    // analytics (group-by dismiss reason, daily/weekly breakdowns).
+    dismissReasonIdx: index("match_queue_dismiss_reason_idx").on(
+      table.dismissReason,
+    ),
   }),
 );
 

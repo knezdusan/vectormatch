@@ -154,6 +154,7 @@ export const discoverySourceEnum = pgEnum("discovery_source", [
   "httparchive", // BigQuery volume seeder
   "hn_algolia", // Hacker News delta seeder
   "crt_sh", // Certificate Transparency stealth seeder (Phase 2)
+  "certstream", // D20 JOB 6.5: CertStream WebSocket CT log monitor
   "hn_custom_url", // HN comment with non-ATS URL → CNAME/probe resolved
   "manual", // Admin-added via dashboard
   "workable_meta_search", // B1: Workable meta-search API
@@ -206,4 +207,22 @@ export const rejectionReasonEnum = pgEnum("rejection_reason", [
   "contract_compliance", // Work authorization / contractor arrangement issues
   "stale", // Job expired or was closed after matching
   "other", // Unclassified rejection reason
+]);
+
+// D20 JOB 6.1 — Structured dismiss reason for match_queue rows.
+// Distinct from rejectionReasonEnum (which captures Gate 3 LLM verdicts).
+// dismissReason captures the founder's manual cleanup signal — why a user
+// dismissed an approved match. This is the labeled audit stream for
+// classifier improvement: every dismiss is a training data point.
+// Null for matches that have not been dismissed.
+export const dismissReasonEnum = pgEnum("dismiss_reason", [
+  "geo_fenced", // Job is geo-fenced (discovered after approval)
+  "wrong_stack", // Tech stack doesn't fit the persona
+  "too_senior", // Role is too senior for the applicant
+  "too_junior", // Role is too junior for the applicant
+  "not_development", // Not a software development role
+  "not_interested", // Applicant not interested (vague — catch-all)
+  "stale", // Job is stale or closed
+  "duplicate", // Duplicate of another match
+  "other", // Unclassified dismiss reason
 ]);

@@ -80,6 +80,9 @@ export type MatchDetail = {
   overlapScore: number;
   cosineDistance: number | null;
   workAuthRiskFlag: boolean;
+  // D20 JOB 6.1 — dismiss reason + timestamp (null if not dismissed)
+  dismissReason: string | null;
+  dismissedAt: Date | null;
   job: {
     id: string;
     title: string;
@@ -457,6 +460,8 @@ export async function getMatchDetail(
       overlapScore: matchQueue.overlapScore,
       cosineDistance: matchQueue.cosineDistance,
       workAuthRiskFlag: matchQueue.workAuthRiskFlag,
+      dismissReason: matchQueue.dismissReason,
+      dismissedAt: matchQueue.dismissedAt,
       jobId: job.id,
       jobTitle: job.title,
       jobAtsSource: job.atsSource,
@@ -496,6 +501,8 @@ export async function getMatchDetail(
     overlapScore: r.overlapScore,
     cosineDistance: r.cosineDistance,
     workAuthRiskFlag: r.workAuthRiskFlag,
+    dismissReason: r.dismissReason,
+    dismissedAt: r.dismissedAt,
     job: {
       id: r.jobId,
       title: r.jobTitle,

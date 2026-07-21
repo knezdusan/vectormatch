@@ -27,6 +27,7 @@ export const discoverySourceSchema = z.enum([
   "httparchive",
   "hn_algolia",
   "crt_sh",
+  "certstream",
   "hn_custom_url",
   "manual",
   "workable_meta_search",

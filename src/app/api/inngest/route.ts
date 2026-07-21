@@ -69,6 +69,7 @@ import {
   nightlyResurrectionSweep,
   nightlyStaleClassificationSweep,
   normalizationRetrySweep,
+  northStarDailyReport,
   pendingQueueSweep,
   personaUpdatedHandler,
   phalanxPoller,
@@ -185,5 +186,7 @@ export const { GET, POST, PUT } = serve({
     backupAlertHandler,
     // D20 JOB 5.2: Resource alert handler
     resourceAlertHandler,
+    // D20 JOB 7: North Star daily report
+    northStarDailyReport,
   ],
 });
