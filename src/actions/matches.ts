@@ -20,6 +20,7 @@ import { applicantCompanyBlock } from "@/db/schemas/jobs/applicantCompanyBlock";
 import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { getAuthSession } from "@/lib/auth";
+import { DISMISS_REASONS, type DismissReason } from "@/lib/jobs/match-filters";
 
 // =============================================================================
 // TYPES
@@ -31,19 +32,11 @@ export type MatchActionState = {
 };
 
 // D20 JOB 6.1 — Dismiss reason values (mirrors dismiss_reason PG enum).
-// Exported for use in the DismissButton UI component.
-export const DISMISS_REASONS = [
-  "geo_fenced",
-  "wrong_stack",
-  "too_senior",
-  "too_junior",
-  "not_development",
-  "not_interested",
-  "stale",
-  "duplicate",
-  "other",
-] as const;
-export type DismissReason = (typeof DISMISS_REASONS)[number];
+// Defined in @/lib/jobs/match-filters (not here) because this file has a
+// top-level "use server" directive — Server Actions modules may only export
+// async functions. A plain const array/type export here breaks when
+// imported by a Client Component (DismissButton), causing a runtime
+// "X.map is not a function" error.
 
 // Match statuses that can be set from the dashboard UI (job list or detail page).
 const EDITABLE_MATCH_STATUSES = [

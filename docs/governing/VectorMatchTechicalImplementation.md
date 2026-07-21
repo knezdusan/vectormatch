@@ -16,7 +16,7 @@
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
 *   **Testing:** Vitest 4.1.8 (119 test files, 2,640 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
-*   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`).
+*   **Hosting:** Hetzner Cloud (Frankfurt) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy.
 *   **Migrations:** 46 SQL migrations (0000–0045) managed via Drizzle Kit 0.31.10. 
 
 ---
@@ -699,6 +699,82 @@ Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in Coolify production environ
 3. **Send events with `step.sendEvent()`** so emission is part of the durable trace.
 4. **Use `step.ai.wrap()` or `step.ai.infer()`** for all LLM calls inside Inngest functions — full observability, retry logic, and cost offloading.
 5. **Register new functions** in `src/app/api/inngest/route.ts`.
+
+---
+
+## 3.10 WORDPRESS BLOG INFRASTRUCTURE `[Status: Implemented — live at https://vectormatch.dev/blog, July 2026]`
+
+The marketing blog is a **WordPress** installation running on the same Hetzner/Coolify infrastructure as the Next.js application, served under the `/blog` subpath. It is intentionally fully decoupled from the Next.js app: no MDX content, no shared database, no shared build. The frontend mirrors the Next.js design system through a custom classic PHP theme.
+
+### 3.10.1 Deployment & Routing
+
+- **Coolify service:** Docker Compose with `wordpress:latest` + MariaDB 11, named "Wordpress Blog", managed as a single Coolify service. Database and file volumes survive redeploys.
+- **Reverse proxy:** Next.js and WordPress share Traefik v3.6.21. Traefik routes all requests except `/blog/*` to the Next.js container; `/blog/*` is routed to WordPress. The `stripprefix` middleware removes `/blog` before passing paths to the WordPress container.
+- **Subpath restoration:** WordPress operates as if it were at `/` internally. Three persisted files restore the `/blog` prefix:
+  - `wp-blog-defines.php` — loaded by `wp-config.php`; sets `WP_HOME`/`WP_SITEURL` to `https://vectormatch.dev/blog`, forces `$_SERVER['HTTPS']`, and rewrites `REQUEST_URI` to include the stripped `/blog` prefix.
+  - `wp-content/mu-plugins/00-subpath-rewrite.php` — keeps generated `.htaccess` root-based because Apache sees stripped paths.
+  - `.htaccess` — root-based WordPress rewrite rules plus a `mod_rewrite` block that re-adds `/blog` to Apache `Location` redirects (`/wp-admin` → `/blog/wp-admin/`).
+
+### 3.10.2 Theme & Frontend
+
+- **Active theme:** `vectormatch-blog` — custom classic PHP theme, not a block/FSE theme. Decision: **abandoned the Elementor-based layout migration** in favor of a hand-written PHP theme to avoid vendor lock-in and keep the design under source control.
+- **Key templates:** `index.php`, `single.php`, `archive.php`, `page.php`, `header.php`, `footer.php`, `functions.php`, `theme.css`.
+- **Design system port:** The theme uses Tailwind CSS v4 `@theme` tokens (colors, fonts, radii) defined in `theme.css`. The browser CDN is the fallback while drafting; `dist/styles.css` is generated on theme publish.
+- **Single post layout (`single.php`):**
+  - 2:1 hero image with overlaid title.
+  - Meta row (date · category · reading time) rendered below the hero.
+  - Subtitle (`.vm-lead`) extracted from content and centered above the body.
+  - "The short answer" block upgraded to `<h2>` and styled as italic prose.
+  - "What you'll learn" block upgraded to `<h3>` with `0.9rem` list text.
+  - Tailwind Typography `.prose` tables forced to `1.25rem` first/last cell padding via `!important`.
+  - Inline SVG diagrams scale down description text (`14px` → `12/13px`) to prevent overflow.
+- **Archive/category listing (`index.php` / `archive.php`):**
+  - H2 linked title.
+  - 2:1 featured-image thumbnail linked to the post with `transform: scale(1.2)` hover transition over `0.35s`.
+  - Date · linked category · reading time meta row.
+  - Excerpt.
+  - "Go to the post →" link with hover arrow spacing.
+- **Header/footer:** Mirror Next.js navbar and footer links; WordPress logo served from the WP media library.
+
+### 3.10.3 Agent Workflow (WPVibe)
+
+- **WPVibe MCP bridge** is the supported agent interface: `run_wp_cli`, `rest_api`, `write_file`, `edit_file`, `read_file`, draft/publish operations (`create_draft_theme`, `publish_draft_theme`).
+- **Draft-first workflow:** All theme changes are built in a WPVibe draft theme, previewed via `get_preview_url`, and published with `publish_draft_theme`. A backup theme (`vectormatch-blog-wpvibe-backup`) is created on every publish.
+- **Wordfence caveat:** Wordfence's firewall blocks WPVibe's Application Password authentication, so it must be deactivated during automated agent work and reactivated by the user afterward.
+- **Rank Math setup:** The setup wizard must be completed in `/blog/wp-admin/` to activate `/blog/sitemap_index.xml` and JSON-LD schema.
+
+### 3.10.4 Security Hardening
+
+- `DISALLOW_FILE_EDIT` defined in `wp-config.php`.
+- `users_can_register` forced to `0`.
+- Default comment/pingback status closed.
+- `blog_public` enabled.
+- XML-RPC disabled.
+- REST user enumeration disabled.
+- WordPress generator tag removed.
+- X-Pingback header removed.
+- Taxonomy creation restricted to administrators.
+
+### 3.10.5 Plugin Stack
+
+- **Rank Math SEO** — sitemap, schema, Open Graph.
+- **LiteSpeed Cache** — page cache + asset optimization.
+- **UpdraftPlus** — daily database backups, 7-day retention.
+- **Wordfence Security** — active for firewall/login hardening; must be deactivated during WPVibe agent operations.
+- **Elementor (free)** — installed for optional future content blocks; **not used for header/footer/templates or single/archive layouts**.
+
+### 3.10.6 Sitemap & SEO
+
+- WordPress sitemap at `/blog/sitemap_index.xml` (Rank Math) with fallback `/blog/wp-sitemap.xml`.
+- Next.js `sitemap.ts` includes `/blog` so search engines discover the WP blog.
+- RSS at `/blog/feed/`.
+
+### 3.10.7 Migration History
+
+- The blog was originally implemented as a file-based MDX system (`next-mdx-remote/rsc` + `gray-matter` in `src/app/(public)/blog/_posts/`). That code, `src/lib/blog/`, `src/components/mdx/`, and all MDX dependencies were removed.
+- Deprecated `blog_*` database tables were dropped via Drizzle migration.
+- The `WORDPRESS_CONFIG_EXTRA` Coolify env var was replaced by volume-persisted `wp-blog-defines.php`.
+- The **Elementor transition was evaluated and rejected** in favor of maintaining the custom PHP theme under direct file control.
 
 ---
 

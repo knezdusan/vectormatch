@@ -4,11 +4,7 @@ import { ChevronDown, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  DISMISS_REASONS,
-  type DismissReason,
-  dismissMatch,
-} from "@/actions/matches";
+import { dismissMatch } from "@/actions/matches";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
+import { DISMISS_REASONS, type DismissReason } from "@/lib/jobs/match-filters";
 
 // Human-readable labels for each dismiss reason.
 // Maps to the dismiss_reason PG enum.
