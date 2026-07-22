@@ -91,7 +91,7 @@ export interface ProvisionalJobEvent {
  * On failure (all 4 attempts exhausted): status='normalization_failed'.
  *
  * Concurrency: 10 (matches jobIngestedHandler — balances throughput against
- * Neon pooler headroom and OpenAI rate limits).
+ * Postgres pooler headroom and OpenAI rate limits).
  */
 export const normalizeProvisionalJob = inngest.createFunction(
   {
@@ -295,7 +295,7 @@ export const normalizeProvisionalJob = inngest.createFunction(
 
     // A2 reorder: if the classified scope is fenced/onsite, drop the embedding.
     // Fenced jobs are not addressable for global-remote matching — keeping their
-    // vector wastes HNSW storage (the #1 Neon consumer). The embed above ran
+    // vector wastes HNSW storage (the primary storage consumer). The embed above ran
     // before scope was known (drift re-normalization), so null it post-hoc.
     if (
       embedding !== null &&
@@ -426,7 +426,7 @@ export const normalizeProvisionalJob = inngest.createFunction(
 // Per governing doc "retryInFlight sweeper cadence (UPDATED)":
 //   "Changed from fixed 2-3min cron to event-driven sweep (fires after each
 //    normalizeProvisionalJob attempt) + 30min safety-net cron with conditional
-//    skip. Monitor Neon CU-hour consumption — if the 30min safety net still
+//    skip. Monitor resource consumption — if the 30min safety net still
 //    contributes meaningfully, increase to 1hr or remove it entirely if the
 //    event-driven path proves reliable."
 //

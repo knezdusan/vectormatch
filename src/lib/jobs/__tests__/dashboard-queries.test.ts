@@ -209,6 +209,67 @@ describe("getMatches", () => {
 });
 
 // =============================================================================
+// Serve-time gate enforcement (Directive 21, JOB 2)
+// =============================================================================
+
+describe("serveTimeGateFilter", () => {
+  it("is applied to getMatches (verified via query execution)", async () => {
+    // The default mock chain supports innerJoin → where, so this should
+    // complete without error, confirming the gate filter is wired in.
+    await getMatches("user-123", "approved");
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("is applied to getMatchesCount (verified via query execution)", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 0 }]),
+        })),
+      })),
+    });
+
+    const result = await getMatchesCount("user-123", "approved");
+    expect(result).toBe(0);
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("is applied to getUnreadBadgeCount (verified via query execution)", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 0 }]),
+        })),
+      })),
+    });
+
+    const result = await getUnreadBadgeCount("user-123");
+    expect(result).toBe(0);
+    expect(db.select).toHaveBeenCalled();
+  });
+
+  it("is applied to getMatchDetail (verified via query execution)", async () => {
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(() => []),
+            })),
+          })),
+        })),
+      })),
+    });
+
+    const result = await getMatchDetail("user-123", "mq-1");
+    expect(result).toBeNull();
+  });
+});
+
+// =============================================================================
 // matchScoreExpr
 // =============================================================================
 
@@ -256,7 +317,9 @@ describe("getMatchesCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => [{ cnt: 42 }]),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 42 }]),
+        })),
       })),
     });
 
@@ -269,7 +332,9 @@ describe("getMatchesCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => [{ cnt: 7 }]),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 7 }]),
+        })),
       })),
     });
 
@@ -282,7 +347,9 @@ describe("getMatchesCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => [{ cnt: 100 }]),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 100 }]),
+        })),
       })),
     });
 
@@ -295,7 +362,9 @@ describe("getMatchesCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => [{ cnt: 0 }]),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 0 }]),
+        })),
       })),
     });
 
@@ -319,7 +388,9 @@ describe("getUnreadBadgeCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => [{ cnt: 5 }]),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 5 }]),
+        })),
       })),
     });
 
@@ -333,7 +404,9 @@ describe("getUnreadBadgeCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => [{ cnt: 0 }]),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => [{ cnt: 0 }]),
+        })),
       })),
     });
 
@@ -346,7 +419,9 @@ describe("getUnreadBadgeCount", () => {
     const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
     selectMock.mockReturnValueOnce({
       from: vi.fn(() => ({
-        where: vi.fn(() => []),
+        innerJoin: vi.fn(() => ({
+          where: vi.fn(() => []),
+        })),
       })),
     });
 

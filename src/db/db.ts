@@ -91,11 +91,10 @@ export const db: Db = new Proxy({} as Db, {
 });
 
 /**
- * Raw SQL tagged template — replaces the Neon `neon()` HTTP driver for
- * ad-hoc queries that use tagged template literals (e.g. in Inngest cron
- * jobs). Returns rows directly, matching the `neon()` API shape.
+ * Raw SQL tagged template — for ad-hoc queries that use tagged template
+ * literals (e.g. in Inngest cron jobs). Returns rows directly.
  *
- * Usage (identical to the old `neon()` pattern):
+ * Usage:
  *   import { rawSql } from "@/db/db";
  *   const rows = await rawSql`SELECT * FROM job WHERE id = ${jobId}`;
  */

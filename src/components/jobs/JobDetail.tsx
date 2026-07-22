@@ -12,9 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAuthSession } from "@/lib/auth";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
-import { extractJobContent, extractJobUrl } from "@/lib/jobs/job-normalizer";
+import { formatDescriptionHtml } from "@/lib/jobs/description-formatter";
+import { extractJobUrl } from "@/lib/jobs/job-normalizer";
 import { getPublicJobById } from "@/lib/jobs/public-queries";
-import { plainTextToDescriptionHtml } from "@/lib/jobs/sanitize-html";
 
 interface JobDetailProps {
   params: Promise<{ id: string }>;
@@ -155,19 +155,13 @@ export async function JobDetail({ params }: JobDetailProps) {
   // Build the best candidate-facing HTML we have. New jobs store
   // descriptionHtml. Legacy jobs may still carry rawJson (pre-G7) or only
   // normalizedText; we derive HTML from whichever source is available.
-  let displayDescriptionHtml = job.descriptionHtml;
-  if (!displayDescriptionHtml && job.rawJson) {
-    const legacy = extractJobContent(
-      job.atsSource,
-      job.rawJson,
-      job.title,
-      null,
-    );
-    displayDescriptionHtml = legacy.htmlDescription;
-  }
-  if (!displayDescriptionHtml && job.normalizedText) {
-    displayDescriptionHtml = plainTextToDescriptionHtml(job.normalizedText);
-  }
+  const displayDescriptionHtml =
+    job.descriptionHtml ??
+    formatDescriptionHtml({
+      rawJson: job.rawJson,
+      normalizedText: job.normalizedText,
+      atsSource: job.atsSource,
+    });
 
   const salary = formatSalary(
     job.compensationMin,

@@ -192,26 +192,25 @@ export async function vacuumAnalyze(): Promise<CleanupStepResult> {
 //                             Excludes jobs with approved matches.
 //                             Smaller batch size to limit WAL spikes.
 //
-// All tiers delete in batches with a LIMIT clause to avoid massive WAL spikes
-// on Neon. VACUUM ANALYZE runs after each batch (not just between tiers) so
-// that pg_database_size() reflects the reclaimed space at the next recovery
-// check. Without per-batch VACUUM, dead tuples are still counted as used
-// space and the recovery threshold check never fires within a tier.
+// All tiers delete in batches with a LIMIT clause to avoid massive WAL spikes.
+// VACUUM ANALYZE runs after each batch (not just between tiers) so that
+// pg_database_size() reflects the reclaimed space at the next recovery check.
+// Without per-batch VACUUM, dead tuples are still counted as used space and
+// the recovery threshold check never fires within a tier.
 //
-// WAL INFLATION PROTECTION (added July 2026):
-// Neon's synthetic_storage_size includes WAL retained for history. Large DELETE
-// batches generate WAL that can push synthetic storage ABOVE the hard limit even
-// though pg_database_size drops. The purge now:
-//   1. Uses STORAGE_LIMIT_MB (460, safety-margined) instead of 512 for recovery
-//      checks — this accounts for the ~12% gap between pg_database_size and
-//      Neon's synthetic storage.
+// WAL INFLATION PROTECTION (added July 2026, updated D21):
+// On the old Neon free tier, synthetic_storage_size included WAL retained for
+// history, so large DELETE batches could push storage above the hard limit.
+// On VPS Postgres (D20 migration), WAL is managed by standard checkpointing
+// and autovacuum — the WAL inflation risk is lower but batch deletion remains
+// good practice to avoid long-running transactions and bloat. The purge now:
+//   1. Uses STORAGE_LIMIT_MB (460, safety-margined) for recovery checks.
 //   2. Tracks storage before/after each batch. If storage INCREASES after a
-//      batch (WAL inflation exceeding the dead-tuple reclaim), the purge stops
-//      immediately — continuing would make the situation worse.
+//      batch, the purge stops immediately — continuing would make it worse.
 //   3. Uses a smaller batch size (500) for the active_fifo tier to limit
 //      per-batch WAL generation on the last-resort tier.
 
-/** Maximum rows to delete in a single batch (Neon WAL spike protection). */
+/** Maximum rows to delete in a single batch (WAL spike protection). */
 const PURGE_BATCH_SIZE = 1000;
 
 /** Smaller batch size for the active_fifo tier (last resort — limits WAL). */
@@ -465,11 +464,11 @@ export async function purgeActiveFifo(
  * check reflects reality.
  *
  * WAL INFLATION PROTECTION:
- * Neon's synthetic_storage_size includes WAL. Large DELETE batches can generate
- * more WAL than the dead tuples they reclaim, causing pg_database_size to drop
- * while synthetic storage increases. The purge tracks storage before/after each
- * batch. If storage increases for `PURGE_MAX_WAL_INFLATION_BATCHES` consecutive
- * batches, the purge aborts immediately — continuing would make things worse.
+ * Large DELETE batches can generate more WAL than the dead tuples they reclaim,
+ * causing pg_database_size to drop while disk usage increases. The purge tracks
+ * storage before/after each batch. If storage increases for
+ * `PURGE_MAX_WAL_INFLATION_BATCHES` consecutive batches, the purge aborts
+ * immediately — continuing would make things worse.
  *
  * CORPUS PERCENTAGE GUARD (active_fifo tier only):
  * The active_fifo tier is capped at PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION (20%)
@@ -560,7 +559,7 @@ export async function runEmergencyPurge(
       if (name === "active_fifo" && activeFifoBudget > 0) {
         if (activeFifoDeleted >= activeFifoBudget) {
           corpusGuardTriggered = true;
-          stopReason = `Corpus percentage guard: active_fifo has deleted ${activeFifoDeleted} jobs (${(PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION * 100).toFixed(0)}% of ${activeCorpusAtStart} active jobs). Purge aborted to prevent major data loss. Manual intervention required: reduce Neon history retention or increase storage limit.`;
+          stopReason = `Corpus percentage guard: active_fifo has deleted ${activeFifoDeleted} jobs (${(PURGE_ACTIVE_FIFO_MAX_CORPUS_FRACTION * 100).toFixed(0)}% of ${activeCorpusAtStart} active jobs). Purge aborted to prevent major data loss. Manual intervention required: increase VPS disk space or reduce retention window.`;
           break;
         }
       }

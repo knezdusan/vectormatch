@@ -219,7 +219,7 @@ export const job = pgTable(
     // v2: Partial index for the retryInFlightSweeper cron (every 2-3min scans
     // retry_in_flight = true AND updated_at < now() - 10min). Only rows with
     // retry_in_flight = true are indexed — a handful at any time, not the full
-    // table. Avoids sequential scans on Neon 512MB. See governing doc
+    // table. Avoids sequential scans on small DB. See governing doc
     // "retryInFlight Fencing" + Open Tuning Items (sweeper cadence).
     retryInFlightSweeperIdx: index("job_retry_in_flight_sweeper_idx")
       .on(table.updatedAt)

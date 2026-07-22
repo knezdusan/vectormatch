@@ -80,7 +80,7 @@ export async function upsertJobs(
   }
 
   // Sprint 8 storage guard: pause new job ingestion when the database is near
-  // the Neon Free tier limit or when the normalizer backlog is too large. This
+  // the storage limit or when the normalizer backlog is too large. This
   // prevents a sudden burst of job discovery from filling the DB before
   // normalization can reclaim raw_json storage. FORCE_INGESTION=1 overrides.
   const storage = await isStorageSafeForIngestion();

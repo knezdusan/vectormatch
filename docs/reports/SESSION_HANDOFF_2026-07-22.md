@@ -241,17 +241,19 @@ Gate 2 was re-architected from a **hard threshold gate** to a **rank signal**.
 ### 6.1 Immediate (next session should address)
 
 1. **MIGRATION CONFLICT** — resolve the 0056 numbering conflict (see §4.2).
-   The `description_html` column needs to be applied to the VPS Postgres.
-2. **Verify `description_html` feature** — the latest commit added HTML
-   description extraction + sanitization + rendering. This is uncommitted
-   work from another session — verify it builds, the migration is applied,
-   and the feature works end-to-end.
+   The `description_html` column was applied to VPS Postgres in Session 3.
+   File-level cleanup (deleting superseded `0056_d20_dismiss_reason.sql` and
+   `0057_d20_certstream_enum.sql`) still pending — noted but not destructive.
+2. **~~Verify `description_html` feature~~** — DONE (Session 3). Column added,
+   Drizzle tracking updated, feature verified end-to-end.
 3. **Ask the founder for a new directive** — all D20 items are closed. The
    founder needs to issue Directive 21 or specify the next task.
 
 ### 6.2 August calendar items (from D20 report)
 
-1. **AUGUST 1: NEON QUOTA RESET** — unfreeze the remaining 14 crons.
+1. **~~AUGUST 1: NEON QUOTA RESET~~** — DONE (D21). 10 of 14 crons unfrozen,
+   4 kept frozen with updated rationale (Meta Ads, GitHub Events, WWR RSS,
+   remote-job-boards — redundant/broken). Neon-era logic purged from code.
 2. **AUGUST 1-14: TRIPWIRE SPRINT** — the North Star daily report tracks the
    proof gate metric daily. Test: ≥5 would-apply matches/day × 7 consecutive
    days.
@@ -372,7 +374,7 @@ updated. August is the proof month.
 
 ---
 
-## 8. JOB DETAIL PAGE FIX — 2026-07-22 (Session 3)
+## 11. JOB DETAIL PAGE FIX — 2026-07-22 (Session 3)
 
 ### Problem
 

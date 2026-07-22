@@ -18,8 +18,8 @@ import { Card } from "@/components/ui/card";
 import { getAuthSession } from "@/lib/auth";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import { getMatchDetail } from "@/lib/jobs/dashboard-queries";
-import { extractJobContent, extractJobUrl } from "@/lib/jobs/job-normalizer";
-import { plainTextToDescriptionHtml } from "@/lib/jobs/sanitize-html";
+import { formatDescriptionHtml } from "@/lib/jobs/description-formatter";
+import { extractJobUrl } from "@/lib/jobs/job-normalizer";
 
 export const metadata = {
   title: "Match Detail | VectorMatch",
@@ -111,21 +111,13 @@ export default async function MatchDetailPage({
   // Build the best candidate-facing HTML we have. New jobs store
   // descriptionHtml. Legacy jobs may still carry rawJson (pre-G7) or only
   // normalizedText; we derive HTML from whichever source is available.
-  let displayDescriptionHtml = match.job.descriptionHtml;
-  if (!displayDescriptionHtml && match.job.rawJson) {
-    const legacy = extractJobContent(
-      match.job.atsSource,
-      match.job.rawJson,
-      match.job.title,
-      null,
-    );
-    displayDescriptionHtml = legacy.htmlDescription;
-  }
-  if (!displayDescriptionHtml && match.job.normalizedText) {
-    displayDescriptionHtml = plainTextToDescriptionHtml(
-      match.job.normalizedText,
-    );
-  }
+  const displayDescriptionHtml =
+    match.job.descriptionHtml ??
+    formatDescriptionHtml({
+      rawJson: match.job.rawJson,
+      normalizedText: match.job.normalizedText,
+      atsSource: match.job.atsSource,
+    });
 
   return (
     <div className="flex flex-col gap-6">

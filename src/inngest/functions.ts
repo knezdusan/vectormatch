@@ -385,7 +385,7 @@ export const batchPollTier = inngest.createFunction(
     const startedAt = new Date();
 
     // Sprint 8 storage guard: check storage and backlog before polling. If the
-    // database is near the Neon limit or the normalizer is behind, skip this
+    // database is near the storage limit or the normalizer is behind, skip this
     // entire poll cycle to avoid adding more unnormalized jobs.
     const storage = await step.run("check-storage", async () => {
       const { isStorageSafeForIngestion } = await import(
@@ -659,8 +659,8 @@ export const pollBacklogSweeper = inngest.createFunction(
 
     const startedAt = new Date();
 
-    // Storage guard — same as batchPollTier. Skip if DB is near Neon limit or
-    // the normalizer is behind, to avoid adding more unnormalized jobs.
+    // Storage guard — same as batchPollTier. Skip if DB is near storage limit
+    // or the normalizer is behind, to avoid adding more unnormalized jobs.
     const storage = await step.run("check-storage", async () => {
       const { isStorageSafeForIngestion } = await import(
         "@/lib/jobs/storage-check"
@@ -1234,7 +1234,7 @@ export const layoffSignalChecker = inngest.createFunction(
  * at 03:00 so the stale-marker pass operates on a pruned corpus).
  *
  * Deletes terminal-state rows from the high-growth tables to keep the database
- * within the Neon Free 512MB storage tier:
+ * within the storage budget:
  *   1. rejected / gone / normalization_failed jobs (1d / 7d / 7d retention)
  *   2. approved/rejected match_queue rows (90d retention)
  *   3. ingestion_log entries (30d retention)
@@ -1761,7 +1761,7 @@ export const directJobBoardIngestion = inngest.createFunction(
       });
     });
 
-    // Storage guard — skip if DB is near Neon limit.
+    // Storage guard — skip if DB is near storage limit.
     const storage = await step.run("check-storage", async () => {
       const { isStorageSafeForIngestion } = await import(
         "@/lib/jobs/storage-check"
@@ -2702,7 +2702,7 @@ export const jobIngestedHandler = inngest.createFunction(
     id: "job-ingested-handler",
     name: "Job Ingested — Trigger 3-Gate Funnel",
     triggers: [{ event: "job/ingested" }],
-    // §4.5 — concurrency 25 balances throughput against Neon pooler
+    // §4.5 — concurrency 25 balances throughput against Postgres pooler
     // headroom (max: 30). Originally 15, lowered to 5 under the Inngest
     // free plan concurrency cap; raised to 10 after Sprint 5 self-hosting
     // migration removed the Cloud concurrency limit.
@@ -3601,7 +3601,7 @@ export const gate3Evaluator = inngest.createFunction(
     name: "Gate 3 — LLM Candidate Evaluation",
     triggers: [{ event: "match/gate-3-evaluate" }],
     // §6.1 — concurrency 10 balances OpenAI 500 RPM (~8 concurrent
-    // evaluations) against Neon pooler headroom (max: 20). Originally 15,
+    // evaluations) against Postgres pooler headroom (max: 20). Originally 15,
     // lowered to 5 under the Inngest free plan concurrency cap; raised to
     // 10 after Sprint 5 self-hosting migration removed the Cloud concurrency
     // limit. At 10 concurrent evaluations, each holding a DB connection for
@@ -4977,8 +4977,9 @@ export const dailySourceD3RedditRss = inngest.createFunction(
   {
     id: "daily-source-reddit-rss",
     name: "Daily Source — Reddit RSS",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone (VPS self-hosted Postgres).
+    // Low-cost discovery source with unique signal (Reddit RSS for job posts).
+    triggers: [{ cron: "0 14 * * *" }],
   },
   async ({ step }) => {
     const { runRedditRssSeeder } = await import(
@@ -5008,7 +5009,8 @@ export const dailySourceD4RemoteJobBoards = inngest.createFunction(
   {
     id: "daily-source-remote-job-boards",
     name: "Daily Source — Remote Job Boards",
-    // D17 A2: FROZEN until Aug 1 — overlaps with direct-job-board-ingestion.
+    // D21: KEEP FROZEN — overlaps with direct-job-board-ingestion (already
+    // unfrozen at 4x/day). Redundant signal, no unique value.
     triggers: [],
   },
   async ({ step }) => {
@@ -5041,7 +5043,8 @@ export const dailySourceD5WwrRss = inngest.createFunction(
   {
     id: "daily-source-wwr-rss",
     name: "Daily Source — We Work Remotely RSS",
-    // D17 A2: FROZEN until Aug 1 — overlaps with direct-job-board-ingestion.
+    // D21: KEEP FROZEN — overlaps with direct-job-board-ingestion (already
+    // unfrozen at 4x/day). Redundant signal, no unique value.
     triggers: [],
   },
   async ({ step }) => {
@@ -5072,7 +5075,9 @@ export const dailySourceD6CertStream = inngest.createFunction(
   {
     id: "daily-source-certstream",
     name: "Daily Source — CertStream",
-    // D17 A2: FROZEN until Aug 1 — WebSocket yields 0 certificates (broken).
+    // D21: KEEP FROZEN — upstream CertStream service degraded/possibly
+    // discontinued (connects, 0 messages). Replacement planned: self-host
+    // certstream-server container or poll CT logs via crt.sh directly.
     triggers: [],
   },
   async ({ step }) => {
@@ -5171,8 +5176,8 @@ export const dailySourceD9EngineeringBlogs = inngest.createFunction(
   {
     id: "daily-source-engineering-blogs",
     name: "Daily Source — Engineering Blogs RSS",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Low-cost discovery source.
+    triggers: [{ cron: "0 16 * * *" }],
   },
   async ({ step }) => {
     const { runEngineeringBlogsRssSeeder } = await import(
@@ -5204,8 +5209,8 @@ export const dailySourceD10GithubTrending = inngest.createFunction(
   {
     id: "daily-source-github-trending",
     name: "Daily Source — GitHub Trending",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Unique signal (GitHub trending repos).
+    triggers: [{ cron: "0 15 * * *" }],
   },
   async ({ step }) => {
     const { runGithubTrendingSeeder } = await import(
@@ -5237,8 +5242,8 @@ export const dailySourceD11TechNewsRss = inngest.createFunction(
   {
     id: "daily-source-tech-news-rss",
     name: "Daily Source — Tech News RSS",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Low-cost RSS discovery.
+    triggers: [{ cron: "0 17 * * *" }],
   },
   async ({ step }) => {
     const { runTechNewsRssSeeder } = await import(
@@ -5268,8 +5273,8 @@ export const dailySourceD12NpmRegistry = inngest.createFunction(
   {
     id: "daily-source-npm-registry",
     name: "Daily Source — NPM Registry",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. NPM registry changes signal hiring activity.
+    triggers: [{ cron: "0 18 * * *" }],
   },
   async ({ step }) => {
     const { runNpmRegistrySeeder } = await import(
@@ -5299,7 +5304,8 @@ export const dailySourceD13MetaAds = inngest.createFunction(
   {
     id: "daily-source-meta-ads",
     name: "Daily Source — Meta Ads Library",
-    // D17 A2: FROZEN until Aug 1.
+    // D21: KEEP FROZEN — Meta Ads Library API has been unreliable and low-signal.
+    // Revisit if hiring-ad signal from Meta becomes accessible again.
     triggers: [],
   },
   async ({ step }) => {
@@ -5345,8 +5351,8 @@ export const v2FundingSignalRss = inngest.createFunction(
   {
     id: "v2-funding-signal-rss",
     name: "v2 Funding-Signal RSS Seeder",
-    // D17 A2: FROZEN until Aug 1.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Funding signals predict hiring waves.
+    triggers: [{ cron: "0 12 * * *" }],
   },
   async ({ step }) => {
     const { runFundingSignalRssSeeder } = await import(
@@ -5381,7 +5387,9 @@ export const v2GithubEventsProbe = inngest.createFunction(
   {
     id: "v2-github-events-probe",
     name: "v2 GitHub Events API Probe Seeder",
-    // D17 A2: FROZEN until Aug 1.
+    // D21: KEEP FROZEN — GitHub Events API has a 90-day retention window and
+    // high noise ratio. Low signal-to-noise for job discovery. Revisit if
+    // a better filtering approach is developed.
     triggers: [],
   },
   async ({ step }) => {
@@ -6068,8 +6076,9 @@ export const storageMonitor = inngest.createFunction(
   {
     id: "storage-monitor",
     name: "Storage Monitor",
-    // D17 A2: FROZEN until Aug 1 — sub-daily monitor keeping endpoint awake.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Storage monitoring is
+    // essential on VPS (160MB dataset on 8GB server, no auto-scaling).
+    triggers: [{ cron: "0 */6 * * *" }],
   },
   async ({ step, logger }) => {
     const status = await step.run("check-storage-alerts", async () => {
@@ -6123,8 +6132,9 @@ export const pipelineHealthMonitor = inngest.createFunction(
   {
     id: "pipeline-health-monitor",
     name: "Pipeline Health Monitor",
-    // D17 A2: FROZEN until Aug 1 — sub-daily monitor keeping endpoint awake.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Pipeline health monitoring
+    // is critical for detecting stalls in the ingestion → matching flow.
+    triggers: [{ cron: "0 */4 * * *" }],
   },
   async ({ step, logger }) => {
     // Step 1: Collect all pipeline health metrics
@@ -6211,8 +6221,9 @@ export const emergencyStoragePurge = inngest.createFunction(
     name: "Emergency Storage Purge — Tiered Job Deletion",
     triggers: [
       { event: "purge/emergency-storage" },
-      // D17 A2: FROZEN until Aug 1 — sub-daily check keeping endpoint awake.
-      // { cron: "0 */6 * * *" },
+      // D21: UNFROZEN — Neon burn constraint is gone. Auto-purge every 6h
+      // prevents storage bloat on VPS (no auto-scaling, 8GB server).
+      { cron: "0 */6 * * *" },
     ],
   },
   async ({ event, step, logger }) => {
@@ -6305,7 +6316,7 @@ export const emergencyStoragePurge = inngest.createFunction(
         .join(", ");
 
       const reason = purgeResult.walInflationDetected
-        ? `Emergency purge ABORTED due to WAL inflation — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. ${purgeResult.stopReason} Manual intervention required: reduce Neon history retention or wait for WAL to age out.`
+        ? `Emergency purge ABORTED due to WAL inflation — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. ${purgeResult.stopReason} Manual intervention required: run VACUUM FULL or increase VPS disk space.`
         : purgeResult.corpusGuardTriggered
           ? `Emergency purge ABORTED by corpus percentage guard — ${purgeResult.totalDeleted} jobs deleted (${tierSummary}). Storage: ${purgeResult.storageBeforeMb.toFixed(0)}MB → ${purgeResult.storageAfterMb.toFixed(0)}MB. ${purgeResult.stopReason}`
           : purgeResult.recovered
@@ -6373,8 +6384,9 @@ export const inngestHealthMonitor = inngest.createFunction(
   {
     id: "inngest-health-monitor",
     name: "Inngest Health Monitor",
-    // D17 A2: FROZEN until Aug 1 — every 2h monitor keeping endpoint awake.
-    triggers: [],
+    // D21: UNFROZEN — Neon burn constraint is gone. Health monitoring is
+    // essential for detecting Inngest transport failures (D21 JOB 1 context).
+    triggers: [{ cron: "0 */2 * * *" }],
   },
   async ({ step, logger }) => {
     // Step 1: Get Coolify container status

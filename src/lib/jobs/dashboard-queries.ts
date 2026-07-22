@@ -33,6 +33,36 @@ import { persona } from "@/db/schemas/jobs/persona";
 
 import type { MatchSortOption, MatchStatusFilter } from "./match-filters";
 
+// =============================================================================
+// SERVE-TIME GATE ENFORCEMENT (Directive 21, JOB 2)
+// =============================================================================
+//
+// The match_queue table holds rows from ≥4 routing generations. Old-path rows
+// can render on the dashboard without re-checking today's gate flags. This
+// filter re-applies the same hard filters used at ingestion time (gate-1-2.ts
+// lines 326-329) at serving time, so no row of any provenance reaches the
+// founder unless it passes the gates NOW.
+//
+// Defense in depth: gates at ingestion, gates at matching, filters at serving.
+//
+// The filter uses IS NOT TRUE (not NOT col) because is_fenced/is_natsec/is_qa
+// are nullable — NULL means "not yet scanned." Jobs that passed the gate at
+// ingestion via the COALESCE regex fallback may have NULL flags. IS NOT TRUE
+// treats NULL as not-fenced (permissive), matching the COALESCE(..., false)
+// semantics in gate-1-2.ts. After flag re-backfill, NULLs should be rare.
+//
+// Note: the directive mentions "NOT blacklisted" but no blacklisted column
+// exists on the job table. The blocklist is persona-level (blocklistTags &&
+// job.extractedTags), already checked at matching time. The company-level
+// isAgency flag is a scoring signal, not a hard gate. Only the four filters
+// below are applied at serving time.
+const serveTimeGateFilter = sql`(
+  ${job.remoteScope}::text = 'global'
+  AND ${job.isFenced} IS NOT TRUE
+  AND ${job.isNatsec} IS NOT TRUE
+  AND ${job.isQa} IS NOT TRUE
+)`;
+
 /** A match row joined with job + persona data for the dashboard list. */
 export type MatchRow = {
   matchQueueId: string;
@@ -312,8 +342,12 @@ export async function getMatches(
     )
     .where(
       statusFilter
-        ? and(eq(matchQueue.applicantId, userId), statusFilter)
-        : eq(matchQueue.applicantId, userId),
+        ? and(
+            eq(matchQueue.applicantId, userId),
+            statusFilter,
+            serveTimeGateFilter,
+          )
+        : and(eq(matchQueue.applicantId, userId), serveTimeGateFilter),
     )
     .orderBy(
       ...(sort === "newest"
@@ -386,10 +420,15 @@ export async function getMatchesCount(
   const rows = await db
     .select({ cnt: count() })
     .from(matchQueue)
+    .innerJoin(job, eq(matchQueue.jobId, job.id))
     .where(
       statusFilter
-        ? and(eq(matchQueue.applicantId, userId), statusFilter)
-        : eq(matchQueue.applicantId, userId),
+        ? and(
+            eq(matchQueue.applicantId, userId),
+            statusFilter,
+            serveTimeGateFilter,
+          )
+        : and(eq(matchQueue.applicantId, userId), serveTimeGateFilter),
     );
 
   return rows[0]?.cnt ?? 0;
@@ -402,9 +441,8 @@ export async function getMatchesCount(
  * rows WHERE is_read = false AND status = 'approved'. This is a tiny fraction
  * of total matches, so the index is very small and fast.
  *
- * Resilient: if the DB query fails (e.g. transient WebSocket connection issue
- * with the Neon serverless driver in the Turbopack dev server), returns 0
- * instead of crashing the dashboard layout. The badge is non-critical UI.
+ * Resilient: if the DB query fails (e.g. transient connection issue),
+ * returns 0 instead of crashing the dashboard layout. The badge is non-critical UI.
  *
  * @param userId  The authenticated user's ID
  * @returns       Count of unread approved matches (0 if none or on error)
@@ -414,11 +452,13 @@ export async function getUnreadBadgeCount(userId: string): Promise<number> {
     const rows = await db
       .select({ cnt: count() })
       .from(matchQueue)
+      .innerJoin(job, eq(matchQueue.jobId, job.id))
       .where(
         and(
           eq(matchQueue.applicantId, userId),
           eq(matchQueue.isRead, false),
           eq(matchQueue.status, "approved"),
+          serveTimeGateFilter,
         ),
       );
 
@@ -482,7 +522,11 @@ export async function getMatchDetail(
     .innerJoin(job, eq(matchQueue.jobId, job.id))
     .innerJoin(persona, eq(matchQueue.personaId, persona.id))
     .where(
-      and(eq(matchQueue.id, matchQueueId), eq(matchQueue.applicantId, userId)),
+      and(
+        eq(matchQueue.id, matchQueueId),
+        eq(matchQueue.applicantId, userId),
+        serveTimeGateFilter,
+      ),
     )
     .limit(1);
 

@@ -24,9 +24,9 @@
 // clone → parse frontmatter → pre-filter → extract (name, website, careers_url)
 // → Slugger ATS resolution → Fingerprint v2 stack gate → probation queue
 //
-// Discovery runs on the Mac Mini (cade) — zero Neon compute. The Slugger's
+// Discovery runs on the Mac Mini (cade) — zero server compute. The Slugger's
 // DB cache check is a single indexed SELECT (negligible). DNS CNAME lookups
-// and HTTP slug probes are free (no Neon involvement).
+// and HTTP slug probes are free.
 //
 // ── Est. yield ───────────────────────────────────────────────────────────────
 // 881 total companies → ~235 pass pre-filter → ~30-60% resolve to ATS

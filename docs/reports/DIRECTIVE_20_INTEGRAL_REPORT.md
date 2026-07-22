@@ -206,6 +206,8 @@ Not a bug. The function was running but returning early with 0 jobs to process. 
 
 30-sample fence recall audit: **0% false-fence rate.** The D19 fence backfill (2,926 of 3,281 jobs fenced) is correct per the D11 regex. No good jobs are being incorrectly fenced.
 
+**Statistical honesty note (D21):** A 0/30 sample does not prove zero false-fence rate. The 95% Clopper-Pearson confidence interval for 0/30 has an upper bound of ~11.6%. The true false-fence rate could be as high as ~12% and still produce 0/30 by chance. This audit confirms the fence is not catastrophically broken (not 25%+), but a larger sample (n≥200 for ±2% precision) is needed for production confidence. The D21 re-backfill (which fixed the `\b` regex bug in the migration SQL and added 39 newly-fenced jobs) may have introduced new false positives that were not part of this audit sample.
+
 ---
 
 ## CLOSEOUT — 2026-07-21 SESSION
