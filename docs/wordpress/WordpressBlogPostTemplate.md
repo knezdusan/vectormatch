@@ -301,25 +301,31 @@ Place CTAs in **2–4 locations** depending on length:
 #### BLOCK G — FAQ Section (Required for most posts)
 **Purpose:** AEO/GEO optimization, featured snippets, and FAQPage schema.
 
-```markdown
-## Frequently Asked Questions
+**Data flow:** put the FAQ data in the `faq` array of the post JSON. Keep the `content_html` free of hand-written FAQ markup. Instead, insert the placeholder `[[FAQ]]` where the FAQ section should appear. The publishing pipeline renders it using the shared component.
 
-### [Question 1 directly related to the post topic?]
-[Concise answer, 40–80 words.]
+**Shared component:**
+- `docs/wordpress/lib/faq_component.html` — presentational wrapper.
+- `docs/wordpress/lib/faq_component.py` — renderer; call `render_faq(faq_items)` or run the script with a `faq.json` file.
 
-### [Question 2?]
-[Concise answer.]
+```json
+"faq": [
+  {
+    "question": "[Question directly related to the post topic?]",
+    "answer": "[Concise answer, 40–80 words.]"
+  }
+]
+```
 
-### [Question 3?]
-[Concise answer.]
+```html
+<!-- Do not write this by hand; use the [[FAQ]] placeholder -->
+[[FAQ]]
 ```
 
 **Rules:**
-- Use Rank Math FAQ block or Gutenberg headings + paragraphs that Rank Math can mark up.
 - 3–5 questions.
 - Questions should be phrased the way a developer would search them.
 - Answers must be accurate and self-contained.
-- Mark the section with `FAQPage` schema.
+- The component emits `FAQPage` JSON-LD schema automatically; enable `FAQPage` in the post `schema_types` field.
 
 ---
 

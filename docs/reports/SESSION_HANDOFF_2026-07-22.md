@@ -369,3 +369,62 @@ reflect all D11-D20 work. They are committed and in sync with the codebase.
 The gates are sealed (D19). The pipes are unfrozen (D20). The infrastructure
 is hardened (VPS Postgres, backups, monitoring). The governing docs are
 updated. August is the proof month.
+
+---
+
+## 8. JOB DETAIL PAGE FIX — 2026-07-22 (Session 3)
+
+### Problem
+
+The job detail page (`/dashboard/jobs/[matchId]`) crashed with a 500 server
+error ("This page couldn't load") for all matches. The error only appeared
+after the Neon → VPS PostgreSQL migration.
+
+### Root Cause
+
+Migration `0056_ambitious_argent` was never applied to the new VPS Postgres
+database after the Neon → VPS migration. This migration adds the
+`description_html` column to the `job` table. The `getMatchDetail` query in
+`src/lib/jobs/dashboard-queries.ts` selects `job.descriptionHtml`, causing:
+
+```
+column "description_html" of relation "job" does not exist
+```
+
+The raw SQL files (`0056_d20_dismiss_reason.sql`, `0057_d20_certstream_enum.sql`)
+were applied manually to the VPS DB, but the Drizzle-tracked migration
+`0056_ambitious_argent` (which bundles the `description_html` column addition
+with the dismiss_reason enum and certstream enum value) was skipped. This left
+the Drizzle migration journal out of sync with the actual DB state.
+
+### Fix Applied
+
+1. **Added the missing column** directly on the VPS Postgres container:
+   ```sql
+   ALTER TABLE "job" ADD COLUMN IF NOT EXISTS "description_html" text;
+   ```
+
+2. **Updated Drizzle migration tracking** — inserted records for migrations
+   0055 and 0056 into `drizzle.__drizzle_migrations` so future
+   `drizzle-kit migrate` runs won't try to re-apply them (which would fail
+   since most of their content was already applied manually via raw SQL).
+
+### Verification
+
+- Production page `https://vectormatch.dev/dashboard/jobs/5f23364c-...` now
+  returns HTTP 200 (previously 500).
+- No `description_html` or `does not exist` errors in production Docker logs.
+- The `description_html` column is confirmed present in the `job` table.
+- Drizzle migration tracking table is up to date (IDs 52–53 = migrations 0055–0056).
+
+### Lessons for Future Migrations
+
+When applying raw SQL migrations manually (outside `drizzle-kit migrate`):
+1. **Always check if the migration is also Drizzle-tracked** — if so, update
+   the `drizzle.__drizzle_migrations` table with the correct hash and timestamp.
+2. **Verify all columns/enums from the Drizzle snapshot** are present after
+   manual migration application — the Drizzle-generated SQL may bundle multiple
+   changes that get split across separate raw SQL files.
+3. **The `0056_ambitious_argent.sql` Drizzle migration bundles 3 changes**:
+   dismiss_reason enum, certstream enum value, and description_html column.
+   The first two were applied via raw SQL files, but the third was missed.
