@@ -106,6 +106,27 @@ describe("formatDescriptionHtml", () => {
     expect(html).toContain("<p>3 years of React.</p>");
   });
 
+  it("extracts description from JSON-LD stored as normalizedText", () => {
+    // Simulates the real larajobs case: the JSON has literal newlines inside
+    // string values, making JSON.parse fail. The regex fallback should still
+    // extract the description field.
+    const normalizedText =
+      '{"@context":"https://schema.org","@type":"JobPosting","title":"Senior Laravel Engineer","description":"About us\\n\\n' +
+      "At HelpBnk, we build infrastructure.\n\n" +
+      'Requirements\n\n5+ years Laravel.","datePosted":"2026-07-15"}';
+
+    const html = formatDescriptionHtml({ normalizedText });
+    expect(html).toBeTruthy();
+    expect(html).toContain("<h3>About us</h3>");
+    expect(html).toContain("<p>At HelpBnk, we build infrastructure.</p>");
+    expect(html).toContain("<h3>Requirements</h3>");
+    expect(html).toContain("<p>5+ years Laravel.</p>");
+    // The JSON wrapper must NOT appear in the output
+    expect(html).not.toContain("@context");
+    expect(html).not.toContain("@type");
+    expect(html).not.toContain("JobPosting");
+  });
+
   it("returns null when no content is available", () => {
     expect(formatDescriptionHtml({})).toBeNull();
     expect(formatDescriptionHtml({ rawJson: "{}" })).toBeNull();

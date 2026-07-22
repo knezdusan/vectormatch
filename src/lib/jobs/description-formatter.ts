@@ -334,6 +334,33 @@ function extractJsonLdDescription(obj: Record<string, unknown>): string | null {
   return null;
 }
 
+/**
+ * Regex-based fallback for extracting the `description` field from a JSON-LD
+ * JobPosting string that contains literal (unescaped) control characters,
+ * which make `JSON.parse` fail. This handles the case where a legacy normalizer
+ * stored the raw JSON-LD blob (with embedded newlines) as `normalizedText`.
+ */
+function extractJsonLdDescriptionRegex(text: string): string | null {
+  if (!text.includes('"@type"') || !text.includes('"description"')) {
+    return null;
+  }
+
+  // Match "description":"..." — the value extends to the next unescaped quote
+  // followed by a comma or closing brace. Literal newlines inside the value
+  // are preserved.
+  const match = text.match(/"description"\s*:\s*"([\s\S]*?)"\s*[,}]/);
+  if (!match || !match[1]) return null;
+
+  // Unescape JSON string escapes: \n → newline, \t → tab, \" → quote, \\ → backslash
+  const desc = match[1]
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\");
+
+  return desc.trim().length > 0 ? desc : null;
+}
+
 function extractBestDescription(
   rawJson: string,
   atsSource: string | null,
@@ -342,6 +369,13 @@ function extractBestDescription(
   try {
     parsed = JSON.parse(rawJson);
   } catch {
+    // JSON.parse failed — likely due to literal control characters in string
+    // values (a legacy normalizer issue). Try a regex-based extraction for
+    // JSON-LD JobPosting descriptions before giving up.
+    const regexDesc = extractJsonLdDescriptionRegex(rawJson);
+    if (regexDesc) {
+      return { raw: regexDesc, isHtml: false };
+    }
     return null;
   }
 
@@ -474,6 +508,18 @@ export function formatDescriptionHtml(
   }
 
   if (input.normalizedText) {
+    // Some legacy normalizers stored the raw JSON-LD blob as normalizedText
+    // instead of extracting the description field. Try to parse it as JSON-LD
+    // before falling back to plain-text formatting.
+    const trimmed = input.normalizedText.trim();
+    if (trimmed.startsWith("{") && trimmed.includes('"@type"')) {
+      const fromNorm = extractBestDescription(trimmed, atsSource);
+      if (fromNorm) {
+        const html = formatDescriptionString(fromNorm.raw, fromNorm.isHtml);
+        if (html) return html;
+      }
+    }
+
     return formatDescriptionString(input.normalizedText, false);
   }
 

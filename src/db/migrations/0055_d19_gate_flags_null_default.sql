@@ -28,18 +28,18 @@ UPDATE "job" SET "is_qa" = NULL WHERE "is_qa" = false;--> statement-breakpoint
 -- short location strings that indicate country-fencing.
 UPDATE "job" SET "is_fenced" = true WHERE "is_fenced" IS NULL AND (
   title ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
-  OR title ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+  OR title ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\M'
   OR title ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
-  OR title ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+  OR title ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\M'
   OR title ~* 'Remote\s+within\s+'
   OR title ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
   OR COALESCE(location_name, '') ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
-  OR COALESCE(location_name, '') ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+  OR COALESCE(location_name, '') ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\M'
   OR COALESCE(location_name, '') ~* 'Remote\s*[\[(]\s*(U\.?S\.?A?\.?|United States|USA)\s*[\])]'
-  OR COALESCE(location_name, '') ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\b'
+  OR COALESCE(location_name, '') ~* 'Remote\s*[,;:-]\s*(U\.?S\.?A?\.?|United States|USA)\M'
   OR COALESCE(location_name, '') ~* 'Remote\s+within\s+'
   OR COALESCE(location_name, '') ~* 'Remote\s*[;,-]\s*(Argentina|Brazil|Colombia|Mexico|Canada|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|UK|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
-  OR COALESCE(location_name, '') ~* 'Remote\s*,\s*[A-Za-z]{2}\b'
+  OR COALESCE(location_name, '') ~* 'Remote\s*,\s*[A-Za-z]{2}\M'
   OR COALESCE(location_name, '') ~* '(European Union|NAMER|EMEA|APAC|LATAM|North America|South America|Middle East|Balkans|Eastern Europe|Western Europe|Nordics|Scandinavia|DACH|Benelux)'
   OR COALESCE(location_name, '') ~* '(United States|USA|Canada|Argentina|Brazil|Colombia|Mexico|Germany|France|Spain|Italy|Portugal|Netherlands|Poland|Ukraine|India|Pakistan|Philippines|Australia|United Kingdom|England|Scotland|Wales|Ireland|Sweden|Norway|Denmark|Finland|Belgium|Switzerland|Austria|Greece|Romania|South Africa|Nigeria|Kenya|Egypt|Morocco|Israel|Turkey|Japan|South Korea|Singapore|Hong Kong|New Zealand)'
   OR (length(trim(COALESCE(location_name, ''))) <= 5 AND COALESCE(location_name, '') ~* '\mus\M')
@@ -49,9 +49,11 @@ UPDATE "job" SET "is_fenced" = true WHERE "is_fenced" IS NULL AND (
     AND (COALESCE(location_name, '') ~* ';' OR COALESCE(location_name, '') ~* '^[a-z].*,\s*[a-z]' OR length(trim(COALESCE(location_name, ''))) < 50)
   )
   -- D19: E-Verify + federal work-eligibility language → country_fenced(US)
-  OR COALESCE(normalized_text, '') ~* '\be-?verify\b'
-  OR COALESCE(normalized_text, '') ~* '\beligibility\s+to\s+work\s+in\s+(?:the\s+)?(?:u\.?s\.?a?\.?|united\s+states)\b'
-  OR COALESCE(normalized_text, '') ~* '\bauthorized\s+to\s+work\s+in\s+(?:the\s+)?(?:u\.?s\.?a?\.?|united\s+states)\b'
+  -- D21 FIX: PostgreSQL POSIX regex uses \m (word start) and \M (word end),
+  -- NOT \b (which is backspace). The original \b patterns never matched.
+  OR COALESCE(normalized_text, '') ~* '\me-?verify\M'
+  OR COALESCE(normalized_text, '') ~* '\meligibility\s+to\s+work\s+in\s+(?:the\s+)?(?:u\.?s\.?a?\.?|united\s+states)\M'
+  OR COALESCE(normalized_text, '') ~* '\mauthorized\s+to\s+work\s+in\s+(?:the\s+)?(?:u\.?s\.?a?\.?|united\s+states)\M'
 );--> statement-breakpoint
 
 -- Step 4: Regex backfill — set is_natsec = TRUE for rows that match the

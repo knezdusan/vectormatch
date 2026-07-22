@@ -5068,37 +5068,33 @@ export const dailySourceD5WwrRss = inngest.createFunction(
 );
 
 /**
- * D6: CertStream batch processing — Slugger (CT log domain matches).
- * Runs at 10:00 UTC.
+ * D6: CertStream batch processing — RETIRED in D21.
+ *
+ * The upstream CertStream WebSocket (wss://certstream.calidog.io/) is
+ * degraded/discontinued (connects but delivers 0 messages). Rather than
+ * self-host a certstream-server container, we rely on the existing
+ * `batch-source-crt-sh` function (B8) which queries crt.sh for the same
+ * ATS domains via HTTP. crt.sh provides historical CT log coverage with
+ * higher yield (300-1,000 companies vs CertStream's 5-20/day) and no
+ * WebSocket dependency.
+ *
+ * This function is kept as a tombstone for the function ID — Inngest
+ * requires the function to remain registered to avoid stale runs.
  */
 export const dailySourceD6CertStream = inngest.createFunction(
   {
     id: "daily-source-certstream",
-    name: "Daily Source — CertStream",
-    // D21: KEEP FROZEN — upstream CertStream service degraded/possibly
-    // discontinued (connects, 0 messages). Replacement planned: self-host
-    // certstream-server container or poll CT logs via crt.sh directly.
+    name: "Daily Source — CertStream (RETIRED — replaced by crt.sh)",
+    // D21: RETIRED — replaced by batch-source-crt-sh (B8).
+    // Keeping the function registered as a tombstone to prevent stale runs.
     triggers: [],
   },
-  async ({ step }) => {
-    const { runCertStreamProcessor } = await import(
-      "@/lib/jobs/seeders/daily-sources/certstream-processor"
-    );
-    return runSourceFunction({
-      step,
-      sourceName: "daily-source-certstream",
-      logSource: "certstream",
-      execute: () =>
-        step.run("collect-and-process", async () =>
-          runCertStreamProcessor(fetch),
-        ),
-      buildLogEntry: (r) => ({
-        itemsProcessed: r.totalCertificates,
-        itemsInserted: r.resolved,
-        itemsRejected: 0,
-        itemsSkipped: r.unresolved,
-      }),
-    });
+  async () => {
+    return {
+      triggered: false,
+      reason:
+        "RETIRED in D21 — replaced by batch-source-crt-sh (B8). Upstream CertStream WebSocket is degraded.",
+    };
   },
 );
 
@@ -5845,12 +5841,17 @@ export const batchSourceB10SitemapProbe = inngest.createFunction(
  * TLS certificates. Restores the coverage lost when Rapid7 FDNS (commercial)
  * was disabled. Free, no-auth, wildcard queries against CT logs.
  * Sprint 4 Task 2.
+ *
+ * D21: Promoted to weekly cadence (every Monday 02:00 UTC) to replace the
+ * retired CertStream real-time WebSocket (D6). crt.sh provides historical CT
+ * log coverage with higher yield (300-1,000 companies) and no WebSocket
+ * dependency.
  */
 export const batchSourceB8CrtSh = inngest.createFunction(
   {
     id: "batch-source-crt-sh",
     name: "Batch Source — crt.sh Certificate Transparency",
-    triggers: [{ event: "batch/crt-sh" }, { cron: "0 0 1 * *" }],
+    triggers: [{ event: "batch/crt-sh" }, { cron: "0 2 * * 1" }],
   },
   async ({ step }) => {
     const { runCrtShBatch } = await import(
