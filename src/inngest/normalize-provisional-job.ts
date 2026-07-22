@@ -220,11 +220,14 @@ export const normalizeProvisionalJob = inngest.createFunction(
         .replace(/\s+/g, " ")
         .trim();
 
+      const htmlDescription = sanitized.trim().length > 0 ? sanitized : null;
+
       if (cleanedText.length < 100) {
         return {
           status: "rejected" as const,
           reason: "content_too_short",
           cleanedText,
+          htmlDescription,
         };
       }
 
@@ -234,6 +237,7 @@ export const normalizeProvisionalJob = inngest.createFunction(
       return {
         status: "normalized" as const,
         cleanedText,
+        htmlDescription,
         textHash: newTextHash,
         dedup,
       };
@@ -247,6 +251,7 @@ export const normalizeProvisionalJob = inngest.createFunction(
           .set({
             status: "rejected",
             normalizedText: extraction.cleanedText,
+            descriptionHtml: extraction.htmlDescription,
             normalizedAt: new Date(),
             // Clear the in-flight flag
             retryInFlight: false,
@@ -331,6 +336,7 @@ export const normalizeProvisionalJob = inngest.createFunction(
         .update(job)
         .set({
           normalizedText: extraction.cleanedText,
+          descriptionHtml: extraction.htmlDescription,
           textHash: extraction.textHash,
           jobEmbedding: embedding,
           remoteScope: scopeResult.remoteScope,

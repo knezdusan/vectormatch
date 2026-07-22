@@ -2958,6 +2958,8 @@ export const jobIngestedHandler = inngest.createFunction(
             // G7: store cleaned text in normalizedText, NULL rawJson to
             // reclaim storage (~15KB → ~3KB). Gate 3 reads normalizedText.
             normalizedText: normalization.fullText,
+            // Sanitized, candidate-facing HTML for the job detail pages.
+            descriptionHtml: normalization.htmlDescription,
             rawJson: null,
             normalizedAt: new Date(),
             // AI-generated candidate-facing summary (added July 2026).
@@ -2992,6 +2994,8 @@ export const jobIngestedHandler = inngest.createFunction(
             // G7: reclaim storage from garbage jobs too. Keep normalizedText
             // for debugging why the job was rejected.
             normalizedText: normalization.fullText,
+            // Persist sanitized HTML for rejected-job tombstones too.
+            descriptionHtml: normalization.htmlDescription,
             rawJson: null,
             normalizedAt: new Date(),
             // Persist the original listing URL before rawJson is nullified.

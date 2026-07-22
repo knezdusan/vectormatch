@@ -11,6 +11,15 @@
 import * as cheerio from "cheerio";
 import type { AnyNode, Element } from "domhandler";
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 const ALLOWED_TAGS = new Set([
   "a",
   "b",
@@ -101,4 +110,64 @@ export function sanitizeJobDescription(html: string): string {
   });
 
   return $.html() ?? "";
+}
+
+/**
+ * Convert a plain-text job description into safe, minimal HTML.
+ *
+ * - Paragraphs separated by blank lines become `<p>` blocks.
+ * - Single line breaks inside a paragraph become `<br>`.
+ * - Lines that look like bullet lists (starting with `- `, `* `, `• `) are
+ *   grouped into `<ul>`/`<li>`.
+ * - Lines that look like numbered lists (`1. `, `2. `, etc.) are grouped into
+ *   `<ol>`/`<li>`.
+ *
+ * The output is safe to render with `dangerouslySetInnerHTML` — all text is
+ * HTML-escaped before any tags are inserted.
+ */
+export function plainTextToDescriptionHtml(text: string): string {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return "";
+  }
+
+  const paragraphs = trimmed.split(/\n\n+/);
+
+  const htmlParts: string[] = [];
+  for (const paragraph of paragraphs) {
+    const lines = paragraph
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      continue;
+    }
+
+    const bulletMatch = lines.every((line) => /^[-*•]\s/.test(line));
+    const numberedMatch = lines.every((line) => /^\d+\.\s/.test(line));
+
+    if (bulletMatch) {
+      const items = lines
+        .map((line) => line.replace(/^[-*•]\s*/, ""))
+        .map((line) => `<li>${escapeHtml(line)}</li>`)
+        .join("");
+      htmlParts.push(`<ul>${items}</ul>`);
+    } else if (numberedMatch) {
+      const items = lines
+        .map((line) => line.replace(/^\d+\.\s*/, ""))
+        .map((line) => `<li>${escapeHtml(line)}</li>`)
+        .join("");
+      htmlParts.push(`<ol>${items}</ol>`);
+    } else {
+      const inner = lines.map(escapeHtml).join("<br>");
+      htmlParts.push(`<p>${inner}</p>`);
+    }
+  }
+
+  return htmlParts.join("");
 }

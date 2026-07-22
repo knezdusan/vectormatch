@@ -90,6 +90,7 @@ export type MatchDetail = {
     atsSlug: string;
     rawJson: string | null;
     normalizedText: string | null;
+    descriptionHtml: string | null;
     extractedTags: string[] | null;
     applyUrl: string | null;
     jobUrl: string | null;
@@ -468,6 +469,7 @@ export async function getMatchDetail(
       jobAtsSlug: job.atsSlug,
       jobRawJson: job.rawJson,
       jobNormalizedText: job.normalizedText,
+      jobDescriptionHtml: job.descriptionHtml,
       jobExtractedTags: job.extractedTags,
       jobApplyUrl: job.applyUrl,
       jobUrl: job.jobUrl,
@@ -510,6 +512,7 @@ export async function getMatchDetail(
       atsSlug: r.jobAtsSlug,
       rawJson: r.jobRawJson,
       normalizedText: r.jobNormalizedText,
+      descriptionHtml: r.jobDescriptionHtml,
       extractedTags: r.jobExtractedTags,
       applyUrl: r.jobApplyUrl,
       jobUrl: r.jobUrl,

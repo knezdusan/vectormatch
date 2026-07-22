@@ -54,6 +54,7 @@ export interface PublicJobRow {
   companyName: string | null;
   shortDescription: string | null;
   normalizedText: string | null;
+  descriptionHtml: string | null;
   rawJson: string | null;
   workplaceType: string | null;
   remoteScope: string | null;

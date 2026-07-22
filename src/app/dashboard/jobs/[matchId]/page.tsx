@@ -19,7 +19,7 @@ import { getAuthSession } from "@/lib/auth";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
 import { getMatchDetail } from "@/lib/jobs/dashboard-queries";
 import { extractJobContent, extractJobUrl } from "@/lib/jobs/job-normalizer";
-import { sanitizeJobDescription } from "@/lib/jobs/sanitize-html";
+import { plainTextToDescriptionHtml } from "@/lib/jobs/sanitize-html";
 
 export const metadata = {
   title: "Match Detail | VectorMatch",
@@ -95,15 +95,6 @@ export default async function MatchDetailPage({
     notFound();
   }
 
-  // Extract job description — prefer normalizedText (G7, post-normalization
-  // cleaned text) over rawJson (which is NULLed after normalization).
-  const jobContent = extractJobContent(
-    match.job.atsSource,
-    match.job.rawJson,
-    match.job.title,
-    match.job.normalizedText,
-  );
-
   // Prefer the persisted job-specific posting URL (set during normalization
   // before G7 nullifies rawJson). Fall back to the company-wide hosted board
   // URL when no per-job URL exists. For legacy jobs normalized before the
@@ -116,6 +107,25 @@ export default async function MatchDetailPage({
     extractJobUrl(match.job.atsSource, match.job.rawJson) ??
     match.job.applyUrl ??
     hostedBoardUrl;
+
+  // Build the best candidate-facing HTML we have. New jobs store
+  // descriptionHtml. Legacy jobs may still carry rawJson (pre-G7) or only
+  // normalizedText; we derive HTML from whichever source is available.
+  let displayDescriptionHtml = match.job.descriptionHtml;
+  if (!displayDescriptionHtml && match.job.rawJson) {
+    const legacy = extractJobContent(
+      match.job.atsSource,
+      match.job.rawJson,
+      match.job.title,
+      null,
+    );
+    displayDescriptionHtml = legacy.htmlDescription;
+  }
+  if (!displayDescriptionHtml && match.job.normalizedText) {
+    displayDescriptionHtml = plainTextToDescriptionHtml(
+      match.job.normalizedText,
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -379,17 +389,17 @@ export default async function MatchDetailPage({
         )}
 
         {/* Full description */}
-        {jobContent.description ? (
+        {displayDescriptionHtml ? (
           <div
             // biome-ignore lint: sanitized HTML from ATS job descriptions; scripts, event handlers, and non-semantic tags are stripped in sanitizeJobDescription.
             dangerouslySetInnerHTML={{
-              __html: sanitizeJobDescription(jobContent.description),
+              __html: displayDescriptionHtml,
             }}
             className="text-sm text-foreground leading-relaxed [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-1 [&_a]:text-primary [&_a]:underline [&_strong]:font-semibold [&_em]:italic [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1"
           />
         ) : (
           <p className="text-sm text-muted-foreground italic">
-            No description available in raw JSON.
+            No description available.
           </p>
         )}
       </Card>

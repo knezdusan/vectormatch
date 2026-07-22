@@ -356,7 +356,12 @@ export async function insertAggregatorJob(
     applyUrl?: string;
     publishedAt?: Date;
   },
-  normalization: { fullText: string; tags: string[]; jobUrl?: string | null },
+  normalization: {
+    fullText: string;
+    htmlDescription: string | null;
+    tags: string[];
+    jobUrl?: string | null;
+  },
   embedding: number[],
 ): Promise<string | null> {
   const embeddingStr = `[${embedding.join(",")}]`;
@@ -370,6 +375,7 @@ export async function insertAggregatorJob(
       title: aggregatorJob.title,
       rawJson: null, // G7: no ATS JSON for aggregator jobs
       normalizedText: normalization.fullText, // G7: cleaned text
+      descriptionHtml: normalization.htmlDescription,
       extractedTags: normalization.tags,
       jobEmbedding: embeddingStr as never,
       status: "active",

@@ -35,6 +35,10 @@ import {
 } from "@/lib/jobs/location-utils";
 import { GATE_NORMALIZATION_MIN_PERSONA_TAGS } from "@/lib/jobs/matching-config";
 import {
+  plainTextToDescriptionHtml,
+  sanitizeJobDescription,
+} from "@/lib/jobs/sanitize-html";
+import {
   CANONICAL_TAG_MAP,
   CANONICAL_TAGS,
   PERSONA_DEFINING_TAGS,
@@ -56,6 +60,8 @@ export type NormalizationResult = {
   tags: string[];
   /** title + " " + cleanedDescription — the input to the embedder. */
   fullText: string;
+  /** Sanitized, candidate-facing HTML for the job detail pages. */
+  htmlDescription: string | null;
   /** AI-generated 1–2 sentence candidate-facing summary of the job. Set for
    *  normalized jobs; may be set on rejected jobs if the LLM produced one before
    *  the rejection decision. */
@@ -130,16 +136,24 @@ export function extractJobContent(
   rawJson: string | null,
   fallbackTitle: string,
   normalizedText?: string | null,
-): { title: string; description: string; fullText: string } {
+): {
+  title: string;
+  description: string;
+  fullText: string;
+  htmlDescription: string | null;
+} {
   // G7 fast path: if normalizedText is already available (post-normalization),
   // return it directly. It's already HTML-stripped and cleaned — no parsing
   // or stripping needed. This is the read path used by gate3Evaluator and the
   // dashboard match detail page after the G7 migration.
+  // htmlDescription is not recoverable from plain text here; callers should
+  // read it from the persisted job.descriptionHtml column.
   if (typeof normalizedText === "string" && normalizedText.length > 0) {
     return {
       title: fallbackTitle,
       description: normalizedText,
       fullText: normalizedText,
+      htmlDescription: null,
     };
   }
 
@@ -149,6 +163,7 @@ export function extractJobContent(
       title: fallbackTitle,
       description: "",
       fullText: fallbackTitle,
+      htmlDescription: null,
     };
   }
 
@@ -161,6 +176,7 @@ export function extractJobContent(
       title: fallbackTitle,
       description: "",
       fullText: fallbackTitle,
+      htmlDescription: null,
     };
   }
 
@@ -169,6 +185,7 @@ export function extractJobContent(
       title: fallbackTitle,
       description: "",
       fullText: fallbackTitle,
+      htmlDescription: null,
     };
   }
 
@@ -179,7 +196,13 @@ export function extractJobContent(
       const title = typeof obj.title === "string" ? obj.title : fallbackTitle;
       const rawDesc = typeof obj.content === "string" ? obj.content : "";
       const description = stripHtml(rawDesc);
-      return { title, description, fullText: `${title} ${description}`.trim() };
+      const htmlDescription = toDescriptionHtml(rawDesc, true);
+      return {
+        title,
+        description,
+        fullText: `${title} ${description}`.trim(),
+        htmlDescription,
+      };
     }
     case "lever": {
       const title = typeof obj.text === "string" ? obj.text : fallbackTitle;
@@ -200,6 +223,18 @@ export function extractJobContent(
           : "");
       const description = plainDesc ? plainDesc : stripHtml(rawDesc);
 
+      // For display, prefer the HTML description when it exists; otherwise
+      // convert the plain-text description to minimal HTML.
+      const htmlDescRaw =
+        typeof obj.description === "string" && obj.description.length > 0
+          ? obj.description
+          : null;
+      const htmlDescription = htmlDescRaw
+        ? toDescriptionHtml(htmlDescRaw, true)
+        : plainDesc
+          ? toDescriptionHtml(plainDesc, false)
+          : null;
+
       // Lever jobs often store the actual tech requirements in a `lists`
       // array (sections like "Requirements", "Tech Stack", etc.) rather than
       // in the description fields. Extract and append list content so the
@@ -212,6 +247,7 @@ export function extractJobContent(
           ? `${description} ${listsText}`.trim()
           : description,
         fullText: `${title} ${description} ${listsText}`.trim(),
+        htmlDescription,
       };
     }
     case "ashby": {
@@ -237,7 +273,22 @@ export function extractJobContent(
           ? obj.descriptionHtml
           : "");
       const description = plainDesc ? plainDesc : stripHtml(rawDesc);
-      return { title, description, fullText: `${title} ${description}`.trim() };
+      const htmlDescRaw =
+        typeof obj.descriptionHtml === "string" &&
+        obj.descriptionHtml.length > 0
+          ? obj.descriptionHtml
+          : null;
+      const htmlDescription = htmlDescRaw
+        ? toDescriptionHtml(htmlDescRaw, true)
+        : plainDesc
+          ? toDescriptionHtml(plainDesc, false)
+          : null;
+      return {
+        title,
+        description,
+        fullText: `${title} ${description}`.trim(),
+        htmlDescription,
+      };
     }
     case "smartrecruiters": {
       // SmartRecruiters calls the title "name". The list endpoint does NOT
@@ -266,6 +317,7 @@ export function extractJobContent(
         // Extract text from jobAd sections (jobDescription, qualifications,
         // companyDescription, additionalInformation)
         const sectionTexts: string[] = [];
+        const sectionHtmlParts: string[] = [];
         for (const key of [
           "jobDescription",
           "qualifications",
@@ -277,15 +329,22 @@ export function extractJobContent(
             const text = section.text;
             if (typeof text === "string" && text.length > 0) {
               sectionTexts.push(stripHtml(text));
+              const sanitized = toDescriptionHtml(text, true);
+              if (sanitized) {
+                sectionHtmlParts.push(sanitized);
+              }
             }
           }
         }
         if (sectionTexts.length > 0) {
           const description = sectionTexts.join("\n\n");
+          const htmlDescription =
+            sectionHtmlParts.length > 0 ? sectionHtmlParts.join("") : null;
           return {
             title,
             description,
             fullText: `${title} ${description}`.trim(),
+            htmlDescription,
           };
         }
       }
@@ -343,7 +402,7 @@ export function extractJobContent(
       const fullText = parts.join(", ");
       // description stays empty — the list endpoint has no real description.
       // fullText is the synthesized pseudo-description used for embedding.
-      return { title, description: "", fullText };
+      return { title, description: "", fullText, htmlDescription: null };
     }
     case "workable": {
       const title = typeof obj.title === "string" ? obj.title : fallbackTitle;
@@ -353,7 +412,13 @@ export function extractJobContent(
           ? obj.description
           : "";
       const description = stripHtml(rawDesc);
-      return { title, description, fullText: `${title} ${description}`.trim() };
+      const htmlDescription = toDescriptionHtml(rawDesc, true);
+      return {
+        title,
+        description,
+        fullText: `${title} ${description}`.trim(),
+        htmlDescription,
+      };
     }
     case "recruitee": {
       const title = typeof obj.title === "string" ? obj.title : fallbackTitle;
@@ -367,7 +432,16 @@ export function extractJobContent(
           ? obj.requirements
           : "";
       const description = `${desc} ${req}`.trim();
-      return { title, description, fullText: `${title} ${description}`.trim() };
+      const htmlDescription = toDescriptionHtml(
+        [desc, req].filter(Boolean).join("\n\n"),
+        false,
+      );
+      return {
+        title,
+        description,
+        fullText: `${title} ${description}`.trim(),
+        htmlDescription,
+      };
     }
     default: {
       // Unknown ATS source — degrade to title-only.
@@ -375,6 +449,7 @@ export function extractJobContent(
         title: fallbackTitle,
         description: "",
         fullText: fallbackTitle,
+        htmlDescription: null,
       };
     }
   }
@@ -1622,18 +1697,43 @@ function parseIsActiveStatus(
  * Strip HTML tags and decode common entities. Lightweight regex approach —
  * no html-to-text dependency (checked package.json, not installed per
  * MODULE_C_DECISIONS.md §4.1).
+ *
+ * Block-level tags (p, div, h1-6, li, ul, ol, br) are converted to newlines
+ * so the cleaned text preserves paragraph and list structure. This cleaned
+ * text is used both for embeddings/tag scanning and as the fallback source
+ * for candidate-facing HTML when descriptionHtml is not available.
  */
 function stripHtml(html: string): string {
   return html
-    .replace(/<[^>]*>/g, " ") // strip tags → space (prevents word merging)
+    .replace(/<\/?(?:p|div|h[1-6]|li|ul|ol|br)\b[^>]*>/gi, "\n")
+    .replace(/<[^>]*>/g, " ") // remaining tags → space (prevents word merging)
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ") // collapse whitespace
+    .replace(/[ \t]+/g, " ") // collapse spaces/tabs, keep newlines
+    .replace(/\n{3,}/g, "\n\n") // collapse 3+ newlines to paragraph breaks
     .trim();
+}
+
+/**
+ * Normalize a raw ATS description into candidate-facing HTML.
+ *
+ * - HTML input is sanitized, leaving safe formatting tags intact.
+ * - Plain-text input is converted into paragraphs, line breaks, and lists.
+ * - Returns null when the input is empty or yields no usable content.
+ */
+function toDescriptionHtml(raw: string, isHtml: boolean): string | null {
+  if (!raw || typeof raw !== "string" || raw.trim().length === 0) {
+    return null;
+  }
+  const html = isHtml
+    ? sanitizeJobDescription(raw)
+    : plainTextToDescriptionHtml(raw);
+  const textOnly = html.replace(/<[^>]*>/g, "").replace(/\s+/g, "");
+  return textOnly.length > 0 ? html : null;
 }
 
 /**
@@ -1881,7 +1981,7 @@ export async function normalizeJob(
   summaryExtractor: LlmSummaryExtractor = summarizeJobLLM,
 ): Promise<NormalizationResult> {
   // Step 1: ATS-source-aware content extraction + job URL extraction.
-  const { fullText, title } = extractJobContent(
+  const { fullText, title, htmlDescription } = extractJobContent(
     atsSource,
     rawJson,
     fallbackTitle,
@@ -1899,6 +1999,7 @@ export async function normalizeJob(
       status: "rejected",
       tags: [],
       fullText,
+      htmlDescription,
       jobUrl,
       rejectionReason: "title_only" as const,
     };
@@ -1927,7 +2028,14 @@ export async function normalizeJob(
   // Step 4: If enough persona_defining tags → normalized + summary.
   if (definingCount >= GATE_NORMALIZATION_MIN_PERSONA_TAGS) {
     const summary = await safeSummarize();
-    return { status: "normalized", tags, fullText, summary, jobUrl };
+    return {
+      status: "normalized",
+      tags,
+      fullText,
+      htmlDescription,
+      summary,
+      jobUrl,
+    };
   }
 
   // Step 5: Phase 2 LLM fallback.
@@ -1942,7 +2050,14 @@ export async function normalizeJob(
     // Step 6: Recount after Phase 2.
     if (definingCount >= GATE_NORMALIZATION_MIN_PERSONA_TAGS) {
       const summary = await safeSummarize();
-      return { status: "normalized", tags, fullText, summary, jobUrl };
+      return {
+        status: "normalized",
+        tags,
+        fullText,
+        htmlDescription,
+        summary,
+        jobUrl,
+      };
     }
 
     // Still not enough persona_defining tags → rejected (tombstone).
@@ -1950,6 +2065,7 @@ export async function normalizeJob(
       status: "rejected",
       tags,
       fullText,
+      htmlDescription,
       jobUrl,
       rejectionReason: "no_tags" as const,
     };
@@ -1960,6 +2076,7 @@ export async function normalizeJob(
       status: "normalization_failed",
       tags,
       fullText,
+      htmlDescription,
       jobUrl,
       error: error instanceof Error ? error.message : String(error),
     };
@@ -2072,6 +2189,7 @@ export interface AggregatorJob {
 export function normalizeAggregatorJob(job: AggregatorJob): {
   status: "normalized" | "rejected";
   fullText: string;
+  htmlDescription: string | null;
   tags: string[];
   jobUrl: string | null;
 } {
@@ -2083,9 +2201,24 @@ export function normalizeAggregatorJob(job: AggregatorJob): {
   // Run regex tag extraction (same as ATS jobs)
   const tags = scanTagsRegex(combinedText);
   const jobUrl = job.applyUrl?.trim() || null;
+  // Heuristic: treat the raw description as HTML if it contains tags.
+  const looksLikeHtml = /<[^>]+>/.test(job.description);
+  const htmlDescription = toDescriptionHtml(job.description, looksLikeHtml);
   // Gate 0 check on title — reject non-engineering roles
   if (!passesGateZero(job.title)) {
-    return { status: "rejected", fullText: combinedText, tags, jobUrl };
+    return {
+      status: "rejected",
+      fullText: combinedText,
+      htmlDescription,
+      tags,
+      jobUrl,
+    };
   }
-  return { status: "normalized", fullText: combinedText, tags, jobUrl };
+  return {
+    status: "normalized",
+    fullText: combinedText,
+    htmlDescription,
+    tags,
+    jobUrl,
+  };
 }

@@ -32,6 +32,10 @@ export const job = pgTable(
     // extraction. rawJson is NULLed at the same time to reclaim storage. Gate 3
     // reads this instead of rawJson (no HTML stripping needed — already clean).
     normalizedText: text("normalized_text"),
+    // Sanitized, candidate-facing HTML version of the job description.
+    // Extracted from the ATS source before rawJson is nullified and rendered
+    // directly on job listing pages.
+    descriptionHtml: text("description_html"),
     extractedTags: text("extracted_tags")
       .array()
       .notNull()
