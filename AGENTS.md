@@ -10,7 +10,7 @@ Prioritize performance, accuracy, and developer-centric UX.
 - **TypeScript** (strict mode - enforced in tsconfig.json)
 - **Tailwind CSS 4.3.0** (**CRITICAL:** CSS-first configuration via `@theme`. There is NO `tailwind.config.js` or `postcss.config.js` in this project!)
 - **Shadcn/ui 4.8.0**
-- **Drizzle ORM** + PostgreSQL (Neon) with `pgvector`
+- **Drizzle ORM** + PostgreSQL 17 (self-hosted on VPS Docker) with `pgvector` — migrated from Neon to VPS Postgres on July 20 2026 (D20). See "Database & Infrastructure" section below for connection details.
 - **Better Auth** for authentication
 - **Inngest v4** for durable background jobs and workflows
 - **Vercel AI SDK** (gpt-4o for complex reasoning, gpt-4o-mini for scale, text-embedding-3-small)
@@ -206,15 +206,32 @@ npx playwright test --project=chromium
 
 ## Resources & References
 
-### Neon Database
-- **Connection with Drizzle ORM**: https://neon.com/docs/guides/drizzle
-- **Serverless driver patterns**: https://neon.com/docs/connect/serverless-driver
-- **Schema migrations with Drizzle**: https://neon.com/docs/guides/drizzle-migrations
-- **Neon Auth integration**: https://neon.com/docs/auth/overview
-- **pgvector for vector similarity**: https://neon.com/docs/extensions/pgvector
+### Database & Infrastructure (CRITICAL — read this first)
+
+**The production database is a self-hosted PostgreSQL 17 running in a Docker container on the Hetzner VPS.** It is NOT Neon anymore. The Neon → VPS migration was completed on July 20 2026 (D20). Neon connection strings are retained only for disaster recovery.
+
+**Production database access:**
+- **VPS SSH:** `ssh vectormatch-vps` (root@157.180.68.189, key-based auth via `~/.ssh/id_ed25519`)
+- **SSH config** (`~/.ssh/config`): includes `LocalForward 15432 10.0.1.10:5432` — establishes a tunnel on port 15432 when connecting
+- **Postgres container:** `z10g6zz09soe0ddwgpizteq2` (Docker container on the VPS)
+- **Postgres port:** 25432 (external, firewalled) / 5432 (internal Docker network)
+- **Database name / user:** `vectormatch` / `vectormatch`
+- **Direct psql from VPS:** `docker exec z10g6zz09soe0ddwgpizteq2 psql -U vectormatch -d vectormatch -c "SQL"`
+- **Local tunnel access:** `ssh -f -N vectormatch-vps` then connect to `localhost:15432` (use `pg` Pool or `node` with `pg` package — no `psql` binary on local Mac)
+- **Connection string pattern:** `postgresql://vectormatch:<password>@157.180.68.189:25432/vectormatch`
+
+**⚠️ Migration management warning:** Drizzle migrations are NOT automatically applied to the VPS Postgres. The `drizzle-kit migrate` command requires `DATABASE_URL` to be set locally with SSH tunnel access. When raw SQL migrations are applied manually (via `docker exec ... psql`), the `drizzle.__drizzle_migrations` tracking table must also be updated with the migration hash + timestamp, or future `drizzle-kit migrate` runs will fail or skip migrations. This caused a production outage on July 22 2026 when migration `0056_ambitious_argent` was never applied (the `description_html` column was missing from the `job` table).
+
+**Local development database:**
+- The local dev server (`npm run dev`) uses the same `DATABASE_URL` env var. If pointed at the VPS Postgres via SSH tunnel, it can query production data. If no `DATABASE_URL` is set, the lazy Proxy in `src/db/db.ts` defers Pool creation — the app starts but DB queries fail on first call.
+- There is no local Neon dev branch anymore. The Neon free tier is retained for disaster recovery only.
+
+### Neon Database (Historical — DR only)
+- **Status:** The Neon database is retained for disaster recovery only (JOB 4.2). Do NOT use Neon for app queries, scripts, or tests.
+- **Neon MCP server:** Still registered in `.devin/config.json` but connects to the old Neon project. Useful for DR verification only.
+- **Historical docs:** Connection with Drizzle ORM: https://neon.com/docs/guides/drizzle | pgvector: https://neon.com/docs/extensions/pgvector
 
 ### Drizzle ORM
-- **Official Drizzle with Neon guide**: https://orm.drizzle.team/docs/tutorials/drizzle-with-neon
 - **Drizzle Kit migrations**: https://orm.drizzle.team/docs/kit-overview
 - **Query patterns**: https://orm.drizzle.team/docs/goodies
 
@@ -331,8 +348,8 @@ Redis is required for production multi-worker deployments. It backs the Bottlene
 | Variable | Local | Production |
 |----------|-------|------------|
 | `INNGEST_DEV` | `1` | omit |
-| `INNGEST_EVENT_KEY` | dummy | Inngest Cloud dashboard |
-| `INNGEST_SIGNING_KEY` | dummy | Inngest Cloud dashboard |
+| `INNGEST_EVENT_KEY` | dummy | self-hosted Inngest (Coolify service) |
+| `INNGEST_SIGNING_KEY` | dummy | self-hosted Inngest (Coolify service) |
 | `INNGEST_SERVE_ORIGIN` | omit | `https://vectormatch.dev` |
 | `REDIS_URL` | omit | `redis://<coolify-redis>:6379` |
 
@@ -373,9 +390,9 @@ This project has **Google BigQuery MCP** integration for public dataset analysis
 - `analyze_contribution`: Perform key driver analysis
 - `forecast`: Time series forecasting
 
-**When to Use BigQuery MCP vs Neon**:
+**When to Use BigQuery MCP vs VPS Postgres**:
 - **BigQuery MCP**: Public dataset analysis (HTTP Archive, Hacker News), market intelligence, job market trend analysis, prototyping data ingestion strategies, exploratory data analysis
-- **Neon (via MCP)**: Transactional database operations, user/persona/job data, match queue operations, production database queries
+- **VPS Postgres (via SSH + psql/docker exec)**: Transactional database operations, user/persona/job data, match queue operations, production database queries. Access via `ssh vectormatch-vps` then `docker exec z10g6zz09soe0ddwgpizteq2 psql -U vectormatch -d vectormatch -c "SQL"`. The Neon MCP server still works but connects to the old (DR-only) Neon database — do NOT use it for production queries.
 
 **Use Cases for VectorMatch**:
 - Module B: Discover job boards and companies from public datasets (HTTP Archive, HN, SSL certificates)
@@ -403,6 +420,8 @@ VectorMatch is hosted on a Hetzner VPS managed by Coolify. The Coolify MCP serve
 - Investigating production health, status, or configuration of the VectorMatch app, Inngest, Redis, or other Coolify-managed services
 - Answering questions about the current deployment, FQDN, health checks, or resource limits
 - Discovering infrastructure context before making code or deployment decisions
+
+**Note:** The VPS Postgres container (`z10g6zz09soe0ddwgpizteq2`) is NOT managed by Coolify — it was deployed manually via `docker run`. Use SSH (`ssh vectormatch-vps`) + `docker exec` to inspect it, not the Coolify MCP. The Coolify MCP will not list it under databases.
 
 **Important Rules**:
 - The built-in Coolify MCP server is **read-only**. Do not attempt to restart, stop, or modify resources through the MCP server.

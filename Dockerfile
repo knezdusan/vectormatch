@@ -6,7 +6,7 @@
 # builds natively on whatever host Coolify runs (CX33 x86 / CAX21 ARM64).
 #
 # Build pack: set Coolify → Build Pack = "Dockerfile", Ports Exposes = 3000.
-# No build-time secrets required: src/db/db.ts lazily creates the Neon Pool on
+# No build-time secrets required: src/db/db.ts lazily creates the Postgres Pool on
 # first request, so DATABASE_URL is a runtime env var only (Coolify dashboard).
 # =============================================================================
 

@@ -29,13 +29,13 @@ def _strip_html_tags(text: str) -> str:
 
 
 def _build_item_html(question: str, answer: str, index: int) -> str:
-    """Render a single FAQ item using the shared presentational markup."""
+    """Render a single FAQ item as an accordion (details/summary)."""
     item_id = f"vm-faq-item-{index + 1}"
     return (
-        f'<article class="vm-faq-item" id="{item_id}">\n'
-        f'  <h3 class="vm-faq-question">{question}</h3>\n'
+        f'<details class="vm-faq-item" id="{item_id}">\n'
+        f'  <summary class="vm-faq-question" style="padding-left: 1rem; cursor: pointer;">{question}</summary>\n'
         f'  <div class="vm-faq-answer">{answer}</div>\n'
-        f"</article>\n"
+        f"</details>\n"
     )
 
 

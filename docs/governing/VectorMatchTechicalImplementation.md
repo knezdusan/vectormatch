@@ -731,7 +731,7 @@ curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
 
 Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in Coolify production environment variables.
 
-**Inngest free plan concurrency cap (June 2026):** The Inngest free plan limits function concurrency to 5 per function. All three concurrent functions (`pollCompanyFn`, `jobIngestedHandler`, `gate3Evaluator`) were lowered from their original values (50/15/15) to 5 to match this cap. The protective intent (limiting simultaneous operations to protect Hetzner CPU/RAM and the Neon pooler) is preserved — 5 is more conservative than the original limits. Upgrade the Inngest plan and raise the limits if higher throughput is needed post-MVP. The sync will fail with HTTP 400 (`"has higher concurrency limits than your plan limit"`) if the code declares a higher limit than the plan allows.
+**Inngest free plan concurrency cap (June 2026):** The Inngest free plan limits function concurrency to 5 per function. All three concurrent functions (`pollCompanyFn`, `jobIngestedHandler`, `gate3Evaluator`) were lowered from their original values (50/15/15) to 5 to match this cap. The protective intent (limiting simultaneous operations to protect Hetzner CPU/RAM and the Postgres connection pool) is preserved — 5 is more conservative than the original limits. Upgrade the Inngest plan and raise the limits if higher throughput is needed post-MVP. The sync will fail with HTTP 400 (`"has higher concurrency limits than your plan limit"`) if the code declares a higher limit than the plan allows.
 
 ### 3.9.5 Coding Rules for Inngest Functions
 
@@ -1499,10 +1499,10 @@ Do not use AWS API Gateway for Native ATS endpoints. They do not run TLS fingerp
 
 #### 4.4.1 Four Optimizations for Production Scalability
 
-Polling 100,000 HTTP requests daily from a single Hetzner CX33 (2 vCPU / 8GB RAM) will exhaust resources, max out the Neon database connection pool, and likely get the server's IP blacklisted. Four optimizations prevent this:
+Polling 100,000 HTTP requests daily from a single Hetzner CX33 (2 vCPU / 8GB RAM) will exhaust resources, max out the Postgres connection pool, and likely get the server's IP blacklisted. Four optimizations prevent this:
 
 **Optimization 1 — Strict Concurrency Limits:**
-- Inngest is capped at 5 maximum concurrent steps (Inngest free plan limit, June 2026; originally 50). This protects the Hetzner CPU/RAM and prevents the Neon Serverless Postgres pool from being overwhelmed.
+- Inngest is capped at 5 maximum concurrent steps (Inngest free plan limit, June 2026; originally 50). This protects the Hetzner CPU/RAM and prevents the Postgres connection pool from being overwhelmed.
 - The `bottleneck` npm package enforces a hard limit of 2 concurrent requests per second per ATS platform. Implementation: `maxConcurrent: 1, minTime: 500` per ATS source — guarantees strictly 2 req/s with no concurrent requests.
 
 **Optimization 2 — Separation of Heavy Compute:**
@@ -1612,7 +1612,7 @@ Jobs older than 90 days are permanently deleted because they have no matching va
 
 **Module C integration:** The 3-Gate query (§5.2) must filter `WHERE j.status = 'active'`. This ensures stale and gone jobs are never matched.
 
-**Why hard-delete instead of keeping gone jobs forever?** Neon free-tier storage is capped at 512 MB. At scale, tens of thousands of `gone` jobs consume meaningful space and increase query/index maintenance. The 90-day hard delete removes rows that are extremely unlikely to be re-posted with the same `externalJobId`. Match history is intentionally sacrificed for storage sustainability; this is acceptable because the primary value is current matches, not historical archives.
+**Why hard-delete instead of keeping gone jobs forever?** Historically, Neon free-tier storage was capped at 512 MB (the VPS Postgres has no such constraint, but the cleanup policy is retained for hygiene). At scale, tens of thousands of `gone` jobs consume meaningful space and increase query/index maintenance. The 90-day hard delete removes rows that are extremely unlikely to be re-posted with the same `externalJobId`. Match history is intentionally sacrificed for storage sustainability; this is acceptable because the primary value is current matches, not historical archives.
 
 **Why not delete gone jobs during normal cleanup?** The normal `staleCleanup` function marks jobs `gone` but does not delete them, so a re-posted job (same `externalJobId`) can be resurrected by the upsert. The separate 90-day hard-delete path is an explicit, auditable retention decision rather than an accidental data loss.
 
@@ -1690,7 +1690,7 @@ Module B (Poller)                          Module C (Router)
                                              9. Fan out Gate 3 LLM evaluation
 ```
 
-**G7 rawJson pruning (June 29 2026):** After normalization, the job's `rawJson` (~15KB) is NULLed and the cleaned text is stored in `normalizedText` (~3KB) — an 80% storage reduction per job. This prevents the `job` table from exceeding Neon's 512MB row limit when ATS responses are large (some Ashby responses are 50KB+). The `normalizedText` column was added via migration 0016. A one-time backfill script (`scripts/backfill-normalized-text.ts`) processed 4,491 existing jobs, reclaiming ~31MB. New jobs are pruned automatically by `jobIngestedHandler` during normalization. The dashboard's `extractJobContent` function reads from `normalizedText` (falling back to `rawJson` for pre-G7 jobs).
+**G7 rawJson pruning (June 29 2026):** After normalization, the job's `rawJson` (~15KB) is NULLed and the cleaned text is stored in `normalizedText` (~3KB) — an 80% storage reduction per job. This was originally motivated by Neon's 512MB storage limit (no longer a constraint on VPS Postgres, but the pruning is retained for storage hygiene). The `normalizedText` column was added via migration 0016. A one-time backfill script (`scripts/backfill-normalized-text.ts`) processed 4,491 existing jobs, reclaiming ~31MB. New jobs are pruned automatically by `jobIngestedHandler` during normalization. The dashboard's `extractJobContent` function reads from `normalizedText` (falling back to `rawJson` for pre-G7 jobs).
 
 **Why this boundary:**
 - **Testability:** Module B is tested by asserting `job` rows with `extractedTags = []` and `jobEmbedding = null`. Module C is tested by feeding it a job row and asserting tags/embedding are populated.
@@ -1878,9 +1878,9 @@ Eight tasks implemented across two sub-sessions (Sprint 4 + Sprint 4b). See `COR
 
 **Newsletter Expansion (B5):** `NEWSLETTER_SOURCES` in `src/lib/jobs/seeders/batch-sources/newsletter-archives.ts` expanded from 5 to 14 entries. Added Frontend Focus, Ruby Weekly, Go Weekly, Postgres Weekly, iOS Dev Weekly, Python Weekly, PyCoder's Weekly, DevOps Weekly, Kubernetes Weekly, Android Weekly, TLDR Newsletter.
 
-**Pre-Flight Storage Check:** New `src/lib/jobs/storage-check.ts` module — `getDatabaseSizeMb()` queries `pg_database_size()`, `isStorageSafeForRefresh()` returns false if storage > 450MB (88% of 512MB Neon free tier limit). Integrated as `check-storage` step in all 9 batch source Inngest functions — skips refresh and logs warning if storage is near limit.
+**Pre-Flight Storage Check:** New `src/lib/jobs/storage-check.ts` module — `getDatabaseSizeMb()` queries `pg_database_size()`, `isStorageSafeForRefresh()` returns false if storage > 450MB (originally 88% of 512MB Neon free tier limit; now a conservative hygiene threshold on VPS Postgres which has no such cap). Integrated as `check-storage` step in all 9 batch source Inngest functions — skips refresh and logs warning if storage is near limit.
 
-**Admin Dashboard — Infrastructure Health:** `src/components/admin/InfrastructureHealth.tsx` Server Component — displays Neon storage usage (current/limit/percentage, color-coded), Gate 2 threshold, and source health table with circuit breaker status per source. Data fetched via `src/lib/jobs/admin-queries.ts` (`getInfraStats`, `getAllSourceHealth`).
+**Admin Dashboard — Infrastructure Health:** `src/components/admin/InfrastructureHealth.tsx` Server Component — displays database storage usage (current/limit/percentage, color-coded — originally Neon storage, now VPS Postgres), Gate 2 threshold, and source health table with circuit breaker status per source. Data fetched via `src/lib/jobs/admin-queries.ts` (`getInfraStats`, `getAllSourceHealth`).
 
 **Admin Dashboard — Matching Funnel:** `src/components/admin/MatchingFunnel.tsx` Server Component — displays funnel analysis (total jobs → Gate 0 passed → Gate 1+2 candidates → Gate 3 approved → approval rate), tier distribution, quality score distribution, fusion score distribution, top companies by quality, and purge candidates. Data fetched via `src/lib/jobs/admin-queries.ts` (`getFunnelStats`, `getTierDistribution`, `getQualityScoreDistribution`, `getFusionScoreDistribution`, `getTopCompaniesByQuality`, `getPurgeCandidates`).
 
@@ -2024,7 +2024,7 @@ Updated `PipelineHealthMonitor.tsx` with new metric cards and alert display.
 **SQL Fixes (post-deploy):**
 1. `SELECT DISTINCT ... ORDER BY` incompatibility — removed unnecessary `DISTINCT` from `matchBulkReprocess` query (no JOIN, so no duplicates). Added `j.detected_at` to select list for `matchRetrySweep` (DISTINCT needed due to persona JOIN).
 2. `cannot cast type record to uuid[]` — replaced Drizzle parameterized array `${batchIds}::uuid[]` with raw SQL array literal `ARRAY[...]::uuid[]` using `sql.raw()`. Drizzle expands JS arrays into individual params `($1, $2, ...)` which Postgres treats as a record type, not an array.
-3. **Performance:** Parallelized Gate 1+2 calls within batches using `Promise.all` — reduced bulk reprocess runtime from ~41 min (sequential) to ~3-5 min (parallel, limited by Neon connection pool).
+3. **Performance:** Parallelized Gate 1+2 calls within batches using `Promise.all` — reduced bulk reprocess runtime from ~41 min (sequential) to ~3-5 min (parallel, limited by Postgres connection pool).
 
 **Verification:** 1,623 tests pass (86 files), 0 TS errors, 0 new migrations. Biome clean.
 
@@ -2582,12 +2582,12 @@ The original limit of 50 existed to prevent Vercel's 340-second idle-connection
 limit from severing fanned-out function instances. Under Module E, there is no
 Vercel idle-connection limit — the constraint now is protecting the single
 Hetzner CX33 instance's own CPU/RAM headroom (2 vCPU / 8GB, shared with the
-live Next.js server process) and, more importantly, protecting the Neon
-Postgres connection pool from exhaustion under a sudden fan-out spike. The
+live Next.js server process) and, more importantly, protecting the Postgres
+connection pool from exhaustion under a sudden fan-out spike. The
 free plan's cap of 5 concurrent steps is more conservative than the original
 50 and is adequate for MVP/solo use. Upgrade the Inngest plan and raise the
 limit if higher throughput is needed post-MVP — tune empirically against
-actual Neon pool size and observed CX33 load.
+actual Postgres pool size and observed CX33 load.
 
 Separately: any request path sitting behind Cloudflare's proxy (which is all
 of them under Module E) is also bound by Cloudflare's 100-second connection
@@ -2716,7 +2716,7 @@ The dashboard UI was built specifically as the calibration debugging interface. 
 - **Expected job volume increase:** At 5,290 companies with an average of 5-50 open engineering roles each (after Gate 0 filtering), the active job count is expected to grow from 4,086 to ~21,500-50,000 once the batch poller processes all companies. This is an 5-12x increase in funnel input.
 - **Expected match rate improvement:** At 449 companies, the funnel produced ~1-2 approved matches/week. At 5,290 companies (11.8x), the expected rate is ~12-24 approved matches/week (1.7-3.4/day). This exceeds the 5-10 approved matches/day target.
 - **Next steps:** (1) Batch poller processes 5,290 companies on its cron schedule (active_hot every 3h, active every 12h, dormant weekly). (2) Module C normalizes and embeds new jobs. (3) Calibration thresholds (`GATE2_MAX_COSINE_DISTANCE = 0.48`, `GATE_ROUTER_LIMIT = 8`) may need re-tuning once the job volume increases — the current values were calibrated against 4,086 jobs, not 50,000.
-- **G7 rawJson pruning applied:** 4,491 existing jobs processed, ~31MB reclaimed. New jobs are pruned automatically during normalization. This prevents Neon storage issues at 50K+ job scale.
+- **G7 rawJson pruning applied:** 4,491 existing jobs processed, ~31MB reclaimed. New jobs are pruned automatically during normalization. This prevents storage bloat at 50K+ job scale (originally motivated by Neon's 512MB limit; now a hygiene measure on VPS Postgres).
 - **Two sources disabled:** D1/B2 Google CSE (API discontinued — revisit with Brave Search API), B8 Rapid7 FDNS (commercial licensing — D6 CertStream covers same approach). See `docs/reports/CORPUS_EXPANSION_HANDOFF.md` §"Post-Flush Update".
 - **Workable API schema drift fixed:** June 2026 API revision changed response format. `company.name`→`company.title`, `company.shortName` removed, slug extracted from `company.url`. 23 tests (8 new for slug extraction).
 
@@ -2759,7 +2759,7 @@ This is generated by the system when a match occurs, intended for the startup's 
     *   "No guarantee of access: We reserve the right to stop fetching from any source if requested via cease-and-desist."
     *   Full indemnification clauses to shield the platform creators from ATS legal action.
 
-\* *Note: App server and Neon are co-located in Frankfurt to minimize cross-region query latency
+\* *Note: App server and VPS Postgres are co-located on the same Hetzner server (zero network latency). Historically, the app server (Helsinki) and Neon (Frankfurt) were cross-region with 30-50ms query latency — eliminated by the D20 VPS Postgres migration.
 
 ## 7. MODULE E: INFRASTRUCTURE & DEPLOYMENT ARCHITECTURE
 
@@ -2812,6 +2812,19 @@ The app database was migrated from Neon (serverless Postgres free tier) to a sel
 **Connection pool:** App pool bumped from `max: 20` to `max: 30` in `src/db/db.ts`. Matches `jobIngestedHandler` concurrency (25) + headroom. Postgres `max_connections=100` leaves ample headroom.
 
 **Disaster recovery:** Neon connection strings kept in `.env` (commented as `DR NOTE (JOB 4.2): Neon connection strings kept for disaster recovery only — DO NOT USE for app or scripts`). If VPS Postgres fails, the app can be repointed to Neon by swapping `DATABASE_URL`.
+
+**⚠️ Migration management (CRITICAL — caused July 22 2026 production outage):** Drizzle migrations are NOT automatically applied to the VPS Postgres. Unlike Neon (which had `drizzle-kit migrate` run from the local machine with direct DB access), the VPS Postgres requires either:
+1. **SSH tunnel + `drizzle-kit migrate`:** `ssh -f -N vectormatch-vps` (establishes tunnel on port 15432), then `DATABASE_URL=postgresql://vectormatch:<password>@localhost:15432/vectormatch npx drizzle-kit migrate`
+2. **Manual `docker exec` + psql:** `ssh vectormatch-vps` then `docker exec z10g6zz09soe0ddwgpizteq2 psql -U vectormatch -d vectormatch -f <migration.sql>`
+
+When migrations are applied manually (option 2), the `drizzle.__drizzle_migrations` tracking table must ALSO be updated with the migration hash + timestamp, or future `drizzle-kit migrate` runs will either fail or re-apply migrations. The hash is the SHA-256 of the migration SQL file content.
+
+**The July 22 outage:** Migration `0056_ambitious_argent` was a Drizzle-tracked migration that bundled 3 changes (dismiss_reason enum, certstream enum value, description_html column). The first two were applied manually via raw SQL files (`0056_d20_dismiss_reason.sql`, `0057_d20_certstream_enum.sql`), but the Drizzle migration itself was never run — so the `description_html` column was missed. The `getMatchDetail` query selected this column, causing `column "description_html" of relation "job" does not exist` on every job detail page load. Fix: `ALTER TABLE "job" ADD COLUMN IF NOT EXISTS "description_html" text;` + manual insert into `drizzle.__drizzle_migrations`.
+
+**Access from local Mac:**
+- SSH config (`~/.ssh/config`): `Host vectormatch-vps` → `HostName 157.180.68.189`, `User root`, `IdentityFile ~/.ssh/id_ed25519`, `LocalForward 15432 10.0.1.10:5432`
+- `ssh -f -N vectormatch-vps` establishes the tunnel (port 15432)
+- No `psql` binary on the local Mac — use `node` with the `pg` package or `docker exec` via SSH
 
 ### 7.0c Backup Infrastructure (D20, July 20 2026)
 
@@ -2881,8 +2894,8 @@ Unlike a managed PaaS, this requires manual setup and ongoing light maintenance 
 
 *  Health checks: Coolify probes `GET /api/health` (port 3000) with curl. The Dockerfile also includes a `HEALTHCHECK` directive using `node fetch`. The `/api/health` endpoint is deliberately DB-free so the container is marked healthy as long as the Next.js process is responsive.
 *  Monthly OS security updates and Docker image pruning (the latter automatable via Coolify settings) to prevent disk bloat.
-*  Local volume backups for any non-ephemeral data stored outside Neon.
-*  **Inngest sync:** Automatic via `src/instrumentation.ts` — function definitions are synced with Inngest Cloud on every server startup (see §3.9.4). No manual intervention required.
+*  Local volume backups for any non-ephemeral data stored outside the VPS Postgres Docker container (e.g., WordPress files, Inngest Postgres). The VPS Postgres has nightly `pg_dump` backups to GCS (see §7.0c).
+*  **Inngest sync:** Automatic via `src/instrumentation.ts` — function definitions are synced with the self-hosted Inngest server on every server startup (see §3.9.4). No manual intervention required.
 *  **Hetzner firewall:** Port 8000 (Coolify admin fallback) should be restricted to the developer's IP via Hetzner Cloud Firewall. Ports 80/443 open to all. (See §7.6.)
 
 ### 7.5 **Lazy initialization pattern (binding code constraint)**
@@ -2892,7 +2905,7 @@ During Next.js static generation (build time), every module in the import graph 
 **Binding rule:** No module in the import graph of `auth.ts` (or any route that Next.js statically generates) may instantiate a network client at module import time. All clients must be lazily initialized — created on first method call, not at module load.
 
 Currently applied to:
-*   `src/db/db.ts` — Neon `Pool` via a lazy Proxy. The `db` export is a `Proxy` that defers `new Pool()` to the first `db.select()` / `db.transaction()` / etc. call. No importer changes required — the Drizzle API surface is identical.
+*   `src/db/db.ts` — Postgres `pg` Pool via a lazy Proxy (migrated from Neon serverless driver to `node-postgres` on July 20 2026). The `db` export is a `Proxy` that defers `new Pool()` to the first `db.select()` / `db.transaction()` / etc. call. No importer changes required — the Drizzle API surface is identical.
 *   `src/lib/email.ts` — Resend client via `getResend()`. The `new Resend(process.env.RESEND_API_KEY)` call is deferred to the first `sendVerificationEmail()` / `sendResetPasswordEmail()` / `sendAlreadyRegisteredEmail()` call.
 
 **Future modules:** Any new module that creates a network client (OpenAI, Google Cloud, etc.) and is transitively imported by a statically-generated route must follow this pattern. The test is simple: if `npm run build` succeeds with zero environment variables, the pattern is correctly applied.
