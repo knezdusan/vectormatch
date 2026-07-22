@@ -521,7 +521,7 @@ export async function getMatchDetail(
       id: r.personaId,
       personaLabel: r.personaLabel,
       embeddingSummary: r.personaEmbeddingSummary,
-      mustHaveTags: r.personaMustHaveTags,
+      mustHaveTags: r.personaMustHaveTags ?? [],
     },
   };
 }

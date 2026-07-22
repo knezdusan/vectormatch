@@ -438,6 +438,55 @@ describe("getMatchDetail", () => {
       "typescript",
     ]);
   });
+
+  it("coerces null persona mustHaveTags to an empty array", async () => {
+    const mockRow = {
+      matchQueueId: "mq-2",
+      status: "approved",
+      llmVerdict: null,
+      llmReasoning: null,
+      llmConfidence: null,
+      llmBlockers: null,
+      llmModel: null,
+      evaluatedAt: null,
+      isRead: false,
+      createdAt: new Date("2026-06-22"),
+      overlapScore: 1,
+      cosineDistance: null,
+      workAuthRiskFlag: false,
+      jobId: "job-2",
+      jobTitle: "Backend Engineer",
+      jobAtsSource: "lever",
+      jobAtsSlug: "acme",
+      jobRawJson: null,
+      jobNormalizedText: null,
+      jobExtractedTags: null,
+      jobApplyUrl: null,
+      jobUrl: null,
+      personaId: "persona-2",
+      personaLabel: "Backend Developer",
+      personaEmbeddingSummary: "Backend developer summary",
+      personaMustHaveTags: null,
+    };
+
+    const selectMock = db.select as unknown as ReturnType<typeof vi.fn>;
+    selectMock.mockReturnValueOnce({
+      from: vi.fn(() => ({
+        innerJoin: vi.fn(() => ({
+          innerJoin: vi.fn(() => ({
+            where: vi.fn(() => ({
+              limit: vi.fn(() => [mockRow]),
+            })),
+          })),
+        })),
+      })),
+    });
+
+    const result = await getMatchDetail("user-123", "mq-2");
+
+    expect(result).not.toBeNull();
+    expect(result?.persona.mustHaveTags).toEqual([]);
+  });
 });
 
 // =============================================================================
