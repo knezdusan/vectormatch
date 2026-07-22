@@ -1,13 +1,15 @@
-// Neon API Client — Synthetic Storage Check
+// Neon API Client — Synthetic Storage Check (DEPRECATED)
 // src/lib/jobs/neon-api.ts
 //
-// Neon enforces storage limits against `synthetic_storage_size`, which includes
-// logical data + WAL + history retention + internal overhead. This is typically
-// ~12% larger than `pg_database_size()`, which only counts on-disk pages.
+// @deprecated The Neon database was retired in D20 (July 20, 2026). The
+// database is now self-hosted on VPS Postgres. This module is retained for
+// backward compatibility but is no longer called by the alerting system or
+// the admin dashboard. It will be removed in a future cleanup.
 //
-// The storage monitor (hourly) uses this module for accurate storage tracking.
-// The ingestion guard (hot path, every poll) continues to use `pg_database_size()`
-// with a lowered `STORAGE_LIMIT_MB` safety margin — see storage-check.ts.
+// Original purpose: Neon enforces storage limits against
+// `synthetic_storage_size`, which includes logical data + WAL + history
+// retention + internal overhead. This was ~12% larger than
+// `pg_database_size()`, which only counts on-disk pages.
 //
 // Environment:
 //   NEON_API_KEY    — Neon API key (https://console.neon.tech/app/settings/api-keys)

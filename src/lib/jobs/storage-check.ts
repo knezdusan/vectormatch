@@ -1,17 +1,17 @@
 // Pre-Flight Storage Check (Sprint 4 Task 4) + Sprint 8 Ingestion Guard
 // src/lib/jobs/storage-check.ts
 //
-// Before a batch source refresh cron runs, it checks whether Neon storage is
-// near the 512MB free-tier limit. If storage exceeds the warning threshold
-// (88% = ~450MB), the refresh is skipped to avoid pushing the database over
-// the limit. The circuit breaker handles repeated issues; this is a safety
-// valve for the storage dimension specifically.
+// Before a batch source refresh cron runs, it checks whether database storage
+// is near the limit. If storage exceeds the warning threshold (88% = ~405MB),
+// the refresh is skipped to avoid pushing the database over the limit. The
+// circuit breaker handles repeated issues; this is a safety valve for the
+// storage dimension specifically.
 //
 // Sprint 8 addition: an ingestion guard that also pauses new job upserts when
 // the unnormalized backlog grows too large (raw_json accumulating faster than
 // the normalizer can clear it). This prevents a sudden burst of job discovery
-// from filling the Neon Free tier before normalization reclaims the bulk of
-// the storage.
+// from filling the database before normalization reclaims the bulk of the
+// storage.
 //
 // Uses the built-in `pg_database_size()` function — no extra tables or
 // migrations needed.
@@ -30,22 +30,19 @@ import { job } from "@/db/schemas/jobs/job";
 /**
  * Effective storage limit for `pg_database_size()` based checks.
  *
- * Neon enforces storage against `synthetic_storage_size`, which is ~12% larger
- * than `pg_database_size()` because it includes WAL, history retention, and
- * internal overhead. Using 512 MB with `pg_database_size()` would let the
- * synthetic storage exceed the real limit before the guard fires.
+ * Set to 460 MB as a safety margin. On the VPS (8GB RAM, 80GB disk), the
+ * database is tiny (~82MB) so this limit is very conservative. The threshold
+ * exists to catch runaway growth early — if the corpus grows significantly,
+ * this limit should be raised proportionally.
  *
- * 460 MB × 1.12 (overhead ratio) ≈ 515 MB synthetic — so 460 MB is the safe
- * ceiling for `pg_database_size()` to keep synthetic storage under 512 MB.
- *
- * The storage monitor (hourly) uses the Neon API directly with the true 512 MB
- * limit — see NEON_STORAGE_LIMIT_MB below and src/lib/jobs/neon-api.ts.
+ * The storage monitor (every 6h) uses this limit directly via
+ * `pg_database_size()` — see src/lib/jobs/alerting.ts.
  */
 export const STORAGE_LIMIT_MB = 460;
 
 /**
- * Neon's actual hard storage limit (MB). Used by the storage monitor which
- * fetches `synthetic_storage_size` from the Neon API.
+ * @deprecated Neon-specific — retained for reference but no longer used.
+ * The database is now self-hosted on VPS Postgres (D20 migration).
  */
 export const NEON_STORAGE_LIMIT_MB = 512;
 
@@ -84,7 +81,7 @@ export interface StorageStatus {
   safe: boolean;
   /** Current database size in MB. */
   currentMb: number;
-  /** Storage limit in MB (512 for Neon Free). */
+  /** Storage limit in MB. */
   limitMb: number;
   /** Current usage as a fraction of the limit (0–1+). */
   percentage: number;
@@ -97,7 +94,7 @@ export interface StorageIngestionStatus {
   reason?: string;
   /** Current database size in MB. */
   currentMb: number;
-  /** Storage limit in MB (512 for Neon Free). */
+  /** Storage limit in MB. */
   limitMb: number;
   /** Current usage as a fraction of the limit (0–1+). */
   percentage: number;
@@ -152,7 +149,7 @@ export async function getIngestionBacklog(): Promise<number> {
  * Check whether the database storage is safe for a batch refresh.
  *
  * Returns `safe: false` when storage usage exceeds the warning threshold
- * (88% of the 512MB limit = ~450MB). The caller should skip the refresh and
+ * (88% of the 460MB limit = ~405MB). The caller should skip the refresh and
  * log a warning — the circuit breaker will handle repeated issues.
  *
  * @returns  Storage status with current size, limit, percentage, and safety flag

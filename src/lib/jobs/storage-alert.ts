@@ -48,7 +48,7 @@ function buildEmailHtml(payload: StorageAlertPayload): string {
         <div style="display: inline-block; padding: 4px 12px; border-radius: 9999px; color: #ffffff; background-color: ${statusColor}; font-size: 12px; font-weight: 700; margin-bottom: 16px;">
           ${statusLabel}
         </div>
-        <h2 style="font-size: 20px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">Neon storage alert</h2>
+        <h2 style="font-size: 20px; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 16px;">Storage alert</h2>
         <p style="font-size: 16px; line-height: 24px; color: #4b5563; margin-top: 0; margin-bottom: 24px;">
           ${reason}
         </p>

@@ -19,7 +19,12 @@
     "playwright.config.ts"
   ],
   "ignoreExportsUsedInFile": true,
-  "ignoreDependencies": ["class-variance-authority", "radix-ui", "dotenv"],
+  "ignoreDependencies": [
+    "class-variance-authority",
+    "radix-ui",
+    "dotenv",
+    "@neondatabase/serverless"
+  ],
   "ignoreExports": [
     {
       "file": "src/lib/jobs/ats-endpoints.ts",

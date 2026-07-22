@@ -19,11 +19,6 @@ vi.mock("@/lib/jobs/storage-check", () => ({
   MAX_UNNORMALIZED_BACKLOG: 3000,
 }));
 
-// Mock the neon-api module (used by getInfraStats)
-vi.mock("@/lib/jobs/neon-api", () => ({
-  getNeonStorageInfo: vi.fn().mockResolvedValue(null),
-}));
-
 // Mock the matching-config module (used by getInfraStats)
 vi.mock("@/lib/jobs/matching-config", () => ({
   GATE2_MAX_COSINE_DISTANCE: 0.5,
@@ -89,7 +84,7 @@ describe("getInfraStats", () => {
     expect(stats.storageMb).toBe(256);
     expect(stats.storageLimitMb).toBe(460);
     expect(stats.storagePercentage).toBeCloseTo(256 / 460, 5);
-    expect(stats.neonLimitMb).toBe(512);
+    expect(stats.neonLimitMb).toBe(0); // deprecated — always 0 post-Neon
     expect(stats.gate2Threshold).toBe(0.5);
     expect(stats.unnormalizedCount).toBe(42);
     expect(stats.maxUnnormalized).toBe(3000);

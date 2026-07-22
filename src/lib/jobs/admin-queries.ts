@@ -23,12 +23,10 @@ import { job } from "@/db/schemas/jobs/job";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { sourceHealth } from "@/db/schemas/jobs/sourceHealth";
 import { GATE2_MAX_COSINE_DISTANCE } from "@/lib/jobs/matching-config";
-import { getNeonStorageInfo } from "@/lib/jobs/neon-api";
 import {
   getDatabaseSizeMb,
   getIngestionBacklog,
   MAX_UNNORMALIZED_BACKLOG,
-  NEON_STORAGE_LIMIT_MB,
   STORAGE_LIMIT_MB,
 } from "@/lib/jobs/storage-check";
 
@@ -40,11 +38,11 @@ export interface InfraStats {
   storageMb: number;
   storageLimitMb: number;
   storagePercentage: number;
-  /** Neon synthetic storage (what Neon actually enforces). null if API unavailable. */
+  /** @deprecated Neon-specific — always undefined after D20 VPS migration */
   neonSyntheticMb?: number;
-  /** Neon's actual hard limit (512 MB). */
+  /** @deprecated Neon-specific — retained for type compatibility */
   neonLimitMb: number;
-  /** Synthetic storage percentage against Neon's limit. */
+  /** @deprecated Neon-specific — always undefined after D20 VPS migration */
   neonPercentage?: number;
   gate2Threshold: number;
   unnormalizedCount: number;
@@ -167,22 +165,22 @@ export async function getAllSourceHealth(): Promise<SourceHealthStats[]> {
 }
 
 /**
- * Get infrastructure stats for the admin dashboard: Neon storage size,
+ * Get infrastructure stats for the admin dashboard: database storage size,
  * storage limit, usage percentage, and the current Gate 2 threshold.
  */
 export async function getInfraStats(): Promise<InfraStats> {
-  const [storageMb, unnormalizedCount, neonInfo] = await Promise.all([
+  const [storageMb, unnormalizedCount] = await Promise.all([
     getDatabaseSizeMb(),
     getIngestionBacklog(),
-    getNeonStorageInfo(),
   ]);
   return {
     storageMb,
     storageLimitMb: STORAGE_LIMIT_MB,
     storagePercentage: storageMb / STORAGE_LIMIT_MB,
-    neonSyntheticMb: neonInfo?.syntheticStorageMb,
-    neonLimitMb: neonInfo?.limitMb ?? NEON_STORAGE_LIMIT_MB,
-    neonPercentage: neonInfo?.percentage,
+    // Neon fields retained for type compatibility but always undefined/zero
+    neonSyntheticMb: undefined,
+    neonLimitMb: 0,
+    neonPercentage: undefined,
     gate2Threshold: GATE2_MAX_COSINE_DISTANCE,
     unnormalizedCount,
     maxUnnormalized: MAX_UNNORMALIZED_BACKLOG,
