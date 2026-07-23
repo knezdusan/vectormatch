@@ -280,6 +280,8 @@ export function cronToTier(
   switch (cron) {
     case "0 */2 * * *":
       return "active_hot"; // every 2h — hot tier (yielding tier, promptness front line)
+    case "0 */3 * * *":
+      return "active_hot"; // every 3h — D20 unfreeze cadence (8x/day, politeness-bounded)
     case "0 */12 * * *":
       return "probation"; // every 12h — probation tier (D1: PAUSED — cron commented out above)
     case "0 */24 * * *":
@@ -6152,23 +6154,42 @@ export const pipelineHealthMonitor = inngest.createFunction(
       return evaluateAlerts(metrics);
     });
 
+    // Step 2b: Per-stage daily counters (Phase 1 — would have caught the
+    // July 23 outage instantly by showing which stage was at 0)
+    const stageCounters = await step.run("collect-stage-counters", async () => {
+      const { getStageDailyCounters } = await import(
+        "@/lib/jobs/pipeline-health"
+      );
+      return getStageDailyCounters();
+    });
+
+    const stageAlerts = await step.run("evaluate-stage-alerts", async () => {
+      const { evaluateStageAlerts } = await import(
+        "@/lib/jobs/pipeline-health"
+      );
+      return evaluateStageAlerts(stageCounters);
+    });
+
+    // Merge stage alerts with existing alerts
+    const allAlerts = [...alerts, ...stageAlerts];
+
     // Step 3: Create or resolve alerts
     await step.run("manage-alerts", async () => {
       const { createAlert, hasActiveAlert, resolveAlertsByType } = await import(
         "@/lib/jobs/alerting"
       );
 
-      if (alerts.length > 0) {
+      if (allAlerts.length > 0) {
         // Only create one pipeline_health alert (deduplicated)
         if (!(await hasActiveAlert("pipeline_health"))) {
           await createAlert({
             type: "pipeline_health",
             severity: "warning",
-            message: alerts.join(" | "),
-            details: JSON.stringify(metrics),
+            message: allAlerts.join(" | "),
+            details: JSON.stringify({ ...metrics, stageCounters }),
           });
           logger.info(
-            `Pipeline health alert created: ${alerts.length} issues detected`,
+            `Pipeline health alert created: ${allAlerts.length} issues detected`,
           );
         } else {
           // Update the existing alert's message by resolving and recreating
@@ -6176,8 +6197,8 @@ export const pipelineHealthMonitor = inngest.createFunction(
           await createAlert({
             type: "pipeline_health",
             severity: "warning",
-            message: alerts.join(" | "),
-            details: JSON.stringify(metrics),
+            message: allAlerts.join(" | "),
+            details: JSON.stringify({ ...metrics, stageCounters }),
           });
         }
       } else {
@@ -6187,15 +6208,20 @@ export const pipelineHealthMonitor = inngest.createFunction(
           logger.info("Pipeline health recovered — alert resolved");
         }
       }
-      return { alertsCreated: alerts.length > 0 ? 1 : 0, alertsResolved: 0 };
+      return { alertsCreated: allAlerts.length > 0 ? 1 : 0, alertsResolved: 0 };
     });
 
-    logger.info("Pipeline health monitor completed", { metrics, alerts });
+    logger.info("Pipeline health monitor completed", {
+      metrics,
+      stageCounters,
+      alerts: allAlerts,
+    });
 
     return {
       timestamp: new Date().toISOString(),
       ...metrics,
-      alerts,
+      stageCounters,
+      alerts: allAlerts,
     };
   },
 );

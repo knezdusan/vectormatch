@@ -98,8 +98,7 @@ Every post should drive the reader toward **creating a VectorMatch profile and u
 | **Elementor (free)** | Optional layout blocks if a non-standard visual section is needed. Most posts should use the Gutenberg block editor for performance. |
 | **LiteSpeed Cache** | Page caching and JS/CSS optimization. Ensure any new interactive element is excluded from JS optimization if it breaks. |
 | **UpdraftPlus** | Daily backups. Before bulk publishing, run a manual backup. |
-| **Wordfence** | Security. Keep deactivated during automated agent work; reactivate after. |
-| **WPVibe** | MCP bridge for Devin to publish, edit, and inspect posts. |
+| **Wordfence** | Security. Stays active during automated agent work (application-password auth is not blocked by the firewall). |
 
 ### 3.2 Recommended additions (lightweight, justified)
 The existing stack already covers SEO, caching, and security. Add plugins only when a feature cannot be achieved with Gutenberg + Rank Math + the custom theme.
@@ -400,13 +399,12 @@ When you are asked to research a topic and generate a blog post for VectorMatch,
 ### Step 8 — Pre-publish review
 Run through the checklist in Section 6 before any post is finalized.
 
-### Step 9 — Publish via WPVibe
-1. Connect to `https://vectormatch.dev/blog` using `connect_site`.
-2. Upload media first, then create the post via `rest_api` or `run_wp_cli`.
-3. Assign the correct category and tags.
-4. Verify the rendered HTML with `get_page_html` or by visiting the URL.
-5. If Wordfence is active, disable it before agent work and reactivate after.
-6. Purge LiteSpeed Cache after publishing.
+### Step 9 — Publish via the REST API publishing script
+1. Ensure the environment variables are set: `WP_API_URL`, `WP_APP_USER`, `WP_APP_PASSWORD`, and (optionally) `UNSPLASH_ACCESS_KEY`.
+2. Run `python3 docs/wordpress/lib/publish_post.py <post.json>` — the script uploads images, creates the post via `POST /wp/v2/posts`, sets the category and tags, and writes Rank Math SEO meta.
+3. Verify the rendered HTML by visiting the published URL (or use `webfetch` on `https://vectormatch.dev/blog/<slug>/`).
+4. Wordfence can stay active — application-password authentication is not blocked by the firewall.
+5. Purge LiteSpeed Cache after publishing (the script flushes rewrite rules; a cache purge may be needed if LiteSpeed does not auto-purge).
 
 ---
 

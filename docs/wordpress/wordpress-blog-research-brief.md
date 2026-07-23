@@ -112,8 +112,7 @@ Plan topics around these recurring angles. Each should tie back to VectorMatch's
 - **Rank Math SEO** — sitemap, schema, Open Graph, meta/title management.
 - **LiteSpeed Cache** — page cache + asset optimization.
 - **UpdraftPlus** — daily DB backups, 7-day retention.
-- **Wordfence Security** — currently inactive; will be reactivated after final 2FA setup.
-- **WPVibe** — MCP bridge used by the Devin agent to manage the site.
+- **Wordfence Security** — firewall and login security; remains active during agent work (application-password auth is not blocked by Wordfence).
 
 ### Removed
 - Akismet Anti-spam (uninstalled).
@@ -132,12 +131,12 @@ Plan topics around these recurring angles. Each should tie back to VectorMatch's
 6. Publish.
 7. Rank Math automatically generates per-post SEO metadata and Open Graph tags once the setup wizard is completed.
 
-### For the Devin agent via WPVibe
-1. Connect: `connect_site("https://vectormatch.dev/blog")` → user authorizes in wp-admin.
-2. Inspect: `site_info` to verify active theme, plugins, and capabilities.
-3. Draft content: `rest_api` to create posts, categories, tags, pages.
-4. Media: `upload_media` to add images to the WordPress library.
-5. Theme edits: `create_draft_theme` → `write_file`/`edit_file` → `publish_draft_theme`.
+### For the Devin agent via the direct REST API publishing script
+1. Authenticate: use a WordPress **application password** (created once in wp-admin under Users → Profile → Application Passwords). The script reads `WP_API_URL`, `WP_APP_USER`, and `WP_APP_PASSWORD` from the environment.
+2. Publish: run `python3 docs/wordpress/lib/publish_post.py <post.json>` — the script assembles the post content, uploads images (via Unsplash search when `UNSPLASH_ACCESS_KEY` is set), creates the post via `POST /wp/v2/posts`, sets Rank Math SEO meta, and verifies the result.
+3. Inspect: `GET /wp/v2/posts`, `/wp/v2/categories`, `/wp/v2/tags` to verify taxonomy and existing posts.
+4. Media: the script uploads images to `/wp/v2/media` and sets the hero image as the featured image.
+5. Theme edits: performed directly in the repo and deployed via the normal theme workflow (no MCP bridge required).
 6. Cache/rewrite: after permalink or theme changes, run `wp rewrite flush` and let LiteSpeed auto-purge.
 
 ---
@@ -154,23 +153,23 @@ Plan topics around these recurring angles. Each should tie back to VectorMatch's
 
 ## 9. Constraints & Manual Steps
 
-These items require human action in wp-admin or elsewhere and are not automatable via WPVibe:
+These items require human action in wp-admin or elsewhere and are not automatable via the REST API publishing script:
 
 1. **Rank Math setup wizard** — must be completed to activate `/blog/sitemap_index.xml` and JSON-LD schema.
-2. **Wordfence activation + 2FA** — Wordfence must be reactivated after agent work and 2FA/login settings configured. It is kept inactive during agent work because its firewall blocks WPVibe authentication.
+2. **Application password creation** — create one application password in wp-admin (Users → Profile → Application Passwords) and store it in the `.env` file as `WP_APP_PASSWORD`. This is a one-time setup step.
 3. **UpdraftPlus remote storage** — daily backups run locally; connecting Google Drive / Dropbox / S3 requires OAuth in wp-admin.
 4. **Category/tag creation** — restricted to WordPress administrators. Researchers should use the existing 6 categories and 31 tags unless they request a new one.
 5. **DNS cleanup** — `blog.vectormatch.dev` should be removed from Cloudflare DNS (it is no longer used; the blog lives at `vectormatch.dev/blog`).
 
 ---
 
-## 10. WPVibe / Agent Notes (For Reference)
+## 10. Agent Notes (For Reference)
 
-- **WPVibe is the MCP bridge** for Devin to manage the WordPress site via `run_wp_cli`, `rest_api`, `write_file`, `edit_file`, and theme draft/publish operations.
-- **Wordfence blocks WPVibe:** keep Wordfence deactivated during automated work; reactivate only after the agent is finished.
+- **Publishing is done via the WordPress REST API** using `docs/wordpress/lib/publish_post.py`. The script authenticates with an application password (a core WordPress feature) — no MCP bridge or plugin is required.
+- **Wordfence stays active** during agent work. Application-password authentication is not blocked by the Wordfence firewall, so there is no need to disable it.
 - **DISALLOW_FILE_EDIT is enabled:** security hardening is enforced in the theme's `functions.php` rather than standalone mu-plugins.
 - **LiteSpeed Cache:** excludes Alpine.js from JS optimization because the minifier corrupts its source-map comment. If future console errors appear, check for newly optimized scripts.
-- **Approval tier:** plugin installs and option updates are generally autonomous; plugin uninstalls and file deletions require explicit user approval through a WPVibe link.
+- **Approval tier:** post creation, media upload, and SEO meta updates are autonomous; plugin uninstalls and file deletions require explicit user approval.
 
 ---
 

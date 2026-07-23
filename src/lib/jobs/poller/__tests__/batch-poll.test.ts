@@ -35,6 +35,10 @@ describe("cronToTier", () => {
     expect(cronToTier("0 */2 * * *")).toBe("active_hot");
   });
 
+  it("maps the 3h cron to active_hot (D20 unfreeze cadence)", () => {
+    expect(cronToTier("0 */3 * * *")).toBe("active_hot");
+  });
+
   it("maps the 12h cron to probation", () => {
     expect(cronToTier("0 */12 * * *")).toBe("probation");
   });

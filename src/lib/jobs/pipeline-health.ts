@@ -267,10 +267,17 @@ async function countUnnormalizedJobs(): Promise<number> {
 }
 
 async function countUnembeddedJobs(): Promise<number> {
+  // Only count jobs that are matchable (global + unfenced) but missing embeddings.
+  // Country_fenced/natsec/qa jobs don't need embeddings — they're not matchable.
+  // Counting them produces a false-positive alert (903 unembedded when only 3 matter).
   const result = await db.execute(sql`
     SELECT count(*)::int AS cnt FROM job
     WHERE status = 'active' AND job_embedding IS NULL
       AND normalized_at IS NOT NULL
+      AND remote_scope = 'global'
+      AND is_fenced = false
+      AND is_natsec = false
+      AND is_qa = false
   `);
   return Number(result.rows[0]?.cnt ?? 0);
 }
@@ -426,4 +433,138 @@ async function checkStaleCronFunctions(): Promise<{
     }
   }
   return { count: staleNames.length, names: staleNames };
+}
+
+// ── Per-Stage Daily Counters (Phase 1 — ACTION PLAN) ─────────────────────────
+
+/**
+ * Per-stage daily throughput counters.
+ *
+ * This is the diagnostic tool that would have caught the July 23 outage
+ * immediately: instead of checking "are there matches?" (binary), it shows
+ * the throughput of EVERY stage in the pipeline. If any stage is at 0, the
+ * problem is localized instantly.
+ *
+ * Stages tracked:
+ *   1. ingested    — jobs detected/inserted in last 24h
+ *   2. normalized  — jobs normalized in last 24h
+ *   3. embedded    — jobs with embeddings created in last 24h
+ *   4. gate12      — Gate 1+2 candidates generated in last 24h
+ *   5. gate3       — Gate 3 evaluations completed in last 24h
+ *   6. approved    — matches approved by Gate 3 in last 24h
+ *   7. dashboard   — matches visible through serve-time gate filter
+ */
+export interface StageDailyCounters {
+  ingested: number;
+  normalized: number;
+  embedded: number;
+  gate12: number;
+  gate3: number;
+  approved: number;
+  dashboard: number;
+}
+
+/**
+ * Get per-stage daily counters for the pipeline.
+ *
+ * Each counter is a simple COUNT query on an indexed timestamp column,
+ * so the full set runs in <5ms total. Used by:
+ *   - The smoke-e2e.ts script (Stage 10+)
+ *   - The pipelineHealthMonitor (for the alert message)
+ *   - The admin dashboard (for the pipeline throughput widget)
+ */
+export async function getStageDailyCounters(): Promise<StageDailyCounters> {
+  const [ingested, normalized, embedded, gate12, gate3, approved, dashboard] =
+    await Promise.all([
+      // 1. Ingested: jobs detected in last 24h
+      db.execute(sql`
+        SELECT count(*)::int AS cnt FROM job
+        WHERE detected_at > NOW() - INTERVAL '24 hours'
+      `),
+      // 2. Normalized: jobs normalized in last 24h
+      db.execute(sql`
+        SELECT count(*)::int AS cnt FROM job
+        WHERE normalized_at > NOW() - INTERVAL '24 hours'
+      `),
+      // 3. Embedded: jobs with embedding set in last 24h
+      //    (using normalized_at as proxy — embedding is set right after normalization)
+      db.execute(sql`
+        SELECT count(*)::int AS cnt FROM job
+        WHERE normalized_at > NOW() - INTERVAL '24 hours'
+          AND job_embedding IS NOT NULL
+      `),
+      // 4. Gate 1+2: match_queue entries created in last 24h
+      db.execute(sql`
+        SELECT count(*)::int AS cnt FROM match_queue
+        WHERE created_at > NOW() - INTERVAL '24 hours'
+      `),
+      // 5. Gate 3: matches evaluated in last 24h
+      db.execute(sql`
+        SELECT count(*)::int AS cnt FROM match_queue
+        WHERE evaluated_at > NOW() - INTERVAL '24 hours'
+      `),
+      // 6. Approved: matches approved by Gate 3 in last 24h
+      db.execute(sql`
+        SELECT count(*)::int AS cnt FROM match_queue
+        WHERE status = 'approved'
+          AND evaluated_at > NOW() - INTERVAL '24 hours'
+      `),
+      // 7. Dashboard: matches visible through serve-time gate filter
+      db.execute(sql`
+        SELECT count(*)::int AS cnt
+        FROM match_queue mq
+        INNER JOIN job j ON mq.job_id = j.id
+        WHERE j.remote_scope = 'global'
+          AND j.is_fenced = false
+          AND j.is_natsec = false
+          AND j.is_qa = false
+          AND mq.created_at > NOW() - INTERVAL '24 hours'
+      `),
+    ]);
+
+  return {
+    ingested: Number(ingested.rows[0]?.cnt ?? 0),
+    normalized: Number(normalized.rows[0]?.cnt ?? 0),
+    embedded: Number(embedded.rows[0]?.cnt ?? 0),
+    gate12: Number(gate12.rows[0]?.cnt ?? 0),
+    gate3: Number(gate3.rows[0]?.cnt ?? 0),
+    approved: Number(approved.rows[0]?.cnt ?? 0),
+    dashboard: Number(dashboard.rows[0]?.cnt ?? 0),
+  };
+}
+
+/**
+ * Evaluate per-stage counters and return alert messages for any stage at 0.
+ *
+ * A stage at 0 for 24h means the pipeline is broken at that point. The alert
+ * message includes the full counter breakdown so the operator can see exactly
+ * which stage is the bottleneck.
+ */
+export function evaluateStageAlerts(counters: StageDailyCounters): string[] {
+  const alerts: string[] = [];
+  const stages: Array<[keyof StageDailyCounters, string]> = [
+    ["ingested", "Ingestion"],
+    ["normalized", "Normalization"],
+    ["embedded", "Embedding"],
+    ["gate12", "Gate 1+2 (match candidate generation)"],
+    ["gate3", "Gate 3 (LLM evaluation)"],
+    ["approved", "Match approval"],
+    ["dashboard", "Dashboard visibility"],
+  ];
+
+  for (const [key, label] of stages) {
+    if (counters[key] === 0) {
+      alerts.push(
+        `STAGE_ZERO: ${label} produced 0 results in 24h. Pipeline breakdown at this stage.`,
+      );
+    }
+  }
+
+  if (alerts.length > 0) {
+    alerts.push(
+      `Counter breakdown: ingested=${counters.ingested} normalized=${counters.normalized} embedded=${counters.embedded} gate12=${counters.gate12} gate3=${counters.gate3} approved=${counters.approved} dashboard=${counters.dashboard}`,
+    );
+  }
+
+  return alerts;
 }

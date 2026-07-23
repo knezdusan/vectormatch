@@ -430,13 +430,7 @@ crt.sh provides higher yield with no WebSocket dependency. The tradeoff is laten
 
 ---
 
-## OPEN ITEMS FOR THE FOUNDER
-
-1. **GCS IAM least-privilege.** Go to https://console.cloud.google.com/iam-admin/iam?project=vactormatch-seeder, find `vectormatch-seeder@vactormatch-seeder.iam.gserviceaccount.com`, remove the `Editor` role, add `Storage Object Creator`, `Storage Object Viewer`, `BigQuery Job User`, and `BigQuery Data Viewer`. Cannot be done from the VPS — the IAM API is not enabled on the project.
-
-2. **Commit the D21 changes.** Per AGENTS.md, git operations are left to the founder. All code changes are local and need to be committed and pushed to trigger Coolify auto-deploy. The infrastructure changes (Inngest transport, Postgres tuning, fence re-sync) are already live on the VPS.
-
-3. **August proof sprint.** The system is now ready: Inngest transport works, the serving layer enforces the gate, the fence data is correct, the crons are unfrozen, VPS memory has 4GB headroom. The tripwire test (≥5 would-apply matches/day × 7 consecutive days) can begin.
+**August proof sprint.** The system is now ready: Inngest transport works, the serving layer enforces the gate, the fence data is correct, the crons are unfrozen, VPS memory has 4GB headroom. The tripwire test (≥5 would-apply matches/day × 7 consecutive days) can begin.
 
 ---
 

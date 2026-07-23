@@ -1,6 +1,6 @@
 # VectorMatch Blog Post Generation — External LLM Prompt Template
 
-This document contains the **exact prompt** to paste into a fresh session of any flagship LLM (Grok, Gemini, Claude, Kimi, GPT, etc.) to generate one publish-ready VectorMatch blog post per session, plus the rationale and the machine-readable output contract your orchestrator will parse and push to WordPress via the WPVibe MCP server.
+This document contains the **exact prompt** to paste into a fresh session of any flagship LLM (Grok, Gemini, Claude, Kimi, GPT, etc.) to generate one publish-ready VectorMatch blog post per session, plus the rationale and the machine-readable output contract your orchestrator will parse and push to WordPress via the WordPress REST API.
 
 ---
 
@@ -18,7 +18,7 @@ This document contains the **exact prompt** to paste into a fresh session of any
    - `{{CATEGORY}}` — the one category that topic belongs to.
    - `{{ANGLE_NOTES}}` — (optional) any extra angle, data point, or constraint you want.
 5. The model returns a single JSON object matching the schema in Section 3.
-6. Save the JSON. The orchestrator parses it, renders CTAs/images at the markers, builds schema, and publishes via WPVibe.
+6. Save the JSON. The orchestrator parses it, renders CTAs/images at the markers, builds schema, and publishes via the WordPress REST API.
 
 ---
 
@@ -26,7 +26,7 @@ This document contains the **exact prompt** to paste into a fresh session of any
 
 - **Format = JSON.** Most reliable structured output across all flagship models; trivial for the orchestrator to parse and validate.
 - **Body = clean semantic HTML string** (`content_html`) with **insertion markers** (`[[CTA:...]]`, `[[IMAGE:...]]`). The LLM never reasons about Gutenberg vs. Elementor; the orchestrator injects branded components at the markers.
-- **Metadata is separated** (title, meta, slug, category, tags, FAQ, schema, keywords) so Rank Math + WPVibe get exactly what they need.
+- **Metadata is separated** (title, meta, slug, category, tags, FAQ, schema, keywords) so Rank Math + the REST API publishing script get exactly what they need.
 - **Images = specifications, not required URLs.** LLMs hallucinate image URLs unreliably. Every image must have alt/caption/description/generation-prompt. Browsing-capable models MAY add candidate URLs flagged `unverified`.
 - **Research appendix included** as a separate top-level object (`research_appendix`) — improves grounding and uniqueness, and is stripped before publishing.
 
@@ -233,7 +233,7 @@ RULES RECAP (read this before outputting — verify each item)
 
 ## 5. Orchestrator Notes (Not Part of the LLM Prompt)
 
-When parsing the returned JSON to publish via WPVibe:
+When parsing the returned JSON to publish via the WordPress REST API:
 
 1. **Validate** the JSON against the schema in Section 3. Reject/retry if any of these fail:
    - Markers in `content_html` reference missing ids in `cta_blocks` or `images`.
@@ -257,14 +257,14 @@ When parsing the returned JSON to publish via WPVibe:
    - Any `research_appendix.sources[].url` that is non-null does not start with a known domain (reddit.com, news.ycombinator.com, linkedin.com, enhancv.com, forbes.com, huntr.co, substack.com, etc.) — flag for human review as potentially hallucinated.
 2. **Assemble the body:** start with the hero (title as H1 handled by WordPress, then subtitle + direct answer), then the key-takeaways box, then `content_html` with markers replaced:
    - `[[CTA:<id>]]` → branded button (theme CTA style) using the matching `cta_blocks` entry.
-   - `[[IMAGE:<id>]]` → `<figure>` with the uploaded image + caption; upload via WPVibe `upload_media` first.
+   - `[[IMAGE:<id>]]` → `<figure>` with the uploaded image + caption; upload via the `upload_image_to_wp` function in `docs/wordpress/lib/publish_post.py` first.
    - Render the hero image at the top from the `images` entry with `role: hero`.
 3. **FAQ:** render the `faq` array as the FAQ section AND generate `FAQPage` JSON-LD (or use the Rank Math FAQ block) — the array is the source of truth so the visible Q&A and schema never diverge.
 4. **Conclusion + author box** appended after the FAQ.
 5. **SEO:** push `seo_title`, `meta_description`, and `slug` to Rank Math fields; set the category and tags (all must already exist in the taxonomy).
 6. **Images without verified URLs:** flag for a human/image-generation step before publish; never publish a broken `candidate_url`.
 7. **Strip `research_appendix`** before publishing; optionally store it alongside the post record for auditing/quality review.
-8. **Publish flow:** ensure Wordfence is inactive during agent work, publish as draft first, verify rendered HTML, then set to published and purge LiteSpeed Cache.
+8. **Publish flow:** publish as draft first, verify rendered HTML (via `webfetch` on the preview URL), then set to published and purge LiteSpeed Cache. Wordfence can stay active — application-password auth is not blocked by the firewall.
 
 ---
 
