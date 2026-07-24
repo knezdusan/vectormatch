@@ -286,14 +286,37 @@ genuinely needs a specific real screenshot/graphic that cannot be generated as a
 publish with a branded SVG placeholder (never a broken image, never an off-topic stock photo) and list the
 image in the repair report as "needs a real asset" so the user can swap it later without blocking publication.
 
-STEP 5 — DETERMINE PUBLISH DATE (backdating)
-To make the posting schedule look natural:
-1. Query the most recent published post: GET /wp/v2/posts?per_page=1&status=publish&orderby=date&order=desc
-2. Get its date (the "date" field, ISO format).
-3. Calculate the new post date: previous date + random 2 or 3 days.
-4. If no previous posts exist, use today's date minus 2-3 days.
-5. Use this date for both "date" and "date_gmt" in the POST /wp/v2/posts request.
-6. The time of day should be randomized between 09:00 and 17:00 in UTC.
+STEP 5 — DETERMINE PUBLISH DATE (backdating — CRITICAL, DO NOT SKIP)
+The blog is published in batches (multiple posts per session), but the dates must look like a natural
+single-author cadence with 2-3 days between each post. Every new post must be dated 2 or 3 days
+BEFORE the most recent existing post (i.e. further back in time, not forward).
+
+ALGORITHM (follow exactly):
+1. Query the most recent published post:
+   GET /wp/v2/posts?per_page=1&status=publish&orderby=date&order=desc
+2. Read its "date" field (ISO 8601 format, e.g. "2026-07-22T14:00:00").
+3. Subtract a random interval of 2 OR 3 days from that date to get the new post date.
+   - Example: if the most recent post is dated 2026-07-22T14:00:00, the new post should be
+     dated either 2026-07-20T{HH}:00:00 (2 days before) or 2026-07-19T{HH}:00:00 (3 days before).
+   - The 2-or-3-day choice must be randomized per post — do not always pick 2 or always pick 3.
+4. If no previous posts exist, use today's date minus 2-3 days as the starting point.
+5. Randomize the time of day between 09:00 and 17:00 UTC (whole hours, e.g. 09:00, 10:00, ... 17:00).
+   Do NOT reuse the same time as the previous post.
+6. Use the calculated date for BOTH "date" and "date_gmt" fields in the POST /wp/v2/posts request.
+7. If publishing multiple posts in one session, re-query the most recent post date BEFORE each post
+   (or track the date you just assigned and subtract another 2-3 days from it for the next post).
+   Each post in the batch must be 2-3 days older than the one before it.
+
+EXAMPLE — publishing 3 posts in one session when the most recent existing post is 2026-07-22T14:00:00:
+  Post 1: 2026-07-20T11:00:00  (2 days before 07-22)
+  Post 2: 2026-07-17T15:00:00  (3 days before 07-20)
+  Post 3: 2026-07-15T09:00:00  (2 days before 07-17)
+
+IMPORTANT: The publish_post.py script accepts an optional --date argument. Always pass the calculated
+date when running the script:
+  python3 docs/wordpress/lib/publish_post.py <post.json> --date "2026-07-20T11:00:00"
+If --date is not provided, the script defaults to today's date — this should only happen for the
+very first post. For all subsequent posts, ALWAYS pass --date.
 
 STEP 6 — CREATE THE POST IN WORDPRESS
 The primary path is to run the publishing script, which handles post creation, image upload,
@@ -430,7 +453,7 @@ Begin by running STEP 0 (initialization). Then ask for the first blog post JSON 
 6. The agent will validate, repair, assemble, publish, and verify — then ask for the next file.
 
 ### Backdating logic
-The orchestrator queries the most recent post and backdates each new post 2-3 days before it. For the first post, it uses today minus 2-3 days. This creates a natural-looking publishing cadence. The randomization (2 or 3 days, and time of day between 09:00-17:00 UTC) is done by the agent at runtime.
+The orchestrator queries the most recent published post and dates each new post 2 or 3 days BEFORE it (further back in time), with a randomized time of day between 09:00-17:00 UTC. For the first post ever, it uses today minus 2-3 days. When publishing multiple posts in one session, each subsequent post is dated 2-3 days before the previous one, creating a natural-looking reverse-chronological cadence. The `publish_post.py` script accepts `--date "YYYY-MM-DDTHH:00:00"` to set the date explicitly — this MUST be passed for every post except the very first one. The randomization (2 vs 3 days, and time of day) is done by the agent at runtime.
 
 ### Image handling
 Relevance first. The orchestrator decides per image:

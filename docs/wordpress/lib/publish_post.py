@@ -357,8 +357,15 @@ def verify_post(url):
 
 # ─── Main ────────────────────────────────────────────────────────────────────
 
-def publish(json_path):
-    """Publish a blog post JSON file to WordPress. Returns a summary dict."""
+def publish(json_path, publish_date=None):
+    """Publish a blog post JSON file to WordPress. Returns a summary dict.
+
+    Args:
+        json_path: Path to the blog post JSON file.
+        publish_date: ISO 8601 date string (e.g. "2026-07-20T11:00:00") for the
+            post's publish date. If None, defaults to today at 12:00 UTC.
+            Always pass an explicit date for backdating (see BlogPostOrchestratorPrompt STEP 5).
+    """
     # Load JSON
     with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
@@ -385,6 +392,14 @@ def publish(json_path):
     content = assemble_content(data, image_map)
     print(f"  Content length: {len(content)} chars")
 
+    # Determine publish date
+    if not publish_date:
+        from datetime import datetime, timezone
+        publish_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT12:00:00")
+        print(f"\n⚠ No --date provided, defaulting to today: {publish_date}")
+        print("  For backdating, always pass --date \"YYYY-MM-DDTHH:00:00\"")
+    print(f"\n📅 Publish date: {publish_date}")
+
     # Build post data
     post_data = {
         "title": meta.get("title", ""),
@@ -392,7 +407,8 @@ def publish(json_path):
         "content": content,
         "excerpt": meta.get("meta_description", ""),
         "status": "publish",
-        "date": "2026-07-22T14:00:00",
+        "date": publish_date,
+        "date_gmt": publish_date,
         "categories": [resolve_category(meta.get("category", "Market Intelligence"))],
         "tags": resolve_tags(meta.get("tags", [])),
     }
@@ -443,20 +459,25 @@ def publish(json_path):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python3 publish_post.py <post.json>", file=sys.stderr)
-        sys.exit(1)
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Publish a VectorMatch blog post JSON to WordPress.")
+    parser.add_argument("json_path", help="Path to the blog post JSON file")
+    parser.add_argument("--date", default=None,
+                        help='Publish date in ISO 8601 format (e.g. "2026-07-20T11:00:00"). '
+                             'If omitted, defaults to today at 12:00 UTC. '
+                             'Always pass --date for backdating (see BlogPostOrchestratorPrompt STEP 5).')
+    args = parser.parse_args()
 
     if not WP_USER or not WP_PASS:
         print("Error: WP_APP_USER and WP_APP_PASSWORD must be set in environment.", file=sys.stderr)
         sys.exit(1)
 
-    json_path = sys.argv[1]
-    if not os.path.exists(json_path):
-        print(f"Error: File not found: {json_path}", file=sys.stderr)
+    if not os.path.exists(args.json_path):
+        print(f"Error: File not found: {args.json_path}", file=sys.stderr)
         sys.exit(1)
 
-    summary = publish(json_path)
+    summary = publish(args.json_path, publish_date=args.date)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 
 

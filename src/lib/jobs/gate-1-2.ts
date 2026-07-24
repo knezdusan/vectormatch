@@ -296,7 +296,7 @@ export async function runGateSQLRouter(
       FROM job WHERE id = ${jobId}::uuid
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
-    SELECT
+    SELECT DISTINCT ON (p.id)
       ${jobId}::uuid,
       p.id,
       p.applicant_id,
@@ -363,14 +363,52 @@ export async function runGateSQLRouter(
       ) DESC
     LIMIT ${GATE_ROUTER_LIMIT}
     ON CONFLICT (job_id, persona_id) DO UPDATE SET
-      status = 'pending',
-      evaluated_at = NULL,
-      llm_verdict = NULL,
-      llm_blockers = NULL,
-      llm_reasoning = NULL,
-      llm_confidence = NULL,
-      llm_model = NULL,
-      prompt_variant = NULL,
+      -- D23: Terminal-status preservation — never reset a match the founder
+      -- has already acted on. The previous clause unconditionally reset to
+      -- 'pending', erasing every dismissal on every re-ingestion wave.
+      -- Now we only reset if the existing status is 'pending' or NULL (i.e.,
+      -- the row was inserted by Gate 1+2 but never evaluated by Gate 3).
+      -- Terminal statuses (mismatch, rejected, applied, approved) are preserved.
+      status = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.status
+        ELSE 'pending'
+      END,
+      evaluated_at = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.evaluated_at
+        ELSE NULL
+      END,
+      llm_verdict = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.llm_verdict
+        ELSE NULL
+      END,
+      llm_blockers = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.llm_blockers
+        ELSE NULL
+      END,
+      llm_reasoning = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.llm_reasoning
+        ELSE NULL
+      END,
+      llm_confidence = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.llm_confidence
+        ELSE NULL
+      END,
+      llm_model = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.llm_model
+        ELSE NULL
+      END,
+      prompt_variant = CASE
+        WHEN match_queue.status IN ('mismatch', 'rejected', 'applied', 'approved')
+        THEN match_queue.prompt_variant
+        ELSE NULL
+      END,
       overlap_score = EXCLUDED.overlap_score,
       cosine_distance = EXCLUDED.cosine_distance
     RETURNING id, persona_id, applicant_id, overlap_score, cosine_distance

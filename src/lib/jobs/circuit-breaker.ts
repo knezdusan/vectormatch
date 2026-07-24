@@ -121,7 +121,14 @@ export const TIER2_BACKLOG_30_PCT = 0.3;
 export const TIER3_UNKNOWN_SUB_FLOOR_PCT = 0.3;
 export const TIER3_SOURCE_UNKNOWN_YIELD_PCT = 0.4;
 
-export const TIER4_CORPUS_RATIO_THRESHOLD = 0.5;
+// D23: Retuned from 0.5 to 0.15. The remote job market is measured at ~25%
+// global-remote. A 50% threshold is arithmetically impossible to sustain —
+// the breaker can never self-clear, producing a permanent critical alert.
+// 15% is below the natural market rate, so the breaker only fires when
+// something is genuinely wrong (e.g., a seeder producing 100% country-fenced
+// jobs with zero global yield). The reset threshold stays at 15% — the
+// breaker now fires and resets at the same point, eliminating the dead zone.
+export const TIER4_CORPUS_RATIO_THRESHOLD = 0.15;
 export const TIER4_RESET_THRESHOLD = 0.15;
 
 export const TIER5_ESCALATION_THRESHOLD = 3;

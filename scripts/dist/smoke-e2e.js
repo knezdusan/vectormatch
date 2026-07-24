@@ -211,6 +211,76 @@ async function main() {
     const ing = ingestResult.rows[0];
     const jobs24h = parseInt(ing.jobs_24h, 10);
     log("ingestion-24h", jobs24h > 0 ? "PASS" : "WARN", `${jobs24h} jobs ingested in last 24h (${ing.normalized_24h} normalized)`);
+    // ── FLOW TEST STAGES (D23 — the test that settles the campaign) ────────
+    // These stages assert DELTAS over time, not existence. Any stage at zero
+    // = FAIL with the stage named. This is the difference between "I think it
+    // works" and "I know it works."
+    //
+    // The FLOW test answers: "Did the pipeline produce anything new in the last
+    // 24 hours WITHOUT human intervention?" If any stage is zero, the scheduled
+    // pipeline is broken — even if the corpus has stale data from a manual wave.
+    console.log("");
+    console.log("── FLOW TEST (D23: deltas over time, not existence) ──");
+    console.log("");
+    // ── Flow Stage 1: Ingestion delta ──────────────────────────────────────
+    console.log("Flow 1: Ingestion Delta (24h)");
+    const flowIngest = await client.query(`
+    SELECT count(*)::int AS cnt FROM job
+    WHERE detected_at > now() - interval '24 hours'
+  `);
+    const flowIngestCnt = flowIngest.rows[0].cnt;
+    log("flow-ingestion", flowIngestCnt > 0 ? "PASS" : "FAIL", `${flowIngestCnt} jobs ingested in last 24h (scheduled pipeline must produce > 0)`);
+    // ── Flow Stage 2: Normalization delta ──────────────────────────────────
+    console.log("Flow 2: Normalization Delta (24h)");
+    const flowNorm = await client.query(`
+    SELECT count(*)::int AS cnt FROM job
+    WHERE normalized_at > now() - interval '24 hours'
+  `);
+    const flowNormCnt = flowNorm.rows[0].cnt;
+    log("flow-normalization", flowNormCnt > 0 ? "PASS" : "FAIL", `${flowNormCnt} jobs normalized in last 24h`);
+    // ── Flow Stage 3: Gate 1+2 delta (new match candidates) ────────────────
+    console.log("Flow 3: Gate 1+2 Delta (24h)");
+    const flowGate12 = await client.query(`
+    SELECT count(*)::int AS cnt FROM match_queue
+    WHERE created_at > now() - interval '24 hours'
+  `);
+    const flowGate12Cnt = flowGate12.rows[0].cnt;
+    log("flow-gate12", flowGate12Cnt > 0 ? "PASS" : "FAIL", `${flowGate12Cnt} new match candidates from Gate 1+2 in last 24h`);
+    // ── Flow Stage 4: Gate 3 delta (evaluated matches) ─────────────────────
+    console.log("Flow 4: Gate 3 Delta (24h)");
+    const flowGate3 = await client.query(`
+    SELECT count(*)::int AS cnt FROM match_queue
+    WHERE evaluated_at > now() - interval '24 hours'
+  `);
+    const flowGate3Cnt = flowGate3.rows[0].cnt;
+    log("flow-gate3", flowGate3Cnt > 0 ? "PASS" : "FAIL", `${flowGate3Cnt} matches evaluated by Gate 3 in last 24h`);
+    // ── Flow Stage 5: Dashboard-visible delta ──────────────────────────────
+    console.log("Flow 5: Dashboard-Visible Delta (24h)");
+    const flowDash = await client.query(`
+    SELECT count(*)::int AS cnt
+    FROM match_queue mq
+    INNER JOIN job j ON mq.job_id = j.id
+    WHERE j.remote_scope = 'global'
+      AND j.is_fenced = false
+      AND j.is_natsec = false
+      AND j.is_qa = false
+      AND mq.created_at > now() - interval '24 hours'
+  `);
+    const flowDashCnt = flowDash.rows[0].cnt;
+    log("flow-dashboard", flowDashCnt > 0 ? "PASS" : "FAIL", `${flowDashCnt} new dashboard-visible matches in last 24h`);
+    // ── Flow Summary ───────────────────────────────────────────────────────
+    console.log("");
+    console.log("── FLOW TEST SUMMARY ──");
+    const flowResults = results.filter((r) => r.stage.startsWith("flow-"));
+    const flowPassed = flowResults.filter((r) => r.status === "PASS").length;
+    const flowFailed = flowResults.filter((r) => r.status === "FAIL").length;
+    console.log(`  FLOW: ${flowPassed}/${flowResults.length} stages passed, ${flowFailed} failed`);
+    if (flowFailed > 0) {
+        console.log("  FAILED FLOW STAGES:");
+        for (const r of flowResults.filter((r) => r.status === "FAIL")) {
+            console.log(`    ✗ ${r.stage}: ${r.message}`);
+        }
+    }
     await client.end();
     return report();
 }
@@ -224,13 +294,21 @@ function report() {
     const warned = results.filter((r) => r.status === "WARN").length;
     console.log(`  PASS: ${passed}  FAIL: ${failed}  WARN: ${warned}`);
     console.log("");
+    // Flow test verdict — if any flow stage failed, the test FAILS
+    const flowResults = results.filter((r) => r.stage.startsWith("flow-"));
+    const flowFailed = flowResults.filter((r) => r.status === "FAIL").length;
     if (failed > 0) {
         console.log("FAILED STAGES:");
         for (const r of results.filter((r) => r.status === "FAIL")) {
             console.log(`  ✗ ${r.stage}: ${r.message}`);
         }
         console.log("");
-        console.log("VERDICT: SMOKE TEST FAILED — pipeline is broken. Do not deploy.");
+        if (flowFailed > 0) {
+            console.log("VERDICT: SMOKE TEST FAILED — pipeline is broken. Flow test shows the scheduled pipeline is not producing output. Do not deploy.");
+        }
+        else {
+            console.log("VERDICT: SMOKE TEST FAILED — pipeline is broken (state test). Do not deploy.");
+        }
         process.exit(1);
     }
     else if (warned > 0) {
@@ -244,6 +322,9 @@ function report() {
     }
     else {
         console.log("VERDICT: SMOKE TEST PASSED — pipeline is healthy.");
+        if (flowResults.length > 0) {
+            console.log("  FLOW TEST: All stages passed — scheduled pipeline is producing output organically.");
+        }
         process.exit(0);
     }
 }

@@ -16,7 +16,7 @@
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
 *   **Testing:** Vitest 4.1.8 (119 test files, 2,640 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
-*   **Hosting:** Hetzner Cloud (Helsinki) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`). Self-hosted VPS Postgres 17 + pgvector (app database, D20 migration). FlareSolverr 3.5.0 (Cloudflare bypass, D20). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy.
+*   **Hosting:** Hetzner Cloud (Helsinki) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`). Self-hosted VPS Postgres 17 + pgvector (app database, D20 migration). FlareSolverr 3.5.0 (Cloudflare bypass, D20). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy. Blog publishing via direct WordPress REST API + `publish_post.py` script (WPVibe deactivated July 22 2026).
 *   **Migrations:** 58 SQL migrations (0000–0057) managed via Drizzle Kit 0.31.10. Migrations 0046–0057 added in D19–D20 (Gate flags NULL default, dismiss_reason enum, certstream enum). 
 
 ---
@@ -777,11 +777,14 @@ The marketing blog is a **WordPress** installation running on the same Hetzner/C
   - "Go to the post →" link with hover arrow spacing.
 - **Header/footer:** Mirror Next.js navbar and footer links; WordPress logo served from the WP media library.
 
-### 3.10.3 Agent Workflow (WPVibe)
+### 3.10.3 Agent Workflow (Direct REST API — no WPVibe)
 
-- **WPVibe MCP bridge** is the supported agent interface: `run_wp_cli`, `rest_api`, `write_file`, `edit_file`, `read_file`, draft/publish operations (`create_draft_theme`, `publish_draft_theme`).
-- **Draft-first workflow:** All theme changes are built in a WPVibe draft theme, previewed via `get_preview_url`, and published with `publish_draft_theme`. A backup theme (`vectormatch-blog-wpvibe-backup`) is created on every publish.
-- **Wordfence caveat:** Wordfence's firewall blocks WPVibe's Application Password authentication, so it must be deactivated during automated agent work and reactivated by the user afterward.
+- **Publishing script:** `docs/wordpress/lib/publish_post.py` is the supported agent interface for blog post publishing. It uses the WordPress REST API directly (no MCP bridge required). Handles: JSON parsing, Unsplash image search, image download + upload to `/wp/v2/media`, post creation via `POST /wp/v2/posts`, Rank Math SEO meta via REST API, and live verification via HTTP fetch.
+- **Authentication:** A persistent WordPress Application Password (core WP feature since 5.6) stored in `.env` as `WP_APP_USER` + `WP_APP_PASSWORD`. Created once in wp-admin → Users → Your Profile → Application Passwords. No per-session create/delete cycle.
+- **Image search:** Unsplash API directly (`UNSPLASH_ACCESS_KEY` in `.env`, free tier 50 req/hour). The script searches Unsplash, downloads the image, and uploads it to the WordPress media library via `POST /wp/v2/media` with multipart form data.
+- **FAQ rendering:** `docs/wordpress/lib/faq_component.py` generates the accordion FAQ HTML (`<details>/<summary>`) with FAQPage JSON-LD schema. Used by the publishing script.
+- **Theme editing:** Done via direct file access (Coolify terminal, SSH, or volume-mounted files) — not via an MCP bridge. Theme files live in the Docker volume and can be edited directly.
+- **WPVibe plugin status:** Deactivated (July 22 2026). The plugin files remain installed but inactive. Publishing works entirely through the standard WordPress REST API.
 - **Rank Math setup:** The setup wizard must be completed in `/blog/wp-admin/` to activate `/blog/sitemap_index.xml` and JSON-LD schema.
 
 ### 3.10.4 Security Hardening
@@ -801,8 +804,9 @@ The marketing blog is a **WordPress** installation running on the same Hetzner/C
 - **Rank Math SEO** — sitemap, schema, Open Graph.
 - **LiteSpeed Cache** — page cache + asset optimization.
 - **UpdraftPlus** — daily database backups, 7-day retention.
-- **Wordfence Security** — active for firewall/login hardening; must be deactivated during WPVibe agent operations.
 - **Elementor (free)** — installed for optional future content blocks; **not used for header/footer/templates or single/archive layouts**.
+- **WPVibe** — deactivated (July 22 2026). Replaced by direct WordPress REST API + `publish_post.py` script. Plugin files remain installed but inactive.
+- **Wordfence Security** — deactivated and data deleted (July 22 2026). Was blocking Application Password authentication required by the publishing script. Site security is maintained by Cloudflare (WAF, DDoS protection) + Traefik (reverse proxy) + WordPress built-in brute-force protection.
 
 ### 3.10.6 Sitemap & SEO
 
@@ -816,6 +820,7 @@ The marketing blog is a **WordPress** installation running on the same Hetzner/C
 - Deprecated `blog_*` database tables were dropped via Drizzle migration.
 - The `WORDPRESS_CONFIG_EXTRA` Coolify env var was replaced by volume-persisted `wp-blog-defines.php`.
 - The **Elementor transition was evaluated and rejected** in favor of maintaining the custom PHP theme under direct file control.
+- **WPVibe removed from publishing workflow (July 22 2026):** WPVibe MCP bridge was replaced by a direct WordPress REST API publishing script (`docs/wordpress/lib/publish_post.py`). The script uses a persistent Application Password (stored in `.env`), the Unsplash API for image search (`UNSPLASH_ACCESS_KEY`), and standard WP REST endpoints for media upload and post creation. This eliminated the WPVibe free-plan daily usage limit (~20 calls/day) that was blocking bulk publishing. Wordfence was also deactivated and its data deleted because it blocked Application Password authentication. The site remains protected by Cloudflare + Traefik. 18 posts published as of July 22 2026.
 
 ---
 
@@ -2944,7 +2949,7 @@ Port 8000 (Coolify's default admin port) is **not** opened — the Coolify dashb
 
 Apply the firewall to the CX33 server. The implicit deny at the end blocks all other inbound traffic.
 
-### 7.7 **WordPress Blog & WPVibe Integration `[Status: Implemented — July 17 2026]`**
+### 7.7 **WordPress Blog & Direct REST API Publishing `[Status: Implemented — July 17 2026; WPVibe removed July 22 2026]`**
 
 The public blog is a **WordPress** installation served at `https://vectormatch.dev/blog` via the same Traefik reverse proxy used by the Next.js app. It is fully decoupled from the Next.js application: no shared database, no shared build pipeline, no in-repo content. The WordPress container is managed by Coolify as a native service with a MariaDB 11 companion container and a named Docker volume for persistent files.
 
@@ -2965,16 +2970,16 @@ Key theme files:
 *   `header.php` / `footer.php` — replicate the Next.js `Navbar` and `Footer` components, including the VectorMatch logo (loaded from the WordPress media library), nav links (`/jobs`, `/#how`, `/#pitch`, `/blog`), and auth CTAs (`/auth?tab=signin`, `/auth?tab=signup`).
 *   `index.php`, `single.php`, `page.php`, `archive.php` — blog list, single post, page, and taxonomy archives. No `front-page.php`; the homepage is the latest-posts list (`show_on_front = posts`).
 *   `theme.css` — Tailwind v4 design tokens (`@theme` block) matching the Next.js app: colors (`background`, `card`, `foreground`, `primary`, `primary-bright`, `accent`, `muted-foreground`, `border`, `faint`), fonts (`Geist`, `PT Serif`, `Geist Mono`), and component utilities (`.btn-brand`, `.btn-outline`, `.nav-link`, `.card`, `.prose`).
-*   `template-parts/head.php` — inlines `theme.css` into a `<style type="text/tailwindcss">` block for the WPVibe browser CDN, loads Google Fonts, and registers editor color/font tokens via `add_theme_support('editor-color-palette')`.
+*   `template-parts/head.php` — inlines `theme.css` into a `<style type="text/tailwindcss">` block for the Tailwind browser CDN, loads Google Fonts, and registers editor color/font tokens via `add_theme_support('editor-color-palette')`.
 *   `functions.php` — theme setup, asset loading, Gutenberg token sync, security hardening, and taxonomy lockdown.
 *   `cta.php` — shared CTA template part.
-*   `dist/styles.css` — compiled Tailwind output generated when the theme is published; the browser CDN is the fallback during drafting.
+*   `dist/styles.css` — compiled Tailwind output; the browser CDN is the fallback during drafting.
 
-The theme uses Tailwind v4 utility classes. WPVibe injects a Tailwind v4 browser CDN in draft mode and (after publish) falls back to the compiled `dist/styles.css`. The `theme.css` `@theme` block is the single source of truth; the same file is parsed by `vectormatch_blog_editor_tokens()` to register Gutenberg presets, so there is no `theme.json`.
+The theme uses Tailwind v4 utility classes. The Tailwind v4 browser CDN is used during theme drafting; the compiled `dist/styles.css` is the production stylesheet. The `theme.css` `@theme` block is the single source of truth; the same file is parsed by `vectormatch_blog_editor_tokens()` to register Gutenberg presets, so there is no `theme.json`.
 
 #### Plugin stack & configuration
 
-Active plugins (as of July 17 2026):
+Active plugins (as of July 22 2026):
 
 | Plugin | Role | Status |
 |---|---|---|
@@ -2982,8 +2987,10 @@ Active plugins (as of July 17 2026):
 | **Rank Math SEO** | Sitemap, schema, Open Graph, title/meta management. | Active; setup wizard must be completed in wp-admin to activate `/blog/sitemap_index.xml` and JSON-LD schema. |
 | **LiteSpeed Cache** | Page caching, CSS/JS minification, lazy loading. | Active; Alpine.js is excluded from JS optimization because LiteSpeed's minifier corrupts its source-map comment. |
 | **UpdraftPlus** | Daily DB backups, 7-day retention. | Active; remote storage (Google Drive / S3 / etc.) requires OAuth/manual setup in wp-admin. |
-| **Wordfence Security** | Firewall, malware scan, login security. | **Inactive** during agent work; must be reactivated and configured (2FA) in wp-admin after automated setup is complete. |
-| **WPVibe** | MCP bridge for AI agent management. | Active |
+
+Deactivated plugins:
+| **WPVibe** | Former MCP bridge for AI agent management. | **Deactivated** (July 22 2026). Replaced by direct WordPress REST API + `publish_post.py` script. Files remain installed but inactive. |
+| **Wordfence Security** | Firewall, malware scan, login security. | **Deactivated and data deleted** (July 22 2026). Was blocking Application Password authentication required by the publishing script. Site security maintained by Cloudflare + Traefik + WordPress built-in protections. |
 
 Removed plugins: Akismet Anti-spam.
 
@@ -3004,27 +3011,44 @@ The blog is pre-seeded with a taxonomy that aligns with VectorMatch's content st
 *   **Categories (6):** ATS & Hiring Systems, Job Search Strategy, Remote & Global Work, Developer Career Growth, Market Intelligence, Product & Engineering.
 *   **Tags (31):** React, Next.js, TypeScript, Tailwind CSS, GraphQL, Node.js, Vue, Angular, PHP, Laravel, Python, Greenhouse, Lever, Ashby, Workday, SmartRecruiters, ATS, LinkedIn, Resume, Cover Letter, Interviews, Salary, Remote, Freelance, B2B, Work Authorization, AI, Networking, Portfolio, Skills, Seniority.
 
-#### WPVibe agent workflow & constraints
+#### Blog post publishing workflow (Direct REST API — no WPVibe)
 
-WPVibe is the MCP bridge that allows Devin to manage the WordPress site via `run_wp_cli`, `rest_api`, `write_file`, `edit_file`, and theme draft/publish operations. The site is at `https://vectormatch.dev/blog` and must be connected via `connect_site` first. Connection requires a one-click authorization in the WordPress admin.
+Blog posts are published using `docs/wordpress/lib/publish_post.py`, which calls the standard WordPress REST API directly. No MCP bridge or third-party plugin is required.
 
-**Recommended agent workflow:**
+**Environment variables (stored in `.env`):**
 
-1.  **Connect**: `connect_site(site_url: "https://vectormatch.dev/blog")`. This returns an authorization link for the user to approve. After approval, credentials are stored and subsequent calls are authenticated.
-2.  **Inspect**: `site_info` to confirm active theme, plugins, and capabilities; `run_wp_cli` for plugin/theme queries.
-3.  **Draft changes**: `create_draft_theme` to make theme edits safely. `write_file` and `edit_file` operate on the draft theme. `upload_media` adds assets to the WordPress library. `rest_api` creates posts, categories, tags, pages.
-4.  **Preview**: draft changes are previewable via WPVibe's preview URL before publish.
-5.  **Publish**: `publish_draft_theme` makes the draft live and purges caches. The previous live theme is kept as `*-wpvibe-backup`.
-6.  **Plugins/options**: `run_wp_cli` installs/activates/deactivates plugins and updates options. Some operations (e.g., plugin uninstall, file deletion) require explicit user approval via a WPVibe approval link.
+*   `WP_API_URL` — `https://vectormatch.dev/blog/wp-json/wp/v2`
+*   `WP_APP_USER` — WordPress username (`stacionari`)
+*   `WP_APP_PASSWORD` — Persistent Application Password (core WordPress feature since 5.6, created once in wp-admin → Users → Your Profile → Application Passwords)
+*   `UNSPLASH_ACCESS_KEY` — Unsplash API key (free tier, 50 req/hour, registered at unsplash.com/developers)
+
+**Publishing a post:**
+
+```bash
+python3 docs/wordpress/lib/publish_post.py docs/wordpress/posts-json/<slug>.json
+```
+
+The script performs these steps automatically:
+1.  Parses the blog post JSON (matching the `BlogPostGenerationPrompt.md` schema).
+2.  Searches Unsplash for images (using each image's `suggested_search_query`), downloads them, and uploads them to the WordPress media library via `POST /wp/v2/media` (multipart form data).
+3.  Assembles the full post content HTML (lead, TL;DR, takeaways, body with CTA/image markers replaced, FAQ accordion via `faq_component.py`, conclusion, author box).
+4.  Creates the post via `POST /wp/v2/posts` with title, slug, content, excerpt, category, tags, and featured image.
+5.  Sets Rank Math SEO meta fields (`rank_math_title`, `rank_math_description`, `rank_math_focus_keyword`) via `POST /wp/v2/posts/{id}` with meta payload.
+6.  Verifies the live post via HTTP fetch.
+
+**Theme editing workflow:**
+
+Theme files are edited via direct file access (Coolify terminal, SSH, or volume-mounted files). The theme lives in the Docker volume `a1yhworj7zx3hqhuhrrrkoui_wordpress-files` under `wp-content/themes/vectormatch-blog/`. After theme changes, run `wp rewrite flush` and purge LiteSpeed Cache.
 
 **Known constraints & workarounds:**
 
-*   **Wordfence blocks WPVibe**: Once Wordfence is active, its firewall/login security blocks the Application Password authentication used by WPVibe. Keep Wordfence deactivated during agent work; reactivate it only after the agent has finished, then complete 2FA and login settings in wp-admin.
-*   **DISALLOW_FILE_EDIT**: WordPress has `DISALLOW_FILE_EDIT` enabled. This prevents in-admin theme/plugin editing, which is desirable for security, but it also means mu-plugins must be added via the theme (`functions.php`) or direct file access rather than WPVibe's theme file tools (which are scoped to the active draft theme). In this setup, security hardening and taxonomy lockdown were placed in `functions.php` instead of separate mu-plugins.
+*   **Application Passwords**: Created once in wp-admin → Users → Your Profile → Application Passwords. The password is stored in `.env` and reused for every publishing session. No per-session create/delete cycle.
+*   **DISALLOW_FILE_EDIT**: WordPress has `DISALLOW_FILE_EDIT` enabled. This prevents in-admin theme/plugin editing, which is desirable for security. Theme edits are done via direct file access (Coolify terminal or volume mount). Security hardening and taxonomy lockdown are in `functions.php`.
 *   **Rank Math setup wizard**: Sitemap and schema output require the Rank Math setup wizard to be completed in wp-admin. The WordPress core sitemap (`/blog/wp-sitemap.xml`) works immediately as a fallback.
 *   **LiteSpeed Cache JS optimization**: The local Alpine.js file was excluded from JS optimization because LiteSpeed's minifier corrupted its source-map comment. If future console errors appear, check whether LiteSpeed has optimized a script it should not have.
-*   **Rewrite rules**: After changing permalink structure or publishing a theme, run `wp rewrite flush` to regenerate rules.
-*   **Approval tier**: Plugin installs and option updates are generally agent-autonomous; plugin uninstalls and file deletions require explicit user approval through WPVibe.
+*   **Rewrite rules**: After changing permalink structure, run `wp rewrite flush` to regenerate rules.
+*   **Unsplash rate limit**: Free tier allows 50 requests/hour. For bulk publishing exceeding this rate, add delays between image searches or use SVG diagrams instead of stock photos.
+*   **Image relevance**: The publishing script searches Unsplash using the `suggested_search_query` field from the JSON. If no relevant images are found, the markers are removed from the content and the post is published without inline images. SVG diagrams (for technical posts) and branded hero covers are preferred alternatives to generic stock photos.
 
 ## 8. PUBLIC SITE SEO & BRAND ASSETS `[Status: Implemented]`
 

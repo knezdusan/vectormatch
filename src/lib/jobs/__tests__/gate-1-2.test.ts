@@ -140,7 +140,7 @@ describe("Gate 1+2 SQL shape validation", () => {
     expect(sqlText).toContain("1 -");
   });
 
-  it("uses ON CONFLICT (job_id, persona_id) DO UPDATE to reset rejected entries", async () => {
+  it("uses ON CONFLICT (job_id, persona_id) DO UPDATE with terminal-status preservation", async () => {
     mockExecuteReturns([]);
     await runGateSQLRouter("job-1", ["react"], [0.1, 0.2, 0.3]);
 
@@ -149,11 +149,17 @@ describe("Gate 1+2 SQL shape validation", () => {
     expect(sqlText).toContain("job_id");
     expect(sqlText).toContain("persona_id");
     expect(sqlText).toContain("do update set");
-    expect(sqlText).toContain("status = 'pending'");
-    expect(sqlText).toContain("llm_verdict = null");
-    expect(sqlText).toContain("prompt_variant = null");
-    expect(sqlText).not.toContain("excluded.match_score");
-    expect(sqlText).not.toContain("excluded.prompt_variant");
+    // D23: terminal-status preservation — CASE clause checks existing status
+    expect(sqlText).toContain("case");
+    expect(sqlText).toContain("mismatch");
+    expect(sqlText).toContain("rejected");
+    expect(sqlText).toContain("applied");
+    expect(sqlText).toContain("approved");
+    // Non-terminal rows still reset to pending
+    expect(sqlText).toContain("'pending'");
+    // Scores are always updated
+    expect(sqlText).toContain("excluded.overlap_score");
+    expect(sqlText).toContain("excluded.cosine_distance");
   });
 
   it("uses LIMIT from GATE_ROUTER_LIMIT config", async () => {

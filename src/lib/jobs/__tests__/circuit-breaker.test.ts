@@ -282,11 +282,11 @@ describe("evaluateTier4 — corpus-ratio breaker", () => {
     expect(result.triggered).toBe(false);
   });
 
-  it("triggers when global ratio < 50%", () => {
+  it("triggers when global ratio < 15% (D23 retuned threshold)", () => {
     const corpus = makeCorpusMetrics({
-      globalCount: 40,
-      countryFencedCount: 60,
-      knownScopeRatio: 40 / 100, // 40%
+      globalCount: 10,
+      countryFencedCount: 90,
+      knownScopeRatio: 10 / 100, // 10%
     });
     const result = evaluateTier4(corpus);
     expect(result.triggered).toBe(true);
@@ -368,9 +368,9 @@ describe("resolveDominantSeverity", () => {
       ), // rate_reduction
       evaluateTier4(
         makeCorpusMetrics({
-          globalCount: 40,
-          countryFencedCount: 60,
-          knownScopeRatio: 40 / 100, // 40% < 50% → triggers
+          globalCount: 10,
+          countryFencedCount: 90,
+          knownScopeRatio: 10 / 100, // 10% < 15% → triggers (D23 retuned)
         }),
       ), // hard_pause
     ];
@@ -605,8 +605,8 @@ describe("threshold constants", () => {
     expect(TIER3_UNKNOWN_SUB_FLOOR_PCT).toBe(0.3);
   });
 
-  it("Tier 4 triggers below 50% corpus ratio", () => {
-    expect(TIER4_CORPUS_RATIO_THRESHOLD).toBe(0.5);
+  it("Tier 4 triggers below 15% corpus ratio (D23 retuned from 50%)", () => {
+    expect(TIER4_CORPUS_RATIO_THRESHOLD).toBe(0.15);
   });
 
   it("Tier 5 triggers at 3 escalations with 24hr cooldown", () => {
