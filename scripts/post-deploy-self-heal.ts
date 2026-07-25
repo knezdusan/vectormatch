@@ -142,7 +142,6 @@ async function main() {
     "applicant",
     "match_queue",
     "ingestion_log",
-    "circuit_breaker_state",
   ];
 
   for (const table of criticalTables) {

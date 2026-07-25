@@ -1035,63 +1035,141 @@ export async function runPendingQueueSweep(): Promise<{
 
 /**
  * Direct Job Board Ingestion — fetches jobs from direct job boards
- * (RemoteOK, etc.) and runs the pipeline.
+ * (RemoteOK, Wellfound, etc.) and runs the pipeline.
  * Replaces the Inngest directJobBoardIngestion function.
+ *
+ * D25: Added Wellfound (FlareSolverr-based) to the pg-boss pipeline.
+ * The Inngest version already had this, but the initial pg-boss migration
+ * only included RemoteOK.
  */
 export async function runDirectJobBoardIngestion(): Promise<{
   ingested: number;
   normalized: number;
   gate3Queued: number;
 }> {
-  const { fetchRemoteOKJobs } = await import(
-    "@/lib/jobs/direct-ingestion/remoteok"
-  );
   const { upsertDirectJobs } = await import(
     "@/lib/jobs/direct-ingestion/upsert"
   );
+  const { hasPersonaTechOverlap } = await import(
+    "@/lib/jobs/direct-ingestion/filter"
+  );
+  const { passesGateZeroWebDev } = await import("@/lib/jobs/gate-zero");
 
-  // Fetch from RemoteOK with a tech filter that accepts any job
-  const result = await fetchRemoteOKJobs(100, () => true);
+  const roleScoped = process.env.ROLE_SCOPED_INGESTION === "true";
+  const techFilter = (j: {
+    tags: string[];
+    title: string;
+    description: string;
+  }) => {
+    if (roleScoped && !passesGateZeroWebDev(j.title)) return false;
+    return hasPersonaTechOverlap(j.tags, j.title, j.description);
+  };
 
-  if (!result.success || result.jobs.length === 0) {
-    console.info(
-      `[pipeline] Direct job board ingestion: ${result.success ? "0 jobs" : result.error}`,
+  let totalIngested = 0;
+  let totalNormalized = 0;
+  let totalGate3Queued = 0;
+
+  // ── Board 1: RemoteOK ──────────────────────────────────────────────────
+  try {
+    const { fetchRemoteOKJobs } = await import(
+      "@/lib/jobs/direct-ingestion/remoteok"
     );
-    return { ingested: 0, normalized: 0, gate3Queued: 0 };
+    const result = await fetchRemoteOKJobs(100, techFilter);
+
+    if (result.success && result.jobs.length > 0) {
+      const upsertResult = await upsertDirectJobs(
+        "remoteok_direct",
+        "remoteok_direct",
+        result.jobs,
+      );
+
+      console.info(
+        `[pipeline] RemoteOK: ${result.jobs.length} fetched, ` +
+          `${upsertResult.newJobIds.length} new, ${upsertResult.updatedCount} updated`,
+      );
+
+      for (const jobId of upsertResult.newJobIds) {
+        try {
+          const pipelineResult = await runJobPipeline(jobId);
+          if (pipelineResult.normalized) totalNormalized++;
+          totalGate3Queued += pipelineResult.gate3Queued;
+        } catch (e) {
+          console.error(
+            `[pipeline] RemoteOK pipeline failed for ${jobId}:`,
+            e instanceof Error ? e.message : e,
+          );
+        }
+      }
+      totalIngested += upsertResult.newJobIds.length;
+    } else if (!result.success) {
+      console.warn(`[pipeline] RemoteOK fetch failed: ${result.error}`);
+    }
+  } catch (e) {
+    console.error(
+      `[pipeline] RemoteOK ingestion error:`,
+      e instanceof Error ? e.message : e,
+    );
   }
 
-  // Upsert jobs into the database
-  const upsertResult = await upsertDirectJobs(
-    "remoteok_direct",
-    "remoteok_direct",
-    result.jobs,
-  );
+  // ── Board 2: Wellfound (FlareSolverr-based, D13 B1) ────────────────────
+  try {
+    const { fetchWellfoundJobs } = await import(
+      "@/lib/jobs/direct-ingestion/wellfound"
+    );
+    const wellfoundResult = await fetchWellfoundJobs(500, techFilter, 10);
 
-  console.info(
-    `[pipeline] Direct job board ingestion: ${result.jobs.length} fetched, ` +
-      `${upsertResult.newJobIds.length} new, ${upsertResult.updatedCount} updated`,
-  );
+    if (wellfoundResult.success && wellfoundResult.jobs.length > 0) {
+      if ("employers" in wellfoundResult && wellfoundResult.employers) {
+        console.info(
+          `[pipeline] Wellfound: ${wellfoundResult.jobs.length} jobs, ` +
+            `${wellfoundResult.employers.length} employers harvested`,
+        );
+      }
 
-  // Run the pipeline for each new job
-  let normalized = 0;
-  let gate3Queued = 0;
+      const upsertResult = await upsertDirectJobs(
+        "wellfound",
+        "wellfound",
+        wellfoundResult.jobs,
+      );
 
-  for (const jobId of upsertResult.newJobIds) {
-    try {
-      const pipelineResult = await runJobPipeline(jobId);
-      if (pipelineResult.normalized) normalized++;
-      gate3Queued += pipelineResult.gate3Queued;
-    } catch (e) {
-      console.error(
-        `[pipeline] Direct ingestion pipeline failed for ${jobId}:`,
-        e instanceof Error ? e.message : e,
+      console.info(
+        `[pipeline] Wellfound: ${wellfoundResult.jobs.length} fetched, ` +
+          `${upsertResult.newJobIds.length} new, ${upsertResult.updatedCount} updated`,
+      );
+
+      for (const jobId of upsertResult.newJobIds) {
+        try {
+          const pipelineResult = await runJobPipeline(jobId);
+          if (pipelineResult.normalized) totalNormalized++;
+          totalGate3Queued += pipelineResult.gate3Queued;
+        } catch (e) {
+          console.error(
+            `[pipeline] Wellfound pipeline failed for ${jobId}:`,
+            e instanceof Error ? e.message : e,
+          );
+        }
+      }
+      totalIngested += upsertResult.newJobIds.length;
+    } else if (!wellfoundResult.success) {
+      console.warn(
+        `[pipeline] Wellfound fetch failed: ${wellfoundResult.error}`,
       );
     }
+  } catch (e) {
+    console.error(
+      `[pipeline] Wellfound ingestion error:`,
+      e instanceof Error ? e.message : e,
+    );
   }
 
+  console.info(
+    `[pipeline] Direct ingestion complete: ${totalIngested} ingested, ` +
+      `${totalNormalized} normalized, ${totalGate3Queued} gate-3 queued`,
+  );
+
   return {
-    ingested: upsertResult.newJobIds.length,
-    normalized,
-    gate3Queued,
+    ingested: totalIngested,
+    normalized: totalNormalized,
+    gate3Queued: totalGate3Queued,
   };
 }

@@ -80,8 +80,18 @@ describe("Inngest route registration — all exported functions are served", () 
     const exportedNames = Object.keys(exported).sort();
     expect(exportedNames.length).toBeGreaterThan(0);
 
+    // D25: These functions were migrated from Inngest to the pg-boss scheduler.
+    // They are still exported from functions.ts but intentionally NOT registered
+    // in serve() to avoid double-firing on the same cron schedule.
+    const migratedToPgBoss = new Set([
+      "batchPollTier",
+      "directJobBoardIngestion",
+      "pendingQueueSweep",
+    ]);
+
     const missing: string[] = [];
     for (const [name, fn] of Object.entries(exported)) {
+      if (migratedToPgBoss.has(name)) continue;
       if (!capturedFunctions.includes(fn)) {
         missing.push(name);
       }
@@ -98,10 +108,11 @@ describe("Inngest route registration — all exported functions are served", () 
       );
     }
 
-    // Sanity: the number of served functions should be >= exported functions.
+    // Sanity: the number of served functions should be >= exported functions
+    // minus the migrated ones.
     // (Could be > if non-function objects are also passed, but in practice ==.)
     expect(capturedFunctions.length).toBeGreaterThanOrEqual(
-      exportedNames.length,
+      exportedNames.length - migratedToPgBoss.size,
     );
   });
 
