@@ -11,8 +11,9 @@
 // - Starts automatically on server startup via instrumentation.ts
 //
 // Queue naming convention:
-// - Cron jobs: "cron:<functionId>" (e.g., "cron:batch-poll-tier")
-// - Event jobs: "event:<eventName>" (e.g., "event:job/ingested")
+// - Cron jobs: "cron.<functionId>" (e.g., "cron.batch-poll-tier")
+// - Event jobs: "event.<eventName>" (e.g., "event.job.ingested")
+// (pg-boss disallows colons in queue names — use periods instead)
 //
 // The scheduler is a singleton — one instance per process.
 
@@ -248,7 +249,15 @@ class Scheduler {
   private async registerCronJob(reg: CronRegistration): Promise<void> {
     const queueName = this.cronQueueName(reg.id);
 
-    // Register the handler
+    // Schedule the cron job FIRST — this creates the queue in pg-boss.
+    // work() will error if the queue doesn't exist yet.
+    await this.boss!.schedule(
+      queueName,
+      reg.cron,
+      {}, // no data — the handler doesn't need it
+    );
+
+    // Register the handler (worker) — now the queue exists
     await this.boss!.work(
       queueName,
       { teamSize: 1, batchSize: 1 },
@@ -267,14 +276,6 @@ class Scheduler {
       },
     );
 
-    // Schedule the cron job
-    // pg-boss cron uses a special queue name and schedule
-    await this.boss!.schedule(
-      queueName,
-      reg.cron,
-      {}, // no data — the handler doesn't need it
-    );
-
     console.info(`[scheduler] Registered cron: ${reg.name} (${reg.cron})`);
   }
 
@@ -283,6 +284,21 @@ class Scheduler {
 
     const concurrency = reg.concurrency ?? 10;
     const retryLimit = reg.retries ?? 5;
+
+    // Create the queue by sending a dummy job that immediately expires.
+    // pg-boss work() errors if the queue doesn't exist. We use createQueue()
+    // if available, or a no-op send with immediate expiration as fallback.
+    try {
+      // pg-boss v12+: createQueue ensures the queue exists
+      await this.boss!.createQueue(queueName);
+    } catch {
+      // Fallback: send a job that expires immediately to create the queue
+      await this.boss!.send(
+        queueName,
+        { __init: true },
+        { expireInSeconds: 1, retryLimit: 0 },
+      );
+    }
 
     // Register the handler with concurrency control
     await this.boss!.work(
