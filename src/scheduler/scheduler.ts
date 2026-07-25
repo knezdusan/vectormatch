@@ -235,12 +235,14 @@ class Scheduler {
   // ── Internal methods ──────────────────────────────────────────────────────
 
   private eventQueueName(eventName: string): string {
-    // pg-boss queue names can contain slashes and hyphens
-    return `event:${eventName}`;
+    // pg-boss queue names can only contain alphanumeric, underscores,
+    // hyphens, periods, and forward slashes. Colons are NOT allowed.
+    // Replace slashes in event names with periods for clean queue names.
+    return `event.${eventName.replace(/\//g, ".")}`;
   }
 
   private cronQueueName(functionId: string): string {
-    return `cron:${functionId}`;
+    return `cron.${functionId}`;
   }
 
   private async registerCronJob(reg: CronRegistration): Promise<void> {

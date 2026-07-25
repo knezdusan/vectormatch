@@ -26,7 +26,7 @@ import {
   aggressiveCleanup,
   // D20 JOB 5.1: Backup alert handler
   backupAlertHandler,
-  batchPollTier,
+  // D25: batchPollTier, directJobBoardIngestion, pendingQueueSweep moved to pg-boss
   batchSourceB1Workable,
   batchSourceB2BraveSearch,
   batchSourceB3YcDirectory,
@@ -55,7 +55,6 @@ import {
   dailySourceD11TechNewsRss,
   dailySourceD12NpmRegistry,
   dailySourceD13MetaAds,
-  directJobBoardIngestion,
   emergencyStoragePurge,
   falseGlobalScopeSampler,
   gate3Evaluator,
@@ -71,7 +70,6 @@ import {
   nightlyStaleClassificationSweep,
   normalizationRetrySweep,
   northStarDailyReport,
-  pendingQueueSweep,
   personaUpdatedHandler,
   phalanxPoller,
   pipelineHealthMonitor,
@@ -122,7 +120,8 @@ export const { GET, POST, PUT } = serve({
     customUrlResolver,
     bigQuerySeeder,
     aggregatorJobHandler,
-    batchPollTier,
+    // D25: batchPollTier moved to pg-boss scheduler (src/scheduler/pipeline.ts)
+    // Keeping it here would cause double-polling on the same cron schedule.
     pollBacklogSweeper,
     phalanxPoller,
     tierRecalc,
@@ -141,7 +140,7 @@ export const { GET, POST, PUT } = serve({
     gate3Evaluator,
     matchBulkReprocess,
     matchRetrySweep,
-    pendingQueueSweep,
+    // D25: pendingQueueSweep moved to pg-boss scheduler
     personaUpdatedHandler,
     probationEmbeddingBackfill,
     pipelineHealthMonitor,
@@ -189,7 +188,7 @@ export const { GET, POST, PUT } = serve({
     batchSourceB9CrossPollination,
     batchSourceB10SitemapProbe,
     dailyHealthCheck,
-    directJobBoardIngestion,
+    // D25: directJobBoardIngestion moved to pg-boss scheduler
     falseGlobalScopeSampler,
     recallAuditCron,
     // D20 JOB 5.1: Backup alert handler
