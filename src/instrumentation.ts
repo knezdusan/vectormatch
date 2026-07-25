@@ -1,66 +1,51 @@
-// Next.js Instrumentation — Auto-sync Inngest on server startup
+// Next.js Instrumentation — Start in-process scheduler on server startup
 // src/instrumentation.ts
 //
-// Next.js calls register() once when the server starts. We use this to
-// automatically sync function definitions with the self-hosted Inngest server
-// after every deploy — no manual `curl -X PUT` needed.
+// D25: Replaced the Inngest auto-sync with the pg-boss scheduler startup.
+// The scheduler runs in-process (no external server, no Docker DNS, no
+// cached step URIs). It starts automatically on every deploy and survives
+// container recreation because the queue state lives in Postgres.
 //
-// The sync is delayed by a few seconds to ensure the Next.js server is
-// ready to accept requests (the /api/inngest endpoint must be available).
-// The sync only runs in production (INNGEST_DEV is not set) to avoid
-// interfering with the local dev server.
-//
-// See TDD §3.9.4 (Self-Hosted Deployment) and the Inngest docs for details.
+// The scheduler is started with a delay to ensure the Next.js server is
+// ready and the database connection is available.
 
 export async function register(): Promise<void> {
-  // Only auto-sync in production — the local dev server discovers functions
-  // automatically via the Inngest Dev Server.
-  if (process.env.INNGEST_DEV === "1") {
-    return;
-  }
-
   // Only run on the server (not during build)
   if (process.env.NEXT_RUNTIME !== "nodejs") {
     return;
   }
 
-  // Delay the sync to allow the Next.js server to start accepting requests.
-  // The /api/inngest endpoint must be available for the PUT request to succeed.
-  const SYNC_DELAY_MS = 5000;
+  // Skip in dev mode if the scheduler is disabled
+  if (process.env.SCHEDULER_DISABLED === "1") {
+    console.info("[instrumentation] Scheduler disabled (SCHEDULER_DISABLED=1)");
+    return;
+  }
+
+  // Delay the scheduler start to allow the Next.js server to start
+  // accepting requests and the database pool to initialize.
+  const START_DELAY_MS = 3000;
 
   setTimeout(async () => {
-    // D23: Always sync via localhost — the instrumentation runs inside the
-    // container, so localhost:3000 is always available. The external URL
-    // (NEXT_PUBLIC_SITE_URL) may fail due to Cloudflare/proxy issues.
-    // The serveUrl in route.ts is set to the container ID, which the Inngest
-    // server can resolve via Docker DNS.
-    const baseUrl = "http://localhost:3000";
-    const syncUrl = `${baseUrl}/api/inngest`;
-
     try {
-      const response = await fetch(syncUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (response.ok) {
-        const body = await response.text();
-        console.info(
-          `[instrumentation] Inngest sync successful: ${response.status}`,
-          body.slice(0, 200),
-        );
-      } else {
-        console.warn(
-          `[instrumentation] Inngest sync returned ${response.status}: ${await response.text()}`,
-        );
-      }
-    } catch (error) {
-      // Non-fatal — the Inngest server will also poll the endpoint periodically.
-      // This just speeds up the sync after deploy.
-      console.warn(
-        "[instrumentation] Inngest auto-sync failed (non-fatal — Inngest will poll):",
-        error instanceof Error ? error.message : String(error),
+      const { scheduler, registerPipelineFunctions } = await import(
+        "@/scheduler"
       );
+
+      // Register all pipeline functions before starting
+      registerPipelineFunctions();
+
+      // Start the scheduler (creates pg-boss schema if needed, registers
+      // cron schedules and event handlers)
+      await scheduler.start();
+
+      console.info("[instrumentation] Scheduler started successfully");
+    } catch (error) {
+      console.error(
+        "[instrumentation] Scheduler failed to start:",
+        error instanceof Error ? error.message : error,
+      );
+      // Non-fatal — the app should still start. The scheduler will retry
+      // on the next server restart.
     }
-  }, SYNC_DELAY_MS);
+  }, START_DELAY_MS);
 }
