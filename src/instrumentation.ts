@@ -29,10 +29,12 @@ export async function register(): Promise<void> {
   const SYNC_DELAY_MS = 5000;
 
   setTimeout(async () => {
-    const baseUrl =
-      process.env.INNGEST_SERVE_ORIGIN ??
-      process.env.NEXT_PUBLIC_SITE_URL ??
-      "http://localhost:3000";
+    // D23: Always sync via localhost — the instrumentation runs inside the
+    // container, so localhost:3000 is always available. The external URL
+    // (NEXT_PUBLIC_SITE_URL) may fail due to Cloudflare/proxy issues.
+    // The serveUrl in route.ts is set to the container ID, which the Inngest
+    // server can resolve via Docker DNS.
+    const baseUrl = "http://localhost:3000";
     const syncUrl = `${baseUrl}/api/inngest`;
 
     try {

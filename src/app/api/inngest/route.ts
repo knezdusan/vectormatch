@@ -14,6 +14,7 @@
 //   INNGEST_EVENT_KEY  → production event sending
 //   INNGEST_SIGNING_KEY→ production function authentication
 
+import { hostname } from "node:os";
 import { serve } from "inngest/next";
 import {
   breakerCheck,
@@ -104,8 +105,17 @@ import {
  */
 export const maxDuration = 300;
 
+// D23: Use the Docker container ID as the serveOrigin so the Inngest server
+// can always reach the app via Docker DNS, even after container recreation.
+// The container ID (from os.hostname()) is stable for the container's lifetime
+// and resolvable from other containers on the same Docker network.
+// In dev mode, this is skipped (the Inngest Dev Server discovers automatically).
+const inngestServeOrigin =
+  process.env.INNGEST_DEV === "1" ? undefined : `http://${hostname()}:3000`;
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
+  serveOrigin: inngestServeOrigin,
   functions: [
     // Infrastructure functions
     hnAlgoliaSeeder,

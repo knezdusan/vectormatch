@@ -1827,6 +1827,114 @@ export function scanTagsRegex(fullText: string): string[] {
 }
 
 // =============================================================================
+// TAG NORMALIZATION FOR EXTERNAL SOURCES (D24)
+// =============================================================================
+
+/**
+ * Common tag variant → canonical slug mapping for tags that the regex
+ * scanner cannot match (e.g., "golang" → "go", "node.js" → "nodejs").
+ * Built once at module load.
+ */
+const TAG_VARIANT_MAP: Record<string, string> = {
+  // Languages
+  golang: "go",
+  "node.js": "nodejs",
+  "node js": "nodejs",
+  nodejs: "nodejs",
+  "react.js": "react",
+  reactjs: "react",
+  "react js": "react",
+  "next.js": "nextjs",
+  nextjs: "nextjs",
+  "next js": "nextjs",
+  "vue.js": "vue",
+  vuejs: "vue",
+  "vue js": "vue",
+  "nuxt.js": "nuxt",
+  nuxtjs: "nuxt",
+  "angular.js": "angular",
+  angularjs: "angular",
+  "svelte.js": "svelte",
+  sveltejs: "svelte",
+  "express.js": "express",
+  expressjs: "express",
+  "tailwind.css": "tailwindcss",
+  tailwind: "tailwindcss",
+  css3: "css",
+  html5: "html",
+  "c++": "cpp",
+  "c#": "csharp",
+  csharp: "csharp",
+  dotnet: "dotnet",
+  ".net": "dotnet",
+  "asp.net": "aspnet",
+  aspnet: "aspnet",
+  "ruby on rails": "rails",
+  "ruby-on-rails": "rails",
+  "react-native": "react-native",
+  reactnative: "react-native",
+  "react native": "react-native",
+  // Tools/Platforms
+  aws: "aws",
+  gcp: "gcp",
+  azure: "azure",
+  docker: "docker",
+  kubernetes: "kubernetes",
+  k8s: "kubernetes",
+  postgres: "postgresql",
+  postgresql: "postgresql",
+  mysql: "mysql",
+  mongodb: "mongodb",
+  redis: "redis",
+  graphql: "graphql",
+  "rest api": "rest-api",
+  restapi: "rest-api",
+  "rest-api": "rest-api",
+};
+
+/**
+ * Normalize a list of arbitrary tag strings (e.g., from RemoteOK's API) to
+ * canonical tag slugs. Each tag is:
+ * 1. Lowercased and trimmed
+ * 2. Checked against the LABEL_TO_SLUG map (exact label match)
+ * 3. Checked against the TAG_VARIANT_MAP (common variants)
+ * 4. Scanned with TAG_REGEX (word-boundary match within the tag string)
+ *
+ * Tags that don't match any canonical slug are dropped (not stored).
+ * Returns a deduplicated array of canonical slugs.
+ */
+export function normalizeTagList(tags: string[]): string[] {
+  const slugs = new Set<string>();
+
+  for (const rawTag of tags) {
+    const tag = rawTag.toLowerCase().trim();
+    if (!tag) continue;
+
+    // 1. Exact label match (e.g., "react" → "react", "php" → "php")
+    const exactSlug = LABEL_TO_SLUG.get(tag);
+    if (exactSlug) {
+      slugs.add(exactSlug);
+      continue;
+    }
+
+    // 2. Variant map (e.g., "golang" → "go", "react.js" → "react")
+    const variantSlug = TAG_VARIANT_MAP[tag];
+    if (variantSlug) {
+      slugs.add(variantSlug);
+      continue;
+    }
+
+    // 3. Regex scan within the tag string (e.g., "react.js" matches "react")
+    const regexMatches = scanTagsRegex(tag);
+    for (const slug of regexMatches) {
+      slugs.add(slug);
+    }
+  }
+
+  return [...slugs];
+}
+
+// =============================================================================
 // PHASE 2 — LLM FALLBACK (§4.2)
 // =============================================================================
 

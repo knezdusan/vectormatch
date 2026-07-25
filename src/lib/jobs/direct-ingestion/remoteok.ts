@@ -92,11 +92,16 @@ export async function fetchRemoteOKJobs(
 
     for (const rj of rawJobs) {
       const tags = (rj.tags ?? []).map((t) => t.toLowerCase());
+      // D24: Normalize RemoteOK tags to canonical slugs so they match
+      // persona must_have_tags in Gate 1. Without this, tags like "react.js"
+      // or "golang" don't match canonical slugs like "react" or "go".
+      const { normalizeTagList } = await import("@/lib/jobs/job-normalizer");
+      const normalizedTags = normalizeTagList(tags);
       const title = rj.position ?? "";
       const description = stripHtmlToText(rj.description ?? "");
 
-      // Apply persona tech filter
-      if (!techFilter({ tags, title, description })) {
+      // Apply persona tech filter (use normalized tags for accurate filtering)
+      if (!techFilter({ tags: normalizedTags, title, description })) {
         continue;
       }
 
@@ -105,7 +110,7 @@ export async function fetchRemoteOKJobs(
         title,
         companyName: rj.company ?? null,
         normalizedText: description,
-        extractedTags: tags,
+        extractedTags: normalizedTags,
         applyUrl: rj.apply_url ?? rj.url ?? null,
         jobUrl: rj.apply_url ?? rj.url ?? null,
         locationName: rj.location ?? null,
