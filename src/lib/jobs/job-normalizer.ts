@@ -1301,6 +1301,11 @@ const GLOBAL_REMOTE_PATTERNS: RegExp[] = [
   /\bdistributed\s+(?:team|workforce|company|organization)\b/i,
   /\bteam\s+members\s+across\s+\d+\s+countries\b/i,
   /\boperates?\s+in\s+\d+\s+countries\b/i,
+  // D26: "anywhere in the world" / "anywhere in the World" — must be checked
+  // BEFORE country extraction, otherwise "in" matches the India country code.
+  // This is the negative-case fixture for the HONK/silver regression suite.
+  /\banywhere\s+in\s+the\s+world\b/i,
+  /\banywhere\s+in\s+the\s+globe\b/i,
 ];
 
 /**
@@ -1326,6 +1331,12 @@ const COUNTRY_FENCED_REMOTE_PATTERNS: RegExp[] = [
   /\beligible\s+to\s+work\s+in\s+(?:the\s+)?(?:united\s+states|us|canada|uk|australia|germany|france)\b/i,
   /\bmust\s+be\s+a\s+(?:united\s+states|us|u\.s\.)\s+citizen\b/i,
   /\bremote\s+within\s+(?:the\s+)?(?:united\s+states|colombia|india|canada|uk|australia)\b/i,
+  // D26: HONK exhibit — "thrive from anywhere in the US" / "anywhere in the US"
+  // was classified as global because "anywhere" matched a global pattern but
+  // "in the US" wasn't caught by the country-fenced patterns. This pattern
+  // explicitly fences "anywhere in the US/United States" variants.
+  /\banywhere\s+in\s+(?:the\s+)?(?:us|u\.s\.|usa|united\s+states|uk|u\.k\.|united\s+kingdom|canada|australia|germany|france|spain|italy|netherlands|poland|portugal|india|brazil|mexico|argentina|colombia)\b/i,
+  /\bthrive\s+from\s+anywhere\s+in\s+(?:the\s+)?(?:us|u\.s\.|usa|united\s+states)\b/i,
 ];
 
 /**

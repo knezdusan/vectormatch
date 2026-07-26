@@ -18,6 +18,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db/db";
 import { applicantCompanyBlock } from "@/db/schemas/jobs/applicantCompanyBlock";
 import { job } from "@/db/schemas/jobs/job";
+import { jobLabelOverride } from "@/db/schemas/jobs/jobLabelOverride";
 import { matchQueue } from "@/db/schemas/jobs/matchQueue";
 import { getAuthSession } from "@/lib/auth";
 import { DISMISS_REASONS, type DismissReason } from "@/lib/jobs/match-filters";
@@ -342,7 +343,7 @@ export async function dismissMatch(
         eq(matchQueue.applicantId, session.user.id),
       ),
     )
-    .returning({ id: matchQueue.id });
+    .returning({ id: matchQueue.id, jobId: matchQueue.jobId });
 
   if (result.length === 0) {
     return {
@@ -351,9 +352,71 @@ export async function dismissMatch(
     };
   }
 
+  // D26: Dismissal preservation — when the founder dismisses a match with a
+  // reason that implies a permanent scope/classification override, create a
+  // job_label_override entry keyed on (ats_slug, title). This survives
+  // re-ingestion (which creates new job_ids) and prevents the same job from
+  // being re-matched and re-surfaced to the founder.
+  //
+  // Override type mapping:
+  //   geo_fenced      → geo_fenced (treat as country-fenced in gate router)
+  //   wrong_stack     → wrong_stack (suppress matching)
+  //   not_development → not_development (suppress matching)
+  //   too_senior/too_junior/stale/duplicate/other → no override (situational)
+  const overrideType = reasonToOverrideType(reason);
+  if (overrideType !== null) {
+    try {
+      const jobRow = await db
+        .select({ atsSlug: job.atsSlug, title: job.title })
+        .from(job)
+        .where(eq(job.id, result[0].jobId))
+        .limit(1);
+
+      if (jobRow.length > 0 && jobRow[0].atsSlug && jobRow[0].title) {
+        // Insert with ON CONFLICT DO NOTHING — if an override already exists
+        // for this (ats_slug, title, override_type), don't duplicate it.
+        await db
+          .insert(jobLabelOverride)
+          .values({
+            atsSlug: jobRow[0].atsSlug,
+            title: jobRow[0].title,
+            overrideType,
+            dismissReason: reason,
+            createdBy: "founder",
+          })
+          .onConflictDoNothing();
+      }
+    } catch (e) {
+      // Non-fatal — the dismissal itself already succeeded. Log and continue.
+      console.error(
+        "[dismissMatch] Failed to create job_label_override:",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
   revalidatePath("/dashboard/jobs");
   revalidatePath(`/dashboard/jobs/${matchQueueId}`);
   revalidatePath("/dashboard");
 
   return { success: true };
+}
+
+/**
+ * Map a dismiss reason to a job_label_override type.
+ * Returns null for reasons that don't imply a permanent override.
+ */
+function reasonToOverrideType(
+  reason: DismissReason,
+): "geo_fenced" | "wrong_stack" | "not_development" | null {
+  switch (reason) {
+    case "geo_fenced":
+      return "geo_fenced";
+    case "wrong_stack":
+      return "wrong_stack";
+    case "not_development":
+      return "not_development";
+    default:
+      return null;
+  }
 }

@@ -294,6 +294,29 @@ export async function runGateSQLRouter(
                title ~* '(qa engineer|qa automation|quality assurance|software engineer in test|software development engineer in test|sdet|test automation engineer|automation tester|test engineer|qa lead|quality engineer)'
              ), false) AS is_qa
       FROM job WHERE id = ${jobId}::uuid
+    ),
+    -- D26: Check for founder overrides on this (ats_slug, title) pair.
+    -- Overrides survive re-ingestion because they're keyed on stable identifiers.
+    override_check AS (
+      SELECT
+        jm.ats_slug,
+        jm.title,
+        EXISTS(
+          SELECT 1 FROM job_label_override jlo
+          WHERE jlo.ats_slug = jm.ats_slug
+            AND jlo.title = jm.title
+            AND jlo.revoked_at IS NULL
+            AND jlo.override_type = 'geo_fenced'
+        ) AS override_geo_fenced,
+        EXISTS(
+          SELECT 1 FROM job_label_override jlo
+          WHERE jlo.ats_slug = jm.ats_slug
+            AND jlo.title = jm.title
+            AND jlo.revoked_at IS NULL
+            AND jlo.override_type IN ('wrong_stack', 'not_development')
+        ) AS override_suppressed
+      FROM job_meta jm
+    )
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
     SELECT DISTINCT ON (p.id)
@@ -324,10 +347,22 @@ export async function runGateSQLRouter(
       AND (p.persona_embedding <=> ${embeddingStr}::vector) < ${GATE2_RANK_ONLY ? GATE2_HARD_CEILING : GATE2_MAX_COSINE_DISTANCE}::real
       AND p.persona_embedding IS NOT NULL
       AND jm.remote_scope = 'global'
-      AND NOT jm.is_fenced
+      AND NOT (jm.is_fenced OR oc.override_geo_fenced)
       AND NOT jm.is_natsec
       AND NOT jm.is_qa
       ${stackDisjointClause}
+      -- D26: Founder override check — if the founder has dismissed this
+      -- (ats_slug, title) pair with a permanent override, skip matching.
+      -- This is the dismissal preservation fix: overrides survive re-ingestion
+      -- because they're keyed on (ats_slug, title), not job_id.
+      AND NOT oc.override_suppressed
+      AND NOT EXISTS (
+        SELECT 1 FROM job_label_override jlo
+        WHERE jlo.ats_slug = jm.ats_slug
+          AND jlo.title = jm.title
+          AND jlo.revoked_at IS NULL
+          AND jlo.override_type = 'geo_fenced'
+      )
       AND NOT EXISTS (
         SELECT 1 FROM match_queue mq
         JOIN job j2 ON mq.job_id = j2.id

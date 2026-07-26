@@ -34,11 +34,12 @@ export function registerPipelineFunctions(): void {
     },
   });
 
-  // Direct Job Board Ingestion — every 6 hours
+  // Direct Job Board Ingestion — every 3 hours (D26: increased from 6h
+  // to 3h to poll remote-native boards harder, per the strategic inversion)
   scheduler.registerCron({
     id: "direct-job-board-ingestion",
     name: "Direct Job Board Ingestion",
-    cron: "0 */6 * * *",
+    cron: "0 */3 * * *",
     handler: async () => {
       await runDirectJobBoardIngestion();
     },

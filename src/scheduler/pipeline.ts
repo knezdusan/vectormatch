@@ -1034,13 +1034,43 @@ export async function runPendingQueueSweep(): Promise<{
 // ── Direct Job Board Ingestion ───────────────────────────────────────────────
 
 /**
- * Direct Job Board Ingestion — fetches jobs from direct job boards
- * (RemoteOK, Wellfound, etc.) and runs the pipeline.
- * Replaces the Inngest directJobBoardIngestion function.
+ * Board definition for the remote-native ingestion pipeline.
+ * D26: The strategic inversion — discover global JOBS directly from
+ * remote-native boards with worldwide filters ON, rather than discovering
+ * companies and classifying each job's scope post-hoc.
+ */
+interface BoardDef {
+  name: string;
+  atsSource: string;
+  atsSlug: string;
+  maxJobs: number;
+  /** Fetch function — returns DirectFetchResult or WellfoundFetchResult */
+  fetch: () => Promise<{
+    success: boolean;
+    jobs: Array<Record<string, unknown>>;
+    error?: string;
+    employers?: Array<Record<string, unknown>>;
+  }>;
+}
+
+/**
+ * Direct Job Board Ingestion — fetches jobs from ALL remote-native boards
+ * and runs the pipeline for each new job.
  *
- * D25: Added Wellfound (FlareSolverr-based) to the pg-boss pipeline.
- * The Inngest version already had this, but the initial pg-boss migration
- * only included RemoteOK.
+ * D26: Expanded from 2 boards (RemoteOK + Wellfound) to all 8 active
+ * remote-native boards. This is the strategic inversion — the remote-native
+ * boards are 100% remote-first by construction, so their fence rate is
+ * structurally lower than ATS-polled companies (71% fenced).
+ *
+ * Boards called (in priority order):
+ *   1. Himalayas (worldwideOnly=true — ~1,393 genuinely-global jobs)
+ *   2. RemoteOK (worldwide filter in location field)
+ *   3. WeWorkRemotely (RSS, worldwide filter in region field)
+ *   4. Remotive (API, worldwide filter in candidate_required_location)
+ *   5. Arbeitnow (API, all remote jobs marked global)
+ *   6. Wellfound (FlareSolverr, startup/frontend-heavy)
+ *   7. Remote.com (Playwright, EOR talent board)
+ *   8. LaraJobs (PHP/Laravel persona channel, small volume)
  */
 export async function runDirectJobBoardIngestion(): Promise<{
   ingested: number;
@@ -1065,78 +1095,300 @@ export async function runDirectJobBoardIngestion(): Promise<{
     return hasPersonaTechOverlap(j.tags, j.title, j.description);
   };
 
+  // ── Build board definitions ────────────────────────────────────────────
+  // Lazy imports to avoid loading all adapters at module level.
+  const boards: BoardDef[] = [];
+
+  // Board 1: Himalayas (worldwideOnly=true — the cleanest global slice)
+  boards.push({
+    name: "Himalayas",
+    atsSource: "himalayas",
+    atsSlug: "himalayas",
+    maxJobs: 500,
+    fetch: async () => {
+      const { fetchHimalayasJobs } = await import(
+        "@/lib/jobs/direct-ingestion/himalayas"
+      );
+      const r = await fetchHimalayasJobs(500, techFilter, undefined, true);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 2: RemoteOK
+  boards.push({
+    name: "RemoteOK",
+    atsSource: "remoteok_direct",
+    atsSlug: "remoteok_direct",
+    maxJobs: 500,
+    fetch: async () => {
+      const { fetchRemoteOKJobs } = await import(
+        "@/lib/jobs/direct-ingestion/remoteok"
+      );
+      const r = await fetchRemoteOKJobs(500, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 3: WeWorkRemotely
+  boards.push({
+    name: "WeWorkRemotely",
+    atsSource: "weworkremotely",
+    atsSlug: "weworkremotely",
+    maxJobs: 200,
+    fetch: async () => {
+      const { fetchWeWorkRemotelyJobs } = await import(
+        "@/lib/jobs/direct-ingestion/weworkremotely"
+      );
+      const r = await fetchWeWorkRemotelyJobs(200, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 4: Remotive
+  boards.push({
+    name: "Remotive",
+    atsSource: "remotive",
+    atsSlug: "remotive",
+    maxJobs: 500,
+    fetch: async () => {
+      const { fetchRemotiveJobs } = await import(
+        "@/lib/jobs/direct-ingestion/remotive"
+      );
+      const r = await fetchRemotiveJobs(500, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 5: Arbeitnow
+  boards.push({
+    name: "Arbeitnow",
+    atsSource: "arbeitnow",
+    atsSlug: "arbeitnow",
+    maxJobs: 500,
+    fetch: async () => {
+      const { fetchArbeitnowJobs } = await import(
+        "@/lib/jobs/direct-ingestion/arbeitnow"
+      );
+      const r = await fetchArbeitnowJobs(500, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 6: Wellfound (FlareSolverr-based, dual-function employer harvest)
+  boards.push({
+    name: "Wellfound",
+    atsSource: "wellfound",
+    atsSlug: "wellfound",
+    maxJobs: 500,
+    fetch: async () => {
+      const { fetchWellfoundJobs } = await import(
+        "@/lib/jobs/direct-ingestion/wellfound"
+      );
+      const r = await fetchWellfoundJobs(500, techFilter, 10);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+        employers: r.success
+          ? (r.employers as unknown as Array<Record<string, unknown>>)
+          : undefined,
+      };
+    },
+  });
+
+  // Board 7: Remote.com (Playwright-based)
+  boards.push({
+    name: "Remote.com",
+    atsSource: "remotecom",
+    atsSlug: "remotecom",
+    maxJobs: 500,
+    fetch: async () => {
+      const { fetchRemoteComJobs } = await import(
+        "@/lib/jobs/direct-ingestion/remotecom"
+      );
+      const r = await fetchRemoteComJobs(500, techFilter, 15);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 8: LaraJobs (PHP/Laravel persona channel)
+  boards.push({
+    name: "LaraJobs",
+    atsSource: "larajobs",
+    atsSlug: "larajobs",
+    maxJobs: 50,
+    fetch: async () => {
+      const { fetchLaraJobsJobs } = await import(
+        "@/lib/jobs/direct-ingestion/larajobs"
+      );
+      const r = await fetchLaraJobsJobs(50, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 9: Working Nomads (D26 — RSS, remote-first)
+  boards.push({
+    name: "Working Nomads",
+    atsSource: "workingnomads",
+    atsSlug: "workingnomads",
+    maxJobs: 200,
+    fetch: async () => {
+      const { fetchWorkingNomadsJobs } = await import(
+        "@/lib/jobs/direct-ingestion/workingnomads"
+      );
+      const r = await fetchWorkingNomadsJobs(200, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 10: 4dayweek.io (D26 — API, remote-first, 4-day work week)
+  boards.push({
+    name: "4dayweek.io",
+    atsSource: "fourdayweek",
+    atsSlug: "fourdayweek",
+    maxJobs: 200,
+    fetch: async () => {
+      const { fetchFourDayWeekJobs } = await import(
+        "@/lib/jobs/direct-ingestion/fourdayweek"
+      );
+      const r = await fetchFourDayWeekJobs(200, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 11: Remote.co (D26 — HTML scrape, remote-first)
+  boards.push({
+    name: "Remote.co",
+    atsSource: "remoteco",
+    atsSlug: "remoteco",
+    maxJobs: 200,
+    fetch: async () => {
+      const { fetchRemoteCoJobs } = await import(
+        "@/lib/jobs/direct-ingestion/remoteco"
+      );
+      const r = await fetchRemoteCoJobs(200, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // ── Fetch and ingest each board ────────────────────────────────────────
   let totalIngested = 0;
   let totalNormalized = 0;
   let totalGate3Queued = 0;
+  const boardResults: Array<{
+    board: string;
+    fetched: number;
+    new: number;
+    error: string | null;
+  }> = [];
 
-  // ── Board 1: RemoteOK ──────────────────────────────────────────────────
-  try {
-    const { fetchRemoteOKJobs } = await import(
-      "@/lib/jobs/direct-ingestion/remoteok"
-    );
-    const result = await fetchRemoteOKJobs(100, techFilter);
+  for (const board of boards) {
+    try {
+      const result = await board.fetch();
 
-    if (result.success && result.jobs.length > 0) {
-      const upsertResult = await upsertDirectJobs(
-        "remoteok_direct",
-        "remoteok_direct",
-        result.jobs,
-      );
-
-      console.info(
-        `[pipeline] RemoteOK: ${result.jobs.length} fetched, ` +
-          `${upsertResult.newJobIds.length} new, ${upsertResult.updatedCount} updated`,
-      );
-
-      for (const jobId of upsertResult.newJobIds) {
-        try {
-          const pipelineResult = await runJobPipeline(jobId);
-          if (pipelineResult.normalized) totalNormalized++;
-          totalGate3Queued += pipelineResult.gate3Queued;
-        } catch (e) {
-          console.error(
-            `[pipeline] RemoteOK pipeline failed for ${jobId}:`,
-            e instanceof Error ? e.message : e,
-          );
-        }
+      if (!result.success) {
+        console.warn(`[pipeline] ${board.name} fetch failed: ${result.error}`);
+        boardResults.push({
+          board: board.name,
+          fetched: 0,
+          new: 0,
+          error: result.error ?? "unknown",
+        });
+        continue;
       }
-      totalIngested += upsertResult.newJobIds.length;
-    } else if (!result.success) {
-      console.warn(`[pipeline] RemoteOK fetch failed: ${result.error}`);
-    }
-  } catch (e) {
-    console.error(
-      `[pipeline] RemoteOK ingestion error:`,
-      e instanceof Error ? e.message : e,
-    );
-  }
 
-  // ── Board 2: Wellfound (FlareSolverr-based, D13 B1) ────────────────────
-  try {
-    const { fetchWellfoundJobs } = await import(
-      "@/lib/jobs/direct-ingestion/wellfound"
-    );
-    const wellfoundResult = await fetchWellfoundJobs(500, techFilter, 10);
+      if (result.jobs.length === 0) {
+        boardResults.push({
+          board: board.name,
+          fetched: 0,
+          new: 0,
+          error: null,
+        });
+        continue;
+      }
 
-    if (wellfoundResult.success && wellfoundResult.jobs.length > 0) {
-      if ("employers" in wellfoundResult && wellfoundResult.employers) {
+      // Log employer harvest for Wellfound
+      if (result.employers && result.employers.length > 0) {
         console.info(
-          `[pipeline] Wellfound: ${wellfoundResult.jobs.length} jobs, ` +
-            `${wellfoundResult.employers.length} employers harvested`,
+          `[pipeline] ${board.name}: ${result.jobs.length} jobs, ` +
+            `${result.employers.length} employers harvested`,
         );
       }
 
       const upsertResult = await upsertDirectJobs(
-        "wellfound",
-        "wellfound",
-        wellfoundResult.jobs,
+        board.atsSource as Parameters<typeof upsertDirectJobs>[0],
+        board.atsSlug,
+        result.jobs as unknown as Parameters<typeof upsertDirectJobs>[2],
       );
 
       console.info(
-        `[pipeline] Wellfound: ${wellfoundResult.jobs.length} fetched, ` +
+        `[pipeline] ${board.name}: ${result.jobs.length} fetched, ` +
           `${upsertResult.newJobIds.length} new, ${upsertResult.updatedCount} updated`,
       );
 
+      // Run the pipeline for each new job
       for (const jobId of upsertResult.newJobIds) {
         try {
           const pipelineResult = await runJobPipeline(jobId);
@@ -1144,28 +1396,46 @@ export async function runDirectJobBoardIngestion(): Promise<{
           totalGate3Queued += pipelineResult.gate3Queued;
         } catch (e) {
           console.error(
-            `[pipeline] Wellfound pipeline failed for ${jobId}:`,
+            `[pipeline] ${board.name} pipeline failed for ${jobId}:`,
             e instanceof Error ? e.message : e,
           );
         }
       }
+
       totalIngested += upsertResult.newJobIds.length;
-    } else if (!wellfoundResult.success) {
-      console.warn(
-        `[pipeline] Wellfound fetch failed: ${wellfoundResult.error}`,
+      boardResults.push({
+        board: board.name,
+        fetched: result.jobs.length,
+        new: upsertResult.newJobIds.length,
+        error: null,
+      });
+    } catch (e) {
+      console.error(
+        `[pipeline] ${board.name} ingestion error:`,
+        e instanceof Error ? e.message : e,
       );
+      boardResults.push({
+        board: board.name,
+        fetched: 0,
+        new: 0,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
-  } catch (e) {
-    console.error(
-      `[pipeline] Wellfound ingestion error:`,
-      e instanceof Error ? e.message : e,
-    );
   }
+
+  // ── Summary log ────────────────────────────────────────────────────────
+  const breakdown = boardResults
+    .map(
+      (r) =>
+        `${r.board}=${r.fetched}|new=${r.new}${r.error ? `(${r.error.slice(0, 80)})` : ""}`,
+    )
+    .join("; ");
 
   console.info(
     `[pipeline] Direct ingestion complete: ${totalIngested} ingested, ` +
       `${totalNormalized} normalized, ${totalGate3Queued} gate-3 queued`,
   );
+  console.info(`[pipeline] Per-board: ${breakdown}`);
 
   return {
     ingested: totalIngested,

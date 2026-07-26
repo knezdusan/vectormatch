@@ -205,7 +205,10 @@ export type DirectBoardSource =
   | "justjoin"
   | "wellfound"
   | "remotecom"
-  | "larajobs";
+  | "larajobs"
+  | "workingnomads"
+  | "fourdayweek"
+  | "remoteco";
 
 /** Configuration for each direct board. */
 export interface DirectBoardConfig {
