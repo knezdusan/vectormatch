@@ -13,6 +13,7 @@ import {
   runBatchPollTier,
   runDirectJobBoardIngestion,
   runGate3Evaluation,
+  runJobPipeline,
   runPendingQueueSweep,
 } from "./pipeline";
 import { scheduler } from "./scheduler";
@@ -76,7 +77,23 @@ export function registerPipelineFunctions(): void {
     retries: 5,
   });
 
+  // Job Ingested Handler — triggered by job/ingested events
+  // Replaces the Inngest jobIngestedHandler. Runs the full pipeline:
+  // normalize → embed → Gate 0.5 → Gate 1+2 → fan out Gate 3.
+  // Emitted by: phalanxPoller (Inngest, re-routed), normalizationRetrySweep
+  // (Inngest, re-routed), admin "re-trigger ingestion" action.
+  scheduler.registerEvent({
+    event: "job/ingested",
+    name: "Job Ingested — Full Pipeline",
+    handler: async (data) => {
+      const { jobId } = data as { jobId: string };
+      await runJobPipeline(jobId);
+    },
+    concurrency: 10,
+    retries: 3,
+  });
+
   console.info(
-    "[scheduler] Registered pipeline functions (3 crons, 1 event handler)",
+    "[scheduler] Registered pipeline functions (3 crons, 2 event handlers)",
   );
 }

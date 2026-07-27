@@ -20,6 +20,7 @@ import { requireRole } from "@/lib/auth";
 import { resolveAlert, resolveAllAlerts } from "@/lib/jobs/alerting";
 import { COUNTRY_NAMES } from "@/lib/jobs/location-utils";
 import { disableSource, enableSource } from "@/lib/jobs/source-health";
+import { scheduler } from "@/scheduler/scheduler";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -173,7 +174,8 @@ export async function triggerNormalizationRetryAction(): Promise<
       return { success: true, eventsSent: 0 };
     }
 
-    // Send job/ingested events in batches of 50 (Inngest send limit)
+    // D27: Send job/ingested events via pg-boss (not Inngest).
+    // The handler lives on pg-boss now (scheduler.registerEvent "job/ingested").
     let sent = 0;
     for (let i = 0; i < jobs.length; i += 50) {
       const batch = jobs.slice(i, i + 50);
@@ -181,7 +183,7 @@ export async function triggerNormalizationRetryAction(): Promise<
         name: "job/ingested" as const,
         data: { jobId: j.id },
       }));
-      await inngest.send(events);
+      await scheduler.sendBatch(events);
       sent += batch.length;
     }
 

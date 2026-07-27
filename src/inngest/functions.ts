@@ -13,6 +13,7 @@
 import { rawSql } from "@/db/db";
 import type { Gate3Context } from "@/lib/jobs/gate-3";
 import { shouldSkipEmergencyPurge } from "@/lib/jobs/storage-check";
+import { scheduler } from "@/scheduler/scheduler";
 import { inngest } from "./client";
 import { runSourceFunction } from "./source-helpers";
 
@@ -892,20 +893,19 @@ export const phalanxPoller = inngest.createFunction(
       return pollCompany(company.id, company.atsSource, company.atsSlug, fetch);
     });
 
-    // Emit job/ingested events for new jobs
+    // D27: Re-route job/ingested events to pg-boss (scheduler.send)
+    // instead of Inngest's step.sendEvent. The handler lives on pg-boss now.
     if (result.newJobIds.length > 0) {
-      await step.sendEvent(
-        "emit-job-ingested",
+      await scheduler.sendBatch(
         result.newJobIds.map((jobId) => ({
-          id: `job-ingested-${jobId}-${Date.now()}`,
           name: "job/ingested",
           data: {
             jobId,
             atsSource: result.atsSource,
             atsSlug: result.atsSlug,
-            // externalJobId and title omitted — handler fetches from DB.
             isNew: true,
           },
+          id: `job-ingested-${jobId}-${Date.now()}`,
         })),
       );
     }
@@ -1657,9 +1657,9 @@ export const normalizationRetrySweep = inngest.createFunction(
       return result;
     });
 
+    // D27: Re-route job/ingested events to pg-boss
     if (stuckJobs.length > 0) {
-      await step.sendEvent(
-        "retry-normalization",
+      await scheduler.sendBatch(
         buildJobIngestedEvents(stuckJobs, "job-ingested-retry"),
       );
     }
@@ -3991,16 +3991,13 @@ export const personaUpdatedHandler = inngest.createFunction(
       return { count: rejectedRows.length, rows: rejectedRows };
     });
 
-    // Emit Gate 3 events for each re-evaluated rejected row.
-    // Use a timestamp suffix so repeated persona updates produce unique events
-    // (see pending-queue-sweep for the same deduplication rationale).
+    // D27: Re-route match/gate-3-evaluate events to pg-boss
     if (result.count > 0) {
       const feedbackTs = Date.now();
-      await step.sendEvent(
-        "feedback-fan-out",
+      await scheduler.sendBatch(
         result.rows.map((row) => ({
           id: `gate-3-feedback-${row.id}-${feedbackTs}`,
-          name: "match/gate-3-evaluate" as const,
+          name: "match/gate-3-evaluate",
           data: {
             matchQueueId: row.id,
             jobId: row.jobId,
@@ -4360,11 +4357,9 @@ export const matchBulkReprocess = inngest.createFunction(
           candidates.push(...jobCandidates);
         }
 
-        // Fan out Gate 3 events inside the step — avoid returning the full
-        // candidate array in the step response body.
+        // D27: Re-route match/gate-3-evaluate events to pg-boss
         if (candidates.length > 0) {
-          await step.sendEvent(
-            `fan-out-gate-3-bulk-batch-${batchNum}`,
+          await scheduler.sendBatch(
             candidates.map((c) => ({
               id: `gate-3-bulk-${c.matchQueueId}`,
               name: "match/gate-3-evaluate",
@@ -4843,10 +4838,9 @@ export const aggregatorJobHandler = inngest.createFunction(
       return runGateSQLRouter(jobId, normalization.tags, embedding);
     });
 
-    // Step 5: Fan out Gate 3 events for each candidate
+    // D27: Re-route match/gate-3-evaluate events to pg-boss
     if (candidates.length > 0) {
-      await step.sendEvent(
-        "gate-3-fanout",
+      await scheduler.sendBatch(
         candidates.map((c) => ({
           id: `gate-3-${c.matchQueueId}`,
           name: "match/gate-3-evaluate",

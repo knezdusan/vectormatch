@@ -27,6 +27,7 @@ const {
   mockResolveAllAlerts,
   mockRevalidatePath,
   mockInngestSend,
+  mockSchedulerSendBatch,
 } = vi.hoisted(() => ({
   mockRequireRole: vi.fn(),
   mockDisableSource: vi.fn(),
@@ -35,6 +36,7 @@ const {
   mockResolveAllAlerts: vi.fn(),
   mockRevalidatePath: vi.fn(),
   mockInngestSend: vi.fn(),
+  mockSchedulerSendBatch: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -61,6 +63,12 @@ vi.mock("next/cache", () => ({
 vi.mock("@/inngest/client", () => ({
   inngest: {
     send: (event: unknown) => mockInngestSend(event),
+  },
+}));
+
+vi.mock("@/scheduler/scheduler", () => ({
+  scheduler: {
+    sendBatch: (events: unknown) => mockSchedulerSendBatch(events),
   },
 }));
 
@@ -105,6 +113,7 @@ describe("admin Server Actions", () => {
     mockResolveAlert.mockResolvedValue(undefined);
     mockResolveAllAlerts.mockResolvedValue(3);
     mockInngestSend.mockResolvedValue({ ids: ["event-1"] });
+    mockSchedulerSendBatch.mockResolvedValue(undefined);
   });
 
   // ── disableSourceAction ───────────────────────────────────────────────────

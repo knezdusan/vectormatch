@@ -80,13 +80,17 @@ describe("Inngest route registration — all exported functions are served", () 
     const exportedNames = Object.keys(exported).sort();
     expect(exportedNames.length).toBeGreaterThan(0);
 
-    // D25: These functions were migrated from Inngest to the pg-boss scheduler.
+    // D25/D27: These functions were migrated from Inngest to the pg-boss scheduler.
     // They are still exported from functions.ts but intentionally NOT registered
-    // in serve() to avoid double-firing on the same cron schedule.
+    // in serve() to avoid double-firing on the same cron schedule or duplicate
+    // event handling.
     const migratedToPgBoss = new Set([
       "batchPollTier",
       "directJobBoardIngestion",
       "pendingQueueSweep",
+      // D27: Critical-path event handlers moved to pg-boss
+      "jobIngestedHandler",
+      "gate3Evaluator",
     ]);
 
     const missing: string[] = [];

@@ -57,10 +57,10 @@ import {
   dailySourceD13MetaAds,
   emergencyStoragePurge,
   falseGlobalScopeSampler,
-  gate3Evaluator,
+  // D27: gate3Evaluator moved to pg-boss (scheduler.registerEvent "match/gate-3-evaluate")
   hnAlgoliaSeeder,
   inngestHealthMonitor,
-  jobIngestedHandler,
+  // D27: jobIngestedHandler moved to pg-boss (scheduler.registerEvent "job/ingested")
   jobSummarizeHandler,
   jobSummaryBackfill,
   layoffSignalChecker,
@@ -134,10 +134,10 @@ export const { GET, POST, PUT } = serve({
     normalizationRetrySweep,
     nightlyResurrectionSweep,
     nightlyStaleClassificationSweep,
-    jobIngestedHandler,
+    // D27: jobIngestedHandler moved to pg-boss (scheduler.registerEvent "job/ingested")
     jobSummarizeHandler,
     jobSummaryBackfill,
-    gate3Evaluator,
+    // D27: gate3Evaluator moved to pg-boss (scheduler.registerEvent "match/gate-3-evaluate")
     matchBulkReprocess,
     matchRetrySweep,
     // D25: pendingQueueSweep moved to pg-boss scheduler

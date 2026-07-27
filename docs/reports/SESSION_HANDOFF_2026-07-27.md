@@ -93,9 +93,38 @@ docker exec <container> ls /app/node_modules/ | grep pgb → (empty)
 - The Inngest container hostname cache issue will recur on every app redeploy. The auto-sync in instrumentation.ts now handles this automatically (PUT to app's own endpoint on startup).
 - The pg-boss standalone build issue is permanently fixed by the Dockerfile COPY commands.
 
+## Phase 1: Split-Brain Fix (D27)
+
+After the investigation revealed the pipeline was in a split-brain state (pg-boss broken, Inngest duplicate handlers still active), Phase 1 of the Inngest removal was implemented:
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `src/scheduler/register.ts` | Added `job/ingested` event handler on pg-boss → calls `runJobPipeline()` |
+| `src/app/api/inngest/route.ts` | Removed `jobIngestedHandler` and `gate3Evaluator` from serve() |
+| `src/inngest/functions.ts` | Re-routed 5 `step.sendEvent()` calls to `scheduler.sendBatch()`: `phalanxPoller` (job/ingested), `normalizationRetrySweep` (job/ingested), `personaUpdatedHandler` (match/gate-3-evaluate), `matchBulkReprocess` (match/gate-3-evaluate), `aggregatorJobHandler` (match/gate-3-evaluate) |
+| `src/actions/admin.ts` | Changed "Re-trigger ingestion" action from `inngest.send()` to `scheduler.sendBatch()` for `job/ingested` events |
+| `src/actions/__tests__/admin.test.ts` | Added scheduler mock |
+| `src/app/api/inngest/__tests__/route.test.ts` | Added `jobIngestedHandler` and `gate3Evaluator` to `migratedToPgBoss` set |
+
+### What stays on Inngest (Phase 2-3)
+
+- `phalanxPoller` — still triggered by `poller/run` on Inngest, but emits `job/ingested` to pg-boss
+- `aggregatorJobHandler` — still triggered by `job/aggregator-ingested` on Inngest, but emits `match/gate-3-evaluate` to pg-boss
+- `personaUpdatedHandler` — still triggered by `persona/updated` on Inngest, but emits to pg-boss
+- `matchBulkReprocess` — still triggered by `match/bulk-reprocess` on Inngest, but emits to pg-boss
+- `emergencyStoragePurge` — still triggered by `purge/emergency-storage` on Inngest (no event emits)
+- 64 other non-critical functions (seeders, maintenance, monitors)
+
+### Result
+
+The critical path (normalize → Gate 1+2 → Gate 3) now runs exclusively on pg-boss. No more duplicate handlers. When pg-boss is fixed (via the Dockerfile change), there will be exactly one pipeline.
+
 ## Verification Status
 
 - TypeScript: 0 errors
-- Tests: 2906 pass (2 flaky timing tests in funding-signal.test.ts — unrelated)
+- Tests: 2904 pass (2 flaky timing tests in funding-signal.test.ts — unrelated)
 - Production Inngest: sync verified manually, signature errors stopped
 - Production pg-boss: NOT yet verified — requires redeploy with new Dockerfile
+- Split-brain: RESOLVED — duplicate handlers removed, event emits re-routed to pg-boss
