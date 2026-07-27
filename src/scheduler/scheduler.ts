@@ -18,6 +18,7 @@
 // The scheduler is a singleton — one instance per process.
 
 import { type Job, PgBoss } from "pg-boss";
+import { Step } from "./step";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -430,9 +431,12 @@ function createStepForJob(
   jobId: string,
   data: Record<string, unknown>,
 ): StepLike {
-  // Import here to avoid circular dependency
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Step } = require("./step");
+  // D28: Use the statically imported Step class. The previous require() approach
+  // caused "r is not a constructor" in production because Turbopack bundles
+  // step.ts as an async module (it imports scheduler → pg-boss → async chain),
+  // and require() is synchronous — it returned before the async module
+  // initialized, so Step was undefined. Static import lets Turbopack handle
+  // the async initialization order correctly.
   return new Step({ id: jobId, data });
 }
 
