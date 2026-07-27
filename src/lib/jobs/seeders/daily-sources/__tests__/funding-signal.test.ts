@@ -39,12 +39,18 @@ import type { FetchFn } from "@/lib/jobs/types";
 // ── computeNextRetryAt ────────────────────────────────────────────────────────
 
 describe("computeNextRetryAt", () => {
+  // Use a ±2 hour tolerance window to account for DST transitions when
+  // crossing calendar-day boundaries with setDate(). The function uses
+  // calendar-based addition (setDate), which may differ from exact
+  // millisecond addition by ±1 hour during DST shifts.
+  const TOLERANCE_MS = 2 * 60 * 60 * 1000; // 2 hours
+
   it("returns a date 30 days in the future for retryCount 0", () => {
     const before = Date.now();
     const result = computeNextRetryAt(0);
     const after = Date.now();
-    const expectedMin = before + 30 * 86400 * 1000;
-    const expectedMax = after + 30 * 86400 * 1000;
+    const expectedMin = before + 30 * 86400 * 1000 - TOLERANCE_MS;
+    const expectedMax = after + 30 * 86400 * 1000 + TOLERANCE_MS;
     expect(result.getTime()).toBeGreaterThanOrEqual(expectedMin);
     expect(result.getTime()).toBeLessThanOrEqual(expectedMax);
   });
@@ -53,8 +59,8 @@ describe("computeNextRetryAt", () => {
     const before = Date.now();
     const result = computeNextRetryAt(1);
     const after = Date.now();
-    const expectedMin = before + 60 * 86400 * 1000;
-    const expectedMax = after + 60 * 86400 * 1000;
+    const expectedMin = before + 60 * 86400 * 1000 - TOLERANCE_MS;
+    const expectedMax = after + 60 * 86400 * 1000 + TOLERANCE_MS;
     expect(result.getTime()).toBeGreaterThanOrEqual(expectedMin);
     expect(result.getTime()).toBeLessThanOrEqual(expectedMax);
   });
@@ -63,8 +69,8 @@ describe("computeNextRetryAt", () => {
     const before = Date.now();
     const result = computeNextRetryAt(2);
     const after = Date.now();
-    const expectedMin = before + 90 * 86400 * 1000;
-    const expectedMax = after + 90 * 86400 * 1000;
+    const expectedMin = before + 90 * 86400 * 1000 - TOLERANCE_MS;
+    const expectedMax = after + 90 * 86400 * 1000 + TOLERANCE_MS;
     expect(result.getTime()).toBeGreaterThanOrEqual(expectedMin);
     expect(result.getTime()).toBeLessThanOrEqual(expectedMax);
   });
@@ -73,8 +79,8 @@ describe("computeNextRetryAt", () => {
     const before = Date.now();
     const result = computeNextRetryAt(5);
     const after = Date.now();
-    const expectedMin = before + 90 * 86400 * 1000;
-    const expectedMax = after + 90 * 86400 * 1000;
+    const expectedMin = before + 90 * 86400 * 1000 - TOLERANCE_MS;
+    const expectedMax = after + 90 * 86400 * 1000 + TOLERANCE_MS;
     expect(result.getTime()).toBeGreaterThanOrEqual(expectedMin);
     expect(result.getTime()).toBeLessThanOrEqual(expectedMax);
   });

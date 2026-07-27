@@ -11,7 +11,20 @@ const nextConfig: NextConfig = {
   logging: {
     browserToTerminal: true,
   },
-  serverExternalPackages: ["better-auth", "pg-boss"],
+  serverExternalPackages: [
+    "better-auth",
+    "pg-boss",
+    // D27: AI SDK packages must be external — Turbopack bundling causes
+    // "r is not a constructor" runtime errors when generateObject/openai()
+    // are invoked from pg-boss worker callbacks in the Next.js server.
+    // Previously these ran in a separate Inngest Docker container (standalone
+    // Node.js process) where the SDK was loaded natively. Now that pg-boss
+    // runs in-process, the SDK must be external to avoid Turbopack ESM/CJS
+    // interop issues.
+    "ai",
+    "@ai-sdk/openai",
+    "openai",
+  ],
 };
 
 export default nextConfig;

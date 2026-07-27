@@ -317,7 +317,6 @@ export async function runGateSQLRouter(
         ) AS override_suppressed
       FROM job_meta jm
     )
-    )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
     SELECT DISTINCT ON (p.id)
       ${jobId}::uuid,

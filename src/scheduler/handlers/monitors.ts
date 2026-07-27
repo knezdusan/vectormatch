@@ -129,7 +129,7 @@ export async function runSchedulerHealthMonitor(): Promise<void> {
       (SELECT count(*) FROM pgboss.job WHERE state = 'created') AS pending_jobs,
       (SELECT count(*) FROM pgboss.job WHERE state = 'active') AS active_jobs,
       (SELECT count(*) FROM pgboss.job WHERE state = 'failed') AS failed_jobs,
-      (SELECT count(*) FROM pgboss.job WHERE state = 'completed' AND createdon > NOW() - INTERVAL '24 hours') AS completed_24h,
+      (SELECT count(*) FROM pgboss.job WHERE state = 'completed' AND created_on > NOW() - INTERVAL '24 hours') AS completed_24h,
       (SELECT count(*) FROM pgboss.schedule) AS active_schedules
   `);
 
