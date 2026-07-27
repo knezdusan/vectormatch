@@ -2,6 +2,9 @@
 
 VectorMatch is a high-performance, multi-tenant job-matching SaaS designed to solve the noise and inefficiencies of modern technical recruiting. By bridging the gap between unstructured applicant tracking system (ATS) job postings and highly specific developer candidate personas, VectorMatch automates and refines job discoverability and routing.
 
+<img width="1395" height="737" alt="image" src="https://github.com/user-attachments/assets/5e8d1b3f-0e7c-42b2-8eb9-bd92517aef82" />
+
+
 ---
 
 ## 💡 The Core Problem
