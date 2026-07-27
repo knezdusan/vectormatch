@@ -115,6 +115,13 @@ export async function runGateSQLRouter(
   jobTags: string[],
   jobEmbedding: number[],
 ): Promise<GateRouterCandidate[]> {
+  // D28 DEBUG: log what we actually receive
+  console.info(
+    `[gate-1-2 DEBUG] job=${jobId} tags=${JSON.stringify(jobTags)} ` +
+      `emb type=${Array.isArray(jobEmbedding) ? "array" : typeof jobEmbedding} ` +
+      `emb len=${Array.isArray(jobEmbedding) ? jobEmbedding.length : "N/A"} ` +
+      `emb[0]=${Array.isArray(jobEmbedding) ? jobEmbedding[0] : "N/A"}`,
+  );
   // Edge case (§5.4): empty jobTags — Gate 1 `&&` with empty array matches
   // nothing. Skip Gate 1, rely on Gate 2 alone. Log warning via console.
   if (jobTags.length === 0) {
