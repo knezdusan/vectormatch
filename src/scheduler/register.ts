@@ -142,7 +142,10 @@ export function registerPipelineFunctions(): void {
       };
       await runGate3Evaluation(matchQueueId, jobId, personaId, applicantId);
     },
-    concurrency: 10,
+    // D28 advisor ruling: reduce from 10 → 5. In-process pg-boss shares the
+    // app's DB pool AND Node event loop — 10 concurrent LLM calls can starve
+    // the web server in a way the separate Inngest container never could.
+    concurrency: 5,
     retries: 5,
   });
 
@@ -153,7 +156,9 @@ export function registerPipelineFunctions(): void {
       const { jobId } = data as { jobId: string };
       await runJobPipeline(jobId);
     },
-    concurrency: 10,
+    // D28 advisor ruling: reduce from 10 → 5. Same reason as gate-3 —
+    // in-process concurrency shares the DB pool + event loop.
+    concurrency: 5,
     retries: 3,
   });
 
@@ -232,6 +237,11 @@ export function registerPipelineFunctions(): void {
     },
     concurrency: 5,
     retries: 4,
+    // D28 advisor ruling: exponential backoff (5min base → 5/10/20/40min).
+    // Provisional jobs wait on external data; 4 retries inside 2 minutes
+    // (the old 30s flat) exhausts the ladder before the data can arrive.
+    retryDelay: 300, // 5 minutes base
+    retryBackoff: true, // 5/10/20/40min for 4 retries
   });
 
   scheduler.registerEvent({

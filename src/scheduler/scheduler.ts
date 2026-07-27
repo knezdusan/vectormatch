@@ -47,6 +47,11 @@ export interface EventRegistration {
   concurrency?: number;
   /** Max retry attempts (default: 5) */
   retries?: number;
+  /** Base retry delay in seconds (default: 30). With retryBackoff, this is the
+   * initial delay that doubles each retry: delay * 2^retryCount. */
+  retryDelay?: number;
+  /** Enable exponential backoff for retries (default: false). */
+  retryBackoff?: boolean;
 }
 
 // Minimal step interface for type compatibility
@@ -363,6 +368,8 @@ class Scheduler {
 
     const concurrency = reg.concurrency ?? 10;
     const retryLimit = reg.retries ?? 5;
+    const retryDelay = reg.retryDelay ?? 30;
+    const retryBackoff = reg.retryBackoff ?? false;
 
     // Create the queue by sending a dummy job that immediately expires.
     // pg-boss work() errors if the queue doesn't exist. We use createQueue()
@@ -387,7 +394,8 @@ class Scheduler {
         batchSize: 1,
         newOptions: {
           retryLimit,
-          retryDelay: 30,
+          retryDelay,
+          retryBackoff,
         },
       },
       async (jobs: Job[]) => {

@@ -318,7 +318,7 @@ export async function runGateSQLRouter(
       FROM job_meta jm
     )
     INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
-    SELECT DISTINCT ON (p.id)
+    SELECT
       ${jobId}::uuid,
       p.id,
       p.applicant_id,
@@ -327,6 +327,7 @@ export async function runGateSQLRouter(
       'pending'
     FROM persona p
     CROSS JOIN job_meta jm
+    CROSS JOIN override_check oc
     CROSS JOIN LATERAL (
       SELECT count(*) AS overlap_score
       FROM unnest(p.must_have_tags) AS t(tag)
