@@ -340,9 +340,18 @@ export async function runJobPipeline(
         fullJob[0].extractedTags &&
         fullJob[0].extractedTags.length > 0
       ) {
-        // Route-only: skip normalization, go directly to gate routing
+        // Route-only: skip normalization, go directly to gate routing.
+        // D28: The embedding comes back from Drizzle/pgvector as a STRING
+        // (format "[0.1,0.2,...]"), not a number[]. The previous code cast
+        // it with `as unknown as number[]`, which passed the string to
+        // serializeVector() — producing "[[0.1,0.2,...]]" (double-wrapped,
+        // invalid vector). This caused Gate 1+2 to silently return 0
+        // candidates for ALL already-normalized jobs (the route-only path).
+        const { parseVectorString } = await import("@/lib/jobs/parse-vector");
         const tags = fullJob[0].extractedTags;
-        const embedding = fullJob[0].jobEmbedding as unknown as number[];
+        const embedding = parseVectorString(
+          fullJob[0].jobEmbedding as unknown as string,
+        );
         return await gateRouteAndFanOut(jobId, tags, embedding);
       }
     }

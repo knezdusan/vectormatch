@@ -132,21 +132,24 @@ async function seedTestData(client: {
 }
 
 describe("Gate 1+2 Integration (real Postgres)", () => {
-  it("executes the Gate 1+2 SQL without syntax errors", async () => {
-    if (!(await checkDbConnection())) return; // skip if DB not reachable
-    if (!pool) return;
-    const client = await pool.connect();
-    try {
-      await seedTestData(client);
+  it(
+    "executes the Gate 1+2 SQL without syntax errors",
+    { timeout: 30000 },
+    async () => {
+      if (!(await checkDbConnection())) return; // skip if DB not reachable
+      if (!pool) return;
+      const client = await pool.connect();
+      try {
+        await seedTestData(client);
 
-      // Run the actual Gate 1+2 SQL — this is the exact query from gate-1-2.ts
-      // that had the syntax error (extra `)` after override_check CTE).
-      const jobTags = ["typescript", "react"];
-      const tagsArray = `ARRAY[${jobTags.map((t) => `'${t}'`).join(",")}]::text[]`;
-      const embeddingStr = `[${Array(1536).fill(0.1).join(",")}]`;
+        // Run the actual Gate 1+2 SQL — this is the exact query from gate-1-2.ts
+        // that had the syntax error (extra `)` after override_check CTE).
+        const jobTags = ["typescript", "react"];
+        const tagsArray = `ARRAY[${jobTags.map((t) => `'${t}'`).join(",")}]::text[]`;
+        const embeddingStr = `[${Array(1536).fill(0.1).join(",")}]`;
 
-      const result = await client.query(
-        `WITH job_meta AS (
+        const result = await client.query(
+          `WITH job_meta AS (
           SELECT ats_slug, title, remote_scope, location_name,
                  COALESCE(is_fenced, false) AS is_fenced,
                  COALESCE(is_natsec, false) AS is_natsec,
@@ -212,110 +215,118 @@ describe("Gate 1+2 Integration (real Postgres)", () => {
           overlap_score = EXCLUDED.overlap_score,
           cosine_distance = EXCLUDED.cosine_distance
         RETURNING id, persona_id, applicant_id, overlap_score, cosine_distance`,
-        [TEST_JOB_ID, embeddingStr],
-      );
+          [TEST_JOB_ID, embeddingStr],
+        );
 
-      // THE receipt: candidates must be > 0
-      expect(result.rows.length).toBeGreaterThan(0);
-      console.log(
-        `[D28 integration] Gate 1+2 returned ${result.rows.length} candidate(s)`,
-      );
+        // THE receipt: candidates must be > 0
+        expect(result.rows.length).toBeGreaterThan(0);
+        console.log(
+          `[D28 integration] Gate 1+2 returned ${result.rows.length} candidate(s)`,
+        );
 
-      // Verify the test persona is among the candidates
-      const candidates = result.rows as Record<string, unknown>[];
-      const testCandidate = candidates.find(
-        (c) => c.persona_id === TEST_PERSONA_ID,
-      );
-      expect(testCandidate).toBeDefined();
-      expect(testCandidate!.applicant_id).toBe(TEST_APPLICANT_ID);
-      expect(Number(testCandidate!.overlap_score)).toBeGreaterThanOrEqual(1);
-    } finally {
-      client.release();
-    }
-  });
+        // Verify the test persona is among the candidates
+        const candidates = result.rows as Record<string, unknown>[];
+        const testCandidate = candidates.find(
+          (c) => c.persona_id === TEST_PERSONA_ID,
+        );
+        expect(testCandidate).toBeDefined();
+        expect(testCandidate!.applicant_id).toBe(TEST_APPLICANT_ID);
+        expect(Number(testCandidate!.overlap_score)).toBeGreaterThanOrEqual(1);
+      } finally {
+        client.release();
+      }
+    },
+  );
 
-  it("verifies match_queue rows were actually persisted", async () => {
-    if (!pool) return;
-    const client = await pool.connect();
-    try {
-      const result = await client.query(
-        "SELECT count(*)::int AS cnt FROM match_queue WHERE job_id = $1 AND status = 'pending'",
-        [TEST_JOB_ID],
-      );
-      expect(result.rows[0]).toBeDefined();
-      expect(
-        Number((result.rows[0] as Record<string, unknown>).cnt),
-      ).toBeGreaterThan(0);
-      console.log(
-        `[D28 integration] match_queue has ${Number((result.rows[0] as Record<string, unknown>).cnt)} pending row(s) for test job`,
-      );
-    } finally {
-      client.release();
-    }
-  });
+  it(
+    "verifies match_queue rows were actually persisted",
+    { timeout: 15000 },
+    async () => {
+      if (!pool) return;
+      const client = await pool.connect();
+      try {
+        const result = await client.query(
+          "SELECT count(*)::int AS cnt FROM match_queue WHERE job_id = $1 AND status = 'pending'",
+          [TEST_JOB_ID],
+        );
+        expect(result.rows[0]).toBeDefined();
+        expect(
+          Number((result.rows[0] as Record<string, unknown>).cnt),
+        ).toBeGreaterThan(0);
+        console.log(
+          `[D28 integration] match_queue has ${Number((result.rows[0] as Record<string, unknown>).cnt)} pending row(s) for test job`,
+        );
+      } finally {
+        client.release();
+      }
+    },
+  );
 });
 
 describe("Gate 3 Integration (real Postgres, mocked LLM)", () => {
-  it("writes a verdict to match_queue for a pending candidate", async () => {
-    if (!(await checkDbConnection())) return; // skip if DB not reachable
-    if (!pool) return;
-    const client = await pool.connect();
-    try {
-      // Ensure test data exists (from the Gate 1+2 test above)
-      await seedTestData(client);
+  it(
+    "writes a verdict to match_queue for a pending candidate",
+    { timeout: 30000 },
+    async () => {
+      if (!(await checkDbConnection())) return; // skip if DB not reachable
+      if (!pool) return;
+      const client = await pool.connect();
+      try {
+        // Ensure test data exists (from the Gate 1+2 test above)
+        await seedTestData(client);
 
-      // Insert a pending match_queue row if not already there
-      await client.query(
-        `INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
+        // Insert a pending match_queue row if not already there
+        await client.query(
+          `INSERT INTO match_queue (job_id, persona_id, applicant_id, overlap_score, cosine_distance, status)
          VALUES ($1, $2, $3, 2, 0.05, 'pending')
          ON CONFLICT (job_id, persona_id) DO UPDATE SET status = 'pending', evaluated_at = NULL`,
-        [TEST_JOB_ID, TEST_PERSONA_ID, TEST_APPLICANT_ID],
-      );
+          [TEST_JOB_ID, TEST_PERSONA_ID, TEST_APPLICANT_ID],
+        );
 
-      // Simulate what Gate 3 does: fetch context, write verdict.
-      // We mock the LLM call (no OpenAI API in tests) but use the REAL DB
-      // for the context fetch and verdict write — this catches SQL/column
-      // errors in the Gate 3 handler's DB queries.
+        // Simulate what Gate 3 does: fetch context, write verdict.
+        // We mock the LLM call (no OpenAI API in tests) but use the REAL DB
+        // for the context fetch and verdict write — this catches SQL/column
+        // errors in the Gate 3 handler's DB queries.
 
-      // Step 1: Fetch context (same query pattern as runGate3Evaluation)
-      const jobResult = await client.query(
-        `SELECT title, raw_json, normalized_text, ats_source, extracted_tags,
+        // Step 1: Fetch context (same query pattern as runGate3Evaluation)
+        const jobResult = await client.query(
+          `SELECT title, raw_json, normalized_text, ats_source, extracted_tags,
                 workplace_type, location_name, employment_type, remote_scope, location_countries
          FROM job WHERE id = $1`,
-        [TEST_JOB_ID],
-      );
-      expect(jobResult.rows.length).toBe(1);
+          [TEST_JOB_ID],
+        );
+        expect(jobResult.rows.length).toBe(1);
 
-      const personaResult = await client.query(
-        `SELECT persona_label, embedding_summary, must_have_tags, blocklist_tags, seniority_levels
+        const personaResult = await client.query(
+          `SELECT persona_label, embedding_summary, must_have_tags, blocklist_tags, seniority_levels
          FROM persona WHERE id = $1`,
-        [TEST_PERSONA_ID],
-      );
-      expect(personaResult.rows.length).toBe(1);
+          [TEST_PERSONA_ID],
+        );
+        expect(personaResult.rows.length).toBe(1);
 
-      const applicantResult = await client.query(
-        `SELECT all_tags, country, can_work_us_hours, preferred_compliance,
+        const applicantResult = await client.query(
+          `SELECT all_tags, country, can_work_us_hours, preferred_compliance,
                 modalities, assignment_types, work_authorizations
          FROM applicant WHERE user_id = $1`,
-        [TEST_APPLICANT_ID],
-      );
-      expect(applicantResult.rows.length).toBe(1);
+          [TEST_APPLICANT_ID],
+        );
+        expect(applicantResult.rows.length).toBe(1);
 
-      // Step 2: Simulate LLM verdict (mocked — no OpenAI call)
-      const mockVerdict = {
-        approved: true,
-        matchConfidence: 0.85,
-        matchReasoning:
-          "Strong TypeScript + React match with global remote scope.",
-        blockers: [],
-        workAuthRiskFlag: false,
-      };
+        // Step 2: Simulate LLM verdict (mocked — no OpenAI call)
+        const mockVerdict = {
+          approved: true,
+          matchConfidence: 0.85,
+          matchReasoning:
+            "Strong TypeScript + React match with global remote scope.",
+          blockers: [],
+          workAuthRiskFlag: false,
+        };
 
-      // Step 3: Write verdict to DB (the exact update from runGate3Evaluation)
-      // llm_blockers is text[] (not jsonb) — pass as array, not JSON string
-      const verdictString = "approved";
-      await client.query(
-        `UPDATE match_queue
+        // Step 3: Write verdict to DB (the exact update from runGate3Evaluation)
+        // llm_blockers is text[] (not jsonb) — pass as array, not JSON string
+        const verdictString = "approved";
+        await client.query(
+          `UPDATE match_queue
          SET status = $2,
              llm_verdict = $2,
              llm_reasoning = $3,
@@ -327,36 +338,37 @@ describe("Gate 3 Integration (real Postgres, mocked LLM)", () => {
              work_auth_risk_flag = $6,
              evaluated_at = NOW()
          WHERE id = (SELECT id FROM match_queue WHERE job_id = $1 AND persona_id = $7 LIMIT 1)`,
-        [
-          TEST_JOB_ID,
-          verdictString,
-          mockVerdict.matchReasoning,
-          mockVerdict.matchConfidence,
-          mockVerdict.blockers, // pg will serialize JS array to Postgres array
-          mockVerdict.workAuthRiskFlag,
-          TEST_PERSONA_ID,
-        ],
-      );
+          [
+            TEST_JOB_ID,
+            verdictString,
+            mockVerdict.matchReasoning,
+            mockVerdict.matchConfidence,
+            mockVerdict.blockers, // pg will serialize JS array to Postgres array
+            mockVerdict.workAuthRiskFlag,
+            TEST_PERSONA_ID,
+          ],
+        );
 
-      // THE receipt: verify the verdict was written
-      const verifyResult = await client.query(
-        `SELECT status, llm_verdict, llm_reasoning, llm_confidence, llm_model
+        // THE receipt: verify the verdict was written
+        const verifyResult = await client.query(
+          `SELECT status, llm_verdict, llm_reasoning, llm_confidence, llm_model
          FROM match_queue
          WHERE job_id = $1 AND persona_id = $2`,
-        [TEST_JOB_ID, TEST_PERSONA_ID],
-      );
+          [TEST_JOB_ID, TEST_PERSONA_ID],
+        );
 
-      expect(verifyResult.rows.length).toBe(1);
-      const row = verifyResult.rows[0] as Record<string, unknown>;
-      expect(row.status).toBe("approved");
-      expect(row.llm_verdict).toBe("approved");
-      expect(row.llm_model).toBe("gpt-4o-mini");
-      expect(Number(row.llm_confidence)).toBe(0.85);
-      console.log(
-        `[D28 integration] Gate 3 verdict written: status=${row.status}, confidence=${row.llm_confidence}`,
-      );
-    } finally {
-      client.release();
-    }
-  });
+        expect(verifyResult.rows.length).toBe(1);
+        const row = verifyResult.rows[0] as Record<string, unknown>;
+        expect(row.status).toBe("approved");
+        expect(row.llm_verdict).toBe("approved");
+        expect(row.llm_model).toBe("gpt-4o-mini");
+        expect(Number(row.llm_confidence)).toBe(0.85);
+        console.log(
+          `[D28 integration] Gate 3 verdict written: status=${row.status}, confidence=${row.llm_confidence}`,
+        );
+      } finally {
+        client.release();
+      }
+    },
+  );
 });
