@@ -12,6 +12,7 @@
 //
 // All in-process. No HTTP hops. No Docker DNS. No cached step URIs.
 
+import { parseVectorString } from "@/lib/jobs/parse-vector";
 import { scheduler } from "./scheduler";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -341,17 +342,17 @@ export async function runJobPipeline(
         fullJob[0].extractedTags.length > 0
       ) {
         // Route-only: skip normalization, go directly to gate routing.
-        // D28: The embedding comes back from Drizzle/pgvector as a STRING
-        // (format "[0.1,0.2,...]"), not a number[]. The previous code cast
-        // it with `as unknown as number[]`, which passed the string to
-        // serializeVector() — producing "[[0.1,0.2,...]]" (double-wrapped,
-        // invalid vector). This caused Gate 1+2 to silently return 0
-        // candidates for ALL already-normalized jobs (the route-only path).
-        const { parseVectorString } = await import("@/lib/jobs/parse-vector");
+        // D28: Drizzle's PgVector.mapFromDriverValue converts the pgvector
+        // string "[0.1,0.2,...]" to a number[] — BUT only when the query goes
+        // through Drizzle's select() builder. The neon-serverless driver and
+        // raw db.execute() may return the raw string instead. Handle both.
+        const rawEmbedding = fullJob[0].jobEmbedding as unknown;
+        const embedding = Array.isArray(rawEmbedding)
+          ? (rawEmbedding as number[])
+          : typeof rawEmbedding === "string"
+            ? parseVectorString(rawEmbedding)
+            : [];
         const tags = fullJob[0].extractedTags;
-        const embedding = parseVectorString(
-          fullJob[0].jobEmbedding as unknown as string,
-        );
         return await gateRouteAndFanOut(jobId, tags, embedding);
       }
     }
@@ -1021,7 +1022,13 @@ export async function runPendingQueueSweep(): Promise<{
     try {
       const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
       const tags = row.extracted_tags ?? [];
-      const embedding = row.job_embedding ? JSON.parse(row.job_embedding) : [];
+      // D28: Handle both string (raw SQL) and number[] (Drizzle mapped) embeddings
+      const rawEmb = row.job_embedding;
+      const embedding = Array.isArray(rawEmb)
+        ? (rawEmb as number[])
+        : rawEmb
+          ? parseVectorString(rawEmb as string)
+          : [];
 
       const candidates = await runGateSQLRouter(row.id, tags, embedding);
 
