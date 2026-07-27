@@ -37,13 +37,23 @@ type Tier = "active_hot" | "active" | "probation" | "dormant";
 
 /**
  * Determine the tier from the cron expression.
- * Matches the cronToTier function in functions.ts.
+ * Ported from src/inngest/functions.ts (D27 — Inngest removal).
  */
-function cronToTier(cron: string): Tier {
-  if (cron.includes("*/1")) return "active_hot";
-  if (cron.includes("*/3")) return "active";
-  if (cron.includes("*/6")) return "probation";
-  return "dormant";
+export function cronToTier(cron: string): Tier {
+  switch (cron) {
+    case "0 */2 * * *":
+      return "active_hot"; // every 2h — hot tier (yielding tier, promptness front line)
+    case "0 */3 * * *":
+      return "active_hot"; // every 3h — D20 unfreeze cadence (8x/day, politeness-bounded)
+    case "0 */12 * * *":
+      return "probation"; // every 12h — probation tier
+    case "0 */24 * * *":
+      return "active"; // every 24h — standard tier
+    case "0 3 * * 1":
+      return "dormant"; // weekly Monday 3am — dormant tier
+    default:
+      throw new Error(`Unknown cron trigger: ${cron}`);
+  }
 }
 
 /**

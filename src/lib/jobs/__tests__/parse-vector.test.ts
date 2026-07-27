@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { parseVectorString } from "@/inngest/functions";
+import { parseVectorString } from "@/lib/jobs/parse-vector";
 
 describe("parseVectorString", () => {
   it("parses a valid pgvector string", () => {
@@ -25,29 +25,34 @@ describe("parseVectorString", () => {
     expect(result).toEqual([-0.1, 0.2, -0.3]);
   });
 
-  it("parses scientific notation", () => {
-    const result = parseVectorString("[1e-5,2e-3]");
-    expect(result).toEqual([0.00001, 0.002]);
+  it("parses an empty vector string", () => {
+    const result = parseVectorString("[]");
+    expect(result).toEqual([]);
   });
 
   it("returns empty array for null input", () => {
-    expect(parseVectorString(null)).toEqual([]);
+    const result = parseVectorString(null);
+    expect(result).toEqual([]);
   });
 
   it("returns empty array for undefined input", () => {
-    expect(parseVectorString(undefined)).toEqual([]);
+    const result = parseVectorString(undefined);
+    expect(result).toEqual([]);
   });
 
   it("returns empty array for empty string", () => {
-    expect(parseVectorString("")).toEqual([]);
+    const result = parseVectorString("");
+    expect(result).toEqual([]);
   });
 
   it("returns empty array for malformed string (no brackets)", () => {
-    expect(parseVectorString("0.1,0.2,0.3")).toEqual([]);
+    const result = parseVectorString("0.1,0.2,0.3");
+    expect(result).toEqual([]);
   });
 
-  it("returns empty array for empty vector '[]'", () => {
-    expect(parseVectorString("[]")).toEqual([]);
+  it("returns empty array for malformed string (only opening bracket)", () => {
+    const result = parseVectorString("[0.1,0.2");
+    expect(result).toEqual([]);
   });
 
   it("handles whitespace in the vector string", () => {

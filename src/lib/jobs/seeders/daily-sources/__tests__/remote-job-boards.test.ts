@@ -10,12 +10,11 @@ vi.mock("@/db/db", () => ({ db: { select: vi.fn(), insert: vi.fn() } }));
 // Mock the slugger module
 vi.mock("@/lib/jobs/seeders/slugger", () => ({ resolveSlugger: vi.fn() }));
 
-// Mock the inngest client
-vi.mock("@/inngest/client", () => ({
-  inngest: { send: vi.fn().mockResolvedValue({}) },
+// D27: Mock the pg-boss scheduler (replaced inngest.send)
+vi.mock("@/scheduler/scheduler", () => ({
+  scheduler: { send: vi.fn().mockResolvedValue({}) },
 }));
 
-import { inngest } from "@/inngest/client";
 import {
   extractCompanyNamesFromHimalayas,
   extractCompanyNamesFromRemoteOk,
@@ -27,6 +26,7 @@ import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
 import type { FetchFn } from "@/lib/jobs/types";
+import { scheduler } from "@/scheduler/scheduler";
 
 // ── REMOTE_JOB_BOARDS constant ───────────────────────────────────────────────
 
@@ -260,7 +260,7 @@ describe("deduplicateCompanyNames", () => {
 describe("runRemoteJobBoardsSeeder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(inngest.send).mockResolvedValue({} as never);
+    vi.mocked(scheduler.send).mockResolvedValue({} as never);
   });
 
   function makeSuccessResult(companyName: string): SluggerResult {
@@ -328,8 +328,8 @@ describe("runRemoteJobBoardsSeeder", () => {
     // resolveSlugger called once per unique company
     expect(resolveSlugger).toHaveBeenCalledTimes(4);
 
-    // inngest.send called once per resolved company
-    expect(inngest.send).toHaveBeenCalledTimes(4);
+    // scheduler.send called once per resolved company
+    expect(scheduler.send).toHaveBeenCalledTimes(4);
   });
 
   it("handles individual board failure gracefully", async () => {
@@ -415,7 +415,7 @@ describe("runRemoteJobBoardsSeeder", () => {
     expect(result.unresolved).toBe(0);
     expect(result.error).toBeUndefined();
     expect(resolveSlugger).not.toHaveBeenCalled();
-    expect(inngest.send).not.toHaveBeenCalled();
+    expect(scheduler.send).not.toHaveBeenCalled();
   });
 
   it("counts unresolved companies when Slugger fails", async () => {
@@ -439,8 +439,8 @@ describe("runRemoteJobBoardsSeeder", () => {
     expect(result.resolved).toBe(1);
     expect(result.unresolved).toBe(1);
 
-    // inngest.send only fired for the resolved company
-    expect(inngest.send).toHaveBeenCalledTimes(1);
+    // scheduler.send only fired for the resolved company
+    expect(scheduler.send).toHaveBeenCalledTimes(1);
   });
 
   it("passes correct SluggerInput with discoverySource=hn_algolia", async () => {
@@ -497,21 +497,18 @@ describe("runRemoteJobBoardsSeeder", () => {
 
     await runRemoteJobBoardsSeeder(fetchFn);
 
-    expect(inngest.send).toHaveBeenCalledTimes(2);
+    expect(scheduler.send).toHaveBeenCalledTimes(2);
 
-    const calls = vi.mocked(inngest.send).mock.calls;
-    const eventNames = calls.map((c) =>
-      Array.isArray(c[0]) ? c[0][0].name : c[0].name,
-    );
+    const calls = vi.mocked(scheduler.send).mock.calls;
+    // scheduler.send(name, data, id?) — first arg is event name
+    const eventNames = calls.map((c) => c[0]);
     expect(eventNames.every((n) => n === "job/aggregator-ingested")).toBe(true);
 
     // Verify the event data includes company and source
-    const firstArg = calls[0][0];
-    const firstEvent = (Array.isArray(firstArg) ? firstArg[0] : firstArg)
-      .data as Record<string, unknown>;
-    expect(firstEvent.company).toBeTruthy();
-    expect(firstEvent.source).toBeTruthy();
-    expect(firstEvent.externalJobId).toBeTruthy();
+    const firstEventData = calls[0][1] as Record<string, unknown>;
+    expect(firstEventData.company).toBeTruthy();
+    expect(firstEventData.source).toBeTruthy();
+    expect(firstEventData.externalJobId).toBeTruthy();
   });
 
   it("handles Slugger throwing an error for a single company", async () => {

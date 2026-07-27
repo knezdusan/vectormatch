@@ -208,7 +208,7 @@ export async function PipelineHealthMonitor() {
         </div>
         <CardDescription>
           Real-time pipeline metrics (updated every 30 min by the
-          pipeline-health-monitor Inngest function)
+          pipeline-health-monitor scheduler cron)
           {hasIssues ? " — issues detected" : " — all systems healthy"}
         </CardDescription>
       </CardHeader>

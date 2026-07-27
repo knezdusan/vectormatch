@@ -15,7 +15,6 @@ import { revalidatePath, updateTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/db";
 import { excludedCountries } from "@/db/schemas/jobs/excludedCountries";
-import { inngest } from "@/inngest/client";
 import { requireRole } from "@/lib/auth";
 import { resolveAlert, resolveAllAlerts } from "@/lib/jobs/alerting";
 import { COUNTRY_NAMES } from "@/lib/jobs/location-utils";
@@ -121,14 +120,14 @@ export async function triggerBulkReprocessAction(
     return { success: false, error: "Invalid persona ID" };
   }
   try {
-    await inngest.send({
-      id: `match-bulk-reprocess-admin-${Date.now()}`,
-      name: "match/bulk-reprocess",
-      data: {
+    await scheduler.send(
+      "match/bulk-reprocess",
+      {
         personaId: parsed.data,
         includeRejected: false,
       },
-    });
+      `match-bulk-reprocess-admin-${Date.now()}`,
+    );
     revalidatePath("/dashboard/admin");
     return { success: true };
   } catch (e) {
@@ -210,11 +209,11 @@ export async function triggerNormalizationRetryAction(): Promise<
 export async function triggerEmergencyPurgeAction(): Promise<AdminActionState> {
   await requireRole("admin");
   try {
-    await inngest.send({
-      id: `purge-emergency-storage-admin-${Date.now()}`,
-      name: "purge/emergency-storage",
-      data: { triggeredBy: "admin-dashboard" },
-    });
+    await scheduler.send(
+      "purge/emergency-storage",
+      { triggeredBy: "admin-dashboard" },
+      `purge-emergency-storage-admin-${Date.now()}`,
+    );
     revalidatePath("/dashboard/admin");
     return { success: true };
   } catch (e) {

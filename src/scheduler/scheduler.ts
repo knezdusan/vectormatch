@@ -61,6 +61,20 @@ interface StepLike {
   sleep(ms: number): Promise<void>;
 }
 
+// ── Scheduler Status (for admin dashboard) ───────────────────────────────────
+
+export interface SchedulerStatus {
+  running: boolean;
+  activeSchedules: number;
+  registeredEvents: number;
+  queueCounts: {
+    created: number;
+    active: number;
+    completed: number;
+    failed: number;
+  };
+}
+
 // ── Scheduler Singleton ──────────────────────────────────────────────────────
 
 class Scheduler {
@@ -233,6 +247,62 @@ class Scheduler {
     return this.started;
   }
 
+  /**
+   * Get the scheduler status — queue counts, active schedules, registered
+   * events. Used by the admin dashboard's SchedulerStatusControl.
+   */
+  async getStatus(): Promise<SchedulerStatus> {
+    if (!this.boss) {
+      return {
+        running: false,
+        activeSchedules: 0,
+        registeredEvents: 0,
+        queueCounts: { created: 0, active: 0, completed: 0, failed: 0 },
+      };
+    }
+
+    // Count active cron schedules
+    let activeSchedules = 0;
+    try {
+      const schedules = await this.boss.getSchedules();
+      activeSchedules = schedules.length;
+    } catch (error) {
+      console.warn("[scheduler] Failed to fetch schedules:", error);
+    }
+
+    // Aggregate queue counts across all queues
+    const queueCounts: SchedulerStatus["queueCounts"] = {
+      created: 0,
+      active: 0,
+      completed: 0,
+      failed: 0,
+    };
+    try {
+      const queues = await this.boss.getQueues();
+      for (const q of queues) {
+        queueCounts.created += q.queuedCount ?? 0;
+        queueCounts.active += q.activeCount ?? 0;
+        // pg-boss doesn't expose completedCount directly — approximate
+        // as totalCount minus the other states
+        queueCounts.completed +=
+          (q.totalCount ?? 0) -
+          (q.queuedCount ?? 0) -
+          (q.activeCount ?? 0) -
+          (q.failedCount ?? 0);
+        queueCounts.failed += q.failedCount ?? 0;
+      }
+    } catch (error) {
+      console.warn("[scheduler] Failed to fetch queue counts:", error);
+    }
+
+    return {
+      running: this.started,
+      activeSchedules,
+      registeredEvents: this.registrations.events.length,
+      queueCounts,
+    };
+  }
+
   // ── Internal methods ──────────────────────────────────────────────────────
 
   private eventQueueName(eventName: string): string {
@@ -249,15 +319,24 @@ class Scheduler {
   private async registerCronJob(reg: CronRegistration): Promise<void> {
     const queueName = this.cronQueueName(reg.id);
 
-    // Schedule the cron job FIRST — this creates the queue in pg-boss.
-    // work() will error if the queue doesn't exist yet.
+    // Create the queue FIRST — pg-boss work() errors if the queue
+    // doesn't exist. schedule() alone may not create the queue
+    // synchronously in all versions.
+    try {
+      await this.boss!.createQueue(queueName);
+    } catch {
+      // Queue may already exist — that's fine
+    }
+
+    // Schedule the cron job — this tells pg-boss to enqueue jobs
+    // on this queue according to the cron expression.
     await this.boss!.schedule(
       queueName,
       reg.cron,
       {}, // no data — the handler doesn't need it
     );
 
-    // Register the handler (worker) — now the queue exists
+    // Register the handler (worker) — the queue now exists
     await this.boss!.work(
       queueName,
       { teamSize: 1, batchSize: 1 },

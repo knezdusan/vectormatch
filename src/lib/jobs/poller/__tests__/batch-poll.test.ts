@@ -11,7 +11,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { cronToTier } from "@/inngest/functions";
+import { cronToTier } from "@/scheduler/pipeline";
 
 // Mock the db module so getBatchForTier can be tested without a real database
 vi.mock("@/db/db", () => ({

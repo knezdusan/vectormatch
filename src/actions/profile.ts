@@ -17,7 +17,6 @@ import type { z } from "zod";
 
 import { db } from "@/db/db";
 import { applicant, cvUpload, persona, workingHistory } from "@/db/schemas";
-import { inngest } from "@/inngest/client";
 import { generateEmbeddings } from "@/lib/ai/embeddings";
 import { type AuthSession, getAuthSession } from "@/lib/auth";
 import { CANONICAL_TAGS, PERSONA_DEFINING_TAGS } from "@/lib/jobs/tech-tags";
@@ -428,10 +427,11 @@ export async function updatePersonasAction(
     }
 
     if (changedPersonaIds.length > 0) {
-      await inngest.send(
+      const { scheduler } = await import("@/scheduler/scheduler");
+      await scheduler.sendBatch(
         changedPersonaIds.map((pid) => ({
           id: `persona-updated-${pid}-${Date.now()}`,
-          name: "persona/updated" as const,
+          name: "persona/updated",
           data: { personaId: pid },
         })),
       );

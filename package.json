@@ -21,9 +21,7 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
-    "cleanup:test-users": "tsx scripts/cleanup-test-users.ts",
-    "inngest:dev": "INNGEST_DEV=1 npx inngest-cli@latest dev -u http://localhost:3000/api/inngest",
-    "inngest:dev:docker": "docker run -p 8288:8288 -p 8289:8289 inngest/inngest inngest dev -u http://host.docker.internal:3000/api/inngest"
+    "cleanup:test-users": "tsx scripts/cleanup-test-users.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.73",
@@ -42,7 +40,6 @@
     "domhandler": "^5.0.3",
     "drizzle-orm": "^0.45.2",
     "drizzle-zod": "^0.8.3",
-    "inngest": "^4.8.0",
     "ioredis": "^5.11.1",
     "kysely": "0.28.17",
     "lucide-react": "^1.16.0",

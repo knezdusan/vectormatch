@@ -12,6 +12,7 @@ export type {
   PipelineResult,
 } from "./pipeline";
 export {
+  cronToTier,
   runBatchPollTier,
   runDirectJobBoardIngestion,
   runGate3Evaluation,

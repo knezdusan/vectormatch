@@ -1,9 +1,9 @@
 #!/usr/bin/env npx tsx
 // One-time script: Send job/ingested events for unnormalized jobs to trigger
-// normalization via the jobIngestedHandler Inngest function.
+// normalization via the pg-boss scheduler.
 //
 // This is equivalent to what the normalizationRetrySweep does, but run manually
-// to avoid waiting for the next 4h cron tick.
+// to avoid waiting for the next cron tick.
 
 import { config } from "dotenv";
 
@@ -12,14 +12,10 @@ config();
 import { Pool } from "@neondatabase/serverless";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
-import { Inngest } from "inngest";
 import { job } from "../src/db/schemas/jobs/job";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const db = drizzle(pool);
-
-// Inngest client — uses the production event key from env
-const inngest = new Inngest({ id: "vectormatch" });
 
 async function main() {
   // Get unnormalized jobs that have rawJson (needed for normalization)
@@ -32,7 +28,7 @@ async function main() {
          AND ${job.rawJson} IS NOT NULL`,
     )
     .orderBy(job.detectedAt)
-    .limit(100); // Send in batches of 100 to avoid overwhelming the queue
+    .limit(100);
 
   console.log(`Found ${jobs.length} unnormalized jobs with rawJson`);
 
@@ -42,16 +38,26 @@ async function main() {
     return;
   }
 
-  // Send job/ingested events in batches of 50 (Inngest send limit)
+  // Insert job/ingested events directly into the pg-boss queue
+  // (bypasses the scheduler singleton since this is a standalone script)
+  const queueName = "event.job.ingested";
   let sent = 0;
   for (let i = 0; i < jobs.length; i += 50) {
     const batch = jobs.slice(i, i + 50);
-    const events = batch.map((j) => ({
-      name: "job/ingested",
+    const inserts = batch.map((j) => ({
+      name: queueName,
       data: { jobId: j.id },
     }));
     try {
-      const _result = await inngest.send(events);
+      // Use raw SQL to insert into pg-boss queue
+      for (const insert of inserts) {
+        await db.execute(sql`
+          SELECT pgboss.create_job(
+            ${insert.name},
+            ${JSON.stringify(insert.data)}::jsonb
+          )
+        `);
+      }
       sent += batch.length;
       console.log(
         `Sent batch ${Math.floor(i / 50) + 1}: ${batch.length} events (total: ${sent})`,
@@ -63,8 +69,8 @@ async function main() {
   }
 
   console.log(`\nDone. Sent ${sent} job/ingested events.`);
-  console.log("The jobIngestedHandler will process these (concurrency: 10).");
-  console.log("Monitor at https://inngest.vectormatch.dev/runs");
+  console.log("The scheduler will process these via the job/ingested handler.");
+  console.log("Monitor at /dashboard/admin (pipeline tab)");
 
   await pool.end();
 }

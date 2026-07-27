@@ -24,7 +24,6 @@
 //
 // See TDD §2.4 (D4) for the full specification.
 
-import { inngest } from "@/inngest/client";
 import { deduplicateCompanyNames } from "@/lib/jobs/seeders/seeder-utils";
 import type { SluggerResult } from "@/lib/jobs/seeders/slugger";
 import { resolveSlugger } from "@/lib/jobs/seeders/slugger";
@@ -235,16 +234,14 @@ export async function runRemoteJobBoardsSeeder(
         if (result.success) {
           resolved++;
 
-          // Fire job/aggregator-ingested event for G3 job-level ingestion
-          await inngest.send({
-            name: "job/aggregator-ingested",
-            data: {
-              source: boardName,
-              externalJobId: `remote-board:${companyName}`,
-              company: companyName,
-              title: companyName,
-              description: "",
-            },
+          // D27: Fire job/aggregator-ingested event via pg-boss scheduler
+          const { scheduler } = await import("@/scheduler/scheduler");
+          await scheduler.send("job/aggregator-ingested", {
+            source: boardName,
+            externalJobId: `remote-board:${companyName}`,
+            company: companyName,
+            title: companyName,
+            description: "",
           });
         } else {
           unresolved++;

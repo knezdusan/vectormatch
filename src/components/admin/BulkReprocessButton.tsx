@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 /**
  * Admin dashboard button that triggers a bulk reprocess of the matching
- * pipeline. Sends a `match/bulk-reprocess` Inngest event that re-evaluates
+ * pipeline. Sends a `match/bulk-reprocess` scheduler event that re-evaluates
  * all active+embedded jobs against all personas.
  *
  * This is the primary mechanism for retroactively matching existing jobs
@@ -49,14 +49,9 @@ export function BulkReprocessButton() {
         >
           {result.success ? (
             <>
-              Bulk reprocess triggered — check{" "}
-              <a
-                href="https://inngest.vectormatch.dev/runs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                Inngest dashboard
+              Bulk reprocess triggered — check the{" "}
+              <a href="/dashboard/admin" className="underline">
+                scheduler status
               </a>{" "}
               for progress.
             </>

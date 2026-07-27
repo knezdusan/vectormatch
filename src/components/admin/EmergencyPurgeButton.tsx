@@ -6,7 +6,7 @@
 // Client component that renders a destructive "Emergency Purge" button on the
 // infrastructure health card. Uses useTransition to call the
 // triggerEmergencyPurgeAction Server Action, which sends a
-// `purge/emergency-storage` event to Inngest.
+// `purge/emergency-storage` event to the pg-boss scheduler.
 //
 // The button requires a confirmation dialog because the purge is irreversible
 // — it deletes jobs from the database. A native confirm() is used for
@@ -78,7 +78,7 @@ export function EmergencyPurgeButton({
       </Button>
       {result?.success && (
         <p className="text-xs text-emerald-600 dark:text-emerald-400">
-          Purge triggered — check Inngest dashboard for progress.
+          Purge triggered — check scheduler status for progress.
         </p>
       )}
       {result && !result.success && (

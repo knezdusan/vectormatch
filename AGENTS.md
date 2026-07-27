@@ -12,7 +12,7 @@ Prioritize performance, accuracy, and developer-centric UX.
 - **Shadcn/ui 4.8.0**
 - **Drizzle ORM** + PostgreSQL 17 (self-hosted on VPS Docker) with `pgvector` — migrated from Neon to VPS Postgres on July 20 2026 (D20). See "Database & Infrastructure" section below for connection details.
 - **Better Auth** for authentication
-- **Inngest v4** for durable background jobs and workflows
+- **pg-boss** for background jobs and scheduled tasks (D27: replaced Inngest v4 in July 2026 — see "Scheduler Orchestration" section below)
 - **Vercel AI SDK** (gpt-4o for complex reasoning, gpt-4o-mini for scale, text-embedding-3-small)
 - **Biome** as linter + formatter (never ESLint/Prettier)
 - **useActionState + Zod** for forms
@@ -67,7 +67,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Use **App Router** exclusively (`app/` directory)
 - **Server Components by default** — add `"use client"` only when necessary (interactivity, hooks, browser APIs)
 - All database operations must go through **Drizzle ORM** (no raw SQL unless for complex vector/GIN queries)
-- Background jobs and ATS polling **must** use **Inngest** durable execution
+- Background jobs and ATS polling **must** use **pg-boss** (the in-process Postgres-backed scheduler, D27+)
 - Prefer Server Actions for mutations
 - Use **Cache Components** for data caching (see `node_modules/next/dist/docs/` for reference)
 
@@ -118,7 +118,7 @@ Always add or update tests for these:
 - **New form validations**: Zod schemas, Server Actions with `useActionState`
 - **Database schema changes** affecting queries or Drizzle relations
 - **New API endpoints** or route handlers (`app/api/**/route.ts`)
-- **New background jobs** (Inngest functions, event handlers)
+- **New background jobs** (pg-boss cron jobs, event handlers)
 - **New business logic**: matching algorithms, scoring, filtering
 - **Bug fixes**: always add a regression test (unit or E2E, whichever fits)
 - **Critical user journeys**: onboarding, job matching flow, payments
@@ -267,14 +267,14 @@ END:agent-rules-on-hold - Database & Matching + Onboarding remain on hold; ATS I
 ## ATS Ingestion Rules
 - Use native Greenhouse, Lever, and Ashby JSON APIs (all three are MVP priority). Centralized in `src/lib/jobs/ats-endpoints.ts`.
 - Respect rate limits: max 2 req/s per ATS platform using `bottleneck` (`maxConcurrent: 1, minTime: 500` per ATS source). Rate limiting is distributed via Redis (`REDIS_URL`) when configured — see `src/lib/jobs/poller/rate-limiter.ts`. Without Redis, the cap is only enforced per-process (not safe for multi-worker production).
-- Seed using HTTP Archive BigQuery (monthly script) + HN Algolia (weekly Inngest function). crt.sh deferred to Phase 2 (post-MVP).
+- Seed using HTTP Archive BigQuery (monthly script) + HN Algolia (weekly pg-boss cron). crt.sh deferred to Phase 2 (post-MVP).
 - Never scrape HTML career pages. Non-ATS URLs from HN are resolved via DNS CNAME check + slug probe against ATS APIs. If both fail, discard — no manual review.
 - Gate 0: Synchronous regex title filter rejects non-engineering jobs before database insertion (`src/lib/jobs/gate-zero.ts`). Optimize for recall — the 3-Gate funnel handles precision.
 - All ATS responses must pass through Zod `safeParse()` before processing. Payload changes degrade gracefully (slug flagged as `degraded`) rather than crashing the worker.
 - Deduplication: upsert on `(ats_source, ats_slug, external_job_id)` unique constraint. Re-polls refresh `lastSeenAt` and `rawJson`.
 - Stale job cleanup: jobs not seen in 7 days → `stale`, not seen in 30 days → `gone`. Module C only matches `status = 'active'` jobs.
 - Decay polling: Tier A (active) → every 12h, Tier B (dormant) → weekly, Tier C (dead) → stopped. Tiers recalculated daily.
-- B→C handoff: Poller emits `job/ingested` Inngest event only for new jobs. Module B inserts raw jobs (empty tags, null embedding). Module C owns normalization.
+- B→C handoff: Poller emits `job/ingested` scheduler event only for new jobs. Module B inserts raw jobs (empty tags, null embedding). Module C owns normalization.
 - Proxies deferred to post-MVP. Trigger to add: first persistent 403 from an ATS.
 - The system is fully autonomous — no human-in-the-loop for routine operations.
 
@@ -286,58 +286,55 @@ END:agent-rules-on-hold - Database & Matching + Onboarding remain on hold; ATS I
 
 ## Development Workflow
 - Run `biome check --write .` before every commit (Biome 2.2.0+ uses `--write`; the old `--apply` flag was removed)
-- Use Inngest dev server for local testing
+- The pg-boss scheduler runs in-process (no separate dev server needed)
 - Always test the full 3-gate funnel after major changes
 
-## Inngest Orchestration
+## Scheduler Orchestration (pg-boss)
 
-All background jobs, durable workflows, and scheduled tasks **must** use Inngest. Do not use raw `setTimeout`, `node-cron`, or custom worker queues.
+All background jobs, durable workflows, and scheduled tasks **must** use the pg-boss scheduler (D27+). Do not use raw `setTimeout`, `node-cron`, or custom worker queues. Inngest was fully removed in July 2026 (D27).
 
 ### File Map
 
 | File | Role |
 |------|------|
-| `src/inngest/client.ts` | Typed Inngest client (`VectorMatchEvents`) |
-| `src/inngest/functions.ts` | All background functions (seeders, poller, cleanup) |
-| `src/inngest/index.ts` | Barrel exports for clean imports |
-| `src/app/api/inngest/route.ts` | Next.js App Router serve handler (`GET`, `POST`, `PUT`) |
-| `docs/reports/inngest-agent-resources.md` | Full coding agent reference (AI features, MCP, CLI) |
+| `src/scheduler/scheduler.ts` | pg-boss singleton (send events, register crons/events, start/stop) |
+| `src/scheduler/register.ts` | Registers all cron jobs + event handlers on pg-boss |
+| `src/scheduler/pipeline.ts` | Critical-path pipeline (batch poll, job pipeline, gate-3 eval) |
+| `src/scheduler/source-helpers.ts` | Shared execution wrapper for daily/batch source functions |
+| `src/scheduler/handlers/maintenance.ts` | 17 maintenance/sweep cron handlers |
+| `src/scheduler/handlers/monitors.ts` | 10 monitor/alert cron handlers |
+| `src/scheduler/handlers/quality.ts` | 3 quality/feedback cron handlers |
+| `src/scheduler/handlers/seeders.ts` | 30 seeder/discovery cron handlers |
+| `src/scheduler/handlers/events.ts` | 6 event handlers (poller/run, aggregator, persona, bulk-reprocess, purge) |
+| `src/scheduler/handlers/index.ts` | Barrel export for all handlers |
+| `src/instrumentation.ts` | Starts the scheduler on server startup |
 
 ### Local Development
 
 ```bash
-# Terminal 1 — Next.js dev server
+# Terminal 1 — Next.js dev server (scheduler starts automatically)
 npm run dev
-
-# Terminal 2 — Inngest Dev Server (UI at http://localhost:8288)
-npm run inngest:dev
 ```
 
-The Dev Server auto-discovers apps on common ports. It exposes an MCP server at `http://127.0.0.1:8288/mcp` for agent-driven debugging.
+The pg-boss scheduler runs in-process using the same Postgres database as the app. No separate dev server is needed. Queue state lives in Postgres (survives restarts).
 
-### Coding Rules for Inngest Functions
+### Coding Rules for pg-boss Handlers
 
-1. **Always wrap domain logic in `step.run()`** — never call the DB, external APIs, or AI SDKs directly in the handler body. This ensures retries, checkpointing, and observability.
-2. **Import domain logic lazily** inside the handler to avoid loading heavy modules at discovery time.
-3. **Send events with `step.sendEvent()`** (not `inngest.send()`) so the emission is part of the durable trace.
-4. **Use cron triggers** for scheduled jobs (e.g. `triggers: [{ cron: "0 0 * * 1" }]`).
-5. **Use `throttle`** for rate-sensitive operations (ATS APIs, DNS lookups).
-6. **Use `step.ai.wrap()` or `step.ai.infer()`** for all LLM calls inside Inngest functions — this gives full observability, retry logic, and (with `infer()`) offloads serverless cost to Inngest infrastructure.
-7. **Register new functions** in `src/app/api/inngest/route.ts` — both import and add to the `functions: [...]` array.
+1. **Register cron jobs in `src/scheduler/register.ts`** using `scheduler.registerCron({ id, name, cron, handler, ... })`.
+2. **Register event handlers in `src/scheduler/register.ts`** using `scheduler.registerEvent({ event, name, handler, ... })`.
+3. **Import domain logic lazily** inside the handler to avoid loading heavy modules at startup.
+4. **Send events with `scheduler.send(name, data, id?)`** or `scheduler.sendBatch(events)`.
+5. **Use cron expressions** for scheduled jobs (standard 5-field: min hour day month weekday).
+6. **Set appropriate concurrency and retries** — cron jobs default to concurrency=1, retries=3; event handlers default to concurrency=10, retries=5.
+7. **Handlers receive `(data, step)`** — `data` is the event payload, `step` is a minimal step interface (run, sendEvent, sleep).
 
 ### Self-Hosted Deployment (Coolify/Hetzner)
 
-There is no Vercel integration for Inngest on self-hosted setups. After each deploy:
-
-```bash
-curl -X PUT https://vectormatch.dev/api/inngest --fail-with-body
-```
-
-Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in production environment variables.
+No manual sync step is needed after deploy — the scheduler starts automatically via `src/instrumentation.ts` on server startup. The pg-boss schema is created automatically on first start if it doesn't exist.
 
 ### Redis (Distributed Rate Limiting)
 
-Redis is required for production multi-worker deployments. It backs the Bottleneck rate limiters in `src/lib/jobs/poller/rate-limiter.ts` so the "max 2 req/s per ATS platform" cap is enforced globally across all Inngest worker processes.
+Redis is required for production multi-worker deployments. It backs the Bottleneck rate limiters in `src/lib/jobs/poller/rate-limiter.ts` so the "max 2 req/s per ATS platform" cap is enforced globally across all scheduler worker processes.
 
 - **Coolify**: Deploy a Redis container on the same Docker network. Use `redis://<redis-container-name>:6379` as `REDIS_URL`.
 - **Local dev / CI**: Leave `REDIS_URL` unset. In-process rate limiting is used (correct for single-process, not safe for multi-worker).
@@ -347,10 +344,7 @@ Redis is required for production multi-worker deployments. It backs the Bottlene
 
 | Variable | Local | Production |
 |----------|-------|------------|
-| `INNGEST_DEV` | `1` | omit |
-| `INNGEST_EVENT_KEY` | dummy | self-hosted Inngest (Coolify service) |
-| `INNGEST_SIGNING_KEY` | dummy | self-hosted Inngest (Coolify service) |
-| `INNGEST_SERVE_ORIGIN` | omit | `https://vectormatch.dev` |
+| `SCHEDULER_DISABLED` | omit | omit (set to `1` only for debugging) |
 | `REDIS_URL` | omit | `redis://<coolify-redis>:6379` |
 
 ## Fallow (Codebase Intelligence)
@@ -367,7 +361,7 @@ This project has **Fallow** (v2.95.0) installed for structural analysis: dead co
 
 The `.fallowrc.json` `ignoreExports` section suppresses recurring "unused export" and "duplicate export" warnings that are **false positives**. These fall into three categories — do NOT remove these suppressions without understanding why they were added:
 
-1. **Tested-and-ready modules awaiting Inngest wiring** — Module B/C job-matching infrastructure (poller, seeders, normalizer, gate functions, tech-tags, onboarding recompute). These are fully unit-tested in `__tests__/` directories (which Fallow ignores from usage analysis) and documented in the TDD/blueprint as key functions. Their production caller (the Inngest `jobIngestedHandler` and related functions) is still being wired up. When Inngest wiring is complete, these suppressions can be removed.
+1. **Tested-and-ready modules awaiting scheduler wiring** — Module B/C job-matching infrastructure (poller, seeders, normalizer, gate functions, tech-tags, onboarding recompute). These are fully unit-tested in `__tests__/` directories (which Fallow ignores from usage analysis) and documented in the TDD/blueprint as key functions. Their production caller (the pg-boss scheduler handlers in `src/scheduler/handlers/`) is wired up as of D27.
 
 2. **Intentional API surface** — Per-job Zod schemas (`greenhouseJobSchema`, `leverJobSchema`, `ashbyJobSchema`) and their type exports (`GreenhouseJob`, etc.) are exported for testability and downstream consumer use, even though only the response-level schemas are imported by the poller adapters. `ATS_SOURCES` is a helper for iterating ATS sources. `getApprovedMatches` is a backward-compatibility wrapper.
 
@@ -414,10 +408,10 @@ VectorMatch is hosted on a Hetzner VPS managed by Coolify. The Coolify MCP serve
 - `list_projects`: List Coolify projects
 - `list_applications` / `get_application`: List or inspect the VectorMatch Next.js application
 - `list_databases` / `get_database`: List or inspect databases (e.g., Redis)
-- `list_services` / `get_service`: List or inspect services (e.g., Inngest, FlareSolverr, WordPress)
+- `list_services` / `get_service`: List or inspect services (e.g., Redis, FlareSolverr, WordPress)
 
 **When to Use Coolify MCP**:
-- Investigating production health, status, or configuration of the VectorMatch app, Inngest, Redis, or other Coolify-managed services
+- Investigating production health, status, or configuration of the VectorMatch app, Redis, or other Coolify-managed services
 - Answering questions about the current deployment, FQDN, health checks, or resource limits
 - Discovering infrastructure context before making code or deployment decisions
 
@@ -426,7 +420,7 @@ VectorMatch is hosted on a Hetzner VPS managed by Coolify. The Coolify MCP serve
 **Important Rules**:
 - The built-in Coolify MCP server is **read-only**. Do not attempt to restart, stop, or modify resources through the MCP server.
 - Some `get_*` responses include `_actions` hints (e.g., `restart`, `stop`). These are metadata only and are not callable MCP tools with this server.
-- For any mutating operations (start/stop/restart services), use the existing `src/lib/coolify/client.ts` Server Actions (`getInngestStatus`, `startInngest`, `stopInngest`, `restartInngest`) or the Coolify dashboard.
+- For any mutating operations (start/stop/restart services), use the Coolify dashboard directly. The Inngest-specific Coolify client (`src/lib/coolify/client.ts`) was removed in D27 when Inngest was decommissioned.
 - Always use `mcp_list_tools` first to discover the exact available tools before calling `mcp_call_tool`.
 
 **Configuration**: See `.devin/config.json` for the `coolify` entry. It uses `COOLIFY_BASE_URL` and `COOLIFY_MCP_TOKEN` from the environment. If `COOLIFY_MCP_TOKEN` is not set, use `COOLIFY_API_TOKEN` and update the config accordingly. Ensure the Coolify API token has `read` permission only.

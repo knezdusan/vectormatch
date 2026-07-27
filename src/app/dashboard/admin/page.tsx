@@ -18,12 +18,12 @@ import { BulkReprocessButton } from "@/components/admin/BulkReprocessButton";
 import { CountryExclusionManager } from "@/components/admin/CountryExclusionManager";
 import { InfrastructureHealth } from "@/components/admin/InfrastructureHealth";
 import { IngestionAnalytics } from "@/components/admin/IngestionAnalytics";
-import { InngestStatusControl } from "@/components/admin/InngestStatusControl";
 import { MatchingFunnel } from "@/components/admin/MatchingFunnel";
 import { PipelineHealthMonitor } from "@/components/admin/PipelineHealthMonitor";
 import { PipelineStatus } from "@/components/admin/PipelineStatus";
 import { RecentAlerts } from "@/components/admin/RecentAlerts";
 import { RejectionPatternAnalysis } from "@/components/admin/RejectionPatternAnalysis";
+import { SchedulerStatusControl } from "@/components/admin/SchedulerStatusControl";
 import { TargetStackMetricTile } from "@/components/admin/TargetStackMetricTile";
 import {
   Card,
@@ -152,7 +152,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps = {}) {
           </Suspense>
         </TabsContent>
         <TabsContent value="pipeline" className="space-y-4">
-          <InngestStatusControl />
+          <SchedulerStatusControl />
           <Suspense fallback={<PipelineHealthMonitorSkeleton />}>
             <PipelineHealthMonitor />
           </Suspense>

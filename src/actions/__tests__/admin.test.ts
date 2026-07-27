@@ -26,7 +26,7 @@ const {
   mockResolveAlert,
   mockResolveAllAlerts,
   mockRevalidatePath,
-  mockInngestSend,
+  mockSchedulerSend,
   mockSchedulerSendBatch,
 } = vi.hoisted(() => ({
   mockRequireRole: vi.fn(),
@@ -35,7 +35,7 @@ const {
   mockResolveAlert: vi.fn(),
   mockResolveAllAlerts: vi.fn(),
   mockRevalidatePath: vi.fn(),
-  mockInngestSend: vi.fn(),
+  mockSchedulerSend: vi.fn(),
   mockSchedulerSendBatch: vi.fn(),
 }));
 
@@ -60,14 +60,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: (path: string) => mockRevalidatePath(path),
 }));
 
-vi.mock("@/inngest/client", () => ({
-  inngest: {
-    send: (event: unknown) => mockInngestSend(event),
-  },
-}));
-
 vi.mock("@/scheduler/scheduler", () => ({
   scheduler: {
+    send: (name: string, data: unknown, id?: string) =>
+      mockSchedulerSend(name, data, id),
     sendBatch: (events: unknown) => mockSchedulerSendBatch(events),
   },
 }));
@@ -112,7 +108,7 @@ describe("admin Server Actions", () => {
     mockEnableSource.mockResolvedValue(undefined);
     mockResolveAlert.mockResolvedValue(undefined);
     mockResolveAllAlerts.mockResolvedValue(3);
-    mockInngestSend.mockResolvedValue({ ids: ["event-1"] });
+    mockSchedulerSend.mockResolvedValue(undefined);
     mockSchedulerSendBatch.mockResolvedValue(undefined);
   });
 
@@ -276,22 +272,30 @@ describe("admin Server Actions", () => {
 
     it("sends purge/emergency-storage event and revalidates", async () => {
       const result = await triggerEmergencyPurgeAction();
-      expect(mockInngestSend).toHaveBeenCalledTimes(1);
-      const event = mockInngestSend.mock.calls[0][0] as {
-        name: string;
-        data: Record<string, unknown>;
-      };
-      expect(event.name).toBe("purge/emergency-storage");
-      expect(event.data.triggeredBy).toBe("admin-dashboard");
+      expect(mockSchedulerSend).toHaveBeenCalledTimes(1);
+      const call = mockSchedulerSend.mock.calls[0] as [
+        string,
+        Record<string, unknown>,
+        string?,
+      ];
+      expect(call[0]).toBe("purge/emergency-storage");
+      expect(call[1].triggeredBy).toBe("admin-dashboard");
       expect(mockRevalidatePath).toHaveBeenCalledWith("/dashboard/admin");
       expect(result).toEqual({ success: true });
     });
 
-    it("returns error when inngest.send throws", async () => {
-      mockInngestSend.mockRejectedValue(new Error("Inngest unavailable"));
+    it("returns error when scheduler.send throws", async () => {
+      mockSchedulerSend.mockRejectedValue(new Error("Scheduler unavailable"));
       const result = await triggerEmergencyPurgeAction();
       expect(result.success).toBe(false);
-      expect(result.error).toBe("Inngest unavailable");
+      expect(result.error).toBe("Scheduler unavailable");
+    });
+
+    it("returns error when scheduler.send throws", async () => {
+      mockSchedulerSend.mockRejectedValue(new Error("Scheduler unavailable"));
+      const result = await triggerEmergencyPurgeAction();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe("Scheduler unavailable");
     });
 
     it("throws when user is not admin", async () => {
