@@ -101,6 +101,17 @@ COPY --from=builder --chown=node:node /app/.next/standalone ./
 # Static chunks (CSS, JS) served from .next/static.
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
+# D26: Explicitly copy pg-boss and its dependencies into the runner image.
+# Next.js standalone tracing misses pg-boss because it's loaded via dynamic
+# import() from instrumentation.ts (the tracer doesn't follow dynamic imports
+# from instrumentation). Without this, the scheduler silently fails with
+# "Cannot find module 'pg-boss'" and 0 cron jobs are registered.
+# pg-boss deps: cron-parser, pg (already traced), serialize-error
+COPY --from=builder --chown=node:node /app/node_modules/pg-boss ./node_modules/pg-boss
+COPY --from=builder --chown=node:node /app/node_modules/cron-parser ./node_modules/cron-parser
+COPY --from=builder --chown=node:node /app/node_modules/luxon ./node_modules/luxon
+COPY --from=builder --chown=node:node /app/node_modules/serialize-error ./node_modules/serialize-error
+
 # Playwright Chromium browser binary (Directive 13, B1: Wellfound adapter).
 # Copied from the builder stage where it was installed.
 COPY --from=builder --chown=node:node /app/.playwright ./.playwright

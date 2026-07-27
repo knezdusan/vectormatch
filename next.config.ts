@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   logging: {
     browserToTerminal: true,
   },
-  serverExternalPackages: ["better-auth"],
+  serverExternalPackages: ["better-auth", "pg-boss"],
 };
 
 export default nextConfig;
