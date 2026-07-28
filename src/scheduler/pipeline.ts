@@ -990,13 +990,23 @@ export async function runGate3Evaluation(
       .where(eq(matchQueue.id, matchQueueId));
 
     // Emit match/approved if approved
+    // D29 fix: Wrap in try/catch — if the event send fails (e.g., queue not
+    // registered), don't overwrite the verdict that was already written to
+    // the DB. The verdict is the source of truth; the event is a side-effect.
     if (verdict.approved) {
-      await scheduler.send("match/approved", {
-        matchQueueId,
-        jobId,
-        applicantId,
-        personaId,
-      });
+      try {
+        await scheduler.send("match/approved", {
+          matchQueueId,
+          jobId,
+          applicantId,
+          personaId,
+        });
+      } catch (eventErr) {
+        console.warn(
+          `[pipeline] match/approved event send failed for ${matchQueueId} (verdict already saved):`,
+          eventErr instanceof Error ? eventErr.message : eventErr,
+        );
+      }
     }
 
     return {
@@ -1008,6 +1018,28 @@ export async function runGate3Evaluation(
       `[pipeline] Gate 3 evaluation failed for ${matchQueueId}:`,
       e instanceof Error ? e.message : e,
     );
+
+    // D29 fix: Only set status to "error" if the verdict wasn't already
+    // written. If the DB write at line 973 succeeded but a later step
+    // (like event send) failed, the verdict is already saved with the
+    // correct status — don't overwrite it with "error".
+    // We check by seeing if llm_verdict is already set.
+    const existingRow = await db
+      .select({ llmVerdict: matchQueue.llmVerdict, status: matchQueue.status })
+      .from(matchQueue)
+      .where(eq(matchQueue.id, matchQueueId))
+      .limit(1);
+
+    if (existingRow.length > 0 && existingRow[0].llmVerdict !== null) {
+      // Verdict was already written — don't overwrite with error
+      console.warn(
+        `[pipeline] Gate 3 for ${matchQueueId}: verdict already saved as "${existingRow[0].llmVerdict}", not overwriting with error`,
+      );
+      return {
+        status: existingRow[0].status,
+        reason: e instanceof Error ? e.message : String(e),
+      };
+    }
 
     await db
       .update(matchQueue)
