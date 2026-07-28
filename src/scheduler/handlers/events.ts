@@ -98,7 +98,6 @@ export async function runAggregatorJobHandler(
   if (candidates.length > 0) {
     await scheduler.sendBatch(
       candidates.map((c) => ({
-        id: `gate-3-${c.matchQueueId}`,
         name: "match/gate-3-evaluate",
         data: {
           matchQueueId: c.matchQueueId,
@@ -162,7 +161,6 @@ export async function runPersonaUpdatedHandler(
 
     await scheduler.sendBatch(
       rows.map((r) => ({
-        id: `gate-3-feedback-${r.id}-${Date.now()}`,
         name: "match/gate-3-evaluate",
         data: {
           matchQueueId: r.id,
@@ -397,7 +395,6 @@ export async function runMatchBulkReprocess(
     if (candidates.length > 0) {
       await scheduler.sendBatch(
         candidates.map((c) => ({
-          id: `gate-3-bulk-${c.matchQueueId}`,
           name: "match/gate-3-evaluate",
           data: {
             matchQueueId: c.matchQueueId,
