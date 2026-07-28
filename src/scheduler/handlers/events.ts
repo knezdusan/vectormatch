@@ -288,8 +288,7 @@ export async function runMatchBulkReprocess(
         j.id, j.extracted_tags, j.job_embedding::text AS job_embedding_str,
         j.title, j.location_name, j.workplace_type,
         j.normalized_text, j.title_region_tag,
-        j.comp_min, j.comp_max, j.comp_currency,
-        j.assignment_types
+        j.compensation_min, j.compensation_max, j.compensation_currency
       FROM job j
       WHERE j.id = ANY(${sql.raw(`ARRAY[${batchIds.map((id) => `'${id}'`).join(",")}]::uuid[]`)})
     `);
@@ -329,10 +328,14 @@ export async function runMatchBulkReprocess(
               experienceMinYears: null,
               experienceMaxYears: null,
               compensationMin:
-                row.comp_min !== null ? Number(row.comp_min) : null,
+                row.compensation_min !== null
+                  ? Number(row.compensation_min)
+                  : null,
               compensationMax:
-                row.comp_max !== null ? Number(row.comp_max) : null,
-              compensationCurrency: row.comp_currency as string | null,
+                row.compensation_max !== null
+                  ? Number(row.compensation_max)
+                  : null,
+              compensationCurrency: row.compensation_currency as string | null,
               remoteScope: "undetermined",
             },
             applicant: {

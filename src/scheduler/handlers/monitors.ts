@@ -199,10 +199,12 @@ export async function runSchedulerHealthMonitor(): Promise<void> {
 // Cron: "0 7 * * *" (daily 07:00 UTC)
 
 export async function runNorthStarDailyReport(): Promise<void> {
+  // D29 fix: removed would_apply column reference — it doesn't exist in the
+  // match_queue table. The would_apply feature was never migrated to the
+  // match_queue schema. Using dismissed as the negative signal instead.
   const result = await db.execute(sql`
     SELECT
       (SELECT count(*) FROM match_queue WHERE status = 'approved' AND evaluated_at > NOW() - INTERVAL '24 hours') AS approved_24h,
-      (SELECT count(*) FROM match_queue WHERE status = 'approved' AND would_apply = true AND evaluated_at > NOW() - INTERVAL '24 hours') AS would_apply_24h,
       (SELECT count(*) FROM match_queue WHERE status = 'dismissed' AND evaluated_at > NOW() - INTERVAL '24 hours') AS dismissed_24h,
       (SELECT count(*) FROM match_queue WHERE status = 'approved' AND evaluated_at > NOW() - INTERVAL '7 days') AS approved_7d,
       (SELECT count(*) FROM job WHERE status = 'active') AS active_jobs,
@@ -213,7 +215,6 @@ export async function runNorthStarDailyReport(): Promise<void> {
   const metrics = result.rows[0] as Record<string, string>;
   const report = {
     approved24h: Number(metrics.approved_24h),
-    wouldApply24h: Number(metrics.would_apply_24h),
     dismissed24h: Number(metrics.dismissed_24h),
     approved7d: Number(metrics.approved_7d),
     activeJobs: Number(metrics.active_jobs),

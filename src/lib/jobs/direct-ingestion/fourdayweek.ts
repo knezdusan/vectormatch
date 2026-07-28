@@ -1,4 +1,4 @@
-// 4dayweek.io Direct Ingestion Adapter (D26)
+// 4dayweek.io Direct Ingestion Adapter (D26, updated D29)
 // src/lib/jobs/direct-ingestion/fourdayweek.ts
 //
 // Fetches jobs from the 4dayweek.io API and transforms them into
@@ -6,12 +6,18 @@
 // specializing in 4-day work week positions.
 //
 // API: GET https://4dayweek.io/api/jobs
-// Response: JSON array of job objects with fields:
-//   { id, title, company_name, location, remote, url, description,
-//     tags[], posted_date, salary_min, salary_max, currency }
+// Response (D29 update — API format changed):
+//   { "jobs": [ { id, title, slug, company_name, work_arrangement,
+//     locations: [{city, state, country, continent, work_arrangement, is_primary}],
+//     timezones[], posted (epoch), schedule_type, salary, salary_lower, salary_upper,
+//     salary_currency, salary_period, category, level, is_expired,
+//     stack: [{id, name, slug}], description?, url?, company: {hires_worldwide} } ] }
 //
 // D26: Part of the strategic inversion — discover global jobs directly from
 // remote-native boards. 4dayweek.io is remote-first by construction.
+// D29: API response format changed — now wraps in {jobs:[]}, uses `stack`
+//      instead of `tags`, `posted` as epoch int, `locations` array instead of
+//      `location` string, `work_arrangement` instead of `remote` boolean.
 
 import {
   type DirectFetchResult,
@@ -27,14 +33,54 @@ interface FourDayWeekResponse {
   total?: number;
 }
 
+interface FourDayWeekLocation {
+  city?: string;
+  state?: string;
+  country?: string;
+  continent?: string;
+  work_arrangement?: string;
+  is_primary?: boolean;
+}
+
+interface FourDayWeekStackItem {
+  id?: string;
+  name?: string;
+  slug?: string;
+}
+
+interface FourDayWeekCompany {
+  id?: string;
+  name?: string;
+  slug?: string;
+  hires_worldwide?: boolean;
+}
+
 interface FourDayWeekJob {
-  id?: number | string;
+  // D29: new format
+  id?: string;
   title?: string;
+  slug?: string;
   company_name?: string;
+  work_arrangement?: string; // "remote", "hybrid", "on-site"
+  locations?: FourDayWeekLocation[];
+  timezones?: string[];
+  posted?: number; // epoch seconds
+  schedule_type?: string;
+  salary?: string;
+  salary_lower?: number;
+  salary_upper?: number;
+  salary_currency?: string;
+  salary_period?: string;
+  category?: string;
+  level?: string;
+  is_expired?: boolean;
+  stack?: FourDayWeekStackItem[];
+  description?: string;
+  url?: string;
+  company?: FourDayWeekCompany;
+  // Legacy fields (for backward compat if API reverts)
   location?: string;
   remote?: boolean;
-  url?: string;
-  description?: string;
   tags?: string[];
   posted_date?: string;
   salary_min?: number;
@@ -76,7 +122,11 @@ export async function fetchFourDayWeekJobs(
     const filteredJobs: DirectIngestionJob[] = [];
 
     for (const rj of rawJobs) {
-      const tags = (rj.tags ?? []).map((t) => t.toLowerCase());
+      // Skip expired jobs
+      if (rj.is_expired) continue;
+
+      // D29: Extract tags from `stack` array (new format) or `tags` (legacy)
+      const tags = extractTags(rj);
       const title = rj.title ?? "";
       const description = stripHtmlToText(rj.description ?? "");
 
@@ -84,25 +134,36 @@ export async function fetchFourDayWeekJobs(
         continue;
       }
 
+      // D29: Build location string from `locations` array (new format)
+      const locationName = extractLocationName(rj);
+      const workArrangement = extractWorkArrangement(rj);
+      const hiresWorldwide = rj.company?.hires_worldwide ?? false;
+
       const job: DirectIngestionJob = {
-        externalJobId: String(rj.id ?? ""),
+        externalJobId: String(rj.id ?? rj.slug ?? ""),
         title,
-        companyName: rj.company_name ?? null,
+        companyName: rj.company_name ?? rj.company?.name ?? null,
         normalizedText: description,
         extractedTags: tags,
         applyUrl: rj.url ?? null,
         jobUrl: rj.url ?? null,
-        locationName: rj.location ?? null,
-        workplaceType: rj.remote ? "remote" : null,
-        employmentType: normalizeEmploymentType(rj.job_type),
-        // 4dayweek.io is remote-first; infer scope from location string
-        remoteScope: inferRemoteScope(rj.location, rj.remote),
-        compensationMin: rj.salary_min ?? null,
-        compensationMax: rj.salary_max ?? null,
-        compensationCurrency: rj.currency ?? null,
+        locationName,
+        workplaceType: workArrangement,
+        employmentType: normalizeEmploymentType(
+          rj.job_type ?? rj.schedule_type,
+        ),
+        // 4dayweek.io is remote-first; infer scope from location + hires_worldwide
+        remoteScope: inferRemoteScope(
+          locationName,
+          workArrangement,
+          hiresWorldwide,
+        ),
+        compensationMin: rj.salary_lower ?? rj.salary_min ?? null,
+        compensationMax: rj.salary_upper ?? rj.salary_max ?? null,
+        compensationCurrency: rj.salary_currency ?? rj.currency ?? null,
         experienceMinYears: null,
         experienceMaxYears: null,
-        publishedAt: rj.posted_date ? safeParseDate(rj.posted_date) : null,
+        publishedAt: extractPublishedAt(rj),
       };
 
       filteredJobs.push(job);
@@ -122,11 +183,69 @@ export async function fetchFourDayWeekJobs(
   }
 }
 
+/** Extract tags from stack[] (D29 new format) or tags[] (legacy). */
+function extractTags(rj: FourDayWeekJob): string[] {
+  if (rj.stack && rj.stack.length > 0) {
+    return rj.stack
+      .map((s) => (s.slug ?? s.name ?? "").toLowerCase())
+      .filter((t) => t.length > 0);
+  }
+  return (rj.tags ?? []).map((t) => t.toLowerCase());
+}
+
+/** Build a human-readable location string from the locations[] array. */
+function extractLocationName(rj: FourDayWeekJob): string | null {
+  // Legacy format: single location string
+  if (rj.location) return rj.location;
+
+  // D29 new format: locations[] array
+  if (rj.locations && rj.locations.length > 0) {
+    const primary = rj.locations.find((l) => l.is_primary) ?? rj.locations[0];
+    const parts = [primary.city, primary.state, primary.country].filter(
+      Boolean,
+    );
+    if (parts.length > 0) return parts.join(", ");
+    return primary.continent ?? null;
+  }
+  return null;
+}
+
+/** Extract work arrangement type (remote/hybrid/on-site). */
+function extractWorkArrangement(
+  rj: FourDayWeekJob,
+): "remote" | "hybrid" | "on-site" | null {
+  // D29 new format: work_arrangement string
+  if (rj.work_arrangement) {
+    const wa = rj.work_arrangement.toLowerCase();
+    if (wa === "remote") return "remote";
+    if (wa === "hybrid") return "hybrid";
+    if (wa.includes("on-site") || wa.includes("office")) return "on-site";
+  }
+  // Legacy format: remote boolean
+  if (rj.remote === true) return "remote";
+  return null;
+}
+
+/** Parse published date from epoch (D29) or ISO string (legacy). */
+function extractPublishedAt(rj: FourDayWeekJob): Date | null {
+  if (rj.posted && typeof rj.posted === "number") {
+    // Epoch seconds → Date
+    return new Date(rj.posted * 1000);
+  }
+  if (rj.posted_date) {
+    return safeParseDate(rj.posted_date);
+  }
+  return null;
+}
+
 function inferRemoteScope(
-  location: string | undefined,
-  remote: boolean | undefined,
+  location: string | null,
+  workArrangement: string | null,
+  hiresWorldwide: boolean,
 ): "global" | "country_fenced" | "unknown" {
-  if (!remote) return "unknown";
+  // hires_worldwide flag is the strongest signal
+  if (hiresWorldwide) return "global";
+  if (workArrangement !== "remote") return "unknown";
   if (!location) return "global";
   const lower = location.toLowerCase();
   if (

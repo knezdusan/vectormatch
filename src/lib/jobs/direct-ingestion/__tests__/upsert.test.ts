@@ -9,27 +9,38 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the db module — upsertDirectJobs uses db.select and db.insert
-// The insert mock returns synthetic rows so totalUpserted > 0.
-vi.mock("@/db/db", () => ({
-  db: {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => Promise.resolve([])),
-      })),
+// The insert mock captures the values array and returns synthetic rows
+// matching the number of jobs passed to .values().
+vi.mock("@/db/db", () => {
+  const valuesMock = vi.fn();
+  const insertMock = vi.fn(() => ({
+    values: valuesMock,
+  }));
+  // Chain: values() returns { onConflictDoUpdate() } which returns { returning() }
+  valuesMock.mockImplementation((jobs: unknown[]) => ({
+    onConflictDoUpdate: vi.fn(() => ({
+      returning: vi.fn(() =>
+        Promise.resolve(
+          (Array.isArray(jobs) ? jobs : []).map((_: unknown, i: number) => ({
+            id: `job-uuid-${i}`,
+            externalJobId: `synthetic-${i}`,
+          })),
+        ),
+      ),
     })),
-    insert: vi.fn(() => ({
-      values: vi.fn(() => ({
-        onConflictDoUpdate: vi.fn(() => ({
-          returning: vi.fn(() =>
-            Promise.resolve([
-              { id: "job-uuid-1", externalJobId: "synthetic-1" },
-            ]),
-          ),
+  }));
+  return {
+    db: {
+      select: vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => Promise.resolve([])),
         })),
       })),
-    })),
-  },
-}));
+      insert: insertMock,
+    },
+    _valuesMock: valuesMock,
+  };
+});
 
 // Mock storage-check to avoid circular imports
 vi.mock("@/lib/jobs/storage-check", () => ({
@@ -186,5 +197,62 @@ describe("upsertDirectJobs — A2 fence-skip embedding", () => {
 
     expect(embedFn).toHaveBeenCalledTimes(1);
     expect(result.embeddedCount).toBe(1);
+  });
+});
+
+describe("upsertDirectJobs — D29 duplicate externalJobId dedup", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("deduplicates jobs with the same externalJobId before insert (WWR bug)", async () => {
+    // D29: WeWorkRemotely returns the same job twice with different location
+    // text (e.g., "Remote - US" and "Remote - Canada" variants). Without
+    // dedup, the ON CONFLICT DO UPDATE clause matches the same row twice,
+    // raising SQLSTATE 21000 and aborting the entire batch.
+    const dupId = "dropbox-director-product-design";
+    const job1 = makeJob({
+      externalJobId: dupId,
+      title: "Director, Product Design",
+    });
+    const job2 = makeJob({
+      externalJobId: dupId,
+      title: "Director, Product Design",
+    });
+    const uniqueJob = makeJob({ externalJobId: "unique-1" });
+
+    const result = await upsertDirectJobs("weworkremotely", "weworkremotely", [
+      job1,
+      job2,
+      uniqueJob,
+    ]);
+
+    // Only 2 jobs should be upserted (1 deduped out)
+    expect(result.totalUpserted).toBe(2);
+  });
+
+  it("handles all-duplicate input without crashing", async () => {
+    const dupId = "same-job";
+    const result = await upsertDirectJobs("remotive", "remotive", [
+      makeJob({ externalJobId: dupId }),
+      makeJob({ externalJobId: dupId }),
+      makeJob({ externalJobId: dupId }),
+    ]);
+
+    // Only 1 job should be upserted
+    expect(result.totalUpserted).toBe(1);
+  });
+
+  it("preserves the first occurrence when deduplicating", async () => {
+    const dupId = "dup-first-wins";
+    const first = makeJob({ externalJobId: dupId, title: "First Title" });
+    const second = makeJob({ externalJobId: dupId, title: "Second Title" });
+
+    const result = await upsertDirectJobs("weworkremotely", "weworkremotely", [
+      first,
+      second,
+    ]);
+
+    expect(result.totalUpserted).toBe(1);
   });
 });

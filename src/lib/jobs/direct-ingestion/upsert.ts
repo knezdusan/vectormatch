@@ -79,12 +79,29 @@ export async function upsertDirectJobs(
     };
   }
 
+  // D29 fix: Deduplicate by externalJobId BEFORE any DB operation.
+  // Some boards (notably WeWorkRemotely) return the same job multiple times
+  // with different location text (e.g., "Remote - US" and "Remote - Canada"
+  // variants of the same posting). Without dedup, the ON CONFLICT DO UPDATE
+  // clause matches the same row twice in a single INSERT, raising
+  // SQLSTATE 21000 ("cannot affect row a second time") and aborting the
+  // entire batch — causing the whole board to produce 0 new jobs.
+  const seenExternalIds = new Set<string>();
+  const dedupedJobs = jobs.filter((j) => {
+    if (seenExternalIds.has(j.externalJobId)) return false;
+    seenExternalIds.add(j.externalJobId);
+    return true;
+  });
+  const rejectedDuplicates = jobs.length - dedupedJobs.length;
+
   // Injection freshness gate — reject jobs with publishedAt older than
   // MAX_JOB_INJECTION_AGE_DAYS (default 60). This mirrors the ATS poller's
   // gate and prevents stale legacy postings from entering the corpus via
   // direct boards.
-  const freshJobs = jobs.filter((j) => isJobFreshForInjection(j.publishedAt));
-  const rejectedTooOld = jobs.length - freshJobs.length;
+  const freshJobs = dedupedJobs.filter((j) =>
+    isJobFreshForInjection(j.publishedAt),
+  );
+  const rejectedTooOld = dedupedJobs.length - freshJobs.length;
 
   if (freshJobs.length === 0) {
     return {

@@ -1,37 +1,76 @@
-// Working Nomads Direct Ingestion Adapter (D26)
+// Working Nomads Direct Ingestion Adapter (D26, rewritten D29)
 // src/lib/jobs/direct-ingestion/workingnomads.ts
 //
-// Fetches jobs from the Working Nomads RSS feed
-// (https://www.workingnomads.com/jobsrss) and transforms them into
-// DirectIngestionJob objects. Working Nomads is a remote-first job board —
-// every listed job is remote by definition.
+// Fetches jobs from the Working Nomads API (Elasticsearch-based) and
+// transforms them into DirectIngestionJob objects. Working Nomads is a
+// remote-first job board — every listed job is remote by definition.
 //
-// API: GET https://www.workingnomads.com/jobsrss
-// Response: RSS 2.0 XML with <item> entries. Each item has:
-//   <title>Job Title</title>
-//   <category>Software Development</category>
-//   <link>https://www.workingnomads.com/jobs/...</link>
-//   <pubDate>Mon, 07 Jul 2026 10:00:00 +0000</pubDate>
-//   <description>HTML content</description>
+// D26: Originally used RSS feed at https://www.workingnomads.com/jobsrss
+// D29: RSS feed is dead (404). Rewrote to use the Elasticsearch API at
+//      https://www.workingnomads.com/jobsapi/_search which returns JSON
+//      with hits.hits[]._source containing job data.
 //
-// D26: Part of the strategic inversion — discover global jobs directly from
-// remote-native boards rather than discovering companies and classifying scope.
+// API: POST https://www.workingnomads.com/jobsapi/_search
+// Response: Elasticsearch-style JSON:
+//   { hits: { total: { value: N }, hits: [ { _source: { id, title, slug,
+//     company, category_name, description, position_type, tags[],
+//     locations[], pub_date, apply_url, external_id, salary_range } } ] } }
 
 import { scanTagsRegex } from "../job-normalizer";
 import {
-  extractJobIdFromLink,
-  extractRssItems,
-  parseRssDescription,
-} from "./rss-helpers";
-import {
   type DirectFetchResult,
   type DirectIngestionJob,
+  fetchJsonWithTimeout,
   normalizeEmploymentType,
   safeParseDate,
+  stripHtmlToText,
 } from "./types";
 
+interface WorkingNomadsLocation {
+  city?: string;
+  state?: string;
+  country?: string;
+  continent?: string;
+}
+
+interface WorkingNomadsJobSource {
+  id?: number;
+  title?: string;
+  slug?: string;
+  company?: string;
+  company_slug?: string;
+  category_name?: string;
+  description?: string;
+  position_type?: string; // "ft", "pt", "contract"
+  tags?: string[];
+  all_tags?: string[];
+  locations?: string[] | WorkingNomadsLocation[];
+  location_base?: string;
+  location_extra?: string;
+  pub_date?: string;
+  apply_url?: string;
+  external_id?: string;
+  salary_range?: string;
+  annual_salary_usd?: number;
+  experience_level?: string;
+  expired?: boolean;
+}
+
+interface WorkingNomadsResponse {
+  took?: number;
+  hits?: {
+    total?: { value?: number; relation?: string };
+    max_score?: number;
+    hits?: Array<{
+      _id?: string;
+      _score?: number;
+      _source?: WorkingNomadsJobSource;
+    }>;
+  };
+}
+
 /**
- * Fetch and normalize jobs from the Working Nomads RSS feed.
+ * Fetch and normalize jobs from the Working Nomads API.
  *
  * @param maxJobs        Maximum jobs to return after filtering
  * @param techFilter     Function to filter jobs by tech-stack overlap
@@ -48,52 +87,71 @@ export async function fetchWorkingNomadsJobs(
   fetchFn: typeof fetch = fetch,
 ): Promise<DirectFetchResult> {
   try {
-    const response = await fetchFn("https://www.workingnomads.com/jobsrss", {
-      headers: { Accept: "application/rss+xml, application/xml, text/xml" },
-      signal: AbortSignal.timeout(30000),
-    });
+    // D29: Use the Elasticsearch API. Send a POST with a simple match_all query
+    // to get the latest jobs. The API accepts GET too but POST is more
+    // explicit for search queries.
+    const response = await fetchFn(
+      "https://www.workingnomads.com/jobsapi/_search",
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(30000),
+      },
+    );
 
     if (!response.ok) {
       return {
         success: false,
-        error: `Working Nomads RSS HTTP ${response.status} ${response.statusText}`,
+        error: `Working Nomads API HTTP ${response.status} ${response.statusText}`,
         totalAvailable: 0,
       };
     }
 
-    const xml = await response.text();
-    const items = extractRssItems(xml);
-    const totalAvailable = items.length;
+    const data: WorkingNomadsResponse = await response.json();
+    const hits = data.hits?.hits ?? [];
+    const totalAvailable = data.hits?.total?.value ?? hits.length;
     const filteredJobs: DirectIngestionJob[] = [];
 
-    for (const item of items) {
-      const description = parseRssDescription(item.description);
-      const textTags = scanTagsRegex(`${item.title} ${description}`);
-      const tags = [...new Set([...textTags])];
+    for (const hit of hits) {
+      const src = hit._source;
+      if (!src) continue;
+      if (src.expired) continue;
 
-      if (!techFilter({ tags, title: item.title, description })) {
+      const description = stripHtmlToText(src.description ?? "");
+      const textTags = scanTagsRegex(`${src.title ?? ""} ${description}`);
+      const apiTags = (src.tags ?? []).map((t) => t.toLowerCase());
+      const tags = [...new Set([...apiTags, ...textTags])];
+
+      const title = src.title ?? "";
+      if (!techFilter({ tags, title, description })) {
         continue;
       }
 
+      const locationName = extractLocationName(src);
+      const remoteScope = inferRemoteScope(src, locationName);
+
       const job: DirectIngestionJob = {
-        externalJobId: extractJobIdFromLink(item.link),
-        title: item.title,
-        companyName: extractCompany(item.description) ?? null,
+        externalJobId: String(src.id ?? src.slug ?? src.external_id ?? ""),
+        title,
+        companyName: src.company ?? null,
         normalizedText: description,
         extractedTags: tags,
-        applyUrl: item.link || null,
-        jobUrl: item.link || null,
-        locationName: null, // Working Nomads doesn't expose location in RSS
+        applyUrl: src.apply_url ?? null,
+        jobUrl: src.apply_url ?? null,
+        locationName,
         workplaceType: "remote", // Working Nomads is remote-first
-        employmentType: normalizeEmploymentType(item.category ?? undefined),
-        // Working Nomads is remote-first; without location data, default global
-        remoteScope: "global",
+        employmentType: normalizeEmploymentType(src.position_type),
+        // Working Nomads is remote-first; infer scope from location data
+        remoteScope,
         compensationMin: null,
-        compensationMax: null,
-        compensationCurrency: null,
+        compensationMax: src.annual_salary_usd ?? null,
+        compensationCurrency: "USD",
         experienceMinYears: null,
         experienceMaxYears: null,
-        publishedAt: item.pubDate ? safeParseDate(item.pubDate) : null,
+        publishedAt: src.pub_date ? safeParseDate(src.pub_date) : null,
       };
 
       filteredJobs.push(job);
@@ -113,11 +171,57 @@ export async function fetchWorkingNomadsJobs(
   }
 }
 
-/** Try to extract company name from the description HTML. */
-function extractCompany(description: string): string | null {
-  // Working Nomads often includes "Company: X" or the company name in the
-  // first line of the description. This is a best-effort extraction.
-  const companyMatch = description.match(/^(?:Company|Employer):\s*(.+)$/im);
-  if (companyMatch) return companyMatch[1].trim();
+/** Extract a human-readable location string from the job source. */
+function extractLocationName(src: WorkingNomadsJobSource): string | null {
+  // Try locations array — could be string[] or object[]
+  if (src.locations && src.locations.length > 0) {
+    const first = src.locations[0];
+    if (typeof first === "string") return first;
+    if (typeof first === "object" && first !== null) {
+      const loc = first as WorkingNomadsLocation;
+      const parts = [loc.city, loc.state, loc.country].filter(Boolean);
+      if (parts.length > 0) return parts.join(", ");
+      return loc.continent ?? null;
+    }
+  }
+  // Fall back to location_base + location_extra
+  if (src.location_base || src.location_extra) {
+    return [src.location_base, src.location_extra].filter(Boolean).join(" — ");
+  }
   return null;
+}
+
+/** Infer remote scope from location data. Working Nomads is remote-first. */
+function inferRemoteScope(
+  src: WorkingNomadsJobSource,
+  locationName: string | null,
+): "global" | "country_fenced" | "unknown" {
+  // Check if locations indicate worldwide/global
+  if (src.locations && src.locations.length > 0) {
+    for (const loc of src.locations) {
+      if (typeof loc === "string") {
+        const lower = loc.toLowerCase();
+        if (
+          lower.includes("world") ||
+          lower.includes("anywhere") ||
+          lower.includes("global") ||
+          lower.includes("remote")
+        ) {
+          return "global";
+        }
+      }
+    }
+  }
+  if (!locationName) return "global";
+  const lower = locationName.toLowerCase();
+  if (
+    lower.includes("world") ||
+    lower.includes("anywhere") ||
+    lower.includes("global") ||
+    lower.trim() === ""
+  ) {
+    return "global";
+  }
+  // If a specific country/region is mentioned, it's country-fenced
+  return "country_fenced";
 }
