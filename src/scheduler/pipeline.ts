@@ -330,6 +330,8 @@ export async function runJobPipeline(
         .select({
           extractedTags: job.extractedTags,
           jobEmbedding: job.jobEmbedding,
+          normalizedText: job.normalizedText,
+          remoteScope: job.remoteScope,
         })
         .from(job)
         .where(eq(job.id, jobId))
@@ -354,6 +356,68 @@ export async function runJobPipeline(
             : [];
         const tags = fullJob[0].extractedTags;
         return await gateRouteAndFanOut(jobId, tags, embedding);
+      }
+
+      // D29 fix: Normalized but NOT embedded (direct ingestion sets
+      // normalizedAt but doesn't always generate embeddings). Generate
+      // the embedding now, then run Gate 1+2. Without this, direct-ingested
+      // jobs sit in the DB forever — normalized but never matched.
+      if (
+        fullJob.length > 0 &&
+        fullJob[0].jobEmbedding === null &&
+        fullJob[0].extractedTags &&
+        fullJob[0].extractedTags.length > 0 &&
+        fullJob[0].normalizedText
+      ) {
+        // Skip fenced jobs — they don't need embeddings (A2 fence-skip)
+        const scope = fullJob[0].remoteScope;
+        if (
+          scope === "country_fenced" ||
+          scope === "region_fenced" ||
+          scope === "onsite"
+        ) {
+          return {
+            jobId,
+            normalized: true,
+            embedded: false,
+            candidates: 0,
+            gate3Queued: 0,
+            gate05Rejected: false,
+            pattern: null,
+            skipped: true,
+            skipReason: `fenced scope (${scope}) — embedding skipped`,
+          };
+        }
+
+        try {
+          const { generateEmbedding } = await import("@/lib/ai/embeddings");
+          const embedding = await generateEmbedding(fullJob[0].normalizedText);
+
+          // Persist the embedding
+          await db
+            .update(job)
+            .set({ jobEmbedding: embedding })
+            .where(eq(job.id, jobId));
+
+          const tags = fullJob[0].extractedTags;
+          return await gateRouteAndFanOut(jobId, tags, embedding);
+        } catch (e) {
+          console.error(
+            `[pipeline] Embedding generation failed for ${jobId}:`,
+            e instanceof Error ? e.message : e,
+          );
+          return {
+            jobId,
+            normalized: true,
+            embedded: false,
+            candidates: 0,
+            gate3Queued: 0,
+            gate05Rejected: false,
+            pattern: null,
+            skipped: true,
+            skipReason: "embedding generation failed",
+          };
+        }
       }
     }
 
