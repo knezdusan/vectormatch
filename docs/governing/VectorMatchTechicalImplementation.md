@@ -10,14 +10,14 @@
 *   **Database:** PostgreSQL 17 + `pgvector` (self-hosted on VPS since D20, July 20 2026). Migrated from Neon free tier to VPS Postgres to eliminate Neon CU-hr burn constraints. Connection via `pg` Pool (Drizzle's `drizzle-orm/node-postgres`). Neon connection strings retained for disaster recovery only (JOB 4.2). **Historical note:** The app was originally built on Neon (serverless Postgres) using `@neondatabase/serverless` Pool. The D20 migration switched to VPS Postgres 17 in a Docker container (`z10g6zz09soe0ddwgpizteq2`) on the same Hetzner server, with `pgvector` extension for HNSW vector similarity. Postgres tuned: `shared_buffers=2GB`, `work_mem=16MB`, `maintenance_work_mem=512MB`, `random_page_cost=1.1`, `effective_io_concurrency=200`, `hnsw.iterative_scan=strict_order`.
 *   **ORM:** Drizzle ORM 0.45.2
 *   **Authentication:** Better Auth 1.6.14 (database-integrated)
-*   **Background Jobs / Orchestration:** Inngest v4.8.0 (self-hosted, Durable Execution)
+*   **Background Jobs / Orchestration:** pg-boss 10.x (Postgres-backed, in-process, D27 migration July 25 2026). Replaced Inngest v4.8.0 (self-hosted, removed D27). See §3.9a for pg-boss infrastructure.
 *   **AI/ML:** Vercel AI SDK 6.0.208 (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings, OpenAI SDK 6.45.0)
 *   **Frontend UI:** Tailwind CSS v4, React 19.2.4, React Hook Form, Zod 4.4.3, `@dnd-kit` (for drag-and-drop), Shadcn/ui 4.8.0
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
-*   **Testing:** Vitest 4.1.8 (119 test files, 2,640 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
+*   **Testing:** Vitest 4.1.8 (126 test files, 2,871 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
-*   **Hosting:** Hetzner Cloud (Helsinki) + Coolify (self-hosted PaaS). Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`). Self-hosted VPS Postgres 17 + pgvector (app database, D20 migration). FlareSolverr 3.5.0 (Cloudflare bypass, D20). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy. Blog publishing via direct WordPress REST API + `publish_post.py` script (WPVibe deactivated July 22 2026).
-*   **Migrations:** 58 SQL migrations (0000–0057) managed via Drizzle Kit 0.31.10. Migrations 0046–0057 added in D19–D20 (Gate flags NULL default, dismiss_reason enum, certstream enum). 
+*   **Hosting:** Hetzner Cloud (Helsinki) + Coolify (self-hosted PaaS). Self-hosted VPS Postgres 17 + pgvector (app database, D20 migration). pg-boss runs in-process within the Next.js server (D27 migration, no separate container). FlareSolverr 3.5.0 (Cloudflare bypass, D20). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy. Blog publishing via direct WordPress REST API + `publish_post.py` script (WPVibe deactivated July 22 2026). **Historical:** Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`) was removed in D27 (July 25 2026).
+*   **Migrations:** 58 SQL migrations (0000–0057) managed via Drizzle Kit 0.31.10. Migrations 0046–0057 added in D19–D20 (Gate flags NULL default, dismiss_reason enum, certstream enum). D27-D29 added no new migrations (pg-boss uses existing Postgres tables, schema changes were data-only).
 
 ---
 
@@ -684,9 +684,11 @@ See §3.8 above. The `cleanupOrphanedCvUploads` Inngest cron job runs daily and 
 
 ---
 
-## 3.9 INNGEST ORCHESTRATION INFRASTRUCTURE `[Status: Implemented]`
+## 3.9 INNGEST ORCHESTRATION INFRASTRUCTURE `[Status: HISTORICAL — superseded by pg-boss migration (D27, July 25 2026)]`
 
-The Inngest v4 SDK provides the durable execution layer for all background jobs, scheduled tasks, and event-driven workflows. It is configured as the base infrastructure that Module B (seeding/ingestion) and Module C (routing) build upon.
+> **⚠️ HISTORICAL NOTE (D27, July 25 2026):** This section documents the Inngest v4 orchestration infrastructure that was replaced by pg-boss in Directive 27. The entire Inngest SDK, all 67+ functions, the separate Docker container, and all related infrastructure were removed. The replacement is `src/scheduler/` — a pg-boss-based in-process scheduler with handlers in `src/scheduler/handlers/`. See §3.9a below for the pg-boss infrastructure. The information below is preserved for historical context.
+
+The Inngest v4 SDK provided the durable execution layer for all background jobs, scheduled tasks, and event-driven workflows. It was configured as the base infrastructure that Module B (seeding/ingestion) and Module C (routing) built upon.
 
 ### 3.9.1 Project Files
 
@@ -740,6 +742,67 @@ Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in Coolify production environ
 3. **Send events with `step.sendEvent()`** so emission is part of the durable trace.
 4. **Use `step.ai.wrap()` or `step.ai.infer()`** for all LLM calls inside Inngest functions — full observability, retry logic, and cost offloading.
 5. **Register new functions** in `src/app/api/inngest/route.ts`.
+
+---
+
+## 3.9a PG-BOSS ORCHESTRATION INFRASTRUCTURE `[Status: Implemented — D27 July 25 2026, D28 bug fixes July 27 2026, D29 verdict integrity July 28 2026]`
+
+The pg-boss library provides the durable execution layer for all background jobs, scheduled tasks, and event-driven workflows. It replaced Inngest v4 in D27 (July 25 2026). pg-boss runs **in-process** within the Next.js server and stores job state in the existing Postgres database — no separate Docker container, no HTTP-based function invocation, no Docker DNS resolution.
+
+### 3.9a.1 Project Files
+
+| File | Purpose |
+|------|---------|
+| `src/scheduler/scheduler.ts` | pg-boss instance wrapper. Initializes pg-boss with the app's `DATABASE_URL`, starts the boss, and exports a typed `scheduler` object with `registerCron`, `registerEvent`, `send`, `sendBatch` methods. |
+| `src/scheduler/register.ts` | All handler registrations: 20+ cron jobs + 15+ event handlers. Called from `src/instrumentation.ts` on server startup. |
+| `src/scheduler/pipeline.ts` | Core pipeline functions: `runJobPipeline` (normalization + embedding + Gate 1+2 routing), `runGate3Evaluation` (LLM arbitration), `runPendingQueueSweep` (stuck pending rows + unmatched jobs). |
+| `src/scheduler/handlers/events.ts` | Event handlers: `match/bulk-reprocess`, `job/aggregator-ingested`, `job/summarize`, `persona/updated`, `poller/poll-company`, etc. |
+| `src/scheduler/handlers/crons.ts` | Cron handlers: `batch-poll-tier`, `direct-job-board-ingestion`, `stale-cleanup`, `tier-recalc`, `slugger-retry-processor`, etc. |
+| `src/scheduler/handlers/monitors.ts` | Monitor handlers: `north-star-daily-report`, `scheduler-health-monitor`, `recall-audit-cron`, `storage-monitor`, `vacuum-analyze`. |
+| `src/scheduler/handlers/maintenance.ts` | Maintenance handlers: `normalize-provisional-job` (ported from Inngest), `cleanup-orphaned-cv-uploads`, `stale-job-verifier`, `retry-in-flight-sweeper`. |
+| `src/scheduler/handlers/sources.ts` | Source seeder handlers: 10 batch + 13 daily + Brave Search + crt.sh + slugger retry. |
+
+### 3.9a.2 Key Architectural Decisions
+
+1. **In-process, not separate container** — pg-boss shares the Node.js event loop and the app's DB pool. This eliminates network hops but means concurrent LLM calls can starve the web server. D28 advisor ruling: Gate 3 concurrency reduced from 10 → 5 to protect the web server.
+2. **Postgres-backed state** — job state stored in `pgboss.job` and `pgboss.queue` tables in the same Postgres database. No external state store.
+3. **Event naming convention** — events use `event.{category}.{action}` format (e.g., `event.match.gate-3-evaluate`, `event.job.ingested`). Cron jobs use `cron.{name}` format (e.g., `cron.batch-poll-tier`, `cron.direct-job-board-ingestion`).
+4. **No `step.run()` checkpointing** — unlike Inngest's multi-step retry ladder, pg-boss retries the entire job as a unit. All steps run in sequence within a single handler invocation.
+5. **Exponential backoff** — D28 added exponential backoff retry delays (initial 30s, multiplier 2, max 1h) to prevent thundering-herd retry storms.
+
+### 3.9a.3 D28 Pipeline Bug Fixes (July 27 2026)
+
+8 distinct bugs were fixed in the migrated pipeline — all were silently producing 0 candidates or crashing Gate 3:
+
+1. **Gate 1+2 SQL syntax error** — extra closing parenthesis in the SQL query.
+2. **Gate 1+2 DISTINCT ON / ORDER BY mismatch** — caught by integration test.
+3. **Gate 1+2 override_check CTE not joined** — caught by integration test.
+4. **AI SDK externalization** — `serverExternalPackages` in `next.config.ts` for `@ai-sdk/openai`.
+5. **`require("./step")` → static `import`** — root cause of `r is not a constructor` error.
+6. **`createdon` → `created_on` column name** — pg-boss schema mismatch.
+7. **Exponential backoff + reduced concurrency** — advisor rulings.
+8. **Embedding string/array handling in route-only path** — `parseVectorString` utility extracted.
+
+Integration tests against real Postgres were added in `src/lib/jobs/__tests__/integration-gate-1-2.test.ts` (3 tests) to prevent silent regressions.
+
+### 3.9a.4 D29 Verdict Integrity Fix (July 28 2026)
+
+A critical catch-block bug was silently overwriting valid "approved" verdicts with "error" status. When Gate 3's LLM evaluation succeeded and wrote the verdict to the DB, but a subsequent step (the `match/approved` event send) failed, the catch block would overwrite the valid verdict with "error". This suppressed **66 approved matches** across the entire system.
+
+**Fix:**
+1. Wrapped the `match/approved` event send in try/catch — if it fails, log a warning but don't overwrite the verdict.
+2. Added a guard in the outer catch block: if the verdict was already written (`llm_verdict IS NOT NULL`), don't overwrite with "error".
+
+**Impact:** Approved matches: 14 → 80 (+471%). 44 "mismatch" rows with `llm_verdict = 'approved'` were restored to their correct approved status.
+
+### 3.9a.5 Coding Rules for pg-boss Handlers
+
+1. **Import domain logic lazily** inside the handler to avoid loading heavy modules at registration time.
+2. **Use `scheduler.send()` for event emission** — events are persisted in Postgres, surviving server restarts.
+3. **Use `scheduler.sendBatch()` for bulk event emission** — more efficient than individual `send()` calls.
+4. **Never pass custom `id` values to `sendBatch`** — pg-boss requires valid UUIDs for the `id` field. Custom IDs like `gate-3-${matchQueueId}` cause SQLSTATE 22P02 errors. Let pg-boss auto-generate UUIDs.
+5. **Register new handlers** in `src/scheduler/register.ts`.
+6. **Use exponential backoff** for retry-prone handlers (LLM calls, external API fetches).
 
 ---
 
@@ -2208,9 +2271,11 @@ A parallel ingestion path that bypasses the ATS poller entirely, fetching jobs d
 | `remoteok.ts` | RemoteOK adapter — single GET, skips legal notice first element, strips HTML. Tags are plain strings (not objects). |
 | `arbeitnow.ts` | Arbeitnow adapter — `?page=N` pagination with empty-page detection (avoids `links.next` which propagates an implicit search filter). EU-focused. |
 | `remotive.ts` | Remotive adapter — remote-first, `inferRemoteScope()` checks for "world"/"anywhere"/"global" in `candidate_required_location`. Salary is free text → null. |
-| `weworkremotely.ts` | WeWorkRemotely RSS adapter — regex XML parsing (no XML-parser dependency), XML-entity-unescape then HTML-strip for `<description>`. Title split on first colon for company name. |
+| `weworkremotely.ts` | WeWorkRemotely RSS adapter — regex XML parsing (no XML-parser dependency), XML-entity-unescape then HTML-strip for `<description>`. Title split on first colon for company name. **D29 fix (July 28 2026):** Added deduplication by `externalJobId` in `upsertDirectJobs` — WWR returns the same job with different location variants, causing SQLSTATE 21000 (`ON CONFLICT DO UPDATE command cannot affect row a second time`). |
+| `fourdayweek.ts` | 4dayweek.io adapter — **D29 rewrite (July 28 2026):** API format changed from bare array to `{jobs:[]}` wrapper with new field names (`stack`/`locations`/`work_arrangement`/`posted`/`salary_lower`/`salary_upper`/`company.hires_worldwide`). Added `extractTags`, `extractLocationName`, `extractWorkArrangement`, `extractPublishedAt` helpers for new format. |
+| `workingnomads.ts` | Working Nomads adapter — **D29 rewrite (July 28 2026):** RSS feed (`/jobsrss`) returns 404. Rewritten to consume Elasticsearch API at `/jobsapi/_search`. Added `extractLocationName` and `inferRemoteScope` helpers for the new location format (APAC, EMEA, North America, USA, Anywhere). |
 
-**`directJobBoardIngestion` Inngest function:** Cron `0 5 * * *`, concurrency 1. Orchestrates all 6 boards in sequence with per-board fetch + upsert steps. Each board: (1) `step.run("fetch-{board}", ...)` — call adapter, return `{ success, jobs, error, totalAvailable }`, (2) if success + jobs.length > 0: rebuild Date objects (Inngest serialization), `step.run("upsert-{board}", ...)` — call `upsertDirectJobs(source, slug, jobs, embedFn)`, (3) push result to `boardResults[]`. After all boards: `step.run("write-log", ...)` — write ingestion log.
+**`directJobBoardIngestion` pg-boss cron:** `cron.direct-job-board-ingestion`, every 3 hours, concurrency 1. Orchestrates all boards in sequence with per-board fetch + upsert. Each board: (1) call adapter, return `{ success, jobs, error, totalAvailable }`, (2) if success + jobs.length > 0: call `upsertDirectJobs(source, slug, jobs)`, (3) push result to `boardResults[]`. After all boards: write ingestion log. **D29 fix:** `upsertDirectJobs` now deduplicates by `externalJobId` before any DB operation to prevent SQLSTATE 21000 on sources that return duplicate IDs in the same batch.
 
 **Backlog Sweeper:** New `pollBacklogSweeper` Inngest function addresses the 6,516 never-polled companies (65% of the 10,114 registry) by polling 100 never-polled companies per run. Uses `getNeverPolledBatch()` in `src/lib/jobs/poller/tier-queries.ts`. 5 new tests in `batch-poll.test.ts`.
 
@@ -2330,11 +2395,38 @@ This sprint covers the D20 work: unfreezing 21 crons, migrating from Neon to VPS
 - **Inngest 504 timeout fixed** — root cause: Inngest Coolify service's FQDN had no explicit port, so Traefik couldn't generate the `loadbalancer.server.port` label. Fix: FQDN changed to `https://inngest.vectormatch.dev:8288`.
 - **Dashboard `i.map is not a function` crash fixed** — root cause: `src/actions/matches.ts` has `"use server"` at the top. Next.js Server Action modules may only export async functions. `DISMISS_REASONS` (const array) and `DismissReason` (type) were exported from this file and imported by `DismissButton.tsx`. Fix: moved exports to `src/lib/jobs/match-filters.ts` (client-safe).
 
+#### 4.7.20 Sprint 17 — Directive 27-29: pg-boss Migration, Pipeline Repair, Verdict Integrity `[Status: Implemented — July 25-28 2026]`
+
+This sprint covers the most significant infrastructure change since the Neon→VPS migration: the complete removal of Inngest v4 and migration to pg-boss, followed by pipeline bug fixes and a critical verdict integrity fix.
+
+**D27 — Inngest → pg-boss Migration (July 25 2026):**
+- **Complete Inngest removal** — 67+ Inngest functions migrated to pg-boss handlers in `src/scheduler/handlers/` (5 files: `events.ts`, `crons.ts`, `monitors.ts`, `maintenance.ts`, `sources.ts`). All Inngest source code (`src/inngest/`), npm package, env vars, MCP config, and Coolify service removed. The critical path (batch poll → normalize → embed → Gate 1+2 → Gate 3) is now a direct function call chain with zero network hops.
+- **pg-boss infrastructure** — `src/scheduler/scheduler.ts` (instance wrapper), `src/scheduler/register.ts` (handler registrations), `src/scheduler/pipeline.ts` (core pipeline functions). Job state stored in `pgboss.job` and `pgboss.queue` tables in the same Postgres database.
+- **See** `docs/reports/directives/DIRECTIVE_27_INTEGRAL_REPORT.md` for full details.
+
+**D28 — Pipeline Bug Fixes (July 27 2026):**
+- **8 silent pipeline bugs fixed** — the migrated pipeline was silently producing 0 candidates. Bugs: (1) Gate 1+2 SQL syntax error, (2) DISTINCT ON / ORDER BY mismatch, (3) override_check CTE not joined, (4) AI SDK externalization, (5) `require("./step")` → static `import` (root cause of `r is not a constructor`), (6) `createdon` → `created_on` column name, (7) exponential backoff + reduced concurrency, (8) embedding string/array handling.
+- **Integration tests** — `src/lib/jobs/__tests__/integration-gate-1-2.test.ts` (3 tests) added against real Postgres to prevent silent regressions.
+- **See** `docs/reports/directives/DIRECTIVE_28_INTEGRAL_REPORT.md` for full details.
+
+**D29 — Supply Pivot & Verdict Integrity (July 28 2026):**
+- **8 production bugs fixed** — 7 ingestion/scheduler bugs + 1 critical verdict integrity bug:
+  1. **WeWorkRemotely dedup** — duplicate `externalJobId` in same batch caused SQLSTATE 21000. Fix: dedup before insert.
+  2. **4dayweek.io API format** — API response format changed. Fix: rewrote adapter for new JSON structure.
+  3. **Working Nomads RSS dead** — RSS feed returns 404. Fix: rewrote to Elasticsearch API.
+  4. **North-star `would_apply` column** — non-existent column. Fix: removed reference.
+  5. **Bulk-reprocess `comp_min` column** — wrong column names. Fix: use actual names (`compensation_min`, etc.).
+  6. **Invalid UUID prefixes in pg-boss sendBatch** — `gate-3-${id}` not a valid UUID. Fix: removed custom IDs.
+  7. **Direct-ingestion embedding gap** — jobs normalized but never embedded. Fix: on-demand embedding in pipeline.
+  8. **Gate 3 catch-block overwriting approved verdicts** (CRITICAL) — 66 approved matches suppressed. Fix: try/catch on event send + guard in catch block.
+- **Impact:** Approved matches: 14 → 80 (+471%). Global matchable pool: 316 → 354 (+12%). Fence rate: 58.7% → 21.7% (WWR alone: 10.3%). Cron ingestion: 0 → 44 new jobs per run.
+- **See** `docs/reports/directives/DIRECTIVE_29_INTEGRAL_REPORT.md` for full details.
+
 ---
 
-## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis)]`
+## 5. MODULE C: EVENT-DRIVEN ROUTING (THE 3-GATE FUNNEL) `[Status: Implemented — Real-Data Calibrated (Self-Use Yield Analysis), pg-boss Migration (D27-D28), Verdict Integrity Fix (D29)]`
 
-**Goal:** Solve the O(N*M) compute cost problem using Inngest and Postgres.
+**Goal:** Solve the O(N*M) compute cost problem using pg-boss and Postgres.
 
 **Implementation reference:** `docs/reports/MODULE_C_DECISIONS.md` is the primary design document for all Module C features. Calibration findings: `docs/reports/calibration-report.md`.
 
@@ -2366,9 +2458,9 @@ This sprint covers the D20 work: unfreezing 21 crons, migrating from Neon to VPS
 - **C22** — Embedding symmetry enforcement (D20): 18 active unfenced jobs embedded (were invisible to Gate 2), 520 fenced jobs' embeddings nulled (wasted storage reclaimed). Script: `scripts/d20-embedding-symmetry.ts`. Root cause: D19 fence backfill didn't null embeddings, and 18 recently-ingested jobs failed to embed during normalization. Added July 2026.
 - **C23** — Certstream fixes (D20, 3 of 5): (1) WebSocket close handling — `defaultCollectFromCertStream` distinguishes immediate close (connection failed) from successful collection. (2) `discoverySource` corrected from `"hn_algolia"` to `"certstream"`. (3) `certstream` value added to PG enum (migration 0057) + Zod schema + TypeScript types. Two breaks remain for August: `probeStackProfileV3` not wired, upstream CertStream service degraded. Added July 2026.
 
-### 5.1 Step 1: Normalization (Inngest Event: `job/ingested`) `[Status: Implemented]`
-*   When a job is inserted by the Phalanx Poller (Module B), Inngest emits a `job/ingested` event. The `jobIngestedHandler` in `src/inngest/functions.ts` receives it.
-*   **Idempotency guard:** If `job.normalizedAt IS NOT NULL`, the handler skips — event re-delivery is safe.
+### 5.1 Step 1: Normalization (pg-boss Event: `job/ingested`) `[Status: Implemented]`
+*   When a job is inserted by the Phalanx Poller (Module B), pg-boss emits a `job/ingested` event. The `runJobPipeline` function in `src/scheduler/pipeline.ts` receives it via the `job/ingested` handler registered in `src/scheduler/register.ts`.
+*   **Idempotency guard:** If `job.normalizedAt IS NOT NULL`, the handler skips — event re-delivery is safe. **D29 fix (July 28 2026):** Added a "normalized but not embedded" recovery path — when a job has `extractedTags + normalizedText` but no embedding (and is not fenced), generate the embedding on-demand, persist it, then run Gate 1+2. This catches direct-ingested jobs that were normalized but never embedded.
 *   **Tag extraction** (`src/lib/jobs/job-normalizer.ts`):
     *   `extractJobContent` extracts the description from the raw ATS JSON (Ashby prefers `descriptionPlain` over `descriptionHtml`).
     *   `scanTagsRegex` — a TypeScript dictionary regex extracts canonical tags (e.g., matching "ReactJS" to "react"). Fast, $0 cost.
@@ -2377,7 +2469,7 @@ This sprint covers the D20 work: unfreezing 21 crons, migrating from Neon to VPS
 *   **Embedding** (`src/lib/jobs/job-embedder.ts`): The job description is embedded using `text-embedding-3-small` (1536 dimensions).
 *   `normalizedAt` is set ONLY on terminal outcomes (successful normalization OR rejection). Never set on `normalization_failed` — that would turn it into a permanent tombstone, defeating the two-status split.
 *   **Error logging (Sprint 7, July 1 2026):** Normalization failures are now logged with `console.error` including `jobId`, `atsSource`, and the error message. Previously silently swallowed — making it impossible to diagnose OpenAI API key issues, rate limiting, or malformed SmartRecruiters detail data. The error is logged but does NOT change control flow (the job is still marked `normalization_failed` and remains retryable).
-*   **Retry sweep (Sprint 7, July 1 2026):** The `normalizationRetrySweep` Inngest function (cron `0 6 * * *`) now processes TWO categories of stuck jobs: (1) `status = 'normalization_failed'` (retryable failures), AND (2) `status = 'active' AND normalizedAt IS NULL` (never normalized — the batchPollTier timeout/retry failure mode). Limit raised from 50 to 200 jobs per run. Both categories are re-emitted as `job/ingested` events; the idempotency guard ensures safe re-processing. See §4.7.10 for full details.
+*   **Retry sweep (Sprint 7, July 1 2026):** The `normalizationRetrySweep` pg-boss cron (cron `0 6 * * *`) now processes TWO categories of stuck jobs: (1) `status = 'normalization_failed'` (retryable failures), AND (2) `status = 'active' AND normalizedAt IS NULL` (never normalized — the batchPollTier timeout/retry failure mode). Limit raised from 50 to 200 jobs per run. Both categories are re-emitted as `job/ingested` events; the idempotency guard ensures safe re-processing. See §4.7.10 for full details.
 
 ### 5.1.5 Step 1.5: Gate 0.5 Hard-Blocker Pre-Filter `[Status: Implemented — July 2026]`
 
@@ -2510,15 +2602,15 @@ await db.execute(sql`
 **Performance:** `EXPLAIN ANALYZE` (verified by `scripts/verify-gate-explain.mts`) confirms both GIN and HNSW indexes are used. At MVP scale (~1,000 personas), the composite ORDER BY may cause an in-memory sort (HNSW index is optimized for pure KNN, not composite expressions) — this is <5ms at 1k rows. At 100k+ scale, a two-phase query (KNN + re-rank) may be needed (post-MVP).
 
 ### 5.3 Step 3: Gate 3 (The LLM Arbiter) `[Status: Implemented]`
-*   `jobIngestedHandler` fans out one `match/gate-3-evaluate` Inngest event per candidate row inserted by Gate 1+2. The `gate3Evaluator` function in `src/inngest/functions.ts` receives these events.
+*   `runJobPipeline` fans out one `match/gate-3-evaluate` pg-boss event per candidate row inserted by Gate 1+2. The `runGate3Evaluation` function in `src/scheduler/pipeline.ts` receives these events (concurrency 5, retries 5).
 *   **One event per candidate** (not a batch) — maximum parallelism, maximum failure isolation. If one candidate's LLM call fails, the others are unaffected.
 *   `src/lib/jobs/gate-3.ts`:
     *   `buildGate3Prompt` constructs a structured prompt with: job title + description + extracted tags, persona label + embedding summary + must-have/blocklist tags, and applicant constraints (country, work hours, compliance, modalities, assignment types, **seniority levels**).
     *   `evaluateGate3` calls `gpt-4o-mini` via Vercel AI SDK `generateObject` with a strict Zod schema (`gate3VerdictSchema`): verdict (`approved`/`rejected`), confidence (0.0–1.0), reasoning (1–3 sentences), and blockers (array of strings).
     *   `mapVerdict` maps the LLM verdict to `match_queue` status.
-*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `prompt_variant`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted. The `llm_confidence` and `llm_blockers` columns (migrations `0010` + `0011`) persist the LLM's actual confidence score and rejection reasons — critical for calibration via the dashboard UI.
+*   **Verdict writing:** `llm_verdict`, `llm_reasoning`, `llm_confidence`, `llm_blockers`, `llm_model`, `prompt_variant`, `evaluated_at` written to `match_queue`. If approved, `status = 'approved'` and `match/approved` event emitted. The `llm_confidence` and `llm_blockers` columns (migrations `0010` + `0011`) persist the LLM's actual confidence score and rejection reasons — critical for calibration via the dashboard UI. **D29 verdict integrity fix (July 28 2026):** The `match/approved` event send is now wrapped in try/catch — if it fails (e.g., queue not registered), the verdict is NOT overwritten. The outer catch block also checks if `llm_verdict IS NOT NULL` before overwriting with "error" — if the verdict was already written, it's preserved. This fixed 66 suppressed approved matches (14 → 80 approved, +471%).
 *   **`match/approved` event:** MVP — nothing listens (dashboard polls `match_queue` directly). Defined now so Module D (cold email generation) has a stable contract post-MVP.
-*   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by the `pendingQueueSweep` Inngest function (see below).
+*   **Error recovery:** Unparseable output or exhausted retries → `status = 'pending'`, `llm_verdict = 'error'`. Recoverable by the `pendingQueueSweep` pg-boss cron (see below).
 
 **Seniority-aware matching (added June 28 2026, updated July 2026):**
 The `Gate3Context` type now includes `persona.seniorityLevels` — the per-persona seniority levels from `persona.seniority_levels`. The `buildGate3Prompt` function includes these in the persona section (not the applicant section), and all three prompt variants instruct the LLM to check the job's inferred seniority against this list and reject mismatches. If `persona.seniorityLevels` is empty, the LLM treats it as "any" and does not reject on seniority. This addresses the yield analysis finding that seniority mismatch was a top-3 rejection reason, and the per-persona design allows the same applicant to have different seniority levels for different tech stacks (e.g., senior for React/Next.js, mid for PHP/Laravel). The `applicant.seniorityLevels` field remains as the onboarding default that pre-populates persona seniority during signup.
@@ -2529,7 +2621,7 @@ Gate 3 now supports three prompt variants for A/B testing approval rates:
 - **`strict`**: More conservative — requires ≥2 of the persona's must-have tags in the job's core required skills, and only approves if highly confident.
 - **`thorough`**: More detailed reasoning — considers transferable skills, doesn't reject solely on years-of-experience differences, and leans toward approving when the core tech stack aligns with no hard blockers.
 
-The `gate3Evaluator` Inngest function randomly assigns a variant per candidate via `pickPromptVariant()` and stores it in `matchQueue.promptVariant`. After enough data is collected, analyze approval rates per variant:
+The `runGate3Evaluation` pg-boss handler randomly assigns a variant per candidate via `pickPromptVariant()` and stores it in `matchQueue.promptVariant`. After enough data is collected, analyze approval rates per variant:
 ```sql
 SELECT prompt_variant, COUNT(*) FILTER (WHERE status='approved') AS approved,
        COUNT(*) AS total,
@@ -2554,16 +2646,16 @@ The `gate3VerdictSchema` now includes a `workAuthRiskFlag` boolean field. It is 
 
 **⚠️ CRITICAL schema note:** The `workAuthRiskFlag` field in `gate3VerdictSchema` must NOT use `.default(false)` — OpenAI's strict JSON schema mode requires all properties to be in the `required` array, and Zod's `.default()` marks the field as optional, causing a schema validation error (`Invalid schema for response_format 'response': Missing 'workAuthRiskFlag'`). The field must be a plain `z.boolean().describe(...)` without `.default()`.
 
-**Gate 3 feedback loop (added June 28 2026, ENHANCED July 1 2026):**
-Four Inngest functions provide resilience, re-evaluation, and bulk processing:
+**Gate 3 feedback loop (added June 28 2026, ENHANCED July 1 2026, migrated to pg-boss D27 July 25 2026):**
+Four pg-boss handlers provide resilience, re-evaluation, and bulk processing:
 
-1. **`pendingQueueSweep`** (cron every 30 minutes): Finds `match_queue` rows stuck in `pending` status for >10 minutes and emits `match/gate-3-evaluate` events for them. This handles cases where the original Gate 3 event was lost (e.g. script ran without Inngest event key, or an event was dropped). Without this sweep, pending rows would sit forever.
+1. **`runPendingQueueSweep`** (pg-boss cron `cron.pending-queue-sweep`, every 2 hours): Finds `match_queue` rows stuck in `pending` status for >10 minutes AND active+embedded jobs without match_queue entries. Emits `match/gate-3-evaluate` events for stuck pending rows and routes unmatched jobs through Gate 1+2 → Gate 3. This handles cases where the original Gate 3 event was lost or an event was dropped. Without this sweep, pending rows would sit forever.
 
-2. **`personaUpdatedHandler`** (event: `persona/updated`): When a user updates their persona's `must_have_tags`, `blocklist_tags`, or `embedding_summary` via `updatePersonasAction`, the action emits a `persona/updated` Inngest event. This function finds all `rejected` match_queue rows for that persona (where the job is still active), resets them to `pending`, and emits `match/gate-3-evaluate` events for re-evaluation. Limited to 50 re-evaluations per persona update to control LLM costs. **Sprint 8 enhancement (July 1 2026):** Now also emits a `match/bulk-reprocess` event to trigger `matchBulkReprocess` for new jobs that were never matched against the updated persona.
+2. **`personaUpdatedHandler`** (event: `persona/updated`): When a user updates their persona's `must_have_tags`, `blocklist_tags`, or `embedding_summary` via `updatePersonasAction`, the action emits a `persona/updated` pg-boss event. This handler finds all `rejected` match_queue rows for that persona (where the job is still active), resets them to `pending`, and emits `match/gate-3-evaluate` events for re-evaluation. Limited to 50 re-evaluations per persona update to control LLM costs. **Sprint 8 enhancement (July 1 2026):** Now also emits a `match/bulk-reprocess` event to trigger `matchBulkReprocess` for new jobs that were never matched against the updated persona.
 
-3. **`matchBulkReprocess`** (event: `match/bulk-reprocess`, added July 1 2026): Manually triggered via admin dashboard. Queries active+embedded jobs NOT in match_queue (LIMIT 1000), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch. Concurrency limit 1. Designed for retroactive matching when personas are created/updated or when pipeline fixes unlock previously unmatchable jobs.
+3. **`matchBulkReprocess`** (event: `match/bulk-reprocess`, added July 1 2026): Manually triggered via admin dashboard. Queries active+embedded jobs NOT in match_queue (LIMIT 1000), processes in batches of 25 with parallel `Promise.all` Gate 1+2 calls, fans out Gate 3 events per batch. Concurrency limit 1. Designed for retroactive matching when personas are created/updated or when pipeline fixes unlock previously unmatchable jobs. **D29 fix (July 28 2026):** Fixed non-existent column references (`j.comp_min` → `compensation_min`, `j.comp_max` → `compensation_max`, `j.comp_currency` → `compensation_currency`, removed `j.assignment_types`). Removed invalid UUID prefixes from `sendBatch` calls (`gate-3-${id}` → auto-generated UUIDs).
 
-4. **`matchRetrySweep`** (cron daily 07:00 UTC, added July 1 2026): Catches jobs missed by the normal pipeline — queries active+embedded jobs older than 1h with no match_queue entry (via persona JOIN for tag overlap), processes in batches of 25 with parallel Gate 1+2. Daily safety net for timing errors, filter changes, and edge cases.
+4. **`matchRetrySweep`** (pg-boss cron daily 07:00 UTC, added July 1 2026): Catches jobs missed by the normal pipeline — queries active+embedded jobs older than 1h with no match_queue entry (via persona JOIN for tag overlap), processes in batches of 25 with parallel Gate 1+2. Daily safety net for timing errors, filter changes, and edge cases.
 
 **Sprint 8 prompt tuning (July 1 2026):**
 All three prompt variants updated with:
@@ -2582,15 +2674,17 @@ Two production reliability fixes for Gate 3 LLM calls:
 - **30-second timeout:** All Gate 3 LLM calls now use `AbortSignal.timeout(30000)` to prevent indefinite hangs on unresponsive OpenAI API responses. Previously, a hanging API call would block the Inngest function indefinitely, consuming concurrency slots and preventing other jobs from being evaluated.
 - **8,000-character input truncation:** Job description input to the LLM is truncated to 8,000 characters before being passed to `generateObject`. This prevents token-limit failures on oversized job postings — previously, 24 jobs failed normalization with ">8192 token limit" errors because the full job description exceeded the model's context window. The truncation preserves the first 8,000 characters (typically the job title, requirements, and responsibilities) while discarding verbose company boilerplate at the end.
 
-*   Inngest concurrency is capped to max 5 (Inngest free plan limit, June 2026).
-The original limit of 50 existed to prevent Vercel's 340-second idle-connection
+*   pg-boss Gate 3 concurrency is capped to 5 (D28 advisor ruling, July 2026).
+The original Inngest limit of 50 existed to prevent Vercel's 340-second idle-connection
 limit from severing fanned-out function instances. Under Module E, there is no
 Vercel idle-connection limit — the constraint now is protecting the single
 Hetzner CX33 instance's own CPU/RAM headroom (2 vCPU / 8GB, shared with the
 live Next.js server process) and, more importantly, protecting the Postgres
 connection pool from exhaustion under a sudden fan-out spike. The
-free plan's cap of 5 concurrent steps is more conservative than the original
-50 and is adequate for MVP/solo use. Upgrade the Inngest plan and raise the
+D28 advisor ruling reduced concurrency from 10 → 5 because pg-boss runs
+in-process and shares the app's DB pool AND Node event loop — 10 concurrent
+LLM calls can starve the web server in a way the separate Inngest container
+never could. 5 concurrent steps is adequate for MVP/solo use. Raise the
 limit if higher throughput is needed post-MVP — tune empirically against
 actual Postgres pool size and observed CX33 load.
 
