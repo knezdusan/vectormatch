@@ -199,14 +199,27 @@ export async function runSchedulerHealthMonitor(): Promise<void> {
 // Cron: "0 7 * * *" (daily 07:00 UTC)
 
 export async function runNorthStarDailyReport(): Promise<void> {
-  // D29 fix: removed would_apply column reference — it doesn't exist in the
-  // match_queue table. The would_apply feature was never migrated to the
-  // match_queue schema. Using dismissed as the negative signal instead.
+  // D29→D30 fix: restored the would-apply signal. The original D29 fix removed
+  // a reference to a non-existent `would_apply` column. The would-apply signal
+  // is the `status = 'applied'` row state (set via updateMatchStatus from the
+  // dashboard when the user marks a match as applied).
+  //
+  // CAVEAT: match_queue has no `applied_at` timestamp — updateMatchStatus only
+  // flips `status`, so we can only report a CUMULATIVE applied total, not a
+  // daily rate. The PMF tripwire ("≥5 would-apply/day × 7 consecutive days")
+  // requires a daily rate, which in turn requires an `applied_at` column
+  // (schema change + migration). For now we surface the cumulative total and
+  // the time-windowed approved/dismissed counts (which DO have timestamps).
+  //
+  // Also fixed: the previous `status = 'dismissed'` filter was broken — no such
+  // status exists. dismissMatch sets `status = 'mismatch'` + `dismissed_at`, so
+  // the dismiss signal is `status = 'mismatch' AND dismissed_at IS NOT NULL`.
   const result = await db.execute(sql`
     SELECT
       (SELECT count(*) FROM match_queue WHERE status = 'approved' AND evaluated_at > NOW() - INTERVAL '24 hours') AS approved_24h,
-      (SELECT count(*) FROM match_queue WHERE status = 'dismissed' AND evaluated_at > NOW() - INTERVAL '24 hours') AS dismissed_24h,
+      (SELECT count(*) FROM match_queue WHERE status = 'mismatch' AND dismissed_at IS NOT NULL AND dismissed_at > NOW() - INTERVAL '24 hours') AS dismissed_24h,
       (SELECT count(*) FROM match_queue WHERE status = 'approved' AND evaluated_at > NOW() - INTERVAL '7 days') AS approved_7d,
+      (SELECT count(*) FROM match_queue WHERE status = 'applied') AS applied_total,
       (SELECT count(*) FROM job WHERE status = 'active') AS active_jobs,
       (SELECT count(*) FROM job WHERE status = 'active' AND normalized_at IS NOT NULL) AS normalized_jobs,
       (SELECT count(*) FROM job WHERE status = 'active' AND job_embedding IS NOT NULL) AS embedded_jobs
@@ -217,6 +230,8 @@ export async function runNorthStarDailyReport(): Promise<void> {
     approved24h: Number(metrics.approved_24h),
     dismissed24h: Number(metrics.dismissed_24h),
     approved7d: Number(metrics.approved_7d),
+    // Cumulative would-apply signal. See caveat above re: daily-rate tripwire.
+    appliedTotal: Number(metrics.applied_total),
     activeJobs: Number(metrics.active_jobs),
     normalizedJobs: Number(metrics.normalized_jobs),
     embeddedJobs: Number(metrics.embedded_jobs),

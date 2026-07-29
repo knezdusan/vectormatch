@@ -307,6 +307,30 @@ export function registerPipelineFunctions(): void {
     retries: 0,
   });
 
+  // D29: Register match/approved as a no-op consumer. Gate 3 emits this event
+  // when a match is approved (pipeline.ts ~L998). Nothing consumes it yet —
+  // Module D (notifications / application tracking) will wire in here later.
+  // Registering the queue prevents "Queue event.match.approved does not exist"
+  // warning logs on every approval. The verdict is already persisted to
+  // match_queue before the emit, so this handler has nothing to do.
+  scheduler.registerEvent({
+    event: "match/approved",
+    name: "Match Approved (no-op — reserved for Module D)",
+    handler: async (data) => {
+      const { matchQueueId, jobId, applicantId, personaId } = data as {
+        matchQueueId: string;
+        jobId: string;
+        applicantId: string;
+        personaId: string;
+      };
+      console.info(
+        `[match/approved] ${matchQueueId} (job=${jobId}, persona=${personaId}, applicant=${applicantId}) — no-op, reserved for Module D`,
+      );
+    },
+    concurrency: 5,
+    retries: 0,
+  });
+
   // ═══════════════════════════════════════════════════════════════════════════
   // MAINTENANCE & SWEEPS — Cron jobs
   // ═══════════════════════════════════════════════════════════════════════════

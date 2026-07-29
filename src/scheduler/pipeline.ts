@@ -1176,6 +1176,24 @@ interface BoardDef {
 }
 
 /**
+ * D30: Sources temporarily taken offline. Boards whose `atsSource` is in this
+ * set are skipped by runDirectJobBoardIngestion — their adapter code is kept
+ * intact for future re-enablement. Reasons to dorm a source:
+ *   - persistent server-side blocking / timeouts we can't fix from our end
+ *   - page structure changed and selectors need updating (use only while the
+ *     fix is in progress; remove from this set once the adapter is repaired)
+ *
+ * To re-enable, remove the atsSource string from this set. No other code
+ * changes required — the board definition and fetch function remain wired.
+ */
+const DORMANT_SOURCES = new Set<string>([
+  // Remote.co: every fetch times out (HTTP/2 INTERNAL_ERROR / server-side
+  // blocking). No fix possible from our end. D30 — dormant until the upstream
+  // blocking lifts. Adapter code preserved in remoteco.ts.
+  "remoteco",
+]);
+
+/**
  * Direct Job Board Ingestion — fetches jobs from ALL remote-native boards
  * and runs the pipeline for each new job.
  *
@@ -1467,6 +1485,20 @@ export async function runDirectJobBoardIngestion(): Promise<{
   }> = [];
 
   for (const board of boards) {
+    // D30: skip dormant sources — see DORMANT_SOURCES doc above.
+    if (DORMANT_SOURCES.has(board.atsSource)) {
+      console.info(
+        `[pipeline] ${board.name} (${board.atsSource}) is dormant — skipping`,
+      );
+      boardResults.push({
+        board: board.name,
+        fetched: 0,
+        new: 0,
+        error: "dormant",
+      });
+      continue;
+    }
+
     try {
       const result = await board.fetch();
 

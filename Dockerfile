@@ -112,6 +112,16 @@ COPY --from=builder --chown=node:node /app/node_modules/cron-parser ./node_modul
 COPY --from=builder --chown=node:node /app/node_modules/luxon ./node_modules/luxon
 COPY --from=builder --chown=node:node /app/node_modules/serialize-error ./node_modules/serialize-error
 
+# D30: Explicitly copy playwright + playwright-core into the runner image.
+# Same class of tracing bug as pg-boss above: the Remote.com and Wellfound
+# direct-ingestion adapters load Playwright via dynamic `await import("playwright")`,
+# which Next.js standalone tracing does not follow. Without this, the adapters
+# fail at runtime with "Cannot find module 'playwright'" / missing
+# playwright-core/browsers.json. `playwright` depends only on `playwright-core`
+# (fsevents is macOS-only and not needed on Linux).
+COPY --from=builder --chown=node:node /app/node_modules/playwright ./node_modules/playwright
+COPY --from=builder --chown=node:node /app/node_modules/playwright-core ./node_modules/playwright-core
+
 # Playwright Chromium browser binary (Directive 13, B1: Wellfound adapter).
 # Copied from the builder stage where it was installed.
 COPY --from=builder --chown=node:node /app/.playwright ./.playwright
