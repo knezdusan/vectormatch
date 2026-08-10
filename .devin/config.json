@@ -3,57 +3,6 @@
   "permissions": {
     "allow": ["Exec(cp)", "Exec(rm)", "Exec(npx)", "Exec(grep)"]
   },
-  "mcpServers": {
-    "shadcn": {
-      "transport": "STDIO",
-      "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
-    },
-    "neon": {
-      "url": "https://mcp.neon.tech/mcp",
-      "transport": "http"
-    },
-    "playwright": {
-      "transport": "STDIO",
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
-    },
-    "fallow": {
-      "transport": "STDIO",
-      "command": "npx",
-      "args": [
-        "-y",
-        "node",
-        "/Users/knez/Documents/WebDev/vectormatch/.devin/bin/fallow-mcp-wrapper.mjs"
-      ]
-    },
-    "wordpress": {
-      "url": "https://mcp.wpvibe.ai/mcp",
-      "transport": "http"
-    },
-    "bigquery": {
-      "transport": "STDIO",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@toolbox-sdk/server",
-        "--prebuilt",
-        "bigquery",
-        "--stdio"
-      ],
-      "env": {
-        "BIGQUERY_PROJECT": "vactormatch-seeder",
-        "GOOGLE_APPLICATION_CREDENTIALS": "/Users/knez/Documents/WebDev/vectormatch/docs/system/vactormatch-seeder-b4bc49aeddb1.json"
-      }
-    },
-    "coolify": {
-      "url": "${COOLIFY_BASE_URL}/mcp",
-      "transport": "http",
-      "headers": {
-        "Authorization": "Bearer ${COOLIFY_MCP_TOKEN}"
-      }
-    }
-  },
   "exclude": [
     "**/node_modules/**",
     "**/.next/**",

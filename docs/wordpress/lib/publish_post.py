@@ -62,6 +62,8 @@ TAG_MAP = {
     "Interviews": 28, "Salary": 29, "Remote": 30, "Freelance": 31,
     "B2B": 32, "Work Authorization": 33, "AI": 34, "Networking": 35,
     "Portfolio": 36, "Skills": 37, "Seniority": 38,
+    "Inngest": 40, "Redis": 41, "Rate Limiting": 42,
+    "PostgreSQL": 43, "Production": 44,
 }
 
 # Category name → ID mapping
@@ -72,6 +74,7 @@ CATEGORY_MAP = {
     "Developer Career Growth": 5,
     "Market Intelligence": 6,
     "Product & Engineering": 7,
+    "Engineering Notes": 39,
 }
 
 
@@ -219,13 +222,16 @@ def assemble_content(data, image_map):
         "</div>"
     )
 
-    # 3. Key takeaways
+    # 3. Key takeaways (skip entirely if empty — Engineering Notes rule)
     takeaways_list = data.get("key_takeaways", [])
-    takeaways_html = "".join(f"<li>{t}</li>" for t in takeaways_list)
-    takeaways = (
-        '<div class="vm-takeaways"><p class="vm-h">What you’ll learn</p>'
-        f"<ul>{takeaways_html}</ul></div>"
-    )
+    if takeaways_list:
+        takeaways_html = "".join(f"<li>{t}</li>" for t in takeaways_list)
+        takeaways = (
+            '<div class="vm-takeaways"><p class="vm-h">What you’ll learn</p>'
+            f"<ul>{takeaways_html}</ul></div>"
+        )
+    else:
+        takeaways = ""
 
     # 4. Content body with markers replaced
     content = data.get("content_html", "")
