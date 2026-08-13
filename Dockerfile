@@ -83,9 +83,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Install curl for Coolify's healthcheck probe (node:24-slim ships without it).
 # Coolify runs its own healthcheck via curl/wget, separate from the Dockerfile
 # HEALTHCHECK directive. Run as root before USER node.
-# Also install Playwright Chromium dependencies (Directive 13, B1: Wellfound adapter).
-# Playwright needs shared libraries for headless Chromium — installed via the
-# built-in `playwright install-deps` command which pulls the minimal set.
+# Note: Playwright Chromium system dependencies are installed separately below
+# (after the playwright node_modules are copied) via `playwright-core cli install-deps`.
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -126,6 +125,18 @@ COPY --from=builder --chown=node:node /app/node_modules/playwright-core ./node_m
 # Copied from the builder stage where it was installed.
 COPY --from=builder --chown=node:node /app/.playwright ./.playwright
 ENV PLAYWRIGHT_BROWSERS_PATH=/app/.playwright
+
+# D30 fix: Install Playwright Chromium system dependencies in the RUNNER stage.
+# The builder stage runs `npx playwright install-deps chromium` but those apt
+# packages live in the builder's filesystem and are NOT copied to the runner.
+# Without these shared libraries (libglib-2.0, libnss3, libatk, etc.), Chromium
+# fails to launch with "error while loading shared libraries: libglib-2.0.so.0:
+# cannot open shared object file". This breaks the Remote.com adapter (and the
+# Wellfound direct-Playwright fallback). Must run as root (before USER node).
+# Uses the local playwright-core CLI to avoid npx network access in production.
+RUN PLAYWRIGHT_BROWSERS_PATH=/app/.playwright \
+    node /app/node_modules/playwright-core/cli.js install-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
 
 # Switch to non-root user only after all root-requiring filesystem steps.
 USER node

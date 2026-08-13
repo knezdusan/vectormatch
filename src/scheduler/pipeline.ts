@@ -1084,12 +1084,23 @@ export async function runPendingQueueSweep(): Promise<{
   }>;
 
   // Also find unmatched jobs (active, embedded, no match_queue entry)
+  // D30 fix: use IS NOT TRUE instead of = false for is_fenced/is_natsec/is_qa.
+  // These columns are nullable — NULL means "not yet scanned." Using = false
+  // excludes NULL rows, silently dropping 27 jobs (as of Aug 13) that haven't
+  // been backfilled yet, including at least one ("Web Developer" with 3 PHP/
+  // Laravel tag overlap) that would match. The serve-time gate filter in
+  // dashboard-queries.ts already uses IS NOT TRUE — this aligns the sweep
+  // with the same semantics. The Gate 1+2 SQL router (gate-1-2.ts) also has
+  // a COALESCE fallback regex for NULL fence flags, so NULL jobs are still
+  // fence-checked at match time.
   const unmatchedJobs = await db.execute(sql`
     SELECT j.id, j.extracted_tags, j.job_embedding
     FROM job j
     WHERE j.status = 'active'
       AND j.remote_scope = 'global'
-      AND j.is_fenced = false
+      AND j.is_fenced IS NOT TRUE
+      AND j.is_natsec IS NOT TRUE
+      AND j.is_qa IS NOT TRUE
       AND j.job_embedding IS NOT NULL
       AND j.id NOT IN (SELECT job_id FROM match_queue)
     LIMIT 100

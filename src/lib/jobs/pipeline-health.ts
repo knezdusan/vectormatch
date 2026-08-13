@@ -275,9 +275,9 @@ async function countUnembeddedJobs(): Promise<number> {
     WHERE status = 'active' AND job_embedding IS NULL
       AND normalized_at IS NOT NULL
       AND remote_scope = 'global'
-      AND is_fenced = false
-      AND is_natsec = false
-      AND is_qa = false
+      AND is_fenced IS NOT TRUE
+      AND is_natsec IS NOT TRUE
+      AND is_qa IS NOT TRUE
   `);
   return Number(result.rows[0]?.cnt ?? 0);
 }
@@ -515,9 +515,9 @@ export async function getStageDailyCounters(): Promise<StageDailyCounters> {
         FROM match_queue mq
         INNER JOIN job j ON mq.job_id = j.id
         WHERE j.remote_scope = 'global'
-          AND j.is_fenced = false
-          AND j.is_natsec = false
-          AND j.is_qa = false
+          AND j.is_fenced IS NOT TRUE
+          AND j.is_natsec IS NOT TRUE
+          AND j.is_qa IS NOT TRUE
           AND mq.created_at > NOW() - INTERVAL '24 hours'
       `),
     ]);
