@@ -2,7 +2,7 @@
 // src/app/dashboard/subscriptions/page.tsx
 //
 // Admin-only page that displays the health status of all paid SaaS services
-// VectorMatch depends on. The health data is cached for 5 minutes via Cache
+// VectorMatch depends on. The health data is cached for 1 hour via Cache
 // Components — the page renders instantly from cache, and the "Re-check now"
 // button busts the cache for a fresh check.
 //
@@ -61,7 +61,7 @@ export default async function SubscriptionsPage() {
         <CardHeader>
           <CardTitle className="text-base">Service Health</CardTitle>
           <CardDescription>
-            Checked every 5 minutes. Critical services can halt the entire app;
+            Checked every hour. Critical services can halt the entire app;
             medium services degrade specific features.
           </CardDescription>
         </CardHeader>

@@ -1,7 +1,7 @@
 // Subscription Health List — renders the cached health check results
 // src/components/admin/SubscriptionHealthList.tsx
 //
-// Server Component. Reads from the 5-minute cached getSubscriptionHealth().
+// Server Component. Reads from the 1-hour cached getSubscriptionHealth().
 // Each service is rendered as a row with a status badge, key presence
 // indicator, and the status message.
 

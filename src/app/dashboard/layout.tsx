@@ -34,7 +34,7 @@ async function DashboardLayoutInner({
   // Fetch unread VM Mail count for the admin sidebar badge.
   const mailUnreadCount = await getUnreadInboundCount();
   // D30: Check subscription health for the sidebar danger indicator.
-  // Cached for 5 minutes via Cache Components — zero API calls on cache hit.
+  // Cached for 1 hour via Cache Components — zero API calls on cache hit.
   // Only checked for admin users (non-admins don't see the Subscriptions tab).
   const subscriptionUnhealthy =
     session.user.role === "admin" ? await hasUnhealthySubscription() : false;

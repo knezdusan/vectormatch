@@ -4,8 +4,8 @@
 // Checks the health of all paid/external SaaS services that VectorMatch
 // depends on. Designed to be lightweight and cached — the sidebar calls
 // the summary on every dashboard navigation, so the full check (which
-// includes API pings to OpenAI and Resend) is cached for 5 minutes via
-// Next.js 16 Cache Components ("use cache" + cacheLife("minutes")).
+// includes API pings to OpenAI and Resend) is cached for 1 hour via
+// Next.js 16 Cache Components ("use cache" + cacheLife("hours")).
 //
 // The subscriptions page (/dashboard/subscriptions) reads the same cached
 // result for instant rendering, and provides a "Re-check now" button that
@@ -262,9 +262,9 @@ function checkGitHubOAuth(): SubscriptionHealthResult {
 /**
  * Run all subscription health checks and return the results.
  *
- * Cached for 5 minutes via Cache Components. The sidebar calls
+ * Cached for 1 hour via Cache Components. The sidebar calls
  * getSubscriptionHealthSummary() which reads this cache — on cache hit,
- * zero API calls are made. On cache miss (every 5 min), OpenAI and Resend
+ * zero API calls are made. On cache miss (every hour), OpenAI and Resend
  * API pings are made (~$0.00002 total cost).
  *
  * Cache invalidation: revalidateTag("subscription-health") busts the cache
@@ -274,7 +274,7 @@ export async function getSubscriptionHealth(): Promise<
   SubscriptionHealthResult[]
 > {
   "use cache";
-  cacheLife("minutes");
+  cacheLife("hours");
   cacheTag("subscription-health");
 
   const [openaiResult, resendResult] = await Promise.all([
