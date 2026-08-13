@@ -14,7 +14,7 @@
 *   **AI/ML:** Vercel AI SDK 6.0.208 (`gpt-4o` for strict reasoning, `gpt-4o-mini` for scaling, `text-embedding-3-small` for embeddings, OpenAI SDK 6.45.0)
 *   **Frontend UI:** Tailwind CSS v4, React 19.2.4, React Hook Form, Zod 4.4.3, `@dnd-kit` (for drag-and-drop), Shadcn/ui 4.8.0
 *   **Vector Database:** Postgres `pgvector` (with `hnsw` indexes)
-*   **Testing:** Vitest 4.1.8 (126 test files, 2,871 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
+*   **Testing:** Vitest 4.1.8 (128 test files, 2,890 tests), Playwright 1.60 (E2E), Biome 2.2.0 (lint+format)
 *   **BigQuery:** `@google-cloud/bigquery` 8.3.1 (HTTPArchive corpus discovery, `GOOGLE_APPLICATION_CREDENTIALS_B64` for Docker-safe auth)
 *   **Hosting:** Hetzner Cloud (Helsinki) + Coolify (self-hosted PaaS). Self-hosted VPS Postgres 17 + pgvector (app database, D20 migration). pg-boss runs in-process within the Next.js server (D27 migration, no separate container). FlareSolverr 3.5.0 (Cloudflare bypass, D20). WordPress blog (`wordpress:latest` + MariaDB 11) served at `/blog` via the same Traefik reverse proxy. Blog publishing via direct WordPress REST API + `publish_post.py` script (WPVibe deactivated July 22 2026). **Historical:** Self-hosted Inngest (`inngest/inngest:v1.34.0` + `postgres:17` + `redis:7`) was removed in D27 (July 25 2026).
 *   **Migrations:** 58 SQL migrations (0000–0057) managed via Drizzle Kit 0.31.10. Migrations 0046–0057 added in D19–D20 (Gate flags NULL default, dismiss_reason enum, certstream enum). D27-D29 added no new migrations (pg-boss uses existing Postgres tables, schema changes were data-only).
@@ -745,7 +745,7 @@ Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in Coolify production environ
 
 ---
 
-## 3.9a PG-BOSS ORCHESTRATION INFRASTRUCTURE `[Status: Implemented — D27 July 25 2026, D28 bug fixes July 27 2026, D29 verdict integrity July 28 2026]`
+## 3.9a PG-BOSS ORCHESTRATION INFRASTRUCTURE `[Status: Implemented — D27 July 25 2026, D28 bug fixes July 27 2026, D29 verdict integrity July 28 2026, D30 NULL fence flag fix Aug 13 2026]`
 
 The pg-boss library provides the durable execution layer for all background jobs, scheduled tasks, and event-driven workflows. It replaced Inngest v4 in D27 (July 25 2026). pg-boss runs **in-process** within the Next.js server and stores job state in the existing Postgres database — no separate Docker container, no HTTP-based function invocation, no Docker DNS resolution.
 
@@ -2649,7 +2649,7 @@ The `gate3VerdictSchema` now includes a `workAuthRiskFlag` boolean field. It is 
 **Gate 3 feedback loop (added June 28 2026, ENHANCED July 1 2026, migrated to pg-boss D27 July 25 2026):**
 Four pg-boss handlers provide resilience, re-evaluation, and bulk processing:
 
-1. **`runPendingQueueSweep`** (pg-boss cron `cron.pending-queue-sweep`, every 2 hours): Finds `match_queue` rows stuck in `pending` status for >10 minutes AND active+embedded jobs without match_queue entries. Emits `match/gate-3-evaluate` events for stuck pending rows and routes unmatched jobs through Gate 1+2 → Gate 3. This handles cases where the original Gate 3 event was lost or an event was dropped. Without this sweep, pending rows would sit forever.
+1. **`runPendingQueueSweep`** (pg-boss cron `cron.pending-queue-sweep`, every 2 hours): Finds `match_queue` rows stuck in `pending` status for >10 minutes AND active+embedded jobs without match_queue entries. Emits `match/gate-3-evaluate` events for stuck pending rows and routes unmatched jobs through Gate 1+2 → Gate 3. This handles cases where the original Gate 3 event was lost or an event was dropped. Without this sweep, pending rows would sit forever. **D30 fix (Aug 13 2026):** The unmatched-jobs query changed from `is_fenced = false` to `is_fenced IS NOT TRUE` (and added `is_natsec IS NOT TRUE`, `is_qa IS NOT TRUE`). The `= false` predicate excluded NULL rows — 27 jobs with NULL fence flags (not yet scanned) were silently dropped, including 1 job ("Web Developer" with 3 PHP/Laravel tag overlap) that would have matched. The `IS NOT TRUE` semantics align with the serve-time gate filter in `dashboard-queries.ts` and the COALESCE regex fallback in `gate-1-2.ts`.
 
 2. **`personaUpdatedHandler`** (event: `persona/updated`): When a user updates their persona's `must_have_tags`, `blocklist_tags`, or `embedding_summary` via `updatePersonasAction`, the action emits a `persona/updated` pg-boss event. This handler finds all `rejected` match_queue rows for that persona (where the job is still active), resets them to `pending`, and emits `match/gate-3-evaluate` events for re-evaluation. Limited to 50 re-evaluations per persona update to control LLM costs. **Sprint 8 enhancement (July 1 2026):** Now also emits a `match/bulk-reprocess` event to trigger `matchBulkReprocess` for new jobs that were never matched against the updated persona.
 
@@ -3143,6 +3143,47 @@ Theme files are edited via direct file access (Coolify terminal, SSH, or volume-
 *   **Rewrite rules**: After changing permalink structure, run `wp rewrite flush` to regenerate rules.
 *   **Unsplash rate limit**: Free tier allows 50 requests/hour. For bulk publishing exceeding this rate, add delays between image searches or use SVG diagrams instead of stock photos.
 *   **Image relevance**: The publishing script searches Unsplash using the `suggested_search_query` field from the JSON. If no relevant images are found, the markers are removed from the content and the post is published without inline images. SVG diagrams (for technical posts) and branded hero covers are preferred alternatives to generic stock photos.
+
+### 7.8 Subscription Health Monitoring `[Status: Implemented — D30, Aug 13 2026]`
+
+**D30 (Aug 13 2026):** A subscription health monitoring system was built after the OpenAI API credit exhaustion outage (Aug 9-13 2026) that halted the entire matching pipeline for 4 days with no visible indicator in the admin dashboard. The system monitors all paid SaaS dependencies and surfaces their health status at `/dashboard/subscriptions` with a danger-color sidebar indicator when any critical service is unhealthy.
+
+#### 7.8.1 Services Monitored
+
+| Service | Impact | Env Var(s) | Check Method |
+|---|---|---|---|
+| OpenAI | CRITICAL (app-halting) | `OPENAI_API_KEY` | Key presence + minimal embedding API call (detects billing/credit issues) |
+| Resend Email | CRITICAL (sign-up/reset fails) | `RESEND_API_KEY` | Key presence + GET /domains API call |
+| Brave Search | MEDIUM (corpus expansion) | `BRAVE_SEARCH_API_KEY` | Key presence only |
+| Google OAuth | MEDIUM (sign-in degrades) | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Credential presence |
+| GitHub OAuth | MEDIUM (sign-in degrades) | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | Credential presence |
+
+#### 7.8.2 Architecture
+
+Health checks are cached for 5 minutes via Next.js 16 Cache Components (`"use cache"` + `cacheLife("minutes")` + `cacheTag("subscription-health")`). On cache hit, zero API calls are made — the sidebar reads `hasUnhealthySubscription()` (boolean) from the same cache on every dashboard navigation. On cache miss (every 5 min), OpenAI embedding ping (~$0.00002) + Resend API GET /domains are made. A "Re-check now" button on the subscriptions page busts the cache via `revalidateTag("subscription-health", "max")` (Next.js 16 requires the profile argument).
+
+#### 7.8.3 Sidebar Danger Indicator
+
+When any CRITICAL-impact service (OpenAI or Resend) is unhealthy, the "Subscriptions" sub-item under the Admin section in the sidebar gets `bg-destructive/15 text-destructive` classes (using the `--destructive` CSS var from the theme) and a small `bg-destructive` dot indicator. This provides immediate visual feedback on every dashboard navigation without any additional API calls.
+
+#### 7.8.4 Project Files
+
+| File | Purpose |
+|---|---|
+| `src/lib/subscriptions/health.ts` | Core health check module. `getSubscriptionHealth()` (cached, full results), `hasUnhealthySubscription()` (cached, boolean for sidebar). |
+| `src/app/dashboard/subscriptions/page.tsx` | Admin-only page at `/dashboard/subscriptions`. Renders health status for all 5 services. |
+| `src/components/admin/SubscriptionHealthList.tsx` | Server Component that reads cached health data and renders service rows with status/impact badges. |
+| `src/components/admin/SubscriptionHealthSkeleton.tsx` | Loading fallback (5 skeleton rows). |
+| `src/components/admin/RecheckButton.tsx` | Client Component with "Re-check now" button. Uses `useActionState` + `router.refresh()`. |
+| `src/actions/subscriptions.ts` | Server Action `recheckSubscriptions()` — admin-only, calls `revalidateTag("subscription-health", "max")`. |
+| `src/lib/subscriptions/__tests__/health.test.ts` | 13 unit tests (mocked OpenAI/Resend, no real API calls). |
+| `src/actions/__tests__/subscriptions.test.ts` | 3 unit tests for the recheck action. |
+
+#### 7.8.5 Integration Points
+
+- `src/app/dashboard/layout.tsx` — Calls `hasUnhealthySubscription()` (admin-only, cached) and passes result to `DashboardSidebar`.
+- `src/components/dashboard/DashboardSidebar.tsx` — Passes `subscriptionUnhealthy` prop to `DashboardSidebarNav`.
+- `src/components/dashboard/DashboardSidebarNav.tsx` — Renders "Subscriptions" sub-item under Admin with danger styling when unhealthy.
 
 ## 8. PUBLIC SITE SEO & BRAND ASSETS `[Status: Implemented]`
 

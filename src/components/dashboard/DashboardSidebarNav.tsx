@@ -2,6 +2,7 @@
 
 import {
   Briefcase,
+  CreditCard,
   FileText,
   LayoutDashboard,
   Mail,
@@ -19,15 +20,18 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 export function DashboardSidebarNav({
   role,
   unreadCount = 0,
   mailUnreadCount = 0,
+  subscriptionUnhealthy = false,
 }: {
   role?: string | null;
   unreadCount?: number;
   mailUnreadCount?: number;
+  subscriptionUnhealthy?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -124,6 +128,24 @@ export function DashboardSidebarNav({
                     <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-accent text-xs font-medium text-accent-foreground group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-1 group-data-[collapsible=icon]:top-1">
                       {mailUnreadCount > 99 ? "99+" : mailUnreadCount}
                     </span>
+                  )}
+                </Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton
+                asChild
+                isActive={pathname === "/dashboard/subscriptions"}
+                className={cn(
+                  subscriptionUnhealthy &&
+                    "bg-destructive/15 text-destructive hover:bg-destructive/20",
+                )}
+              >
+                <Link href="/dashboard/subscriptions">
+                  <CreditCard />
+                  <span>Subscriptions</span>
+                  {subscriptionUnhealthy && (
+                    <span className="ml-auto size-2 rounded-full bg-destructive group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:right-1 group-data-[collapsible=icon]:top-1" />
                   )}
                 </Link>
               </SidebarMenuSubButton>

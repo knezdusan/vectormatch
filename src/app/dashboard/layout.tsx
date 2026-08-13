@@ -8,6 +8,7 @@ import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthSession } from "@/lib/auth";
 import { getUnreadBadgeCount } from "@/lib/jobs/dashboard-queries";
+import { hasUnhealthySubscription } from "@/lib/subscriptions/health";
 
 export const metadata: Metadata = {
   title: "Dashboard | VectorMatch",
@@ -32,6 +33,11 @@ async function DashboardLayoutInner({
   const unreadCount = await getUnreadBadgeCount(session.user.id);
   // Fetch unread VM Mail count for the admin sidebar badge.
   const mailUnreadCount = await getUnreadInboundCount();
+  // D30: Check subscription health for the sidebar danger indicator.
+  // Cached for 5 minutes via Cache Components — zero API calls on cache hit.
+  // Only checked for admin users (non-admins don't see the Subscriptions tab).
+  const subscriptionUnhealthy =
+    session.user.role === "admin" ? await hasUnhealthySubscription() : false;
 
   return (
     <DashboardLayoutComponent session={session}>
@@ -39,6 +45,7 @@ async function DashboardLayoutInner({
         session={session}
         unreadCount={unreadCount}
         mailUnreadCount={mailUnreadCount}
+        subscriptionUnhealthy={subscriptionUnhealthy}
       />
       <DashboardMain>{children}</DashboardMain>
     </DashboardLayoutComponent>

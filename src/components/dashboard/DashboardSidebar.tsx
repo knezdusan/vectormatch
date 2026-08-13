@@ -36,12 +36,14 @@ interface DashboardSidebarProps {
   session: AuthSession;
   unreadCount?: number;
   mailUnreadCount?: number;
+  subscriptionUnhealthy?: boolean;
 }
 
 export function DashboardSidebar({
   session,
   unreadCount = 0,
   mailUnreadCount = 0,
+  subscriptionUnhealthy = false,
 }: DashboardSidebarProps) {
   if (!session) {
     return null;
@@ -73,6 +75,7 @@ export function DashboardSidebar({
           role={session.user.role}
           unreadCount={unreadCount}
           mailUnreadCount={mailUnreadCount}
+          subscriptionUnhealthy={subscriptionUnhealthy}
         />
       </SidebarContent>
       <SidebarFooter className="gap-3 pb-3">

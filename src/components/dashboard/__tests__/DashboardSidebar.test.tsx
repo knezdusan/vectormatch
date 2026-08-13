@@ -136,6 +136,32 @@ describe("DashboardSidebar — desktop", () => {
     expect(screen.getByText("Users")).toBeInTheDocument();
   });
 
+  it("renders Subscriptions sub-item for admin users", () => {
+    renderSidebar(ADMIN_SESSION);
+    expect(screen.getByText("Subscriptions")).toBeInTheDocument();
+  });
+
+  it("does NOT apply danger styling when subscriptions are healthy", () => {
+    renderSidebar(ADMIN_SESSION, "/dashboard");
+    const subscriptionsLink = screen.getByText("Subscriptions").closest("a");
+    expect(subscriptionsLink).not.toHaveClass("text-destructive");
+  });
+
+  it("applies danger styling when subscriptions are unhealthy", () => {
+    render(
+      <TooltipProvider>
+        <DashboardSidebarProvider>
+          <DashboardSidebar
+            session={ADMIN_SESSION}
+            subscriptionUnhealthy={true}
+          />
+        </DashboardSidebarProvider>
+      </TooltipProvider>,
+    );
+    const subscriptionsLink = screen.getByText("Subscriptions").closest("a");
+    expect(subscriptionsLink).toHaveClass("text-destructive");
+  });
+
   it("renders user avatar fallback with initials in footer", () => {
     renderSidebar(USER_SESSION);
     expect(screen.getByText("AS")).toBeInTheDocument();
