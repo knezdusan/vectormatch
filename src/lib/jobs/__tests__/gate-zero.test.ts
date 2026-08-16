@@ -530,6 +530,52 @@ describe("Gate 0 Fence Detection — detectCountryFence", () => {
       detectCountryFence("Senior Software Engineer", "Remote, Distributed"),
     ).toBeNull();
   });
+
+  // Directive 30 Ruling 2.3: Costa Rica and expanded country/region detection
+  it("detects 'Remote - Costa Rica' in title as fence (D30 Ruling 2.3)", () => {
+    expect(
+      detectCountryFence(
+        "Software Engineer, Fullstack (Remote - Costa Rica)",
+        null,
+      ),
+    ).toBe("title_fence");
+  });
+
+  it("detects 'Remote - Costa Rica' in location as country fence (D30 Ruling 2.3)", () => {
+    expect(
+      detectCountryFence("Software Engineer, Fullstack", "Remote - Costa Rica"),
+    ).toBe("location_country");
+  });
+
+  it("detects 'Remote - Chile' in title as fence (D30 Ruling 2.3)", () => {
+    expect(
+      detectCountryFence("Senior React Developer (Remote - Chile)", null),
+    ).toBe("title_fence");
+  });
+
+  it("detects 'ANZ' as region fence (D30 Ruling 2.3)", () => {
+    expect(detectCountryFence("Senior Engineer", "Remote - ANZ")).toBe(
+      "location_region",
+    );
+  });
+
+  it("detects 'Americas' as region fence (D30 Ruling 2.3)", () => {
+    expect(detectCountryFence("Senior Engineer", "Americas")).toBe(
+      "location_region",
+    );
+  });
+
+  it("detects 'MENA' as region fence (D30 Ruling 2.3)", () => {
+    expect(detectCountryFence("Senior Engineer", "MENA")).toBe(
+      "location_region",
+    );
+  });
+
+  it("detects 'Remote - Lithuania' in title as fence (D30 Ruling 2.3)", () => {
+    expect(
+      detectCountryFence("Full Stack Developer (Remote - Lithuania)", null),
+    ).toBe("title_fence");
+  });
 });
 
 describe("Gate 0 Fence Detection — passesFenceGate", () => {

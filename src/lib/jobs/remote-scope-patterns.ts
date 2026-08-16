@@ -106,6 +106,9 @@ export const COUNTRY_CODE_MAP: Record<string, string> = {
   estonia: "EE",
   latvia: "LV",
   lithuania: "LT",
+  luxembourg: "LU",
+  malta: "MT",
+  cyprus: "CY",
   canada: "CA",
   australia: "AU",
   "new zealand": "NZ",
@@ -116,6 +119,11 @@ export const COUNTRY_CODE_MAP: Record<string, string> = {
   colombia: "CO",
   chile: "CL",
   peru: "PE",
+  uruguay: "UY",
+  ecuador: "EC",
+  "costa rica": "CR",
+  panama: "PA",
+  guatemala: "GT",
   singapore: "SG",
   japan: "JP",
   "south korea": "KR",
@@ -529,6 +537,12 @@ export const COUNTRY_FENCED_HIGH: readonly ScopeSignal[] = [
   ...countryFencedPatterns(["portugal"], "PT"),
   ...countryFencedPatterns(["japan"], "JP"),
   ...countryFencedPatterns(["south korea", "korea"], "KR"),
+  // Directive 30 Ruling 2.3: added Costa Rica and other Latin American countries
+  ...countryFencedPatterns(["costa rica"], "CR"),
+  ...countryFencedPatterns(["chile"], "CL"),
+  ...countryFencedPatterns(["argentina"], "AR"),
+  ...countryFencedPatterns(["mexico"], "MX"),
+  ...countryFencedPatterns(["colombia"], "CO"),
 
   // Generic "remote within/in/restricted" (country extracted from context)
   {

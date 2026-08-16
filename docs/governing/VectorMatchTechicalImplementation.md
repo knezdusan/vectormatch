@@ -745,7 +745,7 @@ Set `INNGEST_SERVE_ORIGIN=https://vectormatch.dev` in Coolify production environ
 
 ---
 
-## 3.9a PG-BOSS ORCHESTRATION INFRASTRUCTURE `[Status: Implemented — D27 July 25 2026, D28 bug fixes July 27 2026, D29 verdict integrity July 28 2026, D30 NULL fence flag fix Aug 13 2026]`
+## 3.9a PG-BOSS ORCHESTRATION INFRASTRUCTURE `[Status: Implemented — D27 July 25 2026, D28 bug fixes July 27 2026, D29 verdict integrity July 28 2026, D30 Phase 1 NULL fence flag fix Aug 13 2026, D30 Phase 2 deterministic title blockers Aug 17 2026]`
 
 The pg-boss library provides the durable execution layer for all background jobs, scheduled tasks, and event-driven workflows. It replaced Inngest v4 in D27 (July 25 2026). pg-boss runs **in-process** within the Next.js server and stores job state in the existing Postgres database — no separate Docker container, no HTTP-based function invocation, no Docker DNS resolution.
 
@@ -2646,6 +2646,34 @@ The `gate3VerdictSchema` now includes a `workAuthRiskFlag` boolean field. It is 
 
 **⚠️ CRITICAL schema note:** The `workAuthRiskFlag` field in `gate3VerdictSchema` must NOT use `.default(false)` — OpenAI's strict JSON schema mode requires all properties to be in the `required` array, and Zod's `.default()` marks the field as optional, causing a schema validation error (`Invalid schema for response_format 'response': Missing 'workAuthRiskFlag'`). The field must be a plain `z.boolean().describe(...)` without `.default()`.
 
+**D30 Phase 2 — Primary stack overlap hard blocker (Aug 17 2026):**
+The match-quality audit (81 rows, 26% false-positive rate) revealed that the permissive "missing tags are a soft signal, not a hard blocker" rule in criterion 1 was a major contributor to wrong-stack approvals. A Kotlin/Spring job with a React frontend would be approved for a React persona because "React" appears in the description, even though the primary stack is Kotlin/Spring.
+
+Criterion 1 was rewritten to replace the soft-signal rule with a **PRIMARY STACK OVERLAP hard blocker**: the LLM must determine the job's primary stack from the title plus the majority of required technologies, count how many of the persona's must-have tags appear in that primary stack, and reject if fewer than 2 are present. Example: a "Fullstack Developer" job requiring Kotlin + Spring backend with some React frontend has primary stack {kotlin, spring, java} — a persona with {typescript, nextjs, react, nodejs, prompt-engineering} has only 1 must-have in the primary stack (1 < 2) → HARD BLOCKER.
+
+The OUTPUT RULES section was also updated to add "PRIMARY STACK OVERLAP below 2 must-have tags" to the explicit hard blocker list.
+
+This works in concert with the new deterministic title blockers (Rulings 2.1 + 2.2) which catch platform-name and role-family mismatches pre-LLM. The Gate 3 prompt change catches the remaining cases where the title is generic but the primary stack is wrong.
+
+**D30 Phase 2 — Deterministic title blockers (Aug 17 2026):**
+A new module `src/lib/jobs/title-blockers.ts` was added to provide pre-LLM, persona-relative deterministic filtering between Gate 1+2 and Gate 3. The blockers run in `gateRouteAndFanOut` (`src/scheduler/pipeline.ts`):
+
+1. **Platform-name blocker (Ruling 2.1):** If the job title names a platform (SharePoint, Magento, Shopify, Drupal, Salesforce, ServiceNow, Sitecore, AEM, Webflow, .NET/C#, SAP, Oracle, BigCommerce, WooCommerce, Contentful, Storyblok, Episerver, Dynamics 365) NOT in the persona's must-have tags, reject. Persona-relative exceptions: WordPress allowed for PHP persona, .NET allowed for dotnet personas, etc.
+
+2. **Role-family blocker (Ruling 2.2):** If the title indicates an unsuitable role family (Architect, DevOps/SRE/Platform, Data Engineer, ML Engineer, Mobile/iOS/Android/React Native, QA/SDET, Engineering Manager, Security Engineer) and the persona doesn't have exempting tags (e.g., `prompt-engineering` exempts ML Engineer, `docker`/`kubernetes` exempts DevOps) or seniority (`manager`/`lead` exempts management roles), reject.
+
+Rejected candidates are marked `rejected` in `match_queue` with `llm_model = 'title-blocker-deterministic'`, `llm_blockers = [reason]`, `llm_confidence = 1.0`, preserving audit trail and re-evaluability. 48 unit tests in `src/lib/jobs/__tests__/title-blockers.test.ts`.
+
+**D30 Phase 2 — Geo fence detection expansion (Aug 17 2026):**
+The `detectCountryFence` function in `gate-zero.ts` had an incomplete country list (~30 countries) that missed Costa Rica and ~40 other countries, producing false-globals like "Remote - Costa Rica" reaching the dashboard. The following were expanded:
+- `COUNTRY_NAMES`: +40 countries (Costa Rica, Chile, Peru, Uruguay, Ecuador, Panama, Guatemala, Iceland, Czechia, Bulgaria, Hungary, Slovakia, Slovenia, Croatia, Serbia, Estonia, Latvia, Lithuania, Luxembourg, Malta, Cyprus, Bangladesh, Sri Lanka, Nepal, Thailand, Taiwan, China, Ghana, Dubai, Qatar, Bahrain, Kuwait, Oman, Jordan, Lebanon, etc.)
+- `REGION_TERMS`: +6 regions (Americas, MENA, GCC, ANZ, Australasia, Oceania)
+- `FENCE_PATTERNS` regex: "Remote - {Country}" pattern expanded to match full country list
+- `gate-1-2.ts` SQL fallback: 3 inline regex patterns updated with expanded country/region lists
+- `remote-scope-patterns.ts`: `COUNTRY_CODE_MAP` +8 entries, `COUNTRY_FENCED_HIGH` +5 country pattern families (Costa Rica, Chile, Argentina, Mexico, Colombia)
+
+7 new tests in `src/lib/jobs/__tests__/gate-zero.test.ts` verify Costa Rica, Chile, ANZ, Americas, MENA, and Lithuania detection.
+
 **Gate 3 feedback loop (added June 28 2026, ENHANCED July 1 2026, migrated to pg-boss D27 July 25 2026):**
 Four pg-boss handlers provide resilience, re-evaluation, and bulk processing:
 
@@ -3216,4 +3244,60 @@ Both cards load the real `web-app-manifest-512x512.png` logo as a base64 data UR
 
 ### 8.5 Brand asset cleanup
 
-Misspelled `VectroMatchLogoDark.jpg` and `VectroMatchLogoDarkTransparent.png` were removed from `public/assets/Logos/`. The remaining logo assets are `VectorMatchLogo.png`, `VectorMatchLogoLight.jpg`, and `VectorMatchLogoTransparent.png`. 
+Misspelled `VectroMatchLogoDark.jpg` and `VectroMatchLogoDarkTransparent.png` were removed from `public/assets/Logos/`. The remaining logo assets are `VectorMatchLogo.png`, `VectorMatchLogoLight.jpg`, and `VectorMatchLogoTransparent.png`.
+
+---
+
+## 9. D30 PHASE 2 — PRECISION WITHOUT STARVATION `[Status: Partial — Rulings 2.1–2.4 Implemented Aug 17 2026, Rulings 3–7 Pending]`
+
+D30 Phase 2 responds to the match-quality audit (81 rows, 26% false-positive rate) and the advisor directive "Precision Without Starvation." The directive rejected tightening `GATE2_HARD_CEILING` as the primary lever (good and bad matches share the same cosine similarity) and prescribed deterministic precision blockers, geo-classification expansion, Gate 3 prompt reform, tag-semantics separation, embedding symmetry repair, remote-native source expansion, dashboard grouping, and housekeeping.
+
+### 9.1 Deterministic Title Blockers (Rulings 2.1 + 2.2)
+
+**New module:** `src/lib/jobs/title-blockers.ts` (295 lines)
+
+Pre-LLM, persona-relative deterministic filtering that runs in `gateRouteAndFanOut` (`src/scheduler/pipeline.ts`) after Gate 1+2 inserts candidates into `match_queue` but before Gate 3 fan-out.
+
+**Platform-name blocker (Ruling 2.1):** 18 platforms blocked (SharePoint, Magento, Shopify, Drupal, Salesforce, ServiceNow, Sitecore, AEM, Webflow, .NET/C#, SAP, Oracle, BigCommerce, WooCommerce, Contentful, Storyblok, Episerver, Dynamics 365). Persona-relative exceptions via must-have tags.
+
+**Role-family blocker (Ruling 2.2):** 8 role families blocked (Architect, DevOps/SRE/Platform, Data Engineer, ML Engineer, Mobile, QA/SDET, Engineering Manager, Security Engineer). Persona-relative exemptions via tags (`prompt-engineering` exempts ML, `docker`/`kubernetes` exempts DevOps) and seniority (`manager`/`lead` exempts management).
+
+**Wiring:** Rejected candidates marked in `match_queue` with `llm_model = 'title-blocker-deterministic'`, `llm_blockers = [reason]`, `llm_confidence = 1.0`. 48 unit tests.
+
+### 9.2 Geo Fence Detection Expansion (Ruling 2.3)
+
+| File | Change |
+|------|--------|
+| `gate-zero.ts` | `COUNTRY_NAMES` +40 countries, `REGION_TERMS` +6 regions, `FENCE_PATTERNS` regex expanded |
+| `gate-1-2.ts` | SQL fallback regex (3 patterns) expanded with full country/region list |
+| `remote-scope-patterns.ts` | `COUNTRY_CODE_MAP` +8 entries, `COUNTRY_FENCED_HIGH` +5 country pattern families |
+
+Key addition: Costa Rica (was producing false-globals like "Remote - Costa Rica"). 7 new tests.
+
+### 9.3 Gate 3 Prompt Reform (Ruling 2.4)
+
+Criterion 1 rewritten: "Missing tags are a soft signal, not a hard blocker" → **PRIMARY STACK OVERLAP hard blocker** — if the job's primary stack (title + majority of required technologies) contains fewer than 2 of the persona's must-have tags, reject immediately. OUTPUT RULES updated to include this as an explicit hard blocker.
+
+### 9.4 GATE2_HARD_CEILING
+
+**Unchanged.** Remains at 0.75 per Directive 30 Ruling 1. The directive explicitly rejected tightening to 0.55 as the primary lever because good and bad matches share the same cosine similarity scores. The ceiling will be revisited only after Ruling 3b (embedding symmetry fix) is complete.
+
+### 9.5 Pending Rulings
+
+| Ruling | Description |
+|--------|-------------|
+| 3a | Required-vs-mentioned tag separation + distinctive-tag rule |
+| 3b | Embedding symmetry fix — role-summary per job, summary-to-summary embedding |
+| 4 | Remote-native board expansion (Remotive, RemoteOK, Himalayas, Wellfound, STP probes) |
+| 5 | Gate 3 geo diagnosis (sample 5 ghosts, print prompt) + purge ghost approvals |
+| 6 | Dashboard multi-persona grouping + same-source repost dedup |
+| 7 | Backfill 44 NULL fence flags + PHP/Laravel inflow reporting |
+| — | Re-run audit after Rulings 2–4, compare false-positive rate + yield |
+
+### 9.6 Verification (Phase 2 Partial)
+
+| Check | Result |
+|-------|--------|
+| `tsc --noEmit` | Clean |
+| `biome check` | Clean (1 pre-existing warning) |
+| `vitest run` (full suite) | 2945/2945 pass (129 files, +55 new tests) |

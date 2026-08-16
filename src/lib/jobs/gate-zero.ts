@@ -320,7 +320,9 @@ const US_STATE_CODES = new Set([
   "dc",
 ]);
 
-/** Country names and common variants that indicate a geographic fence. */
+/** Country names and common variants that indicate a geographic fence.
+ *  Directive 30 Ruling 2.3: expanded with Costa Rica and full country list
+ *  to catch false-globals like "Remote - Costa Rica" that were passing through. */
 const COUNTRY_NAMES = [
   "united states",
   "usa",
@@ -332,12 +334,22 @@ const COUNTRY_NAMES = [
   "brazil",
   "colombia",
   "mexico",
+  "chile",
+  "peru",
+  "uruguay",
+  "ecuador",
+  "costa rica",
+  "panama",
+  "guatemala",
+  "dominican republic",
+  "puerto rico",
   "germany",
   "france",
   "spain",
   "italy",
   "portugal",
   "netherlands",
+  "holland",
   "poland",
   "ukraine",
   "romania",
@@ -346,22 +358,43 @@ const COUNTRY_NAMES = [
   "norway",
   "denmark",
   "finland",
+  "iceland",
   "belgium",
   "austria",
   "switzerland",
   "czech republic",
+  "czechia",
   "greece",
+  "bulgaria",
+  "hungary",
+  "slovakia",
+  "slovenia",
+  "croatia",
+  "serbia",
+  "estonia",
+  "latvia",
+  "lithuania",
+  "luxembourg",
+  "monaco",
+  "malta",
+  "cyprus",
   "india",
   "pakistan",
+  "bangladesh",
+  "sri lanka",
+  "nepal",
   "philippines",
   "vietnam",
   "indonesia",
   "malaysia",
   "singapore",
+  "thailand",
+  "taiwan",
   "hong kong",
   "japan",
   "south korea",
   "korea",
+  "china",
   "australia",
   "new zealand",
   "south africa",
@@ -369,10 +402,18 @@ const COUNTRY_NAMES = [
   "kenya",
   "egypt",
   "morocco",
+  "ghana",
   "israel",
   "uae",
+  "dubai",
   "saudi arabia",
   "turkey",
+  "qatar",
+  "bahrain",
+  "kuwait",
+  "oman",
+  "jordan",
+  "lebanon",
   "united kingdom",
   "uk",
   "england",
@@ -380,7 +421,8 @@ const COUNTRY_NAMES = [
   "wales",
 ];
 
-/** Region/continent terms that indicate a geographic fence. */
+/** Region/continent terms that indicate a geographic fence.
+ *  Directive 30 Ruling 2.3: added ANZ, Americas, MENA, DACH, GCC. */
 const REGION_TERMS = [
   "european union",
   "eu only",
@@ -393,7 +435,10 @@ const REGION_TERMS = [
   "north america",
   "south america",
   "central america",
+  "americas",
   "middle east",
+  "mena",
+  "gcc",
   "africa",
   "asia",
   "europe",
@@ -405,6 +450,9 @@ const REGION_TERMS = [
   "caribbean",
   "benelux",
   "dach",
+  "anz",
+  "australasia",
+  "oceania",
 ];
 
 /**
@@ -426,12 +474,14 @@ const FENCE_PATTERNS = [
   /\bremote\s*[,;:-]\s*(u\.?s\.?a?\.?|united states|usa)\b/i,
   // "Remote within [country/region]"
   /\bremote\s+within\s+/i,
-  // "Remote; [country]" / "Remote - [country]"
-  /\bremote\s*[;,-]\s*(argentina|brazil|colombia|mexico|canada|germany|france|spain|italy|portugal|netherlands|poland|ukraine|india|pakistan|philippines|australia|united kingdom|uk|ireland|sweden|norway|denmark|finland|belgium|switzerland|austria|greece|romania|south africa|nigeria|israel|turkey|japan|south korea|singapore|hong kong|new zealand)\b/i,
+  // "Remote; [country]" / "Remote - [country]" — Directive 30 Ruling 2.3:
+  // expanded with Costa Rica and full country list to catch false-globals
+  // like "Remote - Costa Rica" that were passing through as global.
+  /\bremote\s*[;,-]\s*(argentina|brazil|colombia|mexico|canada|chile|peru|uruguay|ecuador|costa rica|panama|guatemala|germany|france|spain|italy|portugal|netherlands|holland|poland|ukraine|romania|ireland|sweden|norway|denmark|finland|iceland|belgium|austria|switzerland|czech republic|czechia|greece|bulgaria|hungary|slovakia|slovenia|croatia|serbia|estonia|latvia|lithuania|luxembourg|malta|cyprus|india|pakistan|bangladesh|sri lanka|nepal|philippines|vietnam|indonesia|malaysia|singapore|thailand|taiwan|hong kong|japan|south korea|korea|china|australia|new zealand|south africa|nigeria|kenya|egypt|morocco|ghana|israel|uae|dubai|saudi arabia|turkey|qatar|bahrain|kuwait|oman|jordan|lebanon|united kingdom|uk|england|scotland|wales)\b/i,
   // "Remote, [state code]" (e.g., "Remote, md", "Remote, ca")
   /\bremote\s*,\s*([a-z]{2})\b/i,
-  // Region terms in location
-  /\b(european union|namer|emea|apac|latam|north america|south america|middle east|balkans|eastern europe|western europe|nordics|scandinavia|dach|benelux)\b/i,
+  // Region terms in location — Directive 30 Ruling 2.3: added ANZ, Americas, MENA, GCC, Oceania
+  /\b(european union|namer|emea|apac|latam|north america|south america|central america|americas|middle east|mena|gcc|balkans|eastern europe|western europe|nordics|scandinavia|dach|benelux|anz|australasia|oceania)\b/i,
 ];
 
 const FENCE_REGEX = new RegExp(
@@ -481,7 +531,7 @@ export function detectCountryFence(
   if (FENCE_REGEX.test(locStr)) {
     // Distinguish region from country from US state
     if (
-      /\b(european union|namer|emea|apac|latam|north america|south america|middle east|balkans|eastern europe|western europe|nordics|scandinavia|dach|benelux)\b/.test(
+      /\b(european union|namer|emea|apac|latam|north america|south america|central america|americas|middle east|mena|gcc|balkans|eastern europe|western europe|nordics|scandinavia|dach|benelux|anz|australasia|oceania)\b/.test(
         locLower,
       )
     ) {

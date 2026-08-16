@@ -733,7 +733,7 @@ async function gateRouteAndFanOut(
   embedding: number[],
 ): Promise<JobPipelineResult> {
   const { runGateSQLRouter } = await import("@/lib/jobs/gate-1-2");
-  const candidates = await runGateSQLRouter(jobId, tags, embedding);
+  let candidates = await runGateSQLRouter(jobId, tags, embedding);
 
   if (candidates.length === 0) {
     return {
@@ -752,7 +752,102 @@ async function gateRouteAndFanOut(
   // LLM remote scope upgrade (only for viable jobs with unknown scope)
   const { db } = await import("@/db/db");
   const { job } = await import("@/db/schemas/jobs/job");
-  const { eq } = await import("drizzle-orm");
+  const { persona } = await import("@/db/schemas/jobs/persona");
+  const { matchQueue } = await import("@/db/schemas/jobs/matchQueue");
+  const { eq, inArray } = await import("drizzle-orm");
+
+  // ── Directive 30, Rulings 2.1 + 2.2: Deterministic title blockers ──────
+  // Pre-LLM, persona-relative filtering. Rejects job-persona pairs where the
+  // title names a platform not in the persona's must-have tags (SharePoint,
+  // Magento, .NET, etc.) or indicates an unsuitable role family (Architect,
+  // DevOps, Mobile, QA, etc.).
+  const jobRow = await db
+    .select({ title: job.title })
+    .from(job)
+    .where(eq(job.id, jobId))
+    .limit(1);
+
+  if (jobRow.length > 0 && jobRow[0].title) {
+    const { filterCandidatesByTitleBlockers } = await import(
+      "@/lib/jobs/title-blockers"
+    );
+
+    // Fetch persona must-have tags and seniority levels for all candidates
+    const personaIds = candidates.map((c) => c.personaId);
+    const personaRows = await db
+      .select({
+        id: persona.id,
+        mustHaveTags: persona.mustHaveTags,
+        seniorityLevels: persona.seniorityLevels,
+      })
+      .from(persona)
+      .where(inArray(persona.id, personaIds));
+
+    const personaMap = new Map(
+      personaRows.map((p) => [
+        p.id,
+        {
+          personaId: p.id,
+          mustHaveTags: p.mustHaveTags ?? [],
+          seniorityLevels: p.seniorityLevels ?? [],
+        },
+      ]),
+    );
+
+    // Map candidates to include persona tags for filtering
+    const candidatesWithTags = candidates
+      .map((c) => {
+        const p = personaMap.get(c.personaId);
+        if (!p) return null;
+        return {
+          ...c,
+          personaId: p.personaId,
+          mustHaveTags: p.mustHaveTags,
+          seniorityLevels: p.seniorityLevels,
+        };
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+
+    const { passed, rejected } = filterCandidatesByTitleBlockers(
+      jobRow[0].title,
+      candidatesWithTags,
+    );
+
+    // Mark rejected candidates in match_queue as 'rejected' with the blocker reason
+    for (const r of rejected) {
+      await db
+        .update(matchQueue)
+        .set({
+          status: "rejected",
+          llmVerdict: "rejected",
+          llmBlockers: [r.blocker],
+          llmReasoning: `Deterministic pre-LLM blocker: ${r.blocker}`,
+          llmConfidence: 1.0,
+          llmModel: "title-blocker-deterministic",
+          evaluatedAt: new Date(),
+        })
+        .where(eq(matchQueue.id, r.candidate.matchQueueId));
+    }
+
+    if (passed.length === 0) {
+      return {
+        jobId,
+        normalized: true,
+        embedded: true,
+        candidates: candidates.length,
+        gate3Queued: 0,
+        gate05Rejected: false,
+        pattern: null,
+        skipped: false,
+        skipReason: "all candidates blocked by deterministic title blockers",
+      };
+    }
+
+    // Replace candidates with only those that passed the blockers
+    candidates = passed;
+  }
+
+  // Continue with the (potentially filtered) candidates
 
   const scopeRows = await db
     .select({
