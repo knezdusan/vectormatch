@@ -12,6 +12,7 @@ import { describe, expect, it } from "vitest";
 import {
   convertToUSD,
   isPlausibleAnnualUSD,
+  normalizeCurrencyCode,
   toPlausibleAnnualUSD,
 } from "@/lib/jobs/currency";
 
@@ -124,5 +125,66 @@ describe("toPlausibleAnnualUSD", () => {
     expect(toPlausibleAnnualUSD(50000, "EUR")).toBe(54000);
     // 3,000 EUR → 3,240 USD → below floor → null
     expect(toPlausibleAnnualUSD(3000, "EUR")).toBeNull();
+  });
+});
+
+// ── normalizeCurrencyCode ────────────────────────────────────────────────────
+
+describe("normalizeCurrencyCode", () => {
+  it("returns valid ISO codes as-is (uppercased)", () => {
+    expect(normalizeCurrencyCode("USD")).toBe("USD");
+    expect(normalizeCurrencyCode("usd")).toBe("USD");
+    expect(normalizeCurrencyCode("GBP")).toBe("GBP");
+    expect(normalizeCurrencyCode("EUR")).toBe("EUR");
+    expect(normalizeCurrencyCode("PLN")).toBe("PLN");
+  });
+
+  it("maps currency symbols to ISO codes", () => {
+    expect(normalizeCurrencyCode("£")).toBe("GBP");
+    expect(normalizeCurrencyCode("€")).toBe("EUR");
+    expect(normalizeCurrencyCode("$")).toBe("USD");
+    expect(normalizeCurrencyCode("¥")).toBe("JPY");
+    expect(normalizeCurrencyCode("₹")).toBe("INR");
+  });
+
+  it("maps mojibake variants to ISO codes", () => {
+    // UTF-8 symbol decoded as Latin-1 — the exact bug that crashed /jobs
+    expect(normalizeCurrencyCode("Â£")).toBe("GBP");
+    expect(normalizeCurrencyCode("â‚¬")).toBe("EUR");
+    expect(normalizeCurrencyCode("Â¥")).toBe("JPY");
+  });
+
+  it("returns fallback for null/undefined/empty", () => {
+    expect(normalizeCurrencyCode(null)).toBe("USD");
+    expect(normalizeCurrencyCode(undefined)).toBe("USD");
+    expect(normalizeCurrencyCode("")).toBe("USD");
+    expect(normalizeCurrencyCode("   ")).toBe("USD");
+  });
+
+  it("returns fallback for unrecognized strings", () => {
+    expect(normalizeCurrencyCode("garbage")).toBe("USD");
+    expect(normalizeCurrencyCode("123")).toBe("USD");
+    expect(normalizeCurrencyCode("dollar")).toBe("USD");
+  });
+
+  it("returns 3-letter codes even when not in rate table", () => {
+    // ISO 4217 codes that we don't have rates for are still valid
+    // for Intl.NumberFormat
+    expect(normalizeCurrencyCode("XAF")).toBe("XAF");
+    expect(normalizeCurrencyCode("xaf")).toBe("XAF");
+  });
+
+  it("supports custom fallback", () => {
+    expect(normalizeCurrencyCode(null, "EUR")).toBe("EUR");
+    expect(normalizeCurrencyCode("garbage", "GBP")).toBe("GBP");
+  });
+
+  it("handles R$ (Brazilian Real)", () => {
+    expect(normalizeCurrencyCode("R$")).toBe("BRL");
+  });
+
+  it("handles trimmed input", () => {
+    expect(normalizeCurrencyCode("  USD  ")).toBe("USD");
+    expect(normalizeCurrencyCode("  £  ")).toBe("GBP");
   });
 });

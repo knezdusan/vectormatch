@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { getAuthSession } from "@/lib/auth";
 import { ATS_ENDPOINTS } from "@/lib/jobs/ats-endpoints";
+import { normalizeCurrencyCode } from "@/lib/jobs/currency";
 import { formatDescriptionHtml } from "@/lib/jobs/description-formatter";
 import { extractJobUrl } from "@/lib/jobs/job-normalizer";
 import { getPublicJobById } from "@/lib/jobs/public-queries";
@@ -29,7 +30,7 @@ function formatSalary(
 
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: currency || "USD",
+    currency: normalizeCurrencyCode(currency),
     maximumFractionDigits: 0,
   });
 

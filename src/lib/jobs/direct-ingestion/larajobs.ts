@@ -328,7 +328,18 @@ function parseSalary(salaryStr: string): {
   if (!salaryStr) return { min: null, max: null, currency: null };
 
   const currencyMatch = salaryStr.match(/([$£€]|CAD|USD|EUR|GBP)/i);
-  const currency = currencyMatch ? currencyMatch[1].toUpperCase() : null;
+  const rawCurrency = currencyMatch ? currencyMatch[1] : null;
+  // Map currency symbols to ISO 4217 codes — toUpperCase() doesn't
+  // convert symbols (£ stays £), which would crash Intl.NumberFormat.
+  const currency = rawCurrency
+    ? rawCurrency === "$"
+      ? "USD"
+      : rawCurrency === "£"
+        ? "GBP"
+        : rawCurrency === "€"
+          ? "EUR"
+          : rawCurrency.toUpperCase()
+    : null;
 
   // Extract numbers (handle k suffix and comma separators)
   const numbers: number[] = [];

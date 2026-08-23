@@ -147,3 +147,94 @@ export function toPlausibleAnnualUSD(
   if (usd === null) return null;
   return isPlausibleAnnualUSD(usd) ? usd : null;
 }
+
+/**
+ * Map of common currency symbols and non-ISO codes to their ISO 4217 equivalents.
+ * Used by `normalizeCurrencyCode` to handle boards (e.g. LaraJobs) that store
+ * currency symbols (£, €, $) instead of ISO codes.
+ */
+const CURRENCY_SYMBOL_MAP: Record<string, string> = {
+  $: "USD",
+  "£": "GBP",
+  "€": "EUR",
+  "¥": "JPY",
+  "₹": "INR",
+  "₽": "RUB",
+  "₩": "KRW",
+  "₺": "TRY",
+  "₴": "UAH",
+  "฿": "THB",
+  "₦": "NGN",
+  "₱": "PHP",
+  "₲": "PYG",
+  "₡": "CRC",
+  "₪": "ILS",
+  "₫": "VND",
+  "₸": "KZT",
+  "₭": "LAK",
+  "₮": "MNT",
+  R$: "BRL",
+  kr: "SEK",
+  Fr: "CHF",
+  RM: "MYR",
+  Rp: "IDR",
+  Rs: "PKR",
+  zł: "PLN",
+  Kč: "CZK",
+  Ft: "HUF",
+  lei: "RON",
+  kn: "HRK",
+  дин: "RSD",
+  // Mojibake variants (UTF-8 decoded as Latin-1)
+  "Â£": "GBP",
+  "â‚¬": "EUR",
+  "Â¥": "JPY",
+  "â‚¹": "INR",
+  "â‚½": "RUB",
+  "â‚©": "KRW",
+  "â‚º": "TRY",
+  "â‚´": "UAH",
+  "à¸¿": "THB",
+};
+
+/**
+ * Normalize a currency code to a valid ISO 4217 3-letter code.
+ *
+ * Handles:
+ *   - Already-valid ISO codes (USD, EUR, GBP) → returned as-is (uppercased)
+ *   - Currency symbols (£, €, $) → mapped to ISO code
+ *   - Mojibake variants (Â£, â‚¬) → mapped to ISO code
+ *   - Invalid/unknown codes → falls back to `fallback` (default "USD")
+ *
+ * This prevents `Intl.NumberFormat` from throwing `RangeError: Invalid currency code`
+ * when a board stores a symbol or corrupted string instead of an ISO code.
+ *
+ * @param currency  The raw currency string from the job/board
+ * @param fallback  The fallback ISO code when normalization fails (default "USD")
+ * @returns         A valid ISO 4217 currency code
+ */
+export function normalizeCurrencyCode(
+  currency: string | null | undefined,
+  fallback: string = "USD",
+): string {
+  if (!currency || typeof currency !== "string") return fallback;
+
+  const trimmed = currency.trim();
+  if (!trimmed) return fallback;
+
+  // Check if it's already a valid 3-letter ISO code
+  const upper = trimmed.toUpperCase();
+  if (/^[A-Z]{3}$/.test(upper) && USD_RATES[upper] !== undefined) {
+    return upper;
+  }
+
+  // Check symbol map (try both raw and uppercased)
+  const mapped = CURRENCY_SYMBOL_MAP[trimmed] ?? CURRENCY_SYMBOL_MAP[upper];
+  if (mapped) return mapped;
+
+  // If it's a 3-letter code we don't have rates for, still return it
+  // (Intl.NumberFormat supports all ISO 4217 codes, even rare ones)
+  if (/^[A-Z]{3}$/.test(upper)) return upper;
+
+  return fallback;
+}

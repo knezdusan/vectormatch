@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { normalizeCurrencyCode } from "@/lib/jobs/currency";
 import type { PublicJobRow } from "@/lib/jobs/public-queries-types";
 import { TooltipInfo } from "./TooltipInfo";
 
@@ -36,7 +37,7 @@ export function JobCard({ job, isAuthenticated }: JobCardProps) {
   const formatSalary = () => {
     if (!job.compensationMin && !job.compensationMax) return null;
 
-    const currency = job.compensationCurrency || "USD";
+    const currency = normalizeCurrencyCode(job.compensationCurrency);
     const formatter = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
