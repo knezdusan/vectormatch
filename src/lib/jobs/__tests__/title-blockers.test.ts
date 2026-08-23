@@ -78,10 +78,19 @@ describe("Platform-name blocker (Ruling 2.1)", () => {
     expect(result.blocker).toContain("AEM");
   });
 
-  it("rejects Webflow for JS persona", () => {
+  it("allows Webflow for JS persona (D31: JS family matches JS persona)", () => {
+    // D31 Job 1: Webflow is JS family, JS persona has JS primary family → allowed
     const result = checkTitleBlockers(
       "Webflow Designer/Developer",
       jsPersonaTags,
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects Webflow for PHP persona (D31: JS family disjoint from PHP)", () => {
+    const result = checkTitleBlockers(
+      "Webflow Designer/Developer",
+      phpPersonaTags,
     );
     expect(result.passes).toBe(false);
     expect(result.blockerType).toBe("platform");
@@ -113,9 +122,40 @@ describe("Platform-name blocker (Ruling 2.1)", () => {
     expect(result.passes).toBe(true);
   });
 
-  it("allows Shopify for PHP persona (shopify exempt via... no, shopify not in tags)", () => {
-    // Shopify is NOT in the PHP persona's must-have tags, so it should be blocked
+  it("rejects Shopify for PHP persona (D31: JS family disjoint from PHP)", () => {
+    // D31 Job 1: Shopify is JS family, PHP persona's primary family is php → blocked
     const result = checkTitleBlockers("Shopify Developer", phpPersonaTags);
+    expect(result.passes).toBe(false);
+    expect(result.blockerType).toBe("platform");
+  });
+
+  it("allows Shopify for JS persona (D31: JS family matches JS persona)", () => {
+    // D31 Job 1: Shopify (Hydrogen = React) is JS family, JS persona has JS
+    // primary family → allowed. This was the audit's STRONG match at overlap 4.
+    const result = checkTitleBlockers(
+      "Senior Shopify Developer",
+      jsPersonaTags,
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("allows Magento for PHP persona (D31: PHP family matches PHP persona)", () => {
+    // D31 Job 1: Magento is PHP family, PHP persona's primary family is php →
+    // allowed. This was the audit's borderline-legit match for the famine persona.
+    const result = checkTitleBlockers(
+      "Senior Magento Developer",
+      phpPersonaTags,
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("allows Contentful for JS persona (D31: JS family headless CMS)", () => {
+    const result = checkTitleBlockers("Contentful Developer", jsPersonaTags);
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects Contentful for PHP persona (D31: JS family disjoint from PHP)", () => {
+    const result = checkTitleBlockers("Contentful Developer", phpPersonaTags);
     expect(result.passes).toBe(false);
     expect(result.blockerType).toBe("platform");
   });
@@ -268,10 +308,50 @@ describe("Role-family blocker (Ruling 2.2)", () => {
     expect(result.blockerType).toBe("role_family");
   });
 
-  it("allows ML Engineer for AI persona with prompt-engineering tag", () => {
+  it("rejects ML Engineer for AI persona with prompt-engineering but no ML tags (D31: tightened exemption)", () => {
+    // D31 Job 1: prompt-engineering alone no longer exempts ML-research roles.
+    // The JS persona has prompt-engineering but no python/ml/pytorch/tensorflow.
+    // "ML Engineer" is an ML-research title, not an AI-application title.
     const result = checkTitleBlockers(
       "ML Engineer",
       jsPersonaTags,
+      icSeniority,
+    );
+    expect(result.passes).toBe(false);
+    expect(result.blockerType).toBe("role_family");
+    expect(result.blocker).toContain("ML Engineer (research)");
+  });
+
+  it("allows AI Engineer for AI persona with prompt-engineering + JS/TS signal (D31)", () => {
+    // D31 Job 1: "AI Engineer" is an AI-application title, exempted when
+    // persona has prompt-engineering AND a JS/TS signal.
+    const result = checkTitleBlockers(
+      "AI Engineer",
+      jsPersonaTags,
+      icSeniority,
+    );
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects AI Engineer for persona with prompt-engineering but no JS/TS signal (D31)", () => {
+    // D31 Job 1: AI-application exemption requires BOTH prompt-engineering
+    // AND a JS/TS signal. A Python-only persona with prompt-engineering
+    // should NOT be exempted.
+    const pythonOnlyTags = ["python", "prompt-engineering", "langchain"];
+    const result = checkTitleBlockers(
+      "AI Engineer",
+      pythonOnlyTags,
+      icSeniority,
+    );
+    expect(result.passes).toBe(false);
+    expect(result.blockerType).toBe("role_family");
+  });
+
+  it("allows ML Engineer when persona has python + ml tags (D31: ML-research exemption)", () => {
+    const mlPersonaTags = ["python", "ml", "pytorch", "tensorflow"];
+    const result = checkTitleBlockers(
+      "ML Engineer",
+      mlPersonaTags,
       icSeniority,
     );
     expect(result.passes).toBe(true);
@@ -394,6 +474,35 @@ describe("Role-family blocker (Ruling 2.2)", () => {
   it("allows Tech Lead when persona has lead seniority", () => {
     const result = checkTitleBlockers("Tech Lead", jsPersonaTags, [
       "lead",
+      "senior",
+    ]);
+    expect(result.passes).toBe(true);
+  });
+
+  it("rejects Engineering Manager when persona has staff seniority (D31: IC track)", () => {
+    // D31 Job 1: staff is an IC track, not management. Only manager/lead/director
+    // exempt management roles.
+    const result = checkTitleBlockers("Engineering Manager", jsPersonaTags, [
+      "staff",
+      "senior",
+    ]);
+    expect(result.passes).toBe(false);
+    expect(result.blockerType).toBe("role_family");
+  });
+
+  it("rejects Engineering Manager when persona has principal seniority (D31: IC track)", () => {
+    // D31 Job 1: principal is an IC track, not management.
+    const result = checkTitleBlockers("Engineering Manager", jsPersonaTags, [
+      "principal",
+      "senior",
+    ]);
+    expect(result.passes).toBe(false);
+    expect(result.blockerType).toBe("role_family");
+  });
+
+  it("allows Engineering Director when persona has director seniority (D31)", () => {
+    const result = checkTitleBlockers("Engineering Director", jsPersonaTags, [
+      "director",
       "senior",
     ]);
     expect(result.passes).toBe(true);

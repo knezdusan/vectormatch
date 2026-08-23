@@ -102,6 +102,59 @@ export const GATE2_HARD_CEILING = Number(
 export const GATE1_MIN_OVERLAP = Number(process.env.GATE1_MIN_OVERLAP ?? 2);
 
 /**
+ * D31 Job 2: Distinctive tags — tags that unambiguously indicate a specific
+ * tech stack. At least one of these must appear in the job's required tags
+ * (or extracted tags when required tags are not available) for a candidate
+ * to pass Gate 1. This prevents generic overlap (typescript + javascript)
+ * from matching a persona when the job's actual stack is different.
+ *
+ * The list is intentionally short — only tags that are "persona-defining"
+ * in the sense that they indicate a specific primary stack, not generic
+ * web technologies.
+ */
+export const DISTINCTIVE_TAGS = [
+  // JS/React ecosystem
+  "nextjs",
+  "react",
+  "vue",
+  "nuxt",
+  "svelte",
+  "sveltekit",
+  "remix",
+  "astro",
+  "nestjs",
+  "graphql",
+  "tailwindcss",
+  // PHP ecosystem
+  "laravel",
+  "wordpress",
+  "drupal",
+  "magento",
+  "symfony",
+  // AI/ML
+  "prompt-engineering",
+  "langchain",
+  // Python
+  "django",
+  "fastapi",
+  // Go
+  "golang",
+  // Rust
+  "rust",
+] as const;
+
+/**
+ * D31 Job 2: Whether to require ≥1 distinctive tag for Gate 1 to pass.
+ * When true, at least one of the DISTINCTIVE_TAGS must be present in the
+ * job's tags (required_tags if available, otherwise extracted_tags) for
+ * a candidate to be inserted into match_queue.
+ *
+ * Env-configurable via GATE1_REQUIRE_DISTINCTIVE_TAG=true|false.
+ */
+export const GATE1_REQUIRE_DISTINCTIVE_TAG =
+  process.env.GATE1_REQUIRE_DISTINCTIVE_TAG !== "false";
+
+/**
  * Maximum number of candidates Gate 1+2 inserts into matchQueue per job
  * (the `LIMIT` in the SQL router query).
  *

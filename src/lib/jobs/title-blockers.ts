@@ -1,4 +1,5 @@
 // Deterministic Title Blockers — Directive 30, Rulings 2.1 + 2.2
+// Directive 31, Job 1: Stack-family disjointness replaces hardcoded exceptions
 // src/lib/jobs/title-blockers.ts
 //
 // Pre-LLM, persona-relative deterministic blockers that reject job-persona
@@ -6,144 +7,179 @@
 //
 // Two blocker families:
 //
-//   1. Platform-name blocker (Ruling 2.1):
-//      If the job title names a platform/CMS/e-commerce system that is NOT
-//      in the persona's must-have tags, reject. Examples: SharePoint, Magento,
-//      Shopify, Drupal, Salesforce, ServiceNow, Sitecore, AEM, Webflow, .NET/C#.
-//      Exceptions are persona-relative: Shopify is legitimate for a PHP/
-//      WordPress persona (Liquid is PHP-adjacent), WordPress is legitimate
-//      for the PHP persona, etc.
+//   1. Platform-name blocker (Ruling 2.1, refined by D31 Job 1):
+//      If the job title names a platform/CMS/e-commerce system whose stack
+//      family is DISJOINT from the persona's primary stack family, reject.
+//      This replaces the original hardcoded tag-exemption list with
+//      stack-family disjointness — self-maintaining as personas change.
 //
-//   2. Role-family blocker (Ruling 2.2):
+//      Example: Shopify (Hydrogen = React) shares the JS family with a JS
+//      persona → ALLOWED. Magento (PHP) shares the PHP family with a PHP
+//      persona → ALLOWED. SharePoint (.NET) is disjoint from both → BLOCKED.
+//
+//   2. Role-family blocker (Ruling 2.2, refined by D31 Job 1):
 //      Reject unsuitable role families for web-development personas when the
 //      persona does not explicitly support them. Examples: Architect, Solutions
 //      Architect, DevOps, SRE, Platform Engineer, Data Engineer, ML Engineer,
 //      Mobile/iOS/Android/React Native, QA/SDET, Engineering Manager.
+//
+//      D31 Job 1 fixes:
+//      - staff/principal no longer exempt the Engineering-Manager blocker
+//        (they are IC tracks, not management tracks)
+//      - ML exemption tightened: prompt-engineering exempts AI-application
+//        roles only (e.g., "AI Engineer"), not ML-research roles (e.g.,
+//        "ML Engineer", "Machine Learning Engineer"). Requires a JS/TS
+//        signal in the persona's must-have tags for the exemption to fire.
 //
 // These blockers run AFTER Gate 1+2 (which already inserted candidates into
 // match_queue) but BEFORE Gate 3 fan-out. Rejected candidates are marked
 // 'rejected' in match_queue with a deterministic blocker reason, preserving
 // re-evaluability and audit trail.
 
+import {
+  classifyStackFamily,
+  type StackFamily,
+} from "@/lib/jobs/stack-families";
+
 // =============================================================================
-// PLATFORM-NAME PATTERNS (Ruling 2.1)
+// PLATFORM-NAME PATTERNS (Ruling 2.1 — D31: stack-family disjointness)
 // =============================================================================
 
 /**
- * Platform/CMS/e-commerce systems that, when named in the title, indicate a
- * role centered on that platform. If the platform is NOT in the persona's
- * must-have tags, the job is rejected.
+ * Platform/CMS/e-commerce systems mapped to their underlying stack family.
  *
- * Each entry maps a display name (for the blocker reason) to a regex that
- * matches the platform name in a job title with word boundaries.
+ * D31 Job 1: The blocker now uses stack-family disjointness instead of
+ * hardcoded tag exceptions. A platform is blocked when its stack family
+ * shares NOTHING with the persona's primary stack family.
  *
- * Persona-relative exceptions:
- *   - "wordpress" and "shopify" are legitimate for the PHP/Laravel persona
- *     (must_have_tags include "wordpress").
- *   - "drupal" is PHP-based but rarely appears in a Laravel persona's targets;
- *     it's included here as a blocker unless the persona explicitly has
- *     "drupal" in must_have_tags.
- *   - ".NET/C#" is a full stack family — blocked for JS/PHP personas unless
- *     the persona explicitly includes csharp/dotnet.
+ * | Platform | Stack family | Blocks JS? | Blocks PHP? |
+ * |---|---|---|---|
+ * | SharePoint, .NET/C#, Sitecore, Episerver | dotnet | yes | yes |
+ * | SAP, Oracle, ServiceNow, Salesforce, Dynamics 365 | enterprise | yes | yes |
+ * | AEM | java | yes | yes |
+ * | Magento, Drupal, WooCommerce, WordPress | php | yes | NO |
+ * | Shopify, Contentful, Storyblok, BigCommerce | js | NO | yes |
+ * | Webflow | js | NO | yes |
+ *
+ * "enterprise" is a sentinel that blocks ALL personas (no persona has
+ * enterprise as their primary stack family).
  */
 const PLATFORM_PATTERNS: ReadonlyArray<{
-  /** Canonical tag slug used to check persona must-have tags. */
-  tag: string;
   /** Human-readable platform name for the blocker reason. */
   name: string;
   /** Regex to match the platform name in the title. */
   pattern: RegExp;
+  /** The stack family this platform belongs to. */
+  stackFamily: StackFamily | "enterprise";
 }> = [
-  // CMS / content platforms
-  { tag: "sharepoint", name: "SharePoint", pattern: /\bsharepoint\b/i },
-  { tag: "drupal", name: "Drupal", pattern: /\bdrupal\b/i },
+  // .NET family — blocks JS and PHP personas
+  { name: "SharePoint", pattern: /\bsharepoint\b/i, stackFamily: "dotnet" },
   {
-    tag: "wordpress",
-    name: "WordPress",
-    pattern: /\bwordpress\b|\bwp\s+developer\b/i,
-  },
-  { tag: "webflow", name: "Webflow", pattern: /\bwebflow\b/i },
-  { tag: "contentful", name: "Contentful", pattern: /\bcontentful\b/i },
-  { tag: "storyblok", name: "Storyblok", pattern: /\bstoryblok\b/i },
-  // E-commerce platforms
-  {
-    tag: "shopify",
-    name: "Shopify",
-    pattern: /\bshopify\b|\bliquid\s+developer\b/i,
-  },
-  { tag: "magento", name: "Magento", pattern: /\bmagento\b/i },
-  { tag: "bigcommerce", name: "BigCommerce", pattern: /\bbigcommerce\b/i },
-  { tag: "woocommerce", name: "WooCommerce", pattern: /\bwoocommerce\b/i },
-  // CRM / enterprise platforms
-  {
-    tag: "salesforce",
-    name: "Salesforce",
-    pattern: /\bsalesforce\b|\bapex\s+developer\b|\bvisualforce\b/i,
-  },
-  { tag: "servicenow", name: "ServiceNow", pattern: /\bservicenow\b/i },
-  {
-    tag: "dynamics",
-    name: "Dynamics 365",
-    pattern: /\bdynamics\s*365\b|\bdynamics\s+(?:ax|nav|crm|gp)\b/i,
-  },
-  // Enterprise CMS / DXP
-  { tag: "sitecore", name: "Sitecore", pattern: /\bsitecore\b/i },
-  {
-    tag: "aem",
-    name: "AEM (Adobe Experience Manager)",
-    pattern: /\baem\b|\badobe\s+experience\s+manager\b/i,
+    name: "Sitecore",
+    pattern: /\bsitecore\b/i,
+    stackFamily: "dotnet",
   },
   {
-    tag: "episerver",
     name: "Episerver/Optimizely",
     pattern: /\bepiserver\b|\boptimizely\b/i,
+    stackFamily: "dotnet",
   },
-  // .NET / C# — treated as a platform for JS/PHP personas.
-  // Note: \b doesn't work after "#" or before "." (non-word chars), so we
-  // use (?:^|\s|...) boundary patterns for C# and .NET.
   {
-    tag: "csharp",
     name: ".NET/C#",
     pattern:
       /(?:^|[\s/|(])\.net\b|(?:^|[\s/|(])c#|(?:^|[\s/|(])csharp\b|(?:^|[\s/|(])asp\.net\b|(?:^|[\s/|(])aspnet\b|(?:^|[\s/|(])blazor\b/i,
+    stackFamily: "dotnet",
   },
-  // SAP
-  { tag: "sap", name: "SAP", pattern: /\bsap\b|\babap\b/i },
-  // Oracle / Java EE
+  // Enterprise/proprietary — blocks ALL personas
+  { name: "SAP", pattern: /\bsap\b|\babap\b/i, stackFamily: "enterprise" },
   {
-    tag: "oracle",
     name: "Oracle",
     pattern: /\boracle\s+(?:developer|engineer|dba)\b|\bplsql\b|\bpl\/sql\b/i,
+    stackFamily: "enterprise",
   },
+  {
+    name: "ServiceNow",
+    pattern: /\bservicenow\b/i,
+    stackFamily: "enterprise",
+  },
+  {
+    name: "Salesforce",
+    pattern: /\bsalesforce\b|\bapex\s+developer\b|\bvisualforce\b/i,
+    stackFamily: "enterprise",
+  },
+  {
+    name: "Dynamics 365",
+    pattern: /\bdynamics\s*365\b|\bdynamics\s+(?:ax|nav|crm|gp)\b/i,
+    stackFamily: "enterprise",
+  },
+  // Java family — blocks JS and PHP personas
+  {
+    name: "AEM (Adobe Experience Manager)",
+    pattern: /\baem\b|\badobe\s+experience\s+manager\b/i,
+    stackFamily: "java",
+  },
+  // PHP family — blocks JS personas, ALLOWS PHP persona
+  { name: "Magento", pattern: /\bmagento\b/i, stackFamily: "php" },
+  { name: "Drupal", pattern: /\bdrupal\b/i, stackFamily: "php" },
+  {
+    name: "WooCommerce",
+    pattern: /\bwoocommerce\b/i,
+    stackFamily: "php",
+  },
+  {
+    name: "WordPress",
+    pattern: /\bwordpress\b|\bwp\s+developer\b/i,
+    stackFamily: "php",
+  },
+  // JS/React family — ALLOWS JS personas, blocks PHP persona
+  {
+    name: "Shopify",
+    pattern: /\bshopify\b|\bliquid\s+developer\b/i,
+    stackFamily: "js",
+  },
+  {
+    name: "Contentful",
+    pattern: /\bcontentful\b/i,
+    stackFamily: "js",
+  },
+  { name: "Storyblok", pattern: /\bstoryblok\b/i, stackFamily: "js" },
+  {
+    name: "BigCommerce",
+    pattern: /\bbigcommerce\b/i,
+    stackFamily: "js",
+  },
+  { name: "Webflow", pattern: /\bwebflow\b/i, stackFamily: "js" },
 ];
 
 // =============================================================================
-// ROLE-FAMILY PATTERNS (Ruling 2.2)
+// ROLE-FAMILY PATTERNS (Ruling 2.2 — D31 Job 1: tightened exemptions)
 // =============================================================================
 
 /**
  * Role families that are unsuitable for web-development personas (which are
  * IC software developer roles: frontend, backend, fullstack, AI engineer).
  *
- * Each entry maps a role-family label to a regex. If the title matches and
- * the persona does not explicitly support that family (checked via must-have
- * tags or seniority levels), the job is rejected.
- *
- * The "supported" check is persona-relative:
- *   - DevOps/SRE/Platform: blocked unless persona must_have_tags include
- *     docker, kubernetes, terraform, or aws (indicating a DevOps-adjacent
- *     persona).
- *   - Data/ML: blocked unless persona must_have_tags include python, ml,
- *     prompt-engineering, or langchain (indicating an AI/ML persona).
- *   - Mobile: blocked unless persona must_have_tags include react-native,
- *     swift, kotlin, or flutter.
- *   - Management: blocked unless persona seniorityLevels include "manager",
- *     "lead", "staff", or "principal".
- *   - Architect/Solutions Architect: always blocked for IC personas (no
- *     persona has architect seniority).
- *   - QA/SDET: blocked unless persona must_have_tags include qa, sdet, or
- *     testing (no current persona does).
+ * D31 Job 1 changes:
+ *   - staff/principal no longer exempt the Engineering-Manager blocker
+ *     (they are IC tracks, not management tracks). Only manager/lead/director
+ *     exempt management roles.
+ *   - ML split into AI-application (exempt via prompt-engineering + JS/TS
+ *     signal) and ML-research (exempt via python/ml/pytorch/tensorflow only).
  */
+
+/** JS/TS signal tags — used for the AI-application ML exemption. */
+const JS_TS_SIGNAL_TAGS = new Set([
+  "typescript",
+  "javascript",
+  "react",
+  "nextjs",
+  "nodejs",
+  "vue",
+  "nuxt",
+  "svelte",
+  "sveltekit",
+]);
+
 const ROLE_FAMILY_PATTERNS: ReadonlyArray<{
   /** Human-readable role family for the blocker reason. */
   family: string;
@@ -153,6 +189,11 @@ const ROLE_FAMILY_PATTERNS: ReadonlyArray<{
   exemptTags?: ReadonlyArray<string>;
   /** If true, check persona seniorityLevels for exemption instead of tags. */
   exemptBySeniority?: boolean;
+  /**
+   * D31: If set, this role family uses a custom exemption check instead of
+   * the standard exemptTags lookup.
+   */
+  customExemption?: "ai_application" | "ml_research";
 }> = [
   // Architecture (always blocked for IC personas — no persona has architect)
   {
@@ -182,19 +223,25 @@ const ROLE_FAMILY_PATTERNS: ReadonlyArray<{
       /\b(?:data\s+engineer|data\s+infrastructure|data\s+platform|etl\s+engineer|data\s+pipeline)\b/i,
     exemptTags: ["python", "sql", "airflow", "dbt", "spark"],
   },
-  // ML / AI Engineering (distinct from prompt-engineering / AI full-stack)
+  // D31 Job 1: AI-application roles (e.g., "AI Engineer")
+  // Exempt if persona has prompt-engineering AND a JS/TS signal.
+  // This is the "AI fullstack" persona — building AI apps with LLMs, not
+  // training models.
   {
-    family: "ML Engineer",
+    family: "AI Engineer (application)",
+    pattern: /\bai\s+engineer\b/i,
+    customExemption: "ai_application",
+  },
+  // D31 Job 1: ML-research roles (e.g., "ML Engineer", "Machine Learning
+  // Engineer", "Deep Learning", "NLP Engineer", "Computer Vision")
+  // Exempt ONLY via python/ml/pytorch/tensorflow/langchain tags.
+  // prompt-engineering alone does NOT exempt — a JS persona building AI
+  // apps is not an ML researcher.
+  {
+    family: "ML Engineer (research)",
     pattern:
-      /\b(?:ml\s+engineer|machine\s+learning\s+engineer|ai\s+engineer|deep\s+learning|nlp\s+engineer|computer\s+vision|research\s+engineer)\b/i,
-    exemptTags: [
-      "python",
-      "ml",
-      "prompt-engineering",
-      "langchain",
-      "pytorch",
-      "tensorflow",
-    ],
+      /\b(?:ml\s+engineer|machine\s+learning\s+engineer|deep\s+learning|nlp\s+engineer|computer\s+vision|research\s+engineer)\b/i,
+    customExemption: "ml_research",
   },
   // Mobile / iOS / Android / React Native
   {
@@ -219,6 +266,7 @@ const ROLE_FAMILY_PATTERNS: ReadonlyArray<{
     ],
   },
   // Engineering Manager / Director / Head of
+  // D31 Job 1: staff/principal removed from exemption — they are IC tracks.
   {
     family: "Engineering Manager",
     pattern:
@@ -255,6 +303,11 @@ export type TitleBlockerResult = {
 /**
  * Check a job-persona pair against platform-name and role-family blockers.
  *
+ * D31 Job 1: Platform blocking now uses stack-family disjointness instead of
+ * hardcoded tag exceptions. A platform is blocked when its stack family is
+ * disjoint from the persona's primary stack family (determined by
+ * classifyStackFamily).
+ *
  * @param title          The job title.
  * @param mustHaveTags   The persona's must_have_tags (canonical slugs).
  * @param seniorityLevels The persona's seniority levels (e.g., ["senior", "mid"]).
@@ -268,47 +321,71 @@ export function checkTitleBlockers(
   const titleStr = title ?? "";
   const personaTags = new Set(mustHaveTags.map((t) => t.toLowerCase()));
 
-  // ── Ruling 2.1: Platform-name blocker ──────────────────────────────────
+  // Determine the persona's primary stack family for platform disjointness.
+  const personaFamily = classifyStackFamily(mustHaveTags);
+
+  // ── Ruling 2.1: Platform-name blocker (D31: stack-family disjointness) ─
   for (const platform of PLATFORM_PATTERNS) {
     if (platform.pattern.test(titleStr)) {
-      // Persona-relative exception: if the platform's tag is in the persona's
-      // must_have_tags, this is a legitimate match (e.g., WordPress for the
-      // PHP persona, Shopify for a Shopify-focused persona).
-      if (personaTags.has(platform.tag)) continue;
-
-      // Additional exception: .NET/C# is exempted if the persona has any
-      // .NET-family tag (dotnet, aspnet, blazor, fsharp, etc.)
-      if (platform.tag === "csharp") {
-        const dotnetTags = [
-          "csharp",
-          "dotnet",
-          "aspnet",
-          "fsharp",
-          "blazor",
-          "razor",
-        ];
-        if (dotnetTags.some((t) => personaTags.has(t))) continue;
+      // "enterprise" platforms block ALL personas (no persona has enterprise
+      // as their primary stack family).
+      if (platform.stackFamily === "enterprise") {
+        return {
+          passes: false,
+          blocker: `platform_blocker: title names "${platform.name}" (enterprise/proprietary platform, disjoint from all persona stack families)`,
+          blockerType: "platform",
+        };
       }
 
-      return {
-        passes: false,
-        blocker: `platform_blocker: title names "${platform.name}" which is not in persona must-have tags`,
-        blockerType: "platform",
-      };
+      // If we can't determine the persona's family, don't block (conservative).
+      if (!personaFamily) continue;
+
+      // Block if the platform's stack family is different from the persona's
+      // primary stack family.
+      if (platform.stackFamily !== personaFamily) {
+        return {
+          passes: false,
+          blocker: `platform_blocker: title names "${platform.name}" (stack family: ${platform.stackFamily}) which is disjoint from persona's primary stack family (${personaFamily})`,
+          blockerType: "platform",
+        };
+      }
     }
   }
 
   // ── Ruling 2.2: Role-family blocker ────────────────────────────────────
   for (const role of ROLE_FAMILY_PATTERNS) {
     if (role.pattern.test(titleStr)) {
+      // D31: Custom exemption checks for AI-application and ML-research roles
+      if (role.customExemption === "ai_application") {
+        // AI-application roles (e.g., "AI Engineer") are exempted if the
+        // persona has prompt-engineering AND a JS/TS signal.
+        const hasPromptEng = personaTags.has("prompt-engineering");
+        const hasJSTSSignal = [...personaTags].some((t) =>
+          JS_TS_SIGNAL_TAGS.has(t),
+        );
+        if (hasPromptEng && hasJSTSSignal) continue;
+        // Fall through to reject if no exemption
+      }
+
+      if (role.customExemption === "ml_research") {
+        // ML-research roles are exempted ONLY via python/ml/pytorch/
+        // tensorflow/langchain tags. prompt-engineering alone does NOT
+        // exempt — a JS persona building AI apps is not an ML researcher.
+        const mlExemptTags = [
+          "python",
+          "ml",
+          "langchain",
+          "pytorch",
+          "tensorflow",
+        ];
+        if (mlExemptTags.some((t) => personaTags.has(t))) continue;
+        // Fall through to reject if no exemption
+      }
+
       // Check exemption by seniority (for management roles)
+      // D31 Job 1: staff/principal removed — they are IC tracks.
       if (role.exemptBySeniority) {
-        const managementSeniority = new Set([
-          "manager",
-          "lead",
-          "staff",
-          "principal",
-        ]);
+        const managementSeniority = new Set(["manager", "lead", "director"]);
         if (
           seniorityLevels.some((s) => managementSeniority.has(s.toLowerCase()))
         ) {

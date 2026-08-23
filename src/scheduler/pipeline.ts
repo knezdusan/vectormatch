@@ -499,6 +499,7 @@ export async function runJobPipeline(
       .update(job)
       .set({
         extractedTags: normalization.tags,
+        requiredTags: normalization.requiredTags ?? null,
         jobEmbedding: embedding,
         normalizedText: normalization.fullText,
         descriptionHtml: normalization.htmlDescription,
@@ -517,6 +518,7 @@ export async function runJobPipeline(
       .set({
         status: "rejected",
         extractedTags: normalization.tags,
+        requiredTags: normalization.requiredTags ?? null,
         normalizedText: normalization.fullText,
         descriptionHtml: normalization.htmlDescription,
         rawJson: null,
@@ -1293,10 +1295,10 @@ interface BoardDef {
  * changes required — the board definition and fetch function remain wired.
  */
 const DORMANT_SOURCES = new Set<string>([
-  // Remote.co: every fetch times out (HTTP/2 INTERNAL_ERROR / server-side
-  // blocking). No fix possible from our end. D30 — dormant until the upstream
-  // blocking lifts. Adapter code preserved in remoteco.ts.
-  "remoteco",
+  // D31 Job 4: Remote.co re-enabled — the HTTP/2 INTERNAL_ERROR timeouts
+  // may have been transient. The adapter code is intact in remoteco.ts.
+  // If timeouts resume, the circuit breaker in source_health will catch it.
+  // "remoteco" removed from dormant set by D31.
 ]);
 
 /**
@@ -1569,6 +1571,29 @@ export async function runDirectJobBoardIngestion(): Promise<{
         "@/lib/jobs/direct-ingestion/remoteco"
       );
       const r = await fetchRemoteCoJobs(200, techFilter);
+      return {
+        success: r.success,
+        jobs: r.success
+          ? (r.jobs as unknown as Array<Record<string, unknown>>)
+          : [],
+        error: r.success ? undefined : r.error,
+      };
+    },
+  });
+
+  // Board 12: Jobicy (D31 Job 4 — REST API, remote-first)
+  // Previously only a frozen RSS seeder for company discovery. Now a direct
+  // ingestion adapter — jobs flow directly into the matching pipeline.
+  boards.push({
+    name: "Jobicy",
+    atsSource: "jobicy",
+    atsSlug: "jobicy",
+    maxJobs: 100,
+    fetch: async () => {
+      const { fetchJobicyJobs } = await import(
+        "@/lib/jobs/direct-ingestion/jobicy"
+      );
+      const r = await fetchJobicyJobs(100, techFilter);
       return {
         success: r.success,
         jobs: r.success

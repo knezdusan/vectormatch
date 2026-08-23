@@ -994,10 +994,10 @@ describe("scanTagsRegex", () => {
 
 describe("normalizeJob", () => {
   // A mock LLM extractor that returns specified tags.
+  // D31 Job 2: Now returns LlmTagExtractionResult with allTags + requiredTags.
   const makeMockLlm =
-    (tags: string[]): LlmTagExtractor =>
-    async () =>
-      tags;
+    (tags: string[], requiredTags: string[] = []): LlmTagExtractor =>
+    async () => ({ allTags: tags, requiredTags });
 
   const makeMockLlmThatThrows =
     (error: Error): LlmTagExtractor =>
@@ -1044,7 +1044,10 @@ describe("normalizeJob", () => {
         "<p>React, TypeScript, and Next.js developer needed. " +
         "You will build user interfaces and work on a fast-paced team.</p>",
     });
-    const mockLlm: LlmTagExtractor = async () => ["react", "typescript"];
+    const mockLlm: LlmTagExtractor = async () => ({
+      allTags: ["react", "typescript"],
+      requiredTags: [],
+    });
 
     const result = await normalizeJob(
       "greenhouse",
@@ -1065,9 +1068,10 @@ describe("normalizeJob", () => {
         "You will build user interfaces and work on a fast-paced team " +
         "delivering high-quality software products.</p>",
     });
-    const llmSpy = vi.fn(async () => [
-      "should-not-be-called",
-    ]) as LlmTagExtractor;
+    const llmSpy = vi.fn(async () => ({
+      allTags: ["should-not-be-called"],
+      requiredTags: [],
+    })) as LlmTagExtractor;
 
     const result = await normalizeJob(
       "greenhouse",
@@ -1288,9 +1292,10 @@ describe("normalizeJob", () => {
       title: "Software Engineer",
       content: "<p>Short desc.</p>",
     });
-    const llmSpy = vi.fn(async () => [
-      "should-not-be-called",
-    ]) as LlmTagExtractor;
+    const llmSpy = vi.fn(async () => ({
+      allTags: ["should-not-be-called"],
+      requiredTags: [],
+    })) as LlmTagExtractor;
 
     const result = await normalizeJob(
       "greenhouse",
@@ -1316,9 +1321,10 @@ describe("normalizeJob", () => {
       typeOfEmployment: { label: "Full-time" },
       company: { name: "Canva" },
     });
-    const llmSpy = vi.fn(async () => [
-      "should-not-be-called",
-    ]) as LlmTagExtractor;
+    const llmSpy = vi.fn(async () => ({
+      allTags: ["should-not-be-called"],
+      requiredTags: [],
+    })) as LlmTagExtractor;
 
     const result = await normalizeJob(
       "smartrecruiters",
@@ -1618,7 +1624,10 @@ describe("normalizeJob — G7 nullable rawJson", () => {
   it("degrades to title-only when rawJson is null (rejected by title-only guard)", async () => {
     // normalizeJob with null rawJson → extractJobContent returns title-only
     // → title-only guard rejects (< 100 chars) → no LLM call needed
-    const mockLlm = vi.fn(async () => []) as LlmTagExtractor;
+    const mockLlm = vi.fn(async () => ({
+      allTags: [],
+      requiredTags: [],
+    })) as LlmTagExtractor;
     const result = await normalizeJob(
       "greenhouse",
       null,
@@ -1646,7 +1655,10 @@ describe("normalizeJob — G7 nullable rawJson", () => {
         "You will build user interfaces with modern web technologies and " +
         "work on a fast-paced team delivering high-quality software.</p>",
     });
-    const mockLlm: LlmTagExtractor = async () => ["react", "typescript"];
+    const mockLlm: LlmTagExtractor = async () => ({
+      allTags: ["react", "typescript"],
+      requiredTags: [],
+    });
     const result = await normalizeJob(
       "greenhouse",
       rawJson,

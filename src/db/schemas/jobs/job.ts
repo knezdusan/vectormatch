@@ -40,6 +40,12 @@ export const job = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // D31 Job 2: Technologies explicitly REQUIRED by the job (from the
+    // requirements/qualifications section), as opposed to merely mentioned
+    // in prose. Extracted by the LLM tag extractor. When non-empty, Gate 1
+    // overlap is computed against this column instead of extractedTags.
+    // Falls back to extractedTags when NULL/empty (backward compatibility).
+    requiredTags: text("required_tags").array(),
     jobEmbedding: vector("job_embedding", { dimensions: 1536 }),
     detectedAt: timestamp("detected_at").defaultNow(),
 
@@ -194,6 +200,11 @@ export const job = pgTable(
     extractedTagsIdx: index("jobs_extracted_tags_idx").using(
       "gin",
       table.extractedTags,
+    ),
+    // D31 Job 2: GIN index for required_tags overlap queries
+    requiredTagsIdx: index("jobs_required_tags_idx").using(
+      "gin",
+      table.requiredTags,
     ),
     embeddingIdx: index("job_embedding_hnsw_idx").using(
       "hnsw",

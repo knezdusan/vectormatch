@@ -32,8 +32,10 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { db } from "@/db/db";
 import {
+  DISTINCTIVE_TAGS,
   GATE_ROUTER_LIMIT,
   GATE1_MIN_OVERLAP,
+  GATE1_REQUIRE_DISTINCTIVE_TAG,
   GATE1_WEIGHT,
   GATE2_HARD_CEILING,
   GATE2_MAX_COSINE_DISTANCE,
@@ -196,6 +198,10 @@ export async function runGateSQLRouter(
   // on Gate 2 alone per §5.4). Otherwise, require ≥GATE1_MIN_OVERLAP must-have
   // tag overlap AND zero blocklist hits.
   //
+  // D31 Job 2: The overlap check now uses COALESCE(jm.required_tags, extracted_tags)
+  // when required_tags is available. This prevents a passing mention of TypeScript
+  // in a Go/Rust job from counting toward JS persona overlap.
+  //
   // Mismatch analysis (July 2026): The previous threshold was ≥1, which let
   // single-tag overlaps (e.g., a PHP/Laravel persona matching a JavaScript/
   // Python job on "javascript" alone) pass Gate 1. With Gate 2 skipped (null
@@ -204,7 +210,7 @@ export async function runGateSQLRouter(
   const gate1Clause =
     jobTags.length > 0
       ? sql.raw(
-          `p.must_have_tags && ${tagsArraySql} AND NOT (p.blocklist_tags && ${tagsArraySql})`,
+          `p.must_have_tags && COALESCE(NULLIF(jm.required_tags, ARRAY[]::text[]), ${tagsArraySql}) AND NOT (p.blocklist_tags && ${tagsArraySql})`,
         )
       : sql`true`;
 
@@ -214,6 +220,19 @@ export async function runGateSQLRouter(
   const minOverlapClause =
     jobTags.length > 0
       ? sql`AND ov.overlap_score >= ${GATE1_MIN_OVERLAP}::int`
+      : sql``;
+
+  // D31 Job 2: Distinctive-tag rule — require at least 1 distinctive tag
+  // (nextjs, laravel, graphql, wordpress, tailwindcss, prompt-engineering, etc.)
+  // in the job's required_tags (or extracted_tags when required_tags is empty).
+  // This prevents generic overlap (typescript + javascript) from matching a
+  // persona when the job's actual stack is different.
+  const distinctiveTagsArraySql = `ARRAY[${DISTINCTIVE_TAGS.map((t) => `'${t}'`).join(",")}]::text[]`;
+  const distinctiveTagClause =
+    jobTags.length > 0 && GATE1_REQUIRE_DISTINCTIVE_TAG
+      ? sql.raw(
+          `AND COALESCE(NULLIF(jm.required_tags, ARRAY[]::text[]), ${tagsArraySql}) && ${distinctiveTagsArraySql}`,
+        )
       : sql``;
 
   // ── Cross-posting dedup (Phase 5, Sprint 8 relaxed) ──────────────────────
@@ -260,6 +279,12 @@ export async function runGateSQLRouter(
   const query = sql`
     WITH job_meta AS (
       SELECT ats_slug, title, remote_scope, location_name,
+             -- D31 Job 2: Fetch required_tags for overlap computation.
+             -- COALESCE(required_tags, extracted_tags) is used in the LATERAL
+             -- overlap subquery so that when required_tags is available, overlap
+             -- is computed against required technologies only.
+             required_tags,
+             extracted_tags,
              COALESCE(is_fenced, (
                title ~* '(U\.?S\.?A?\.?|United States)\s*[-/]?\s*Remote'
                OR title ~* 'Remote\s*[-/]\s*(U\.?S\.?A?\.?|United States|USA)\b'
@@ -336,13 +361,24 @@ export async function runGateSQLRouter(
     CROSS JOIN job_meta jm
     CROSS JOIN override_check oc
     CROSS JOIN LATERAL (
+      -- D31 Job 2: Overlap computed against required_tags when available,
+      -- falling back to extracted_tags (passed as tagsArraySql) when
+      -- required_tags is NULL or empty. This prevents a passing mention of
+      -- TypeScript in a Go/Rust job from counting toward JS persona overlap.
       SELECT count(*) AS overlap_score
       FROM unnest(p.must_have_tags) AS t(tag)
-      WHERE t.tag = ANY(${sql.raw(tagsArraySql)})
+      WHERE t.tag = ANY(
+        CASE
+          WHEN jm.required_tags IS NOT NULL AND array_length(jm.required_tags, 1) > 0
+          THEN jm.required_tags
+          ELSE ${sql.raw(tagsArraySql)}
+        END
+      )
     ) ov
     WHERE
       ${gate1Clause}
       ${minOverlapClause}
+      ${distinctiveTagClause}
       -- D18 Gate Re-architecture: Gate 2 is now a RANK signal, not a GATE.
       -- In rank-only mode (default), the cosine distance threshold is widened
       -- to GATE2_HARD_CEILING (0.75) — jobs that pass hard filters + stack match

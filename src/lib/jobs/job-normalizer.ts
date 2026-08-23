@@ -58,6 +58,11 @@ export type NormalizationResult = {
   /** Extracted canonical tag slugs (whatever was found, even for rejected jobs
    *  — useful for debugging why a job was rejected). */
   tags: string[];
+  /** D31 Job 2: Technologies explicitly REQUIRED by the job (from the
+   *  requirements/qualifications section). Empty when the LLM fallback was
+   *  not triggered (regex-only extraction can't distinguish required from
+   *  mentioned) or when no clear requirements section was found. */
+  requiredTags?: string[];
   /** title + " " + cleanedDescription — the input to the embedder. */
   fullText: string;
   /** Sanitized, candidate-facing HTML for the job detail pages. */
@@ -91,8 +96,13 @@ export type NormalizationResult = {
 const MIN_NORMALIZABLE_FULLTEXT_LENGTH = 100;
 
 /** Injectable LLM tag extractor — defaults to extractTagsLLM. Tests pass a
- *  mock to avoid hitting the OpenAI API. */
-export type LlmTagExtractor = (fullText: string) => Promise<string[]>;
+ *  mock to avoid hitting the OpenAI API.
+ *
+ *  D31 Job 2: Now returns an object with `allTags` and `requiredTags` instead
+ *  of a plain string array. The `normalizeJob` function extracts both fields. */
+export type LlmTagExtractor = (
+  fullText: string,
+) => Promise<LlmTagExtractionResult>;
 
 /** Injectable LLM summary extractor — defaults to summarizeJobLLM. Tests pass a
  *  mock to avoid hitting the OpenAI API. */
@@ -1953,7 +1963,15 @@ export function normalizeTagList(tags: string[]): string[] {
 const llmTagExtractionSchema = z.object({
   canonicalTags: z
     .array(z.string())
-    .describe("Canonical tag slugs found in the job description"),
+    .describe(
+      "All canonical tag slugs found in the job description (required + mentioned)",
+    ),
+  // D31 Job 2: Separate required tags from mentioned tags
+  requiredTags: z
+    .array(z.string())
+    .describe(
+      "Canonical tag slugs for technologies explicitly REQUIRED by the job (from the requirements/qualifications section, not merely mentioned in prose)",
+    ),
 });
 
 const CANONICAL_TAG_LIST = CANONICAL_TAGS.map((t) => t.tag).join(", ");
@@ -1964,18 +1982,34 @@ You MUST map all technologies to the CANONICAL_TAGS list below. Never invent tag
 
 CANONICAL_TAGS (use only these slugs): ${CANONICAL_TAG_LIST}
 
-Return only the canonical tag slugs that are clearly mentioned or required in the job description. Do not include tags that are merely tangentially related.`;
+Return ALL canonical tag slugs that are clearly mentioned or required in the job description in the canonicalTags array. Do not include tags that are merely tangentially related.
+
+ALSO populate the requiredTags array with ONLY the technologies that are EXPLICITLY REQUIRED for the role — those listed in a "Requirements", "Qualifications", "Must have", "You need", or similar section, or stated with language like "required", "must have", "proficiency in", "expertise in". A technology that is mentioned as "we use X" or "experience with X is a plus" is NOT required — it belongs in canonicalTags only, not requiredTags. If there is no clear requirements section, leave requiredTags empty.`;
+
+/** Result of LLM tag extraction with required/mentioned separation (D31 Job 2). */
+export type LlmTagExtractionResult = {
+  /** All tags found in the job description (required + mentioned). */
+  allTags: string[];
+  /** Tags explicitly required by the job (from requirements section). */
+  requiredTags: string[];
+};
 
 /**
  * Phase 2 — LLM fallback for tag extraction. Uses gpt-4o-mini (one call, high
  * recall). Triggered only when Phase 1 regex yields < threshold persona_defining
  * tags.
  *
+ * D31 Job 2: Now also extracts `requiredTags` separately from `mentionedTags`.
  * The system prompt includes the full CANONICAL_TAGS list so the LLM maps
  * free-text to canonical slugs rather than inventing new ones (same pattern as
  * Module A's CV extraction).
+ *
+ * @returns Object with `allTags` (all extracted tags) and `requiredTags` (tags
+ *          from the requirements/qualifications section only).
  */
-export async function extractTagsLLM(fullText: string): Promise<string[]> {
+export async function extractTagsLLM(
+  fullText: string,
+): Promise<LlmTagExtractionResult> {
   // Truncate to stay within gpt-4o-mini's 8192 token input limit.
   // The system prompt (with CANONICAL_TAGS list) is ~2000 tokens, leaving
   // ~6000 tokens for the job description ≈ 24000 chars.
@@ -1994,7 +2028,14 @@ export async function extractTagsLLM(fullText: string): Promise<string[]> {
 
   // Filter to only valid canonical slugs (defensive — the LLM should obey the
   // system prompt, but verify).
-  return object.canonicalTags.filter((slug) => CANONICAL_TAG_MAP.has(slug));
+  const allTags = object.canonicalTags.filter((slug) =>
+    CANONICAL_TAG_MAP.has(slug),
+  );
+  const requiredTags = (object.requiredTags ?? []).filter((slug) =>
+    CANONICAL_TAG_MAP.has(slug),
+  );
+
+  return { allTags, requiredTags };
 }
 
 // =============================================================================
@@ -2150,6 +2191,7 @@ export async function normalizeJob(
     return {
       status: "normalized",
       tags,
+      requiredTags: [], // Regex-only extraction can't distinguish required from mentioned
       fullText,
       htmlDescription,
       summary,
@@ -2159,10 +2201,10 @@ export async function normalizeJob(
 
   // Step 5: Phase 2 LLM fallback.
   try {
-    const llmTags = await llmExtractor(fullText);
+    const llmResult = await llmExtractor(fullText);
 
     // Merge LLM tags with regex tags (union, deduplicated).
-    const merged = new Set([...tags, ...llmTags]);
+    const merged = new Set([...tags, ...llmResult.allTags]);
     tags = [...merged];
     definingCount = countPersonaDefining(tags);
 
@@ -2172,6 +2214,7 @@ export async function normalizeJob(
       return {
         status: "normalized",
         tags,
+        requiredTags: llmResult.requiredTags,
         fullText,
         htmlDescription,
         summary,
@@ -2183,6 +2226,7 @@ export async function normalizeJob(
     return {
       status: "rejected",
       tags,
+      requiredTags: llmResult.requiredTags,
       fullText,
       htmlDescription,
       jobUrl,

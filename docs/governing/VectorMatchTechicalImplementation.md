@@ -2655,14 +2655,20 @@ The OUTPUT RULES section was also updated to add "PRIMARY STACK OVERLAP below 2 
 
 This works in concert with the new deterministic title blockers (Rulings 2.1 + 2.2) which catch platform-name and role-family mismatches pre-LLM. The Gate 3 prompt change catches the remaining cases where the title is generic but the primary stack is wrong.
 
-**D30 Phase 2 — Deterministic title blockers (Aug 17 2026):**
+**D30 Phase 2 — Deterministic title blockers (Aug 17 2026, refined D31):**
 A new module `src/lib/jobs/title-blockers.ts` was added to provide pre-LLM, persona-relative deterministic filtering between Gate 1+2 and Gate 3. The blockers run in `gateRouteAndFanOut` (`src/scheduler/pipeline.ts`):
 
-1. **Platform-name blocker (Ruling 2.1):** If the job title names a platform (SharePoint, Magento, Shopify, Drupal, Salesforce, ServiceNow, Sitecore, AEM, Webflow, .NET/C#, SAP, Oracle, BigCommerce, WooCommerce, Contentful, Storyblok, Episerver, Dynamics 365) NOT in the persona's must-have tags, reject. Persona-relative exceptions: WordPress allowed for PHP persona, .NET allowed for dotnet personas, etc.
+1. **Platform-name blocker (Ruling 2.1, D31: stack-family disjointness):** If the job title names a platform whose stack family is DISJOINT from the persona's primary stack family, reject. Each platform is mapped to its stack family: SharePoint/.NET/Sitecore/Episerver → `dotnet`; SAP/Oracle/ServiceNow/Salesforce/Dynamics 365 → `enterprise` (blocks all); AEM → `java`; Magento/Drupal/WooCommerce/WordPress → `php`; Shopify/Contentful/Storyblok/BigCommerce/Webflow → `js`. The model is: `block(platform, persona) = disjoint(platform.stackFamily, persona.primaryStackFamily)`. This allows Shopify for JS personas and Magento for PHP personas, while blocking SharePoint for all web personas. Replaces the D30 hardcoded tag-exemption list.
 
-2. **Role-family blocker (Ruling 2.2):** If the title indicates an unsuitable role family (Architect, DevOps/SRE/Platform, Data Engineer, ML Engineer, Mobile/iOS/Android/React Native, QA/SDET, Engineering Manager, Security Engineer) and the persona doesn't have exempting tags (e.g., `prompt-engineering` exempts ML Engineer, `docker`/`kubernetes` exempts DevOps) or seniority (`manager`/`lead` exempts management roles), reject.
+2. **Role-family blocker (Ruling 2.2, D31: IC fix + ML tightening):** If the title indicates an unsuitable role family (Architect, DevOps/SRE/Platform, Data Engineer, AI Engineer, ML Engineer, Mobile/iOS/Android/React Native, QA/SDET, Engineering Manager, Security Engineer) and the persona doesn't have exempting tags or seniority, reject. D31 fixes: (a) `staff`/`principal` no longer exempt Engineering Manager — they are IC tracks. Only `manager`/`lead`/`director` exempt management. (b) ML split into AI-application (exempt via `prompt-engineering` + JS/TS signal) and ML-research (exempt via `python`/`ml`/`pytorch`/`tensorflow` only). `prompt-engineering` alone does NOT exempt ML-research.
 
-Rejected candidates are marked `rejected` in `match_queue` with `llm_model = 'title-blocker-deterministic'`, `llm_blockers = [reason]`, `llm_confidence = 1.0`, preserving audit trail and re-evaluability. 48 unit tests in `src/lib/jobs/__tests__/title-blockers.test.ts`.
+Rejected candidates are marked `rejected` in `match_queue` with `llm_model = 'title-blocker-deterministic'`, `llm_blockers = [reason]`, `llm_confidence = 1.0`, preserving audit trail and re-evaluability. 59 unit tests in `src/lib/jobs/__tests__/title-blockers.test.ts`.
+
+**D31 — Required-vs-mentioned tag separation (Ruling 3a, Aug 17 2026):**
+A new `required_tags` column on the `job` table stores technologies explicitly required by the job (from the requirements/qualifications section). The LLM tag extractor now returns both `allTags` and `requiredTags`. Gate 1 overlap is computed against `required_tags` when available (`COALESCE(NULLIF(jm.required_tags, ARRAY[]::text[]), extracted_tags)`), falling back to `extracted_tags` when NULL/empty. A distinctive-tag rule requires at least one persona-defining tag (nextjs, laravel, graphql, wordpress, tailwindcss, prompt-engineering, etc.) for Gate 1 to pass. Config: `DISTINCTIVE_TAGS` and `GATE1_REQUIRE_DISTINCTIVE_TAG` in `src/lib/jobs/matching-config.ts`. Migration: `0057_curious_cerebro.sql`.
+
+**D31 — Supply expansion (Ruling 4, Aug 17 2026):**
+New Jobicy adapter (`src/lib/jobs/direct-ingestion/jobicy.ts`) using the public REST API at `https://jobicy.com/api/v2/remote-jobs`. Remote.co re-enabled (removed from `DORMANT_SOURCES`). Polling budget redirected: 375 Greenhouse/Lever/SmartRecruiters/Workable companies demoted from `active_hot` (3h) to `active` (12h) — these sources produced zero matches in the audit.
 
 **D30 Phase 2 — Geo fence detection expansion (Aug 17 2026):**
 The `detectCountryFence` function in `gate-zero.ts` had an incomplete country list (~30 countries) that missed Costa Rica and ~40 other countries, producing false-globals like "Remote - Costa Rica" reaching the dashboard. The following were expanded:
@@ -3248,7 +3254,7 @@ Misspelled `VectroMatchLogoDark.jpg` and `VectroMatchLogoDarkTransparent.png` we
 
 ---
 
-## 9. D30 PHASE 2 — PRECISION WITHOUT STARVATION `[Status: Partial — Rulings 2.1–2.4 Implemented Aug 17 2026, Rulings 3–7 Pending]`
+## 9. D30 PHASE 2 + D31 — PRECISION WITHOUT STARVATION + DON'T BLOCK THE GOOD ONES `[Status: Partial — Rulings 2.1–2.4 + D31 Jobs 1–4 Implemented Aug 17 2026, Rulings 3b/5/6/7 Pending]`
 
 D30 Phase 2 responds to the match-quality audit (81 rows, 26% false-positive rate) and the advisor directive "Precision Without Starvation." The directive rejected tightening `GATE2_HARD_CEILING` as the primary lever (good and bad matches share the same cosine similarity) and prescribed deterministic precision blockers, geo-classification expansion, Gate 3 prompt reform, tag-semantics separation, embedding symmetry repair, remote-native source expansion, dashboard grouping, and housekeeping.
 
